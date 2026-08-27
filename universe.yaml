@@ -1,0 +1,316 @@
+# Universo de activos del asesor.
+#
+# CÓMO RELLENAR `isin` Y `trade_republic`
+# ---------------------------------------
+# Ninguno de los dos puede deducirse automáticamente: Trade Republic no expone
+# un catálogo consultable. Por eso todos los activos nacen con
+# `isin: null` y `trade_republic: unknown`, y el informe los marca como
+# "⚠️ PENDIENTE DE VERIFICACIÓN" hasta que los confirmes tú:
+#
+#   1. Busca el valor en la app de Trade Republic.
+#   2. Copia el ISIN que muestra la ficha del activo.
+#   3. Pon `trade_republic: yes` (o `no` si no aparece).
+#
+# El ISIN se valida al cargar (formato + dígito de control), así que una
+# errata al teclearlo hace fallar el arranque en vez de colarse en una
+# recomendación.
+#
+# `analizable: false` = solo contexto de mercado, nunca recomendación.
+
+groups:
+
+  # --- Megacaps de EE. UU. cotizadas en Xetra, en EUR ---
+  # Dan exposición a la bolsa estadounidense sin riesgo de divisa en la
+  # ejecución: se compran en euros.
+  usa_en_xetra:
+    - symbol: APC.DE
+      name: Apple
+      asset_class: stock
+      region: USA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: MSF.DE
+      name: Microsoft
+      asset_class: stock
+      region: USA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: NVD.DE
+      name: Nvidia
+      asset_class: stock
+      region: USA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: AMZ.DE
+      name: Amazon
+      asset_class: stock
+      region: USA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: ABEA.DE
+      name: Alphabet
+      asset_class: stock
+      region: USA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: FB2A.DE
+      name: Meta Platforms
+      asset_class: stock
+      region: USA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: TL0.DE
+      name: Tesla
+      asset_class: stock
+      region: USA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: 4AB.DE
+      name: AbbVie
+      asset_class: stock
+      region: USA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+  # --- Blue chips europeos ---
+  europa:
+    - symbol: SAP.DE
+      name: SAP
+      asset_class: stock
+      region: EUROPA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: SIE.DE
+      name: Siemens
+      asset_class: stock
+      region: EUROPA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: ALV.DE
+      name: Allianz
+      asset_class: stock
+      region: EUROPA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: MBG.DE
+      name: Mercedes-Benz Group
+      asset_class: stock
+      region: EUROPA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: ASML.AS
+      name: ASML
+      asset_class: stock
+      region: EUROPA
+      market: AMS
+      currency: EUR
+      timezone: Europe/Amsterdam
+      isin: null
+      trade_republic: unknown
+
+    - symbol: MC.PA
+      name: LVMH
+      asset_class: stock
+      region: EUROPA
+      market: PAR
+      currency: EUR
+      timezone: Europe/Paris
+      isin: null
+      trade_republic: unknown
+
+  # --- ETFs UCITS en Xetra, en EUR ---
+  etfs_ucits:
+    - symbol: EUNL.DE
+      name: iShares Core MSCI World UCITS ETF
+      asset_class: equity_etf
+      region: GLOBAL
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: EQQQ.DE
+      name: Invesco EQQQ Nasdaq-100 UCITS ETF
+      asset_class: equity_etf
+      region: USA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: IS3N.DE
+      name: iShares Core MSCI EM IMI UCITS ETF
+      asset_class: equity_etf
+      region: ASIA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+      notes: >-
+        Principal vía de exposición asiática del universo (emergentes, con
+        fuerte peso de China, Taiwán, India y Corea). Para exposición a Japón
+        hace falta añadir aquí un ETF UCITS de Japón cotizado en Xetra.
+
+    - symbol: 4GLD.DE
+      name: Xetra-Gold
+      asset_class: commodity_etf
+      region: GLOBAL
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+    - symbol: EUNH.DE
+      name: iShares Core Euro Government Bond UCITS ETF
+      asset_class: bond_etf
+      region: EUROPA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      isin: null
+      trade_republic: unknown
+
+  # --- Cripto cotizada en EUR ---
+  cripto:
+    - symbol: BTC-EUR
+      name: Bitcoin
+      asset_class: crypto
+      region: GLOBAL
+      market: CRYPTO
+      currency: EUR
+      timezone: UTC
+      isin: null
+      trade_republic: unknown
+
+    - symbol: ETH-EUR
+      name: Ethereum
+      asset_class: crypto
+      region: GLOBAL
+      market: CRYPTO
+      currency: EUR
+      timezone: UTC
+      isin: null
+      trade_republic: unknown
+
+  # --- Contexto de mercado: nunca se recomiendan, solo se leen ---
+  contexto:
+    - symbol: "^VIX"
+      name: CBOE Volatility Index
+      asset_class: volatility_index
+      region: USA
+      market: CBOE
+      currency: USD
+      timezone: America/New_York
+      analizable: false
+      trade_republic: unknown
+
+    - symbol: "^STOXX50E"
+      name: Euro Stoxx 50
+      asset_class: index
+      region: EUROPA
+      market: EU
+      currency: EUR
+      timezone: Europe/Berlin
+      analizable: false
+      trade_republic: unknown
+
+    - symbol: "^GDAXI"
+      name: DAX
+      asset_class: index
+      region: EUROPA
+      market: XETRA
+      currency: EUR
+      timezone: Europe/Berlin
+      analizable: false
+      trade_republic: unknown
+
+    - symbol: "^GSPC"
+      name: S&P 500
+      asset_class: index
+      region: USA
+      market: US
+      currency: USD
+      timezone: America/New_York
+      analizable: false
+      trade_republic: unknown
+
+    - symbol: "^NDX"
+      name: Nasdaq 100
+      asset_class: index
+      region: USA
+      market: US
+      currency: USD
+      timezone: America/New_York
+      analizable: false
+      trade_republic: unknown
+
+    - symbol: "^N225"
+      name: Nikkei 225
+      asset_class: index
+      region: ASIA
+      market: JP
+      currency: JPY
+      timezone: Asia/Tokyo
+      analizable: false
+      trade_republic: unknown
+
+    - symbol: "^HSI"
+      name: Hang Seng
+      asset_class: index
+      region: ASIA
+      market: HK
+      currency: HKD
+      timezone: Asia/Hong_Kong
+      analizable: false
+      trade_republic: unknown

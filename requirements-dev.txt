@@ -1,0 +1,9 @@
+# Herramientas de calidad de código (no necesarias en runtime).
+#   instalar:  python -m pip install -r requirements-dev.txt
+#   linter:    ruff check advisor tests
+#   tipos:     mypy advisor
+-r requirements.txt
+ruff>=0.15
+mypy>=1.19
+types-PyYAML>=6.0
+types-requests>=2.31

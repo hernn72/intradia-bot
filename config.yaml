@@ -1,0 +1,85 @@
+# Configuración del Asesor de Inversión IA (intradia-bot).
+#
+# Este bot NO ejecuta órdenes. Analiza, puntúa y redacta recomendaciones para
+# que tú decidas y ejecutes manualmente en Trade Republic.
+#
+# Los secretos (Telegram, Anthropic) NO van aquí: solo en variables de entorno
+# o en el archivo .env (ver .env.example).
+
+# Divisa en la que se expresan los precios de las recomendaciones (§ euros).
+# Los activos que ya cotizan en esta divisa se muestran sin conversión; el
+# resto se convierten a un valor APROXIMADO con el tipo de cambio del día.
+base_currency: "EUR"
+
+# Ruta del universo de activos (metadatos, ISIN y disponibilidad en TR).
+universe_path: "universe.yaml"
+
+# Base SQLite donde se persisten recomendaciones y seguimiento de posiciones.
+db_path: "intradia.db"
+
+# Tiempo mínimo entre llamadas a yfinance (rate limiting básico).
+request_min_interval_seconds: 1.0
+
+# Ventanas de datos por horizonte de análisis. El horizonte elegido determina
+# el tipo de operación que puede recomendarse (⚡ intradía / 🚀 swing / 📈 medio).
+horizontes:
+  intradia:
+    interval: "15m"
+    period: "60d"
+    min_bars: 120
+  swing:
+    interval: "1d"
+    period: "1y"
+    min_bars: 120
+  medio:
+    interval: "1d"
+    period: "2y"
+    min_bars: 250
+
+indicators:
+  ema_fast: 20
+  ema_slow: 50
+  sma_long: 200
+  rsi_period: 14
+  atr_period: 14
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  volume_lookback: 20        # media de volumen para detectar volumen anormal
+
+levels:
+  lookback_bars: 60          # ventana para soportes y resistencias
+  atr_stop_multiple: 2.0     # stop = entrada - 2·ATR (estructura + volatilidad, no un % arbitrario)
+  target_atr_multiples: [1.5, 3.0, 5.0]   # objetivos 1, 2 y 3
+  entry_pullback_atr: 0.5    # zona de entrada ideal: hasta 0,5·ATR por debajo del precio
+  entry_max_atr: 0.75        # por encima de esto: ESPERAR PULLBACK / NO PERSEGUIR PRECIO
+
+scoring:
+  min_score_operar: 70       # 🟢 OPERAR
+  min_score_vigilar: 60      # 🟡 VIGILAR (por debajo: 🔴 DESCARTAR)
+  # Los fundamentales (PER, ROIC, EV/EBITDA...) requieren una fuente de datos
+  # que este bot todavía no tiene. Mientras esté en false, esa dimensión se
+  # EXCLUYE del cómputo y la puntuación se normaliza sobre los puntos
+  # realmente evaluables, en vez de penalizar por un dato que no existe.
+  fundamentals_enabled: false
+
+risk:
+  min_rr_ratio: 1.5          # por debajo: descartar (§17)
+  # Rentabilidad anual de la alternativa casi libre de riesgo (§3). Se usa
+  # para exigir que el potencial de una posición de meses la supere con holgura.
+  risk_free_annual_pct: 2.25
+
+market_context:
+  vix_symbol: "^VIX"
+  vix_threshold: 25.0        # por encima: contexto de riesgo elevado
+  trend_symbol: "^STOXX50E"  # referencia de tendencia del mercado europeo
+  trend_sma: 200
+
+report:
+  top_n: 5                   # máximo de oportunidades desarrolladas (§24)
+  benchmark_symbol: "^STOXX50E"   # referencia para la fortaleza relativa
+
+ai:
+  enabled: true              # ANTHROPIC_API_KEY configurada en .env
+  model: "claude-sonnet-5"
+  max_opportunities: 5       # nº de oportunidades que reciben redacción del agente

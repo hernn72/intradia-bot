@@ -1,0 +1,191 @@
+"""Formato del informe y conversión a euros."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+import pytest
+
+from advisor.analysis.analyzer import AnalysisResult
+from advisor.analysis.levels import compute_levels
+from advisor.analysis.opportunity import build_opportunity
+from advisor.analysis.overview import IndexQuote
+from advisor.analysis.scoring import compute_score
+from advisor.config import AdvisorConfig, LevelsConfig, RiskConfig, ScoringConfig
+from advisor.data.fx import FxConverter
+from advisor.report.formatter import format_opportunity, format_overview, format_report
+from advisor.report.money import MoneyFormatter, format_eur
+from tests.conftest import FakeProvider
+from tests.test_analysis import make_snapshot
+
+
+@pytest.fixture
+def fx() -> FxConverter:
+    """Conversor con EURUSD = 1,25, para que las cuentas salgan redondas."""
+    return FxConverter(FakeProvider(closes={"EURUSD=X": 1.25}), "EUR")
+
+
+@pytest.fixture
+def fx_sin_datos() -> FxConverter:
+    return FxConverter(FakeProvider(), "EUR")
+
+
+def _opportunity(asset, context, horizonte: str = "swing"):
+    snapshot = make_snapshot()
+    levels = compute_levels(snapshot, LevelsConfig())
+    score = compute_score(snapshot, levels, context, ScoringConfig(), 250)
+    return build_opportunity(
+        asset=asset, horizonte=horizonte, snapshot=snapshot, levels=levels,
+        score=score, context=context, scoring=ScoringConfig(), risk=RiskConfig(),
+    )
+
+
+class TestFormatoDeImportes:
+    def test_formato_espanol(self) -> None:
+        assert format_eur(1234.5) == "1.234,50 €"
+        assert format_eur(None) == "N/D"
+
+    def test_activo_en_euros_no_se_convierte(self, fx: FxConverter) -> None:
+        money = MoneyFormatter(fx, "EUR")
+        assert money(240.5) == "240,50 €"
+        assert money.needs_conversion is False
+
+    def test_activo_en_dolares_muestra_nativo_y_aproximado(self, fx: FxConverter) -> None:
+        money = MoneyFormatter(fx, "USD")
+        resultado = money(100.0)
+        assert "100,00 USD" in resultado
+        assert "≈ 80,00 €" in resultado
+
+    def test_sin_tipo_de_cambio_no_se_inventa_conversion(self, fx_sin_datos: FxConverter) -> None:
+        money = MoneyFormatter(fx_sin_datos, "USD")
+        resultado = money(100.0)
+        assert "100,00 USD" in resultado
+        assert "no disponible" in resultado
+        assert "€" not in resultado
+
+    def test_valor_en_euros_para_persistencia(self, fx: FxConverter) -> None:
+        assert MoneyFormatter(fx, "USD").eur_value(100.0) == pytest.approx(80.0)
+        assert MoneyFormatter(fx, "EUR").eur_value(100.0) == pytest.approx(100.0)
+        assert MoneyFormatter(fx, "USD").eur_value(None) is None
+
+    def test_columna_compacta_prefiere_euros(self, fx: FxConverter) -> None:
+        assert MoneyFormatter(fx, "USD").compact(100.0) == "80,00 €"
+
+    def test_el_tipo_se_descarga_una_sola_vez(self) -> None:
+        """Un informe debe usar un único tipo de cambio de principio a fin."""
+        provider = FakeProvider(closes={"EURUSD=X": 1.25})
+        fx = FxConverter(provider, "EUR")
+        money = MoneyFormatter(fx, "USD")
+
+        money(1.0)
+        money(2.0)
+        money(3.0)
+
+        assert provider.calls.count("EURUSD=X") == 1
+        assert fx.rate("USD") == pytest.approx(0.8)
+
+
+class TestFormatOverview:
+    def test_agrupa_por_region(self) -> None:
+        quotes = [
+            IndexQuote("^N225", "Nikkei 225", "ASIA", "JPY", 39000.0, 0.8),
+            IndexQuote("^GDAXI", "DAX", "EUROPA", "EUR", 18000.0, -0.4),
+        ]
+        salida = format_overview(quotes)
+        assert "Asia:" in salida and "Europa:" in salida
+        assert salida.index("Asia:") < salida.index("Europa:")
+
+    def test_indice_sin_datos_se_declara(self) -> None:
+        quotes = [IndexQuote("^HSI", "Hang Seng", "ASIA", "HKD", None, None, "sin datos")]
+        assert "no disponibles" in format_overview(quotes)
+
+    def test_sin_indices_configurados(self) -> None:
+        assert "Sin índices" in format_overview([])
+
+
+class TestFormatOpportunity:
+    def test_ficha_incluye_los_campos_obligatorios(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+
+        for campo in [
+            "**Ticker:**", "**ISIN:**", "**Mercado:**", "**Disponible en Trade Republic:**",
+            "**Precio actual:**", "**Tipo de operación:**", "**Puntuación:**",
+            "### Tesis", "### Catalizador", "### Entrada", "### Stop / invalidación",
+            "### Objetivos", "### Potencial", "### Riesgo", "### Ratio beneficio/riesgo",
+            "### Horizonte temporal", "### Confianza", "### Qué podría salir mal", "### Acción",
+        ]:
+            assert campo in ficha, f"falta {campo}"
+
+    def test_precios_de_un_activo_en_euros_llevan_simbolo(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        assert "€" in ficha
+
+    def test_precios_en_dolares_muestran_equivalente_en_euros(self, asset_usd, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx)
+        assert "USD" in ficha
+        assert "≈" in ficha and "€" in ficha
+
+    def test_isin_ausente_se_marca(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        assert "NO REGISTRADO" in ficha
+
+    def test_disponibilidad_sin_verificar_sale_advertida(self, asset_usd, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx)
+        assert "PENDIENTE DE VERIFICACIÓN" in ficha
+
+    def test_dimension_excluida_aparece_en_el_desglose(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        assert "fundamental: excluida" in ficha
+        assert "puntos evaluables" in ficha
+
+    def test_sin_ia_no_se_inventan_probabilidades(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        assert "no estima probabilidades" in ficha
+
+    def test_tipo_de_operacion_sigue_al_horizonte(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        assert "Intradía" in format_opportunity(_opportunity(asset_eur, benign_context, "intradia"), fx)
+        assert "Medio plazo" in format_opportunity(_opportunity(asset_eur, benign_context, "medio"), fx)
+
+
+class TestFormatReport:
+    def _result(self, opportunities, context) -> AnalysisResult:
+        return AnalysisResult(
+            generated_at=datetime(2026, 8, 27, 9, 30, tzinfo=timezone.utc),
+            horizonte="swing",
+            interval="1d",
+            context=context,
+            opportunities=opportunities,
+            overview=[IndexQuote("^GDAXI", "DAX", "EUROPA", "EUR", 18000.0, 0.5)],
+        )
+
+    def test_informe_completo(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        informe = format_report(self._result([_opportunity(asset_eur, benign_context)], benign_context), config, fx)
+
+        for seccion in ["🌍 SITUACIÓN GLOBAL", "🔥 OPORTUNIDADES DETECTADAS", "👀 RADAR", "🎯 CONCLUSIÓN"]:
+            assert seccion in informe
+        assert "no es asesoramiento financiero" in informe.lower()
+
+    def test_sin_oportunidades_recomienda_liquidez(self, benign_context, fx: FxConverter) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        informe = format_report(self._result([], benign_context), config, fx)
+        assert "NO OPERAR / MANTENER LIQUIDEZ" in informe
+
+    def test_nota_del_tipo_de_cambio_solo_si_se_usa(self, asset_eur, asset_usd, benign_context, fx: FxConverter) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+
+        solo_eur = format_report(self._result([_opportunity(asset_eur, benign_context)], benign_context), config, fx)
+        assert "Conversión a euros aproximada" not in solo_eur
+
+        con_usd = format_report(self._result([_opportunity(asset_usd, benign_context)], benign_context), config, fx)
+        assert "Conversión a euros aproximada" in con_usd
+
+    def test_activos_no_analizados_se_declaran(self, benign_context, fx: FxConverter) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        result = AnalysisResult(
+            generated_at=datetime(2026, 8, 27, tzinfo=timezone.utc),
+            horizonte="swing", interval="1d", context=benign_context,
+            skipped=[("XYZ.DE", "histórico insuficiente: 30 velas")],
+        )
+        informe = format_report(result, config, fx)
+        assert "XYZ.DE" in informe and "histórico insuficiente" in informe

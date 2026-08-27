@@ -1,0 +1,37 @@
+[project]
+name = "intradia-bot"
+version = "0.1.0"
+description = "Asesor de inversión IA: detecta y puntúa oportunidades para ejecución manual en Trade Republic"
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "B", "UP", "C4", "SIM", "RUF"]
+ignore = [
+    "E501",
+    "B008",
+    # El proyecto corre en 3.9 y usa Optional[X]/List[X] de forma consistente.
+    "UP006", "UP007", "UP035", "UP045",
+    # "Unicode ambiguo": falsos positivos sobre texto en español (—, tildes, ≈).
+    "RUF001", "RUF002", "RUF003",
+    "C408",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B017", "B018"]
+
+[tool.mypy]
+python_version = "3.9"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+exclude = ["\\.venv", "tests/"]
