@@ -147,6 +147,21 @@ def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Univ
     return 0
 
 
+def cmd_backtest(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    from advisor.backtest.report import format_backtest_report
+    from advisor.backtest.runner import run_backtest
+
+    provider = MarketDataProvider(config.request_min_interval_seconds)
+    groups: Optional[List[str]] = args.grupos.split(",") if args.grupos else None
+    result = run_backtest(
+        config, universe, provider,
+        horizonte=args.horizonte, groups=groups,
+        period=args.period, cost_pct=args.coste_pct,
+    )
+    print(format_backtest_report(result))
+    return 0
+
+
 def cmd_seguimiento(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     provider = MarketDataProvider(config.request_min_interval_seconds)
     fx = FxConverter(provider, config.base_currency)
@@ -243,6 +258,14 @@ def build_parser() -> argparse.ArgumentParser:
     analizar.add_argument("--sin-ia", action="store_true", help="omitir la capa narrativa del agente IA")
     analizar.add_argument("--sin-guardar", action="store_true", help="no persistir las recomendaciones")
     analizar.set_defaults(func=cmd_analizar)
+
+    backtest = sub.add_parser("backtest", help="simula las señales del asesor sobre el pasado y mide si tienen ventaja")
+    backtest.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
+    backtest.add_argument("--grupos", help="grupos del universo separados por comas (por defecto, todos)")
+    backtest.add_argument("--period", default="5y", help="histórico a simular (2y, 5y...); validar siempre en más de uno")
+    backtest.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
+                          help="coste de ida y vuelta en %% (Trade Republic: ~1 EUR por orden)")
+    backtest.set_defaults(func=cmd_backtest)
 
     seguimiento = sub.add_parser("seguimiento", help="revisa las posiciones abiertas contra su tesis")
     seguimiento.add_argument("--telegram", action="store_true", help="enviar el informe por Telegram")

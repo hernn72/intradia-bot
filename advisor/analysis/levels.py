@@ -99,8 +99,16 @@ def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig) -> Optiona
     # estructura, no por un porcentaje arbitrario).
     volatility_stop = price - config.atr_stop_multiple * atr
     support = snapshot.low_lookback
+    support_stop = None
     if support is not None and volatility_stop < support < price:
-        stop = support - _SUPPORT_BUFFER_ATR * atr
+        support_stop = support - _SUPPORT_BUFFER_ATR * atr
+    # El soporte solo manda si de verdad acerca el stop: cuando cae tan pegado
+    # al stop por volatilidad que la holgura lo empujaría por debajo de él,
+    # apoyarse en el soporte daría un stop MÁS lejano que el de volatilidad,
+    # justo lo contrario de lo que lo justifica ("más ajustado y justificado
+    # por estructura").
+    if support_stop is not None and support_stop > volatility_stop:
+        stop = support_stop
         stop_basis = f"soporte de {support:.2f} con holgura de {_SUPPORT_BUFFER_ATR:g}·ATR"
     else:
         stop = volatility_stop

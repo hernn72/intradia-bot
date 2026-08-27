@@ -104,6 +104,7 @@ def classify(
     scoring: ScoringConfig,
     risk: RiskConfig,
     asset: Asset,
+    horizonte: str = "",
 ) -> tuple:
     """Decide radar y acción a partir de criterios objetivos.
 
@@ -131,20 +132,38 @@ def classify(
         return RADAR_VIGILAR, ACCION_ESPERAR, reasons
 
     # A partir de aquí la oportunidad es puntuable como operable; lo que
-    # queda son vetos por precio, contexto o disponibilidad.
+    # queda son vetos por contexto o disponibilidad y advertencias de precio.
+    #
+    # La extensión sobre la media rápida ADVIERTE pero no veta. Se midió con
+    # el backtest (europa, 2y y 5y, 2026-08): como veto dejaba al asesor sin
+    # operar (2 señales COMPRAR en 5 años) y las señales que bloqueaba
+    # ganaban el 62-67% de las veces con +2,6%/+4,0% de media. La
+    # especificación (§14) solo manda ESPERAR cuando el precio subió Y perdió
+    # el ratio favorable; la extensión sola no cumple la segunda condición.
+    # El veto de ratio de más abajo sigue cubriendo el caso completo.
     if levels.chase:
         extension = levels.extension_atr
         reasons.append(
-            "ESPERAR PULLBACK / NO PERSEGUIR PRECIO: el precio está "
-            f"{extension:.1f}·ATR por encima de su media rápida"
-            if extension is not None
-            else "ESPERAR PULLBACK / NO PERSEGUIR PRECIO: el precio está extendido"
+            "precio extendido "
+            + (f"{extension:.1f}·ATR" if extension is not None else "varios ATR")
+            + " sobre su media rápida: no persigas, prioriza la zona de entrada ideal o un pullback"
         )
-        return RADAR_VIGILAR, ACCION_ESPERAR, reasons
 
     if context.is_hostile:
         reasons.append(f"contexto de mercado adverso ({context.reason})")
         return RADAR_VIGILAR, ACCION_ESPERAR, reasons
+
+    # En el horizonte medio (meses) existe una alternativa casi sin riesgo
+    # que ya renta risk_free_annual_pct: inmovilizar capital y asumir riesgo
+    # de mercado solo compensa si el potencial la supera con holgura.
+    if horizonte == "medio":
+        required_pct = risk.risk_free_annual_pct * risk.risk_free_multiple
+        if levels.reward_pct < required_pct:
+            reasons.append(
+                f"potencial {levels.reward_pct:.1f}% hasta el objetivo 2: no supera con holgura "
+                f"la alternativa sin riesgo ({risk.risk_free_annual_pct:.2f}% anual × {risk.risk_free_multiple:g})"
+            )
+            return RADAR_VIGILAR, ACCION_ESPERAR, reasons
 
     if not asset.is_recommendable:
         reasons.append("no disponible en Trade Republic: no puede ejecutarse")
@@ -168,7 +187,7 @@ def build_opportunity(
 ) -> Opportunity:
     """Ensambla la oportunidad ya clasificada y dimensionada."""
 
-    radar, accion, reasons = classify(score, levels, context, scoring, risk, asset)
+    radar, accion, reasons = classify(score, levels, context, scoring, risk, asset, horizonte)
     sizing_label, sizing_min, sizing_max = suggest_sizing(score, levels, snapshot.atr_pct)
 
     return Opportunity(

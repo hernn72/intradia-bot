@@ -19,6 +19,20 @@ logger = logging.getLogger(__name__)
 REGION_ORDER = ("ASIA", "EUROPA", "USA", "GLOBAL")
 
 
+def asia_session_change(quotes: List[IndexQuote]) -> Optional[float]:
+    """Variación media (%) de los índices asiáticos del panorama.
+
+    Asia cierra antes de que Europa abra: su media es la primera lectura del
+    tono del día y alimenta la señal de contexto. ``None`` si ningún índice
+    asiático tiene dato, para que el contexto puntúe esa parte como neutra.
+    """
+
+    changes = [q.change_pct for q in quotes if q.region == "ASIA" and q.change_pct is not None]
+    if not changes:
+        return None
+    return sum(changes) / len(changes)
+
+
 @dataclass(frozen=True)
 class IndexQuote:
     """Última cotización conocida de un índice de contexto."""

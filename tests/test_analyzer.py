@@ -8,8 +8,8 @@ from __future__ import annotations
 import pytest
 
 from advisor.analysis.analyzer import analyze_asset, run_analysis
-from advisor.analysis.market_context import fetch_market_context
-from advisor.analysis.overview import fetch_overview
+from advisor.analysis.market_context import build_market_context, fetch_market_context
+from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
 from advisor.config import AdvisorConfig, MarketContextConfig
 from advisor.report.tracking import (
     VERDICT_DEBILITA,
@@ -56,6 +56,41 @@ class TestMarketContext:
     def test_puntuacion_acotada_a_diez(self, histories) -> None:
         provider = FakeProvider(histories, closes={"^VIX": 10.0})
         assert 0 <= fetch_market_context(provider, MarketContextConfig()).points <= 10
+
+
+class TestAsiaSignal:
+    def _context(self, asia):
+        return build_market_context(14.0, 5000.0, 4800.0, MarketContextConfig(), asia_change_pct=asia)
+
+    def test_asia_positiva_suma_y_negativa_resta(self) -> None:
+        sin_asia = self._context(None)
+        alcista = self._context(1.2)
+        bajista = self._context(-2.0)
+        assert alcista.points > sin_asia.points > bajista.points
+
+    def test_sin_dato_asiatico_puntua_neutro(self) -> None:
+        assert self._context(None).points == self._context(0.0).points
+
+    def test_desplome_asiatico_aparece_en_el_motivo(self) -> None:
+        context = self._context(-2.4)
+        assert "asiática" in context.reason
+        assert "-2,4" in context.reason.replace(".", ",")
+
+    def test_asia_no_convierte_el_contexto_en_hostil_por_si_sola(self) -> None:
+        """Asia puntúa, pero el veto de hostilidad sigue siendo VIX + tendencia."""
+        assert self._context(-3.0).is_hostile is False
+
+    def test_media_de_la_sesion_asiatica(self) -> None:
+        quotes = [
+            IndexQuote("^N225", "Nikkei", "ASIA", "JPY", 40000.0, -1.0),
+            IndexQuote("^HSI", "Hang Seng", "ASIA", "HKD", 18000.0, -2.0),
+            IndexQuote("^GDAXI", "DAX", "EUROPA", "EUR", 20000.0, 5.0),
+            IndexQuote("^KS11", "Kospi", "ASIA", "KRW", None, None, "sin datos"),
+        ]
+        assert asia_session_change(quotes) == -1.5
+
+    def test_sin_indices_asiaticos_devuelve_none(self) -> None:
+        assert asia_session_change([]) is None
 
 
 class TestOverview:

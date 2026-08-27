@@ -53,6 +53,7 @@ python -m advisor.main analizar --horizonte intradia --grupos europa --telegram
 | Comando | Para qué |
 |---|---|
 | `analizar` | Analiza el universo y genera el informe |
+| `backtest` | Simula las señales del asesor sobre el pasado y mide si tienen ventaja |
 | `seguimiento` | Revisa las posiciones abiertas contra su tesis |
 | `abrir` | Registra una compra ejecutada en Trade Republic |
 | `cerrar` | Cierra una posición registrada |
@@ -128,7 +129,7 @@ Seis dimensiones, todas calculadas en Python:
 | Fundamental | 20 | **Excluida**: no hay fuente de datos fundamentales |
 | Técnico | 20 | EMA rápida/lenta, SMA larga, RSI, MACD, fortaleza relativa |
 | Beneficio/riesgo | 20 | Ratio calculado sobre el objetivo 2 |
-| Contexto | 10 | VIX y tendencia del índice de referencia |
+| Contexto | 10 | VIX, tendencia del índice de referencia y sesión asiática |
 | Convicción | 10 | Histórico disponible, indicadores presentes, volatilidad |
 
 **El agente IA no puntúa.** Redacta tesis, catalizador, escenarios y riesgos
@@ -137,9 +138,42 @@ recalcularlos, contradecirlos o inventar catalizadores externos. Si un modelo
 pudiera mover la nota, la nota dejaría de ser comparable entre ejecuciones.
 
 Umbrales: ≥70 → 🟢 OPERAR · 60-69 → 🟡 VIGILAR · <60 → 🔴 DESCARTAR. Además,
-una oportunidad con buena nota baja a VIGILAR si el precio está extendido
-(*no perseguir precio*), si el contexto es hostil, o si el ratio no llega al
-mínimo.
+una oportunidad con buena nota baja a VIGILAR si el contexto es hostil o se
+descarta si el ratio no llega al mínimo o el activo no está en Trade
+Republic; en el horizonte medio también si el potencial no supera con
+holgura la alternativa sin riesgo (2,25% anual). Un precio extendido sobre
+su media rápida **advierte pero no veta**: el backtest midió (europa, 2y y
+5y) que como veto dejaba al asesor sin operar y que las señales bloqueadas
+eran las más rentables; la advertencia pide priorizar la zona de entrada
+ideal.
+
+## El backtest
+
+```bash
+python -m advisor.main backtest --horizonte swing --grupos europa --period 5y
+```
+
+Reproduce vela a vela lo que el asesor habría calculado cada día —foto
+técnica, niveles, puntuación y decisión— usando solo datos anteriores a esa
+vela, y simula la operación con las reglas que el asesor da al humano:
+entrada en la apertura siguiente, niveles fijados al entrar y nunca
+recalculados, salida por stop, objetivo 2 o caducidad del horizonte.
+
+El informe responde tres preguntas y siempre imprime sus advertencias:
+
+1. **¿Qué habría hecho la política real?** Solo las señales COMPRAR, con su
+   esperanza por operación y el compuesto por activo frente a comprar y
+   mantener.
+2. **¿Ordena la puntuación?** Todas las señales sin filtros, por tramos de
+   nota. Medido en 2026-08: los tramos ≥70 baten a los <60 en los tres
+   cortes probados (europa 2y/5y y usa_en_xetra 5y, este último con
+   ordenación monótona en los cinco tramos).
+3. **¿Aportan los vetos?** Las mismas señales agrupadas por la decisión que
+   habría tomado el asesor.
+
+Cubre `swing` y `medio` (velas diarias). El intradía no puede reproducirse:
+yfinance no conserva histórico suficiente de velas de 15 minutos. Validar
+siempre en más de un periodo (`--period 2y` y `5y` como mínimo).
 
 ## Configuración
 
@@ -217,6 +251,8 @@ mypy advisor
 5. **Intradía limitado por yfinance.** Las velas de 15 minutos llegan con
    retraso y con un histórico corto: sirven para contexto, no para operar al
    segundo.
-6. **Ninguna recomendación está validada por backtest.** A diferencia de
-   `trading-bot`, aquí no hay motor de backtest: la puntuación es un criterio
-   razonado, no una ventaja demostrada.
+6. **El backtest valida el criterio, no promete el futuro.** El motor de
+   `advisor/backtest/` mide si la puntuación y los vetos tuvieron ventaja en
+   el pasado (y su informe declara siempre sus limitaciones: una posición
+   por activo, sin deslizamiento, stop antes que objetivo en la misma vela).
+   Resultados pasados sobre un grupo y periodo concretos no garantizan nada.

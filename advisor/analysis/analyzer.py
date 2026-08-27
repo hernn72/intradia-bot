@@ -18,7 +18,7 @@ import pandas as pd
 from advisor.analysis.levels import compute_levels
 from advisor.analysis.market_context import MarketContext, fetch_market_context
 from advisor.analysis.opportunity import Opportunity, build_opportunity
-from advisor.analysis.overview import IndexQuote, fetch_overview
+from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import build_snapshot
 from advisor.config import AdvisorConfig
@@ -132,8 +132,11 @@ def run_analysis(
 
     logger.info("Analizando %d activos (horizonte %s, velas de %s)", len(assets), horizonte, window.interval)
 
-    context = fetch_market_context(provider, config.market_context)
+    # El panorama se descarga antes que el contexto: la sesión asiática, ya
+    # cerrada cuando Europa abre, entra como señal en la puntuación de
+    # contexto en vez de quedarse en un adorno del informe.
     overview = fetch_overview(provider, universe)
+    context = fetch_market_context(provider, config.market_context, asia_session_change(overview))
     benchmark_close = _fetch_benchmark(
         provider, config.report.benchmark_symbol, window.period, window.interval
     )

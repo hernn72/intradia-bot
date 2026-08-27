@@ -65,9 +65,11 @@ scoring:
 
 risk:
   min_rr_ratio: 1.5          # por debajo: descartar (§17)
-  # Rentabilidad anual de la alternativa casi libre de riesgo (§3). Se usa
-  # para exigir que el potencial de una posición de meses la supere con holgura.
+  # Rentabilidad anual de la alternativa casi libre de riesgo (§3). En el
+  # horizonte medio, el potencial hasta el objetivo 2 debe superar este valor
+  # multiplicado por la holgura de abajo; si no, la oportunidad baja a VIGILAR.
   risk_free_annual_pct: 2.25
+  risk_free_multiple: 2.0
 
 market_context:
   vix_symbol: "^VIX"

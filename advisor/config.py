@@ -88,6 +88,10 @@ class ScoringConfig(BaseModel):
 class RiskConfig(BaseModel):
     min_rr_ratio: float = Field(1.5, gt=0)
     risk_free_annual_pct: float = Field(2.25, ge=0)
+    # Holgura exigida sobre la alternativa sin riesgo en el horizonte medio:
+    # el potencial hasta el objetivo 2 debe ser al menos este múltiplo del
+    # 2,25% anual para que asumir riesgo de mercado durante meses compense.
+    risk_free_multiple: float = Field(2.0, gt=0)
 
 
 class MarketContextConfig(BaseModel):

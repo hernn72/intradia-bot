@@ -143,6 +143,26 @@ class TestComputeLevels:
         normal = make_snapshot(price=100.0, ema_fast=99.0, atr=2.0)
         assert compute_levels(normal, LevelsConfig(entry_max_atr=0.75)).chase is False
 
+    def test_el_soporte_nunca_aleja_el_stop(self) -> None:
+        """Un soporte pegado al stop por volatilidad no debe empeorarlo.
+
+        Con soporte en 96,1 y stop por volatilidad en 96,0, la holgura de
+        0,25·ATR dejaría el stop en 95,6: MÁS lejos que el de volatilidad,
+        al revés de lo que justifica apoyarse en la estructura.
+        """
+
+        config = LevelsConfig(atr_stop_multiple=2.0)
+        pegado = make_snapshot(price=100.0, atr=2.0, low_lookback=96.1)
+        levels = compute_levels(pegado, config)
+        assert levels.stop == pytest.approx(96.0)
+        assert "ATR" in levels.stop_basis
+
+        # Cuando el soporte sí acerca el stop, sigue mandando el soporte.
+        lejos_del_stop = make_snapshot(price=100.0, atr=2.0, low_lookback=97.0)
+        levels = compute_levels(lejos_del_stop, config)
+        assert levels.stop == pytest.approx(96.5)
+        assert "soporte" in levels.stop_basis
+
     def test_sin_atr_no_hay_niveles(self) -> None:
         assert compute_levels(make_snapshot(atr=None), LevelsConfig()) is None
 
@@ -327,6 +347,25 @@ class TestClassify:
         )
         assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
 
+    def test_horizonte_medio_exige_superar_la_alternativa_sin_riesgo(self, asset_eur, benign_context) -> None:
+        """Meses inmovilizado por un 3% de potencial no compensa frente al 2,25% anual."""
+
+        poco_potencial = make_snapshot(price=100.0, atr=1.0, ema_fast=99.5)  # objetivo 2 = +3%
+        levels = compute_levels(poco_potencial, LevelsConfig())
+        radar, accion, motivos = classify(
+            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(),
+            asset_eur, horizonte="medio",
+        )
+        assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
+        assert "sin riesgo" in motivos[0]
+
+        # El mismo potencial en swing no se veta: el capital no queda meses inmovilizado.
+        radar, accion, _ = classify(
+            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(),
+            asset_eur, horizonte="swing",
+        )
+        assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
+
     def test_vigila_cuando_la_nota_no_llega_a_operar(self, asset_eur, benign_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, _ = classify(
@@ -334,14 +373,19 @@ class TestClassify:
         )
         assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
 
-    def test_no_persigue_el_precio_extendido(self, asset_eur, benign_context) -> None:
+    def test_precio_extendido_advierte_pero_no_veta(self, asset_eur, benign_context) -> None:
+        """Medido en backtest (europa 2y/5y): como veto dejaba al asesor sin
+        operar y las señales bloqueadas eran las más rentables. La advertencia
+        se conserva para que el humano priorice la zona de entrada ideal."""
+
         snapshot = make_snapshot(price=100.0, ema_fast=90.0, atr=2.0)
         levels = compute_levels(snapshot, LevelsConfig())
         radar, accion, motivos = classify(
             self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
         )
-        assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
-        assert "NO PERSEGUIR PRECIO" in motivos[0]
+        assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
+        assert any("extendido" in m for m in motivos)
+        assert any("no persigas" in m for m in motivos)
 
     def test_contexto_hostil_frena_la_compra(self, asset_eur, hostile_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
