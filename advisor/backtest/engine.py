@@ -31,8 +31,9 @@ from advisor.analysis.levels import compute_levels
 from advisor.analysis.market_context import build_market_context
 from advisor.analysis.opportunity import ACCION_COMPRAR, classify
 from advisor.analysis.scoring import compute_score
-from advisor.analysis.snapshot import build_snapshot
+from advisor.analysis.snapshot import SnapshotSeries, build_snapshot, build_snapshot_series, snapshot_from_series
 from advisor.config import AdvisorConfig
+from advisor.research.observations import build_signal_observation
 from advisor.universe.models import Asset
 
 # Política de entrada del backtest:
@@ -72,16 +73,20 @@ class BacktestTrade:
     cost_pct: float
 
     @property
-    def gross_return_pct(self) -> float:
+    def gross_return_pp(self) -> float:
         return (self.exit_price / self.entry_price - 1) * 100
 
     @property
-    def net_return_pct(self) -> float:
+    def net_return_pp(self) -> float:
         """Retorno tras el coste de ida y vuelta (comisiones fijas en %)."""
-        return self.gross_return_pct - self.cost_pct
+        return self.gross_return_pp - self.cost_pct
 
     @property
-    def r_multiple(self) -> Optional[float]:
+    def risk_pp(self) -> float:
+        return (self.entry_price - self.stop) / self.entry_price * 100
+
+    @property
+    def gross_r_multiple(self) -> Optional[float]:
         """Resultado en múltiplos del riesgo asumido al entrar (bruto)."""
         risk = self.entry_price - self.stop
         if risk <= 0:
@@ -89,11 +94,59 @@ class BacktestTrade:
         return (self.exit_price - self.entry_price) / risk
 
     @property
+    def net_r_multiple(self) -> Optional[float]:
+        """Resultado neto en múltiplos del riesgo asumido al entrar."""
+        if self.risk_pp <= 0:
+            return None
+        return self.net_return_pp / self.risk_pp
+
+    @property
     def won(self) -> bool:
-        return self.net_return_pct > 0
+        return self.net_return_pp > 0
 
 
-def _signal(
+def _signal_from_snapshot(
+    asset: Asset,
+    snapshot,
+    j: int,
+    config: AdvisorConfig,
+    horizonte: str,
+    min_bars: int,
+    vix_at: Optional[Sequence[Optional[float]]],
+    trend_price_at: Optional[Sequence[Optional[float]]],
+    trend_sma_at: Optional[Sequence[Optional[float]]],
+) -> Optional[Dict[str, Any]]:
+    levels = compute_levels(snapshot, config.levels)
+    if levels is None:
+        return None
+
+    context = build_market_context(
+        vix_at[j] if vix_at is not None else None,
+        trend_price_at[j] if trend_price_at is not None else None,
+        trend_sma_at[j] if trend_sma_at is not None else None,
+        config.market_context,
+    )
+    score = compute_score(snapshot, levels, context, config.scoring, min_bars)
+    radar, accion, _ = classify(score, levels, context, config.scoring, config.risk, asset, horizonte)
+
+    return {
+        "score": score.value,
+        "radar": radar,
+        "accion": accion,
+        "stop": levels.stop,
+        "target": levels.target2,
+        "entry_max": levels.entry_max,
+        "observation": build_signal_observation(
+            asset=asset,
+            horizonte=horizonte,
+            signal_idx=j,
+            snapshot=snapshot,
+            score=score,
+        ),
+    }
+
+
+def _signal_prefix(
     asset: Asset,
     df: pd.DataFrame,
     j: int,
@@ -118,27 +171,31 @@ def _signal(
     except ValueError:
         return None
 
-    levels = compute_levels(snapshot, config.levels)
-    if levels is None:
-        return None
-
-    context = build_market_context(
-        vix_at[j] if vix_at is not None else None,
-        trend_price_at[j] if trend_price_at is not None else None,
-        trend_sma_at[j] if trend_sma_at is not None else None,
-        config.market_context,
+    return _signal_from_snapshot(
+        asset, snapshot, j, config, horizonte, min_bars, vix_at, trend_price_at, trend_sma_at
     )
-    score = compute_score(snapshot, levels, context, config.scoring, min_bars)
-    radar, accion, _ = classify(score, levels, context, config.scoring, config.risk, asset, horizonte)
 
-    return {
-        "score": score.value,
-        "radar": radar,
-        "accion": accion,
-        "stop": levels.stop,
-        "target": levels.target2,
-        "entry_max": levels.entry_max,
-    }
+
+def _signal(
+    asset: Asset,
+    snapshot_series: SnapshotSeries,
+    j: int,
+    config: AdvisorConfig,
+    horizonte: str,
+    min_bars: int,
+    vix_at: Optional[Sequence[Optional[float]]],
+    trend_price_at: Optional[Sequence[Optional[float]]],
+    trend_sma_at: Optional[Sequence[Optional[float]]],
+) -> Optional[Dict[str, Any]]:
+    """Evalúa la señal al cierre de la vela ``j`` desde indicadores precalculados."""
+
+    try:
+        snapshot = snapshot_from_series(asset.symbol, snapshot_series, j)
+    except ValueError:
+        return None
+    return _signal_from_snapshot(
+        asset, snapshot, j, config, horizonte, min_bars, vix_at, trend_price_at, trend_sma_at
+    )
 
 
 def _check_exit(
@@ -192,6 +249,10 @@ def simulate_asset(
     trades: List[BacktestTrade] = []
     position: Optional[Dict[str, Any]] = None
     pending: Optional[Dict[str, Any]] = None
+    try:
+        snapshot_series = build_snapshot_series(df, config.indicators, config.levels, window.interval, benchmark_close)
+    except ValueError:
+        return []
 
     def close_position(j: int, exit_price: float, reason: str) -> BacktestTrade:
         assert position is not None
@@ -237,8 +298,8 @@ def simulate_asset(
 
         if position is None and j < len(df) - 1:
             signal = _signal(
-                asset, df, j, config, horizonte, window.interval, warmup,
-                benchmark_close, vix_at, trend_price_at, trend_sma_at,
+                asset, snapshot_series, j, config, horizonte, warmup,
+                vix_at, trend_price_at, trend_sma_at,
             )
             if signal is not None and (policy == POLICY_TODAS or signal["accion"] == ACCION_COMPRAR):
                 pending = signal

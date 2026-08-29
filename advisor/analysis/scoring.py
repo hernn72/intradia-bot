@@ -80,7 +80,7 @@ class Dimension:
         """Puntos de la dimensión, reescalados a su peso."""
         if not self.available:
             return 0.0
-        return round(self.weight * self.raw_points / self.raw_max, 2)
+        return self.weight * self.raw_points / self.raw_max
 
 
 @dataclass(frozen=True)
@@ -96,14 +96,14 @@ class Score:
 
     @property
     def points(self) -> float:
-        return round(sum(d.points for d in self.dimensions), 2)
+        return sum(d.points for d in self.dimensions)
 
     @property
     def value(self) -> float:
         """Puntuación normalizada a 0-100 sobre los puntos evaluables."""
         if self.evaluable_max <= 0:
             return 0.0
-        return round(100.0 * self.points / self.evaluable_max, 1)
+        return 100.0 * self.points / self.evaluable_max
 
     @property
     def missing_dimensions(self) -> List[str]:

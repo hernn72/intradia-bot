@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import ClassVar, List
 
 import pandas as pd
 import pytest
 
-from advisor.analysis.levels import compute_levels, rr_at_least
+from advisor.analysis.levels import compute_levels, compute_levels_from_inputs, rr_at_least
 from advisor.analysis.opportunity import (
     ACCION_COMPRAR,
     ACCION_DESCARTAR,
@@ -17,7 +18,7 @@ from advisor.analysis.opportunity import (
     RADAR_VIGILAR,
     classify,
 )
-from advisor.analysis.scoring import compute_score
+from advisor.analysis.scoring import Component, Dimension, Score, compute_score
 from advisor.analysis.sizing import calculate_position_sizing
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
@@ -121,6 +122,44 @@ class TestBuildSnapshot:
 
 
 class TestComputeLevels:
+    def _assert_levels_equivalent(self, snapshot: TechnicalSnapshot, config: LevelsConfig) -> None:
+        esperado = compute_levels(snapshot, config)
+        obtenido = compute_levels_from_inputs(
+            price=snapshot.price,
+            atr=snapshot.atr,
+            low_lookback=snapshot.low_lookback,
+            high_lookback=snapshot.high_lookback,
+            ema_fast=snapshot.ema_fast,
+            ema_slow=snapshot.ema_slow,
+            sma_long=snapshot.sma_long,
+            config=config,
+        )
+        assert (obtenido is None) is (esperado is None)
+        if esperado is None or obtenido is None:
+            return
+        for field, expected_value in asdict(esperado).items():
+            actual_value = getattr(obtenido, field)
+            if isinstance(expected_value, float):
+                assert actual_value == pytest.approx(expected_value), field
+            else:
+                assert actual_value == expected_value, field
+
+    def test_niveles_desde_insumos_reproducen_compute_levels(self) -> None:
+        config = LevelsConfig()
+        casos = [
+            make_snapshot(atr=None),
+            make_snapshot(price=100.0, atr=2.0, low_lookback=97.0),
+            make_snapshot(price=100.0, atr=2.0, low_lookback=96.1),
+            make_snapshot(price=100.0, atr=2.0, high_lookback=102.0),
+            make_snapshot(price=10.0, atr=20.0, low_lookback=1.0),
+        ]
+        for snapshot in casos:
+            self._assert_levels_equivalent(snapshot, config)
+
+    def test_niveles_desde_insumos_respetan_objetivo2_estructural(self) -> None:
+        snapshot = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0, high_lookback=104.0)
+        self._assert_levels_equivalent(snapshot, LevelsConfig(target2_structural=True))
+
     def test_stop_por_volatilidad_cuando_no_hay_soporte_cercano(self) -> None:
         snapshot = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0)
         levels = compute_levels(snapshot, LevelsConfig(atr_stop_multiple=2.0))
@@ -189,7 +228,7 @@ class TestComputeLevels:
         snapshot = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0)
         levels = compute_levels(snapshot, LevelsConfig(atr_stop_multiple=2.0))
 
-        assert levels.risk_pct == pytest.approx(4.0)
+        assert levels.risk_pp == pytest.approx(4.0)
         assert levels.reward_pct == pytest.approx(6.0)
         assert levels.rr_ratio == pytest.approx(1.5)
 
@@ -292,7 +331,21 @@ class TestScoring:
         assert "fundamental" in score.missing_dimensions
         assert score.evaluable_max == pytest.approx(80.0)
         # La nota se calcula sobre 80, no sobre 100.
-        assert score.value == pytest.approx(round(100 * score.points / 80, 1))
+        assert score.value == pytest.approx(100 * score.points / 80)
+
+    def test_la_clasificacion_usa_la_puntuacion_sin_redondear(self, asset_eur, benign_context) -> None:
+        """El redondeo puede imprimir 70, pero no debe decidir el umbral."""
+
+        score = Score([Dimension("prueba", 100.0, [Component("factor", 69.995, 100.0)])])
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+
+        assert score.value == pytest.approx(69.995)
+        radar, accion, motivos = classify(
+            score, levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+        )
+
+        assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
+        assert "puntuación 70" in motivos[0]
 
     def test_una_dimension_excluida_no_penaliza_la_nota(self, benign_context) -> None:
         """Sin normalizar, ningún activo llegaría nunca al umbral de operar."""
@@ -366,13 +419,13 @@ class TestScoring:
     def test_dimensionamiento_sale_del_riesgo_sin_capital(self) -> None:
         levels_5 = compute_levels(make_snapshot(price=100.0, atr=2.5, low_lookback=1.0), LevelsConfig())
         sizing_5 = calculate_position_sizing(levels_5, PortfolioConfig(risk_per_trade_pct=0.5, max_position_pct=100), "Media")
-        assert levels_5.risk_pct == pytest.approx(5.0)
+        assert levels_5.risk_pp == pytest.approx(5.0)
         assert sizing_5.position_pct == pytest.approx(10.0)
         assert sizing_5.risk_pct == pytest.approx(0.5)
 
         levels_2 = compute_levels(make_snapshot(price=100.0, atr=1.0, low_lookback=1.0), LevelsConfig())
         sizing_2 = calculate_position_sizing(levels_2, PortfolioConfig(risk_per_trade_pct=0.5, max_position_pct=100), "Media")
-        assert levels_2.risk_pct == pytest.approx(2.0)
+        assert levels_2.risk_pp == pytest.approx(2.0)
         assert sizing_2.position_pct == pytest.approx(25.0)
 
     def test_tope_muerde_y_recalcula_riesgo_efectivo(self) -> None:

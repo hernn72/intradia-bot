@@ -20,6 +20,7 @@ from typing import Optional
 import pandas as pd
 
 from advisor.config import IndicatorsConfig, LevelsConfig
+from advisor.indicators.technical import atr as atr_series
 from advisor.indicators.technical import ema, last_atr, macd, relative_strength, rsi, sma
 
 RETURN_SHORT_BARS = 20
@@ -86,6 +87,32 @@ class TechnicalSnapshot:
         return self.atr / self.price * 100
 
 
+@dataclass(frozen=True)
+class SnapshotSeries:
+    """Indicadores causales calculados una sola vez para una serie completa."""
+
+    df: pd.DataFrame
+    interval: str
+    ema_fast: pd.Series
+    ema_slow: pd.Series
+    sma_long: pd.Series
+    rsi: pd.Series
+    atr: pd.Series
+    macd: pd.Series
+    macd_signal: pd.Series
+    macd_hist: pd.Series
+    volume_avg: Optional[pd.Series]
+    volume_ratio: Optional[pd.Series]
+    gap_pct: Optional[pd.Series]
+    high_lookback: Optional[pd.Series]
+    low_lookback: Optional[pd.Series]
+    return_short: pd.Series
+    return_medium: pd.Series
+    return_long: pd.Series
+    volatility_pct: pd.Series
+    relative_strength: Optional[pd.Series]
+
+
 def _last_float(series: pd.Series) -> Optional[float]:
     """Último valor de una serie como ``float``, o ``None`` si es NaN o está vacía."""
     if series is None or series.empty:
@@ -118,6 +145,148 @@ def _annualized_volatility(close: pd.Series, interval: str) -> Optional[float]:
         return None
     bars_per_year = _BARS_PER_YEAR.get(interval, 252)
     return std * math.sqrt(bars_per_year) * 100
+
+
+def _float_at(series: Optional[pd.Series], pos: int) -> Optional[float]:
+    if series is None or series.empty:
+        return None
+    value = series.iloc[pos]
+    if value is None or pd.isna(value):
+        return None
+    return float(value)
+
+
+def build_snapshot_series(
+    df: pd.DataFrame,
+    indicators: IndicatorsConfig,
+    levels: LevelsConfig,
+    interval: str,
+    benchmark_close: Optional[pd.Series] = None,
+) -> SnapshotSeries:
+    """Calcula indicadores causales para todo ``df`` sin cambiar su semántica en cada vela.
+
+    ``benchmark_close`` debe venir indexado sobre las fechas de ``df``, con o
+    sin huecos: es lo que produce ``runner._align``. Los NaN se ignoran, el
+    retorno del índice se calcula sobre sus últimas observaciones disponibles
+    y se reproyecta a las fechas del activo arrastrando el último valor
+    conocido, que es lo que hace la referencia por prefijos.
+
+    Un benchmark con índice propio y distinto al del activo NO reproduce esa
+    referencia: ``relative_strength`` compara ahí por posición dos series de
+    longitudes distintas, y esta función compara por fecha. Medido, no
+    supuesto. Ese caso no se da hoy porque el único llamante recibe la serie
+    ya alineada.
+    """
+
+    if df is None or df.empty:
+        raise ValueError("el histórico está vacío")
+    if "Close" not in df.columns:
+        raise ValueError("el histórico debe contener una columna 'Close'")
+
+    close = df["Close"]
+    counts = pd.Series(range(1, len(close) + 1), index=df.index)
+
+    ema_fast_values = ema(close, indicators.ema_fast).where(counts >= indicators.ema_fast)
+    ema_slow_values = ema(close, indicators.ema_slow).where(counts >= indicators.ema_slow)
+    sma_long_values = sma(close, indicators.sma_long).where(counts >= indicators.sma_long)
+    rsi_values = rsi(close, indicators.rsi_period).where(counts > indicators.rsi_period)
+    atr_values = atr_series(df, indicators.atr_period).where(counts > indicators.atr_period)
+
+    macd_line, signal_line, hist = macd(close, indicators.macd_fast, indicators.macd_slow, indicators.macd_signal)
+    macd_mask = counts >= indicators.macd_slow + indicators.macd_signal
+    macd_line = macd_line.where(macd_mask)
+    signal_line = signal_line.where(macd_mask)
+    hist = hist.where(macd_mask)
+
+    volume_avg = volume_ratio = None
+    if "Volume" in df.columns:
+        volume = df["Volume"]
+        volume_avg = volume.shift(1).rolling(window=indicators.volume_lookback, min_periods=indicators.volume_lookback).mean()
+        volume_ratio = (volume / volume_avg).where((volume > 0) & (volume_avg > 0))
+
+    gap_pct = None
+    if "Open" in df.columns:
+        prev_close = close.shift(1)
+        gap_pct = (df["Open"] / prev_close - 1) * 100
+        gap_pct = gap_pct.where(prev_close > 0)
+
+    high_lookback = low_lookback = None
+    if {"High", "Low"}.issubset(df.columns):
+        high_lookback = df["High"].rolling(window=levels.lookback_bars, min_periods=2).max()
+        low_lookback = df["Low"].rolling(window=levels.lookback_bars, min_periods=2).min()
+
+    bars_per_year = _BARS_PER_YEAR.get(interval, 252)
+    volatility_pct = close.pct_change().expanding(min_periods=20).std() * math.sqrt(bars_per_year) * 100
+
+    rs = None
+    if benchmark_close is not None and not benchmark_close.empty:
+        compact_benchmark = benchmark_close.dropna()
+        if len(compact_benchmark) > RETURN_SHORT_BARS:
+            benchmark_return = compact_benchmark.pct_change(RETURN_SHORT_BARS) * 100
+            projected_benchmark_return = benchmark_return.reindex(df.index, method="ffill")
+            rs = close.pct_change(RETURN_SHORT_BARS) * 100 - projected_benchmark_return
+
+    return SnapshotSeries(
+        df=df,
+        interval=interval,
+        ema_fast=ema_fast_values,
+        ema_slow=ema_slow_values,
+        sma_long=sma_long_values,
+        rsi=rsi_values,
+        atr=atr_values,
+        macd=macd_line,
+        macd_signal=signal_line,
+        macd_hist=hist,
+        volume_avg=volume_avg,
+        volume_ratio=volume_ratio,
+        gap_pct=gap_pct,
+        high_lookback=high_lookback,
+        low_lookback=low_lookback,
+        return_short=close.pct_change(RETURN_SHORT_BARS) * 100,
+        return_medium=close.pct_change(RETURN_MEDIUM_BARS) * 100,
+        return_long=close.pct_change(RETURN_LONG_BARS) * 100,
+        volatility_pct=volatility_pct,
+        relative_strength=rs,
+    )
+
+
+def snapshot_from_series(symbol: str, series: SnapshotSeries, pos: int) -> TechnicalSnapshot:
+    """Construye el ``TechnicalSnapshot`` de una vela desde indicadores precalculados."""
+
+    df = series.df
+    if pos < 0 or pos >= len(df):
+        raise IndexError(f"posición fuera de rango: {pos}")
+
+    price = float(df["Close"].iloc[pos])
+    if price <= 0:
+        raise ValueError(f"{symbol}: precio no válido ({price})")
+
+    return TechnicalSnapshot(
+        symbol=symbol,
+        timestamp=df.index[pos],
+        interval=series.interval,
+        bars=pos + 1,
+        price=price,
+        ema_fast=_float_at(series.ema_fast, pos),
+        ema_slow=_float_at(series.ema_slow, pos),
+        sma_long=_float_at(series.sma_long, pos),
+        rsi=_float_at(series.rsi, pos),
+        atr=_float_at(series.atr, pos),
+        macd=_float_at(series.macd, pos),
+        macd_signal=_float_at(series.macd_signal, pos),
+        macd_hist=_float_at(series.macd_hist, pos),
+        volume=_float_at(df["Volume"], pos) if "Volume" in df.columns and _float_at(df["Volume"], pos) != 0 else None,
+        volume_avg=_float_at(series.volume_avg, pos),
+        volume_ratio=_float_at(series.volume_ratio, pos),
+        gap_pct=_float_at(series.gap_pct, pos),
+        high_lookback=_float_at(series.high_lookback, pos),
+        low_lookback=_float_at(series.low_lookback, pos),
+        return_short=_float_at(series.return_short, pos),
+        return_medium=_float_at(series.return_medium, pos),
+        return_long=_float_at(series.return_long, pos),
+        volatility_pct=_float_at(series.volatility_pct, pos),
+        relative_strength=_float_at(series.relative_strength, pos),
+    )
 
 
 def build_snapshot(

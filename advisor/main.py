@@ -90,7 +90,7 @@ def opportunity_to_row(opportunity: Opportunity, fx: FxConverter, created_at: st
         "stop_eur": money.eur_value(levels.stop),
         "target2": levels.target2,
         "target2_eur": money.eur_value(levels.target2),
-        "risk_pct": levels.risk_pct,
+        "risk_pct": levels.risk_pp,
         "reward_pct": levels.reward_pct,
         "rr_ratio": levels.rr_ratio,
         "reasons": json.dumps(opportunity.decision_reasons, ensure_ascii=False),

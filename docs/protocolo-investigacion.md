@@ -184,16 +184,34 @@ provider + versión
 series_hash
 ```
 
-De ahí se derivan dos series, y la distinción es la que arregla el hallazgo 5:
+De ahí se derivan tres vistas, y la distinción es la que arregla el
+hallazgo 5:
 
-- **Serie de ejecución** — ajustada por splits pero **no** por dividendos.
-  Determina si una apertura, un stop o un objetivo se habrían tocado
-  realmente. Así no aparece un desplome falso del 50 % por un split 2:1, pero
-  sí permanece el hueco económico del día ex-dividendo, que en la realidad
-  puede activar un stop ceñido.
-- **Serie de señal** — la que alimenta indicadores y scoring. Si conviene que
-  sea la misma o una serie de retorno total es una decisión separada, que se
-  estudia con datos y **no se hereda del valor por defecto de yfinance**.
+| Vista | Splits | Dividendos | Uso |
+|---|---|---|---|
+| `execution_prices` | ajustados | **no** ajustados | entrada, stop, objetivo, huecos reales, P&L |
+| `signal_prices` | ajustados | **no** ajustados | RSI, EMA, ATR, rupturas, niveles |
+| `gap_for_catalyst` | ajustados | neutralizados | detección de hueco como catalizador |
+
+Señal y ejecución comparten escala a propósito. Mantenerlas en el mismo
+sistema de precios elimina una fuente importante de error al trasladar stop y
+objetivo entre dos series distintas. Así no aparece un desplome falso del 50 %
+por un split 2:1, pero sí permanece el hueco económico del día ex-dividendo,
+que en la realidad puede activar un stop ceñido.
+
+La excepción es el detector de hueco. En una fecha ex-dividendo el gap se mide
+contra un cierre neutralizado:
+
+```
+close_referencia = close(t−1) − dividendo(t)
+```
+
+El hueco sigue existiendo para ejecución y puede activar un stop, pero no da
+puntos de «catalizador» por un hecho puramente mecánico.
+
+Usar una serie de retorno total para generar señales queda como **ablación
+posterior y explícita**, no como comportamiento heredado del valor por defecto
+de `auto_adjust=True`.
 
 Cada observación queda identificada por dos claves:
 
@@ -202,12 +220,21 @@ signal_id       = asset + horizonte + timestamp     (el evento económico)
 data_vintage_id = la reconstrucción histórica usada
 ```
 
-`data_vintage_id` registra al menos: `downloaded_at`, `provider` y versión,
-`symbol`, `interval`, `start`/`end`, la política de ajuste aplicada a cada
-vista, y un `series_hash`. El hash se calcula sobre una representación
-canónica de las columnas realmente usadas (timestamp, open, high, low, close,
-volume), ordenada y con serialización determinista — no sobre un CSV
-arbitrario.
+El identificador es de dos niveles:
+
+```
+series_hash por activo  +  manifest_hash de toda la cosecha  =  data_vintage_id
+```
+
+El manifiesto registra por activo: símbolo, intervalo, rango solicitado, hash
+de OHLCV y de las acciones corporativas, proveedor y versión, política de
+ajuste de cada vista, y `downloaded_at`. El hash se calcula sobre una
+representación canónica de las columnas realmente usadas (timestamp, open,
+high, low, close, volume), ordenada y con serialización determinista — no
+sobre un CSV arbitrario.
+
+Así cualquier resultado de P2 a P7 puede responder exactamente a: ¿con qué
+reconstrucción del mercado se obtuvo?
 
 **Una comparación pareada exige `data_vintage_id` idéntico, o aborta.** Sin
 esa comprobación, un join puede funcionar técnicamente mientras compara dos

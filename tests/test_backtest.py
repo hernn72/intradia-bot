@@ -22,6 +22,7 @@ from advisor.backtest.engine import (
     EXIT_TIME,
     POLICY_OPERAR,
     POLICY_TODAS,
+    BacktestTrade,
     simulate_asset,
 )
 from advisor.backtest.report import format_backtest_report
@@ -51,6 +52,61 @@ def simulate(df: pd.DataFrame, config, asset_eur, policy: str = POLICY_TODAS, **
 
 
 class TestExits:
+    def test_contrato_numerico_de_r_con_numeros_cerrados(self) -> None:
+        trade = BacktestTrade(
+            symbol="TEST",
+            score=70.0,
+            radar="OPERAR",
+            accion="COMPRAR",
+            entry_date=pd.Timestamp("2026-01-01", tz="UTC"),
+            exit_date=pd.Timestamp("2026-01-02", tz="UTC"),
+            entry_price=100.0,
+            exit_price=110.0,
+            stop=95.0,
+            target=110.0,
+            exit_reason=EXIT_TARGET,
+            bars_held=1,
+            cost_pct=0.20,
+        )
+
+        assert trade.risk_pp == pytest.approx(5.0)
+        assert trade.gross_return_pp == pytest.approx(10.0)
+        assert trade.gross_r_multiple == pytest.approx(2.0)
+        assert trade.net_return_pp == pytest.approx(9.8)
+        assert trade.net_r_multiple == pytest.approx(1.96)
+
+    @pytest.mark.parametrize(
+        ("entry", "stop", "exit_price", "cost_pp"),
+        [
+            (100.0, 95.0, 110.0, 0.20),
+            (50.0, 48.0, 51.0, 0.10),
+            (240.0, 232.0, 252.0, 0.35),
+            (80.0, 78.8, 78.0, 0.20),
+        ],
+    )
+    def test_identidad_general_de_r_neto(self, entry: float, stop: float, exit_price: float, cost_pp: float) -> None:
+        trade = BacktestTrade(
+            symbol="TEST",
+            score=70.0,
+            radar="OPERAR",
+            accion="COMPRAR",
+            entry_date=pd.Timestamp("2026-01-01", tz="UTC"),
+            exit_date=pd.Timestamp("2026-01-02", tz="UTC"),
+            entry_price=entry,
+            exit_price=exit_price,
+            stop=stop,
+            target=exit_price,
+            exit_reason=EXIT_TARGET,
+            bars_held=1,
+            cost_pct=cost_pp,
+        )
+
+        assert trade.net_r_multiple == pytest.approx(
+            trade.gross_r_multiple - cost_pp / trade.risk_pp,
+            rel=1e-12,
+            abs=1e-12,
+        )
+
     def test_stop_alcanzado_sale_al_precio_del_stop(self, config, asset_eur) -> None:
         df = make_flat_df(24, {22: (100.0, 101.0, 90.0, 91.0)})
         trades = simulate(df, config, asset_eur)
@@ -60,7 +116,7 @@ class TestExits:
         assert trade.exit_reason == EXIT_STOP
         assert trade.entry_price == pytest.approx(100.0)
         assert trade.exit_price == pytest.approx(98.5)  # soporte 99 con holgura de 0,25·ATR
-        assert trade.r_multiple == pytest.approx(-1.0)
+        assert trade.gross_r_multiple == pytest.approx(-1.0)
 
     def test_objetivo_alcanzado_sale_al_objetivo(self, config, asset_eur) -> None:
         df = make_flat_df(24, {22: (100.0, 107.0, 99.0, 106.5)})
@@ -69,8 +125,8 @@ class TestExits:
         trade = trades[0]
         assert trade.exit_reason == EXIT_TARGET
         assert trade.exit_price == pytest.approx(106.0)  # objetivo 2 = 100 + 3·ATR
-        assert trade.gross_return_pct == pytest.approx(6.0)
-        assert trade.net_return_pct == pytest.approx(5.8)  # menos 0,2% de coste
+        assert trade.gross_return_pp == pytest.approx(6.0)
+        assert trade.net_return_pp == pytest.approx(5.8)  # menos 0,2 pp de coste
 
     def test_hueco_por_debajo_del_stop_sale_a_la_apertura(self, config, asset_eur) -> None:
         """El stop no puede cruzarse a un precio que nunca existió."""
@@ -81,7 +137,7 @@ class TestExits:
         trade = trades[0]
         assert trade.exit_reason == EXIT_STOP
         assert trade.exit_price == pytest.approx(92.0)
-        assert trade.r_multiple < -1.0  # peor que el riesgo planificado: eso mide el hueco
+        assert trade.gross_r_multiple < -1.0  # peor que el riesgo planificado: eso mide el hueco
 
     def test_stop_y_objetivo_en_la_misma_vela_asume_stop(self, config, asset_eur) -> None:
         df = make_flat_df(24, {22: (100.0, 107.0, 95.0, 106.0)})

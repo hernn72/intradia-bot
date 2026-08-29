@@ -44,7 +44,7 @@ def calculate_position_sizing(
 ) -> PositionSizing:
     """Calcula tamaño de posición desde presupuesto de riesgo y distancia al stop."""
 
-    if levels.price <= 0 or levels.risk_pct <= 0:
+    if levels.price <= 0 or levels.risk_pp <= 0:
         return PositionSizing(
             label=label,
             risk_pct=0.0,
@@ -53,7 +53,7 @@ def calculate_position_sizing(
             capped_by="riesgo no calculable",
         )
 
-    uncapped_position_pct = portfolio.risk_per_trade_pct / (levels.risk_pct / 100)
+    uncapped_position_pct = portfolio.risk_per_trade_pct / (levels.risk_pp / 100)
     position_pct = min(uncapped_position_pct, portfolio.max_position_pct)
     capped_by = (
         f"tope máximo por posición ({portfolio.max_position_pct:g}%)"
@@ -61,7 +61,7 @@ def calculate_position_sizing(
         else None
     )
 
-    risk_pct = min(portfolio.risk_per_trade_pct, position_pct * levels.risk_pct / 100)
+    risk_pct = min(portfolio.risk_per_trade_pct, position_pct * levels.risk_pp / 100)
 
     return PositionSizing(
         label=label,

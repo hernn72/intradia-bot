@@ -53,7 +53,7 @@ class Levels:
     target1: float
     target2: float
     target3: float
-    risk_pct: float
+    risk_pp: float
     reward_pct: float
     rr_ratio: float
     extension_atr: Optional[float]
@@ -77,8 +77,31 @@ def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig) -> Optiona
     debe recomendarse.
     """
 
-    atr = snapshot.atr
-    price = snapshot.price
+    return compute_levels_from_inputs(
+        price=snapshot.price,
+        atr=snapshot.atr,
+        low_lookback=snapshot.low_lookback,
+        high_lookback=snapshot.high_lookback,
+        ema_fast=snapshot.ema_fast,
+        ema_slow=snapshot.ema_slow,
+        sma_long=snapshot.sma_long,
+        config=config,
+    )
+
+
+def compute_levels_from_inputs(
+    *,
+    price: float,
+    atr: Optional[float],
+    low_lookback: Optional[float],
+    high_lookback: Optional[float],
+    ema_fast: Optional[float],
+    ema_slow: Optional[float] = None,
+    sma_long: Optional[float] = None,
+    config: LevelsConfig,
+) -> Optional[Levels]:
+    """Deriva niveles desde los insumos primitivos, sin recalcular indicadores."""
+
     if atr is None or atr <= 0:
         return None
 
@@ -90,15 +113,15 @@ def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig) -> Optiona
     # entrar ahora es perseguir el movimiento (§14).
     extension_atr = None
     chase = False
-    if snapshot.ema_fast is not None:
-        extension_atr = (price - snapshot.ema_fast) / atr
+    if ema_fast is not None:
+        extension_atr = (price - ema_fast) / atr
         chase = extension_atr > config.entry_max_atr
 
     # Stop: por volatilidad, salvo que exista un soporte más cercano que esa
     # distancia, en cuyo caso se apoya en él (más ajustado y justificado por
     # estructura, no por un porcentaje arbitrario).
     volatility_stop = price - config.atr_stop_multiple * atr
-    support = snapshot.low_lookback
+    support = low_lookback
     support_stop = None
     if support is not None and volatility_stop < support < price:
         support_stop = support - _SUPPORT_BUFFER_ATR * atr
@@ -122,7 +145,7 @@ def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig) -> Optiona
     # el primer obstáculo real que encontrará el precio.
     m1, m2, m3 = config.target_atr_multiples
     target1 = price + m1 * atr
-    resistance = snapshot.high_lookback
+    resistance = high_lookback
     if resistance is not None and price < resistance < target1:
         target1 = resistance
     target2 = price + m2 * atr
@@ -137,20 +160,20 @@ def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig) -> Optiona
     # rompe, así que no cede ante ella ni siquiera con la opción activada.
     target3 = price + m3 * atr
 
-    risk_pct = (price - stop) / price * 100
+    risk_pp = (price - stop) / price * 100
     reward_pct = (target2 / price - 1) * 100
-    rr_ratio = reward_pct / risk_pct if risk_pct > 0 else 0.0
+    rr_ratio = reward_pct / risk_pp if risk_pp > 0 else 0.0
 
     # La invalidación de la tesis no es el stop de precio (§16): el stop
     # protege el capital, la invalidación dice que el motivo para estar
     # dentro ha dejado de existir.
     invalidation_level: Optional[float] = None
     invalidation_reason = "sin nivel estructural de referencia disponible"
-    if snapshot.ema_slow is not None and price > snapshot.ema_slow:
-        invalidation_level = snapshot.ema_slow
+    if ema_slow is not None and price > ema_slow:
+        invalidation_level = ema_slow
         invalidation_reason = "cierre por debajo de la EMA lenta: la tendencia que sostiene la tesis desaparece"
-    elif snapshot.sma_long is not None:
-        invalidation_level = snapshot.sma_long
+    elif sma_long is not None:
+        invalidation_level = sma_long
         invalidation_reason = "cierre por debajo de la SMA larga: el activo deja de estar en tendencia alcista"
 
     return Levels(
@@ -165,7 +188,7 @@ def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig) -> Optiona
         target1=target1,
         target2=target2,
         target3=target3,
-        risk_pct=risk_pct,
+        risk_pp=risk_pp,
         reward_pct=reward_pct,
         rr_ratio=rr_ratio,
         extension_atr=extension_atr,

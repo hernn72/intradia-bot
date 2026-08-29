@@ -154,7 +154,7 @@ def format_opportunity(
         lines.append(f"Invalidación de la tesis: {money(levels.invalidation_level)} — {levels.invalidation_reason}")
     else:
         lines.append(f"Invalidación de la tesis: {levels.invalidation_reason}")
-    lines.append(f"Pérdida máxima estimada desde el precio actual: {_pct(-levels.risk_pct)}")
+    lines.append(f"Pérdida máxima estimada desde el precio actual: {_pct(-levels.risk_pp)}")
     lines.append("")
 
     lines.append("### Objetivos")
@@ -165,7 +165,7 @@ def format_opportunity(
 
     lines.append(f"### Potencial\n{_pct(levels.reward_pct)} hasta el objetivo 2 (escenario principal)")
     lines.append("")
-    lines.append(f"### Riesgo\n{_pct(-levels.risk_pct)} hasta el stop")
+    lines.append(f"### Riesgo\n{_pct(-levels.risk_pp)} hasta el stop")
     lines.append("")
     lines.append(f"### Ratio beneficio/riesgo\n{_num(levels.rr_ratio, 1)} : 1")
     lines.append("")
@@ -198,7 +198,7 @@ def format_opportunity(
     else:
         lines.append(f"Alcista: el precio alcanza el objetivo 3 ({money(levels.target3)}, {_pct(target_pcts[2])}).")
         lines.append(f"Base: el precio alcanza el objetivo 2 ({money(levels.target2)}, {_pct(target_pcts[1])}).")
-        lines.append(f"Bajista: se activa el stop en {money(levels.stop)} ({_pct(-levels.risk_pct)}).")
+        lines.append(f"Bajista: se activa el stop en {money(levels.stop)} ({_pct(-levels.risk_pp)}).")
         lines.append(
             "Sin datos de probabilidad histórica de cada escenario: el bot no estima probabilidades que no ha medido."
         )
@@ -295,7 +295,7 @@ def _default_thesis(opportunity: Opportunity) -> str:
         parts.append(f"y {comparison} su índice de referencia ({snapshot.relative_strength:+.1f} pp)")
 
     parts.append(
-        f". El planteamiento arriesga un {opportunity.levels.risk_pct:.1f}% para buscar un "
+        f". El planteamiento arriesga un {opportunity.levels.risk_pp:.1f}% para buscar un "
         f"{opportunity.levels.reward_pct:.1f}%, un ratio de {opportunity.levels.rr_ratio:.1f}:1"
     )
     return " ".join(parts).replace(" .", ".")
@@ -381,7 +381,7 @@ def _opportunity_row(opportunity: Opportunity, fx: FxConverter) -> str:
         f"| {money.compact(levels.target2):>16} "
         f"| {money.compact(levels.stop):>16} "
         f"| {_pct(levels.reward_pct):>8} "
-        f"| {_pct(-levels.risk_pct):>8} "
+        f"| {_pct(-levels.risk_pp):>8} "
         f"| {opportunity.score.value:>5.0f} |"
     )
 

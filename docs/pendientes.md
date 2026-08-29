@@ -1,7 +1,7 @@
 # Pendientes del asesor
 
-Estado al **29 de agosto de 2026**. El último commit es `2dfa174`; **P0 y P1
-están implementados en el working tree pero sin commitear**.
+Estado al **29 de agosto de 2026**. P0 y P1 están en `main`; P2.1 y P2.2 están
+implementadas y verificadas.
 
 Cada punto dice qué falta, por qué importa y qué hay que decidir antes de
 tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
@@ -16,7 +16,7 @@ tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
   del proveedor, ya visibles en el informe y como riesgo cuando son inminentes.
 - Desplegado en la Pi con cuatro pasadas diarias (07:00, 08:30, 14:30 y 21:00,
   hora local de la Pi, UTC+1), de lunes a viernes.
-- **P0 — dimensionamiento por riesgo** (sin commitear). El tamaño sale del
+- **P0 — dimensionamiento por riesgo.** El tamaño sale del
   presupuesto de riesgo y de la distancia al stop, no de la convicción:
   `position_pct = risk_per_trade_pct / risk_pp`, con tope `max_position_pct`
   que informa de cuánto sería sin él. `advisor/analysis/sizing.py` es puro y
@@ -24,7 +24,7 @@ tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
   que es donde vive `FxConverter`. Sin tipo de cambio para una divisa (KRW,
   CNY) no se inventa un número de acciones. La etiqueta de convicción se
   conserva como información y **no** dimensiona.
-- **P1 — benchmark por activo** (sin commitear). La fortaleza relativa ya no
+- **P1 — benchmark por activo.** La fortaleza relativa ya no
   compara Apple ni Toyota contra el Euro Stoxx 50. Precedencia: campo
   `benchmark` del activo → mercado → región → `benchmark_symbol` global. El
   criterio es exposición económica, no plaza de cotización. Cripto y
@@ -49,6 +49,20 @@ ventaja.
 Fases: P2.0 congelar datos · P2.1 contrato numérico · P2.2 instrumentación de
 señal y vectorización causal · P2.3 event study · P2.4 ablación del score ·
 P2.5 capacidad estadística · P2.6 infraestructura de incertidumbre.
+
+**Hechas: P2.1 y P2.2.** Unidades con la unidad en el nombre (`risk_pp`,
+`gross_return_pp`, `net_r_multiple`), evaluación económica en R neto,
+expectancy / profit factor / payoff / mediana / percentiles / dispersión por
+tramo de puntuación, y el redondeo movido del cálculo a la presentación.
+`SignalObservation` guarda insumos primitivos y componentes numéricos, nunca
+niveles derivados. Los indicadores se calculan una vez sobre la serie completa
+y se indexan por barra, con un test de equivalencia contra el camino por
+prefijos que cubre cuatro configuraciones de benchmark y un caso negativo de
+look-ahead deliberado.
+
+**Siguiente: P2.0**, con la decisión ya tomada — descarga con
+`auto_adjust=False` y `actions=True`, tres vistas derivadas y
+`data_vintage_id` a dos niveles. Ver el protocolo.
 
 ---
 
@@ -168,10 +182,10 @@ afirmar nunca «COMPRAR AHORA EN TRADE REPUBLIC» antes de verificarlo.
   se configure expresamente. Falta añadir tests del sizing con capital
   sintético (10.000 / 50.000 / 100.000) en vez de poner una cifra ficticia en
   producción para ejercitarlo.
-- **`_signal()` recalcula los indicadores sobre `df.iloc[:j+1]` en cada
-  barra**: es cuadrático, ~1,11 ms/barra con prefijo 500, unos 10-15 minutos
-  por pasada completa. Se resuelve en P2.2 con una pasada vectorizada y un
-  test de equivalencia contra el camino por prefijos.
+- **Resuelto en P2.2**: `_signal()` ya no recalcula los indicadores sobre
+  `df.iloc[:j+1]` en cada barra. El camino por prefijos se conserva como
+  `_signal_prefix()` porque es la referencia contra la que se comprueba la
+  causalidad; no lo borres.
 - **`510300.SS` es un ETF, no el índice CSI 300**: se usa como referencia
   porque el índice no trae histórico. Está anotado en el universo. No se
   autocompara consigo mismo porque es `analizable: false`.

@@ -100,7 +100,7 @@ def build_user_message(opportunity: Opportunity) -> str:
         f"NIVELES YA FIJADOS (no los modifiques)\n"
         f"Entrada ideal: {_fmt(levels.entry_ideal_low)} — {_fmt(levels.entry_ideal_high)}"
         f"  |  Entrada máxima: {_fmt(levels.entry_max)}\n"
-        f"Stop: {_fmt(levels.stop)} ({levels.stop_basis})  |  Riesgo: -{_fmt(levels.risk_pct, '%', 1)}\n"
+        f"Stop: {_fmt(levels.stop)} ({levels.stop_basis})  |  Riesgo: -{_fmt(levels.risk_pp, '%', 1)}\n"
         f"Objetivo 1: {_fmt(levels.target1)} ({_fmt(target_pcts[0], '%', 1)})  |  "
         f"Objetivo 2: {_fmt(levels.target2)} ({_fmt(target_pcts[1], '%', 1)})  |  "
         f"Objetivo 3: {_fmt(levels.target3)} ({_fmt(target_pcts[2], '%', 1)})\n"
