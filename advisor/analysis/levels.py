@@ -126,6 +126,15 @@ def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig) -> Optiona
     if resistance is not None and price < resistance < target1:
         target1 = resistance
     target2 = price + m2 * atr
+    # El objetivo 2 es el que forma el ratio beneficio/riesgo. Si también
+    # cede ante la resistencia, el ratio deja de ser un múltiplo fijo del ATR
+    # y pasa a medir cuánto recorrido real hay hasta el primer obstáculo; si
+    # no, mide solo la geometría de la configuración. Es una decisión de
+    # diseño con consecuencias medidas: docs/ratio-beneficio-riesgo.md.
+    if config.target2_structural and resistance is not None and price < resistance < target2:
+        target2 = resistance
+    # El objetivo 3 es el escenario alcista: supone que la resistencia se
+    # rompe, así que no cede ante ella ni siquiera con la opción activada.
     target3 = price + m3 * atr
 
     risk_pct = (price - stop) / price * 100

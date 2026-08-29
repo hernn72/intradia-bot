@@ -53,6 +53,11 @@ class TestLevelsConfig:
         with pytest.raises(ValidationError, match="creciente"):
             LevelsConfig(target_atr_multiples=[3.0, 1.5, 5.0])
 
+    def test_rechaza_objetivos_repetidos(self) -> None:
+        """Dos objetivos en el mismo precio no son "creciente"."""
+        with pytest.raises(ValidationError, match="creciente"):
+            LevelsConfig(target_atr_multiples=[1.5, 3.0, 3.0])
+
     def test_rechaza_multiplo_no_positivo(self) -> None:
         with pytest.raises(ValidationError, match="> 0"):
             LevelsConfig(target_atr_multiples=[0.0, 3.0, 5.0])

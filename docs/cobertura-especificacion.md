@@ -25,7 +25,7 @@ Leyenda: **✅** implementado · **◐** parcial · **✗** ausente
 | 14 | Entrada | ✅ | Precio actual, zona ideal, entrada máxima y veto «ESPERAR PULLBACK» |
 | 15 | Objetivos | ✅ | Tres objetivos con potencial porcentual |
 | 16 | Stop e invalidación | ✅ | Distingue stop de precio de invalidación de la tesis; basado en estructura y ATR |
-| 17 | Ratio beneficio/riesgo | ◐ | Calculado, pero con el problema de diseño de `docs/ratio-beneficio-riesgo.md` |
+| 17 | Ratio beneficio/riesgo | ◐ | Calculado, pero sigue siendo casi una constante. La opción que atacaba la raíz (objetivo 2 estructural) se midió el 2026-08-29 y empeora el resultado: el problema está en la definición de resistencia, no en el ratio. Ver `docs/ratio-beneficio-riesgo.md` |
 | 18 | Gestión de cartera | ✗ | Sin concentración sectorial, geográfica, correlación ni exposición a divisa |
 | 19 | Dimensionamiento | ✅ | Los tres tramos (5-10 % / 2-5 % / 0,5-2 %), ajustados por volatilidad |
 | 20 | Prohibiciones | ✅ | No inventa: lo que no tiene fuente sale como `N/D` |

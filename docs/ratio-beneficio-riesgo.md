@@ -138,7 +138,89 @@ El hallazgo operativo más importante salió de esta medición y está aparte:
 el veto de *no perseguir precio* era lo que dejaba al asesor sin operar, y
 se degradó a advertencia (ver `advisor/analysis/opportunity.py` y el README).
 
+## Actualización 2026-08-29: D medida y descartada
+
+D era la única opción que atacaba la raíz, así que se implementó detrás del
+interruptor `levels.target2_structural` (por defecto `false`) para poder
+medirla contra el control sobre exactamente los mismos datos. El control
+reprodujo los números ya publicados (europa 2y: 20 operaciones, +0,42%/op;
+europa 5y: 75 y +0,34%/op), así que la comparación es limpia.
+
+Compuesto medio por activo, política real, coste 0,2% ida y vuelta:
+
+| Corte | Control | Con D | Operaciones |
+|---|---|---|---|
+| europa 2y | **+1,9%** | −0,7% | 20 → 2 |
+| europa 5y | **+2,7%** | −1,4% | 75 → 10 |
+| usa_en_xetra 5y *(fuera de muestra)* | **+45,3%** | +2,6% | 143 → 21 |
+| etfs_ucits 5y *(fuera de muestra)* | +0,8% | **+2,7%** | 83 → 13 |
+
+D reduce las operaciones un 85% en los cuatro cortes. La esperanza por
+operación mejora en `etfs_ucits` y aguanta en `usa_en_xetra`, pero con tan
+pocas señales el dinero compuesto se hunde: en el corte fuera de muestra más
+poblado, de +45,3% a +2,6%.
+
+**A ya no rescata a D, y el motivo importa.** Bajar `min_rr_ratio` a 1,3 o a
+1,0 deja el número de operaciones *exactamente igual* (2, 10 y 21). Aflojar
+el veto no devuelve ninguna señal porque el ratio no solo veta: alimenta los
+20 puntos brutos de la dimensión `beneficio_riesgo` y, con los fundamentales
+excluidos, la nota se normaliza sobre 80, así que valen hasta **25 puntos de
+100**. Al recortar el objetivo 2, el tramo de ratio baja de 10/20 a 5/20 o a
+0/20 y la puntuación se hunde por debajo de `min_score_operar`. No es una ley
+—una señal con el resto de dimensiones muy altas puede sobrevivir— pero en
+los cuatro cortes medidos no sobrevivió ninguna. El veto se puede aflojar; la
+nota, no, sin rehacer los pesos. D+B (objetivo 2 a 3,5·ATR) recupera algo de
+esperanza por operación pero no el número de señales.
+
+### Por qué falla: la resistencia no es un obstáculo, es el destino
+
+Diagnóstico sobre todas las velas con niveles válidos (6.936 en europa 5y,
+9.232 en usa_en_xetra 5y):
+
+- D muerde en el **46-48%** de las velas: la resistencia queda por debajo del
+  objetivo 2 casi la mitad del tiempo.
+- Cuando muerde, el recorrido hasta la resistencia tiene mediana **2,6-2,8%**
+  frente a un riesgo mediano de **4,2-4,8%**. Un objetivo que está a la mitad
+  de distancia que el stop no puede dar un ratio aceptable.
+- La proporción de velas con ratio ≥1,5 cae del 60-62% al 35-36%.
+
+La causa es la definición de resistencia: `high_lookback` es el **máximo de
+las últimas 60 velas incluyendo la actual** (`advisor/analysis/snapshot.py`),
+así que está por encima del precio casi siempre y, en un activo fuerte, muy
+cerca. No es mirar el futuro —el backtest evalúa al cierre de esa vela— pero
+sí basta una mecha superior de la propia vela que genera la señal para
+convertirse en el "primer obstáculo" que recorta el objetivo. Anclar ahí el
+objetivo que forma el ratio equivale a exigir que el activo esté lejos de su
+propio máximo reciente.
+
+Y ese requisito va al revés de lo que hace el mercado. Etiquetando cada señal
+con el ratio que habría tenido bajo D, pero dejando las salidas del control
+(objetivos intactos), el ratio de D **no ordena nada** — si acaso, invierte:
+
+| Ratio bajo D | europa 5y | usa_en_xetra 5y |
+|---|---|---|
+| < 0,5 | +0,77% (n=112) | **+1,78%** (n=172) |
+| 0,5-1,0 | **+1,14%** (n=45) | +0,17% (n=61) |
+| 1,0-1,5 | −0,05% (n=144) | −0,04% (n=213) |
+| ≥ 1,5 | +0,51% (n=308) | +0,22% (n=432) |
+
+El tramo que D castiga más —precio pegado a su máximo de 60 sesiones— es el
+que mejor rinde. En este universo esa cercanía es una ruptura en marcha, no
+un techo. D no está mal calibrada: parte de una premisa que los datos no
+sostienen.
+
 ## Sin decidir
 
-B y D siguen abiertas; A pierde sentido tras E (el ratio ya no puede caer
-por debajo del umbral con la configuración por defecto).
+Solo queda **B** (objetivo 2 a 3,5·ATR), con la mejora leve ya medida el
+2026-08-27 y confirmada como leve aquí. A pierde sentido tras E, C rompe el
+sistema y D queda descartada por medición.
+
+El código de D se conserva tras `levels.target2_structural` (con test) para
+que el hallazgo sea reproducible en una línea de configuración. No está en
+`config.yaml`: activarlo empeora el resultado en tres de los cuatro cortes.
+
+Lo que sigue abierto no es el ratio, sino la definición de resistencia: un
+nivel estructural que no sea "el máximo reciente, incluida la vela de hoy"
+—por ejemplo un máximo pivote ya superado y confirmado— podría hacer que la
+idea de D signifique lo que pretendía. Eso es un cambio de `snapshot`, no de
+`levels`, y no se ha medido.

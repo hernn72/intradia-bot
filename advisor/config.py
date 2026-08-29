@@ -57,6 +57,12 @@ class LevelsConfig(BaseModel):
     target_atr_multiples: List[float] = Field(default_factory=lambda: [1.5, 3.0, 5.0])
     entry_pullback_atr: float = Field(0.5, ge=0)
     entry_max_atr: float = Field(0.75, ge=0)
+    # ¿El objetivo 2 —el que forma el ratio beneficio/riesgo— cede ante una
+    # resistencia real, como ya hace el objetivo 1? Con esto en false el
+    # ratio es casi una constante (stop y objetivo 2 son múltiplos del mismo
+    # ATR); con true mide la distancia hasta el primer obstáculo estructural.
+    # Ver docs/ratio-beneficio-riesgo.md.
+    target2_structural: bool = False
 
     @field_validator("target_atr_multiples")
     @classmethod
@@ -65,7 +71,10 @@ class LevelsConfig(BaseModel):
             raise ValueError(f"target_atr_multiples debe tener exactamente 3 valores (objetivos 1-3), recibidos: {len(value)}")
         if any(v <= 0 for v in value):
             raise ValueError("todos los múltiplos de target_atr_multiples deben ser > 0")
-        if list(value) != sorted(value):
+        # Estrictamente creciente: dos objetivos iguales no son un error
+        # inofensivo, dejan una configuración con dos niveles que son el
+        # mismo precio y un objetivo 3 que nunca aporta información nueva.
+        if any(b <= a for a, b in zip(value, value[1:])):
             raise ValueError(f"target_atr_multiples debe ser creciente (objetivo 1 < 2 < 3), recibido: {value}")
         return value
 

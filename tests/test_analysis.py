@@ -100,6 +100,20 @@ class TestBuildSnapshot:
         with pytest.raises(ValueError, match="Close"):
             build_snapshot("TEST", pd.DataFrame({"Open": [1.0]}), IndicatorsConfig(), LevelsConfig(), "1d")
 
+    def test_la_resistencia_incluye_la_vela_actual(self) -> None:
+        """`high_lookback` toma el máximo de la ventana CON la vela de hoy.
+
+        No es mirar el futuro (la vela ya ha cerrado), pero explica por qué la
+        resistencia está casi siempre justo encima del precio: basta la mecha
+        superior de la propia vela que genera la señal. Es la raíz por la que
+        se descartó el objetivo 2 estructural (docs/ratio-beneficio-riesgo.md)."""
+
+        df = make_ohlcv(n=100, drift=0.3)
+        snapshot = build_snapshot("TEST", df, IndicatorsConfig(), LevelsConfig(), "1d")
+
+        assert snapshot.high_lookback == pytest.approx(float(df["High"].iloc[-1]))
+        assert snapshot.high_lookback > snapshot.price
+
     def test_atr_pct_relativo_al_precio(self) -> None:
         snapshot = make_snapshot(price=100.0, atr=3.0)
         assert snapshot.atr_pct == pytest.approx(3.0)
@@ -127,6 +141,48 @@ class TestComputeLevels:
         assert levels.target1 == pytest.approx(102.0)  # 100 + 1,5·2 = 103 > resistencia
         assert levels.target2 == pytest.approx(106.0)
         assert levels.target3 == pytest.approx(110.0)
+
+    def test_objetivo2_estructural_cede_ante_la_resistencia(self) -> None:
+        """Con ``target2_structural`` el objetivo que forma el ratio también
+        se detiene en el primer obstáculo real, y el ratio deja de ser el
+        múltiplo fijo del ATR (ver docs/ratio-beneficio-riesgo.md)."""
+
+        snapshot = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0, high_lookback=104.0)
+
+        sin_d = compute_levels(snapshot, LevelsConfig(target2_structural=False))
+        assert sin_d.target2 == pytest.approx(106.0)
+        assert sin_d.rr_ratio == pytest.approx(1.5)
+
+        con_d = compute_levels(snapshot, LevelsConfig(target2_structural=True))
+        assert con_d.target2 == pytest.approx(104.0)
+        assert con_d.rr_ratio == pytest.approx(1.0)
+        # El objetivo 3 es el escenario de ruptura: no cede ante la resistencia.
+        assert con_d.target3 == pytest.approx(110.0)
+
+    def test_objetivo2_estructural_no_toca_nada_sin_resistencia_por_delante(self) -> None:
+        # Resistencia por debajo del precio: no hay obstáculo delante.
+        atras = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0, high_lookback=99.0)
+        levels = compute_levels(atras, LevelsConfig(target2_structural=True))
+        assert levels.target2 == pytest.approx(106.0)
+        assert levels.rr_ratio == pytest.approx(1.5)
+
+        # Resistencia MÁS LEJOS que el objetivo 2: tampoco lo recorta.
+        lejos = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0, high_lookback=112.0)
+        levels = compute_levels(lejos, LevelsConfig(target2_structural=True))
+        assert levels.target2 == pytest.approx(106.0)
+        assert levels.rr_ratio == pytest.approx(1.5)
+
+    def test_objetivo2_estructural_puede_coincidir_con_el_objetivo1(self) -> None:
+        """Con la resistencia por debajo del objetivo 1, ambos objetivos se
+        anclan en el mismo obstáculo. Es degenerado a propósito: si el primer
+        techo real está tan cerca, no hay dos niveles distintos que ofrecer."""
+
+        snapshot = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0, high_lookback=102.0)
+        levels = compute_levels(snapshot, LevelsConfig(target2_structural=True))
+
+        assert levels.target1 == pytest.approx(102.0)
+        assert levels.target2 == pytest.approx(102.0)
+        assert levels.rr_ratio == pytest.approx(0.5)
 
     def test_ratio_se_calcula_sobre_el_objetivo2(self) -> None:
         snapshot = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0)
@@ -210,6 +266,23 @@ class TestComputeLevels:
 
 
 class TestScoring:
+    def test_el_objetivo2_estructural_arrastra_la_nota_no_solo_el_veto(self, benign_context) -> None:
+        """Recortar el objetivo 2 no solo dispara el veto de ratio: se lleva
+        por delante puntos de la nota, que no se recuperan bajando
+        `min_rr_ratio`. Es el motivo medido por el que la opción A no rescata
+        a la D (docs/ratio-beneficio-riesgo.md)."""
+
+        snapshot = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0, high_lookback=104.0)
+        control = compute_levels(snapshot, LevelsConfig(target2_structural=False))
+        con_d = compute_levels(snapshot, LevelsConfig(target2_structural=True))
+
+        puntos = {
+            etiqueta: next(d for d in compute_score(snapshot, niveles, benign_context, ScoringConfig(), 250).dimensions
+                           if d.name == "beneficio_riesgo").points
+            for etiqueta, niveles in (("control", control), ("D", con_d))
+        }
+        assert puntos["D"] < puntos["control"]
+
     def test_fundamental_se_excluye_y_la_nota_se_normaliza(self, benign_context) -> None:
         snapshot = make_snapshot()
         levels = compute_levels(snapshot, LevelsConfig())
