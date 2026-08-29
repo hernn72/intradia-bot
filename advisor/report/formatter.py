@@ -25,6 +25,8 @@ from advisor.analysis.opportunity import (
 from advisor.analysis.overview import REGION_ORDER, IndexQuote
 from advisor.config import AdvisorConfig
 from advisor.data.fx import FxConverter
+from advisor.events.calendar import EventCalendar
+from advisor.events.models import TIPO_BANCO_CENTRAL, TIPO_RESULTADOS, MarketEvent
 from advisor.report.money import MoneyFormatter
 
 WIDTH = 90
@@ -36,7 +38,15 @@ _REGION_LABEL = {
     "EUROPA": "Europa",
     "USA": "EE. UU.",
     "GLOBAL": "Global",
+    "EMERGING_MARKETS": "Emergentes",
 }
+
+
+# Un evento deja de ser contexto y pasa a ser riesgo cuando cae dentro del
+# plazo en el que la operación sigue abierta. El de banco central es más
+# corto porque mueve el mercado entero un solo día.
+_RESULTADOS_INMINENTES_DIAS = 10
+_BANCO_CENTRAL_INMINENTE_DIAS = 3
 
 
 def _pct(value: Optional[float], decimals: int = 1) -> str:
@@ -74,7 +84,9 @@ def format_overview(quotes: List[IndexQuote]) -> str:
     return "\n".join(lines)
 
 
-def format_opportunity(opportunity: Opportunity, fx: FxConverter) -> str:
+def format_opportunity(
+    opportunity: Opportunity, fx: FxConverter, eventos: Optional[List[MarketEvent]] = None
+) -> str:
     """Ficha completa de una recomendación."""
 
     asset = opportunity.asset
@@ -89,9 +101,13 @@ def format_opportunity(opportunity: Opportunity, fx: FxConverter) -> str:
     lines.append(f"## {asset.name}")
     lines.append("")
     lines.append(f"**Ticker:** {asset.symbol}")
-    lines.append(f"**ISIN:** {asset.isin or '⚠️ NO REGISTRADO — complétalo en universe.yaml'}")
-    lines.append(f"**Mercado:** {asset.market} ({_REGION_LABEL.get(asset.region, asset.region)})")
-    lines.append(f"**Divisa:** {asset.currency}")
+    if asset.european_symbol is not None:
+        lines.append(f"**Ticker europeo:** {asset.european_symbol}")
+    lines.append(f"**ISIN:** {asset.isin_label}")
+    lines.append(f"**Mercado de datos:** {asset.market} ({_REGION_LABEL.get(asset.region, asset.region)})")
+    lines.append(f"**Divisa de cotización:** {asset.currency}")
+    lines.append(f"**Exposición económica:** {asset.economic_currency}")
+    lines.append(f"**Broker / ejecución:** {asset.broker} / {asset.execution_mode}")
     lines.append(f"**Disponible en Trade Republic:** {asset.availability_label}")
     lines.append("")
     lines.append(f"**Precio actual:** {money(snapshot.price)}")
@@ -154,6 +170,19 @@ def format_opportunity(opportunity: Opportunity, fx: FxConverter) -> str:
     lines.append(f"### Confianza\n{opportunity.confianza}")
     lines.append("")
 
+    lines.append("### Próximo evento importante")
+    if eventos:
+        hoy = opportunity.snapshot.timestamp.date()
+        for evento in eventos:
+            dias = evento.dias_hasta(hoy)
+            cuando = "hoy" if dias == 0 else ("mañana" if dias == 1 else f"en {dias} días")
+            lines.append(f"  - {evento.fecha.isoformat()} ({cuando}) — {evento.titulo} [{evento.etiqueta_fuente}]")
+            if evento.detalle:
+                lines.append(f"      {evento.detalle}")
+    else:
+        lines.append("Ninguno con fecha conocida en la ventana consultada.")
+    lines.append("")
+
     lines.append("### Escenarios")
     if narrative and (narrative.escenario_alcista or narrative.escenario_base or narrative.escenario_bajista):
         if narrative.escenario_alcista:
@@ -175,6 +204,11 @@ def format_opportunity(opportunity: Opportunity, fx: FxConverter) -> str:
     risks = list(narrative.que_podria_salir_mal) if narrative and narrative.que_podria_salir_mal else []
     if not risks:
         risks = _default_risks(opportunity)
+    # Este riesgo se añade siempre, venga o no narrativa de la IA: es un
+    # hecho con fecha, no una opinión, y entrar días antes de unos resultados
+    # convierte la operación en una apuesta binaria que ninguna configuración
+    # técnica controla.
+    risks.extend(_risk_por_eventos(eventos, opportunity))
     for risk in risks:
         lines.append(f"  - {risk}")
     lines.append("")
@@ -246,6 +280,29 @@ def _default_catalyst(opportunity: Opportunity) -> str:
         "Huella en el precio: " + "; ".join(details) + ". "
         "El bot no consulta noticias ni resultados, así que la causa de fondo no está verificada."
     )
+
+
+def _risk_por_eventos(eventos: Optional[List[MarketEvent]], opportunity: Opportunity) -> List[str]:
+    """Riesgos que salen del calendario, no del precio."""
+
+    if not eventos:
+        return []
+    hoy = opportunity.snapshot.timestamp.date()
+    avisos: List[str] = []
+    for evento in eventos:
+        dias = evento.dias_hasta(hoy)
+        if evento.tipo == TIPO_RESULTADOS and dias <= _RESULTADOS_INMINENTES_DIAS:
+            cuando = "hoy" if dias == 0 else ("mañana" if dias == 1 else f"dentro de {dias} días")
+            avisos.append(
+                f"Publica resultados {cuando} ({evento.fecha.isoformat()}): el precio se moverá por la "
+                "publicación y no por la configuración técnica que motiva esta entrada."
+            )
+        elif evento.tipo == TIPO_BANCO_CENTRAL and dias <= _BANCO_CENTRAL_INMINENTE_DIAS:
+            avisos.append(
+                f"{evento.titulo} el {evento.fecha.isoformat()}: un cambio de tipos mueve todo el mercado "
+                "a la vez, con independencia del activo."
+            )
+    return avisos
 
 
 def _default_risks(opportunity: Opportunity) -> List[str]:
@@ -325,7 +382,12 @@ def _fx_footnote(fx: FxConverter, opportunities: List[Opportunity]) -> Optional[
     )
 
 
-def format_report(result: AnalysisResult, config: AdvisorConfig, fx: FxConverter) -> str:
+def format_report(
+    result: AnalysisResult,
+    config: AdvisorConfig,
+    fx: FxConverter,
+    calendar: Optional[EventCalendar] = None,
+) -> str:
     """Informe diario completo."""
 
     operar = result.by_radar(RADAR_OPERAR)
@@ -364,7 +426,15 @@ def format_report(result: AnalysisResult, config: AdvisorConfig, fx: FxConverter
     if operar:
         for opportunity in operar[: config.report.top_n]:
             lines.append(_THIN)
-            lines.append(format_opportunity(opportunity, fx))
+            # Los eventos se consultan solo de lo que se imprime: el
+            # calendario de resultados es una llamada de red por activo y el
+            # universo tiene más de cien.
+            eventos = (
+                calendar.proximos(opportunity.asset.symbol, dias=config.events.ventana_dias)
+                if calendar is not None
+                else None
+            )
+            lines.append(format_opportunity(opportunity, fx, eventos))
             lines.append("")
 
     lines.append("## 👀 RADAR")
@@ -404,10 +474,18 @@ def format_report(result: AnalysisResult, config: AdvisorConfig, fx: FxConverter
         lines.append(footnote)
 
     lines.append(_THIN)
+    # El pie describe el alcance real del análisis y hay que mantenerlo
+    # sincronizado con lo que el bot mira de verdad: un descargo de
+    # responsabilidad desactualizado engaña igual que una recomendación mala.
+    alcance = (
+        "Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos "
+        "centrales para avisar de eventos con fecha conocida."
+        if calendar is not None
+        else "Este informe se basa exclusivamente en precio y volumen, sin calendario de eventos."
+    )
     lines.append(
-        "Este informe se basa exclusivamente en precio y volumen. No consulta noticias, resultados "
-        "empresariales, fundamentales ni el calendario macroeconómico, así que no recoge catalizadores "
-        "externos. No es asesoramiento financiero."
+        f"{alcance} NO consulta noticias ni fundamentales, así que no recoge catalizadores "
+        "imprevistos ni valoración. No es asesoramiento financiero."
     )
     lines.append(_SEPARATOR)
 

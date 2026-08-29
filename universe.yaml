@@ -1,316 +1,223 @@
 # Universo de activos del asesor.
 #
-# CÓMO RELLENAR `isin` Y `trade_republic`
-# ---------------------------------------
-# Ninguno de los dos puede deducirse automáticamente: Trade Republic no expone
-# un catálogo consultable. Por eso todos los activos nacen con
-# `isin: null` y `trade_republic: unknown`, y el informe los marca como
-# "⚠️ PENDIENTE DE VERIFICACIÓN" hasta que los confirmes tú:
+# `isin` y `trade_republic` son datos distintos. El ISIN se registra solo
+# cuando se ha verificado con una fuente fiable; la disponibilidad en Trade
+# Republic no puede deducirse del ISIN ni del mercado de datos porque no hay
+# API pública del catálogo del broker.
 #
-#   1. Busca el valor en la app de Trade Republic.
-#   2. Copia el ISIN que muestra la ficha del activo.
-#   3. Pon `trade_republic: yes` (o `no` si no aparece).
+# `currency` es la divisa de cotización del símbolo usado para datos.
+# `economic_currency` describe la exposición económica principal: una acción
+# estadounidense cotizada en Xetra puede tener `currency: EUR` y seguir
+# teniendo exposición económica a USD.
 #
-# El ISIN se valida al cargar (formato + dígito de control), así que una
-# errata al teclearlo hace fallar el arranque en vez de colarse en una
-# recomendación.
+# Trade Republic usa ejecución Best Price / Direct Price desde julio de 2026.
+# Por eso `market` es solo mercado de datos; la ejecución del broker se modela
+# con `broker` y `execution_mode`, cuyos valores por defecto son
+# `trade_republic` y `best_price`.
 #
-# `analizable: false` = solo contexto de mercado, nunca recomendación.
+# `analizable: false` = solo contexto o símbolo sin histórico suficiente;
+# nunca recomendación.
 
 groups:
 
-  # --- Megacaps de EE. UU. cotizadas en Xetra, en EUR ---
-  # Dan exposición a la bolsa estadounidense sin riesgo de divisa en la
-  # ejecución: se compran en euros.
-  usa_en_xetra:
-    - symbol: APC.DE
-      name: Apple
-      asset_class: stock
-      region: USA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
+  # --- EE. UU. (41): acciones principales, datos del mercado estadounidense ---
+  usa:
+    - {primary_symbol: AAPL, primary_market: NASDAQ, primary_currency: USD, name: Apple, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: US0378331005, requires_isin: true}
+    - {primary_symbol: MSFT, primary_market: NASDAQ, primary_currency: USD, name: Microsoft, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: US5949181045, requires_isin: true}
+    - {primary_symbol: GOOGL, primary_market: NASDAQ, primary_currency: USD, name: Alphabet, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: US02079K3059, requires_isin: true}
+    - {primary_symbol: AMZN, primary_market: NASDAQ, primary_currency: USD, name: Amazon, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: US0231351067, requires_isin: true}
+    - {primary_symbol: META, primary_market: NASDAQ, primary_currency: USD, name: Meta Platforms, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: US30303M1027, requires_isin: true}
+    - {primary_symbol: TSLA, primary_market: NASDAQ, primary_currency: USD, name: Tesla, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: US88160R1014, requires_isin: true}
+    - {primary_symbol: ORCL, primary_market: NYSE, primary_currency: USD, name: Oracle, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: CRM, primary_market: NYSE, primary_currency: USD, name: Salesforce, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: NOW, primary_market: NYSE, primary_currency: USD, name: ServiceNow, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: ADBE, primary_market: NASDAQ, primary_currency: USD, name: Adobe, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: NFLX, primary_market: NASDAQ, primary_currency: USD, name: Netflix, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: NVDA, primary_market: NASDAQ, primary_currency: USD, name: Nvidia, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: US67066G1040, requires_isin: true}
+    - {primary_symbol: AVGO, primary_market: NASDAQ, primary_currency: USD, name: Broadcom, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: AMD, primary_market: NASDAQ, primary_currency: USD, name: AMD, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: MU, primary_market: NASDAQ, primary_currency: USD, name: Micron, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: QCOM, primary_market: NASDAQ, primary_currency: USD, name: Qualcomm, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: MRVL, primary_market: NASDAQ, primary_currency: USD, name: Marvell, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: INTC, primary_market: NASDAQ, primary_currency: USD, name: Intel, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: AMAT, primary_market: NASDAQ, primary_currency: USD, name: Applied Materials, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: LRCX, primary_market: NASDAQ, primary_currency: USD, name: Lam Research, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: ARM, primary_market: NASDAQ, primary_currency: USD, name: Arm Holdings, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: PLTR, primary_market: NASDAQ, primary_currency: USD, name: Palantir, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: PANW, primary_market: NASDAQ, primary_currency: USD, name: Palo Alto Networks, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: CRWD, primary_market: NASDAQ, primary_currency: USD, name: CrowdStrike, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: UBER, primary_market: NYSE, primary_currency: USD, name: Uber, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: APP, primary_market: NASDAQ, primary_currency: USD, name: AppLovin, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: JPM, primary_market: NYSE, primary_currency: USD, name: JPMorgan, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: GS, primary_market: NYSE, primary_currency: USD, name: Goldman Sachs, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: V, primary_market: NYSE, primary_currency: USD, name: Visa, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: MA, primary_market: NYSE, primary_currency: USD, name: Mastercard, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: BRK-B, primary_market: NYSE, primary_currency: USD, name: Berkshire Hathaway, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: LLY, primary_market: NYSE, primary_currency: USD, name: Eli Lilly, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: ABBV, primary_market: NYSE, primary_currency: USD, name: AbbVie, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: VRTX, primary_market: NASDAQ, primary_currency: USD, name: Vertex, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: GE, primary_market: NYSE, primary_currency: USD, name: GE Aerospace, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: RTX, primary_market: NYSE, primary_currency: USD, name: RTX, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: LMT, primary_market: NYSE, primary_currency: USD, name: Lockheed Martin, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: CAT, primary_market: NYSE, primary_currency: USD, name: Caterpillar, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: XOM, primary_market: NYSE, primary_currency: USD, name: Exxon Mobil, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: CVX, primary_market: NYSE, primary_currency: USD, name: Chevron, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: COIN, primary_market: NASDAQ, primary_currency: USD, name: Coinbase, asset_class: stock, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
 
-    - symbol: MSF.DE
-      name: Microsoft
-      asset_class: stock
-      region: USA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: NVD.DE
-      name: Nvidia
-      asset_class: stock
-      region: USA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: AMZ.DE
-      name: Amazon
-      asset_class: stock
-      region: USA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: ABEA.DE
-      name: Alphabet
-      asset_class: stock
-      region: USA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: FB2A.DE
-      name: Meta Platforms
-      asset_class: stock
-      region: USA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: TL0.DE
-      name: Tesla
-      asset_class: stock
-      region: USA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: 4AB.DE
-      name: AbbVie
-      asset_class: stock
-      region: USA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-  # --- Blue chips europeos ---
+  # --- Europa (30) ---
   europa:
-    - symbol: SAP.DE
-      name: SAP
-      asset_class: stock
-      region: EUROPA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
+    - {primary_symbol: SAP.DE, primary_market: XETRA, primary_currency: EUR, name: SAP, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: DE0007164600, requires_isin: true}
+    - {primary_symbol: SIE.DE, primary_market: XETRA, primary_currency: EUR, name: Siemens, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: DE0007236101, requires_isin: true}
+    - {primary_symbol: ALV.DE, primary_market: XETRA, primary_currency: EUR, name: Allianz, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: DE0008404005, requires_isin: true}
+    - {primary_symbol: MBG.DE, primary_market: XETRA, primary_currency: EUR, name: Mercedes-Benz, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: DE0007100000, requires_isin: true}
+    - {primary_symbol: RHM.DE, primary_market: XETRA, primary_currency: EUR, name: Rheinmetall, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: ENR.DE, primary_market: XETRA, primary_currency: EUR, name: Siemens Energy, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: DTE.DE, primary_market: XETRA, primary_currency: EUR, name: Deutsche Telekom, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: DBK.DE, primary_market: XETRA, primary_currency: EUR, name: Deutsche Bank, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: MUV2.DE, primary_market: XETRA, primary_currency: EUR, name: Munich Re, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: IFX.DE, primary_market: XETRA, primary_currency: EUR, name: Infineon, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: ASML.AS, primary_market: AMS, primary_currency: EUR, name: ASML, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Amsterdam, isin: NL0010273215, requires_isin: true}
+    - {primary_symbol: ADYEN.AS, primary_market: AMS, primary_currency: EUR, name: Adyen, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Amsterdam, isin: null, requires_isin: true}
+    - {primary_symbol: MC.PA, primary_market: PAR, primary_currency: EUR, name: LVMH, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Paris, isin: FR0000121014, requires_isin: true}
+    - {primary_symbol: AIR.PA, primary_market: PAR, primary_currency: EUR, name: Airbus, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Paris, isin: null, requires_isin: true}
+    - {primary_symbol: SU.PA, primary_market: PAR, primary_currency: EUR, name: Schneider Electric, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Paris, isin: null, requires_isin: true}
+    - {primary_symbol: SAF.PA, primary_market: PAR, primary_currency: EUR, name: Safran, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Paris, isin: null, requires_isin: true}
+    - {primary_symbol: TTE.PA, primary_market: PAR, primary_currency: EUR, name: TotalEnergies, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Paris, isin: null, requires_isin: true}
+    - {primary_symbol: OR.PA, primary_market: PAR, primary_currency: EUR, name: L'Oréal, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Paris, isin: null, requires_isin: true}
+    - {primary_symbol: IBE.MC, primary_market: MCE, primary_currency: EUR, name: Iberdrola, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Madrid, isin: null, requires_isin: true}
+    - {primary_symbol: ITX.MC, primary_market: MCE, primary_currency: EUR, name: Inditex, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Madrid, isin: null, requires_isin: true}
+    - {primary_symbol: SAN.MC, primary_market: MCE, primary_currency: EUR, name: Santander, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Madrid, isin: null, requires_isin: true}
+    - {primary_symbol: BBVA.MC, primary_market: MCE, primary_currency: EUR, name: BBVA, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Madrid, isin: null, requires_isin: true}
+    - {primary_symbol: RACE.MI, primary_market: MIL, primary_currency: EUR, name: Ferrari, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Rome, isin: null, requires_isin: true}
+    - {primary_symbol: UCG.MI, primary_market: MIL, primary_currency: EUR, name: UniCredit, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Rome, isin: null, requires_isin: true}
+    - {primary_symbol: ENI.MI, primary_market: MIL, primary_currency: EUR, name: Eni, asset_class: stock, region: EUROPA, economic_currency: EUR, timezone: Europe/Rome, isin: null, requires_isin: true}
+    - {primary_symbol: NOVO-B.CO, primary_market: CPH, primary_currency: DKK, name: Novo Nordisk, asset_class: stock, region: EUROPA, economic_currency: DKK, timezone: Europe/Copenhagen, isin: null, requires_isin: true}
+    # Las cuatro siguientes cotizan en Londres en PENIQUES (GBp), no en
+    # libras: el proveedor devuelve 12.114 para una acción que vale 121,14
+    # libras. Se usan sus cotizaciones en euros de Xetra (y el ADR en dólares
+    # de AstraZeneca, que no tiene listado en euros) para que el precio del
+    # informe no dependa de distinguir 'GBp' de 'GBP'. Verificadas el
+    # 2026-08-29 contra datos reales. `economic_currency` conserva la
+    # exposición real del negocio.
+    - {primary_symbol: RRU.DE, primary_market: XETRA, primary_currency: EUR, name: Rolls-Royce, asset_class: stock, region: EUROPA, economic_currency: GBP, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: BSP.DE, primary_market: XETRA, primary_currency: EUR, name: BAE Systems, asset_class: stock, region: EUROPA, economic_currency: GBP, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: AZN, primary_market: NASDAQ, primary_currency: USD, name: AstraZeneca, asset_class: stock, region: EUROPA, economic_currency: USD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: R6C0.DE, primary_market: XETRA, primary_currency: EUR, name: Shell, asset_class: stock, region: EUROPA, economic_currency: USD, timezone: Europe/Berlin, isin: null, requires_isin: true}
 
-    - symbol: SIE.DE
-      name: Siemens
-      asset_class: stock
-      region: EUROPA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
+  # --- Asia (15): acciones locales y ADR asiáticos ---
+  asia:
+    - {primary_symbol: 7203.T, primary_market: JPX, primary_currency: JPY, name: Toyota, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
+    - {primary_symbol: 6758.T, primary_market: JPX, primary_currency: JPY, name: Sony, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
+    - {primary_symbol: 7011.T, primary_market: JPX, primary_currency: JPY, name: Mitsubishi Heavy, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
+    - {primary_symbol: 6501.T, primary_market: JPX, primary_currency: JPY, name: Hitachi, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
+    - {primary_symbol: 9984.T, primary_market: JPX, primary_currency: JPY, name: SoftBank Group, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
+    - {primary_symbol: 6857.T, primary_market: JPX, primary_currency: JPY, name: Advantest, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
+    - {primary_symbol: 8035.T, primary_market: JPX, primary_currency: JPY, name: Tokyo Electron, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
+    - {primary_symbol: TSM, primary_market: NYSE, primary_currency: USD, name: TSMC ADR, asset_class: stock, region: ASIA, economic_currency: TWD, timezone: America/New_York, isin: null, requires_isin: true}
+    - {primary_symbol: 005930.KS, primary_market: KSC, primary_currency: KRW, name: Samsung Electronics, asset_class: stock, region: ASIA, economic_currency: KRW, timezone: Asia/Seoul, isin: null, requires_isin: true}
+    - {primary_symbol: 000660.KS, primary_market: KSC, primary_currency: KRW, name: SK Hynix, asset_class: stock, region: ASIA, economic_currency: KRW, timezone: Asia/Seoul, isin: null, requires_isin: true}
+    - {primary_symbol: 0700.HK, primary_market: HKG, primary_currency: HKD, name: Tencent, asset_class: stock, region: ASIA, economic_currency: HKD, timezone: Asia/Hong_Kong, isin: null, requires_isin: true}
+    - {primary_symbol: 9988.HK, primary_market: HKG, primary_currency: HKD, name: Alibaba, asset_class: stock, region: ASIA, economic_currency: HKD, timezone: Asia/Hong_Kong, isin: null, requires_isin: true}
+    - {primary_symbol: 1810.HK, primary_market: HKG, primary_currency: HKD, name: Xiaomi, asset_class: stock, region: ASIA, economic_currency: HKD, timezone: Asia/Hong_Kong, isin: null, requires_isin: true}
+    - {primary_symbol: 1211.HK, primary_market: HKG, primary_currency: HKD, name: BYD, asset_class: stock, region: ASIA, economic_currency: HKD, timezone: Asia/Hong_Kong, isin: null, requires_isin: true}
+    - {primary_symbol: INFY, primary_market: NYSE, primary_currency: USD, name: Infosys ADR, asset_class: stock, region: ASIA, economic_currency: INR, timezone: America/New_York, isin: null, requires_isin: true}
 
-    - symbol: ALV.DE
-      name: Allianz
-      asset_class: stock
-      region: EUROPA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: MBG.DE
-      name: Mercedes-Benz Group
-      asset_class: stock
-      region: EUROPA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: ASML.AS
-      name: ASML
-      asset_class: stock
-      region: EUROPA
-      market: AMS
-      currency: EUR
-      timezone: Europe/Amsterdam
-      isin: null
-      trade_republic: unknown
-
-    - symbol: MC.PA
-      name: LVMH
-      asset_class: stock
-      region: EUROPA
-      market: PAR
-      currency: EUR
-      timezone: Europe/Paris
-      isin: null
-      trade_republic: unknown
-
-  # --- ETFs UCITS en Xetra, en EUR ---
-  etfs_ucits:
-    - symbol: EUNL.DE
-      name: iShares Core MSCI World UCITS ETF
+  # --- ETF/ETC (18), todos con ticker de Xetra ---
+  etfs_etc:
+    - {primary_symbol: EUNL.DE, primary_market: XETRA, primary_currency: EUR, name: iShares Core MSCI World, asset_class: equity_etf, region: GLOBAL, economic_currency: MULTI, timezone: Europe/Berlin, isin: IE00B4L5Y983, requires_isin: true}
+    - {primary_symbol: SXR8.DE, primary_market: XETRA, primary_currency: EUR, name: iShares Core S&P 500, asset_class: equity_etf, region: USA, economic_currency: USD, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: EQQQ.DE, primary_market: XETRA, primary_currency: EUR, name: Invesco EQQQ Nasdaq-100, asset_class: equity_etf, region: USA, economic_currency: USD, timezone: Europe/Berlin, isin: IE0032077012, requires_isin: true}
+    - {primary_symbol: EXSA.DE, primary_market: XETRA, primary_currency: EUR, name: iShares STOXX Europe 600, asset_class: equity_etf, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - primary_symbol: IS3N.DE
+      primary_market: XETRA
+      primary_currency: EUR
+      name: iShares Core MSCI EM IMI
       asset_class: equity_etf
-      region: GLOBAL
-      market: XETRA
-      currency: EUR
+      region: EMERGING_MARKETS
+      economic_currency: MULTI
       timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: EQQQ.DE
-      name: Invesco EQQQ Nasdaq-100 UCITS ETF
-      asset_class: equity_etf
-      region: USA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-    - symbol: IS3N.DE
-      name: iShares Core MSCI EM IMI UCITS ETF
-      asset_class: equity_etf
-      region: ASIA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
+      isin: IE00BKM4GZ66
+      requires_isin: true
       notes: >-
-        Principal vía de exposición asiática del universo (emergentes, con
-        fuerte peso de China, Taiwán, India y Corea). Para exposición a Japón
-        hace falta añadir aquí un ETF UCITS de Japón cotizado en Xetra.
-
-    - symbol: 4GLD.DE
+        MSCI Emerging Markets IMI: emergentes globales, no una exposición
+        regional asiática pura.
+    - {primary_symbol: EUNN.DE, primary_market: XETRA, primary_currency: EUR, name: iShares Core MSCI Japan IMI, asset_class: equity_etf, region: ASIA, economic_currency: JPY, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: ICGA.DE, primary_market: XETRA, primary_currency: EUR, name: iShares MSCI China, asset_class: equity_etf, region: ASIA, economic_currency: CNY, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: QDV5.DE, primary_market: XETRA, primary_currency: EUR, name: iShares MSCI India, asset_class: equity_etf, region: ASIA, economic_currency: INR, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: IQQT.DE, primary_market: XETRA, primary_currency: EUR, name: iShares MSCI Taiwan, asset_class: equity_etf, region: ASIA, economic_currency: TWD, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: IQQK.DE, primary_market: XETRA, primary_currency: EUR, name: iShares MSCI Korea, asset_class: equity_etf, region: ASIA, economic_currency: KRW, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - primary_symbol: VVSM.DE
+      primary_market: XETRA
+      primary_currency: EUR
+      name: VanEck Semiconductor
+      asset_class: equity_etf
+      region: GLOBAL
+      economic_currency: USD
+      timezone: Europe/Berlin
+      isin: null
+      requires_isin: true
+      notes: >-
+        VWSM.DE no existe en el proveedor de datos; el ticker correcto de
+        Xetra es VVSM.DE, verificado el 2026-08-29 con 251 velas limpias.
+    - {primary_symbol: DFEN.DE, primary_market: XETRA, primary_currency: EUR, name: VanEck Defense, asset_class: equity_etf, region: GLOBAL, economic_currency: MULTI, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: Q8Y0.DE, primary_market: XETRA, primary_currency: EUR, name: iShares Global Clean Energy Transition, asset_class: equity_etf, region: GLOBAL, economic_currency: MULTI, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - primary_symbol: 4GLD.DE
+      primary_market: XETRA
+      primary_currency: EUR
       name: Xetra-Gold
-      asset_class: commodity_etf
+      asset_class: commodity_etc
       region: GLOBAL
-      market: XETRA
-      currency: EUR
+      economic_currency: XAU
       timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
+      isin: DE000A0S9GB0
+      requires_isin: true
+      notes: >-
+        ETC/bearer note respaldado por oro físico; no es un ETF de materias
+        primas.
+    - {primary_symbol: EUNH.DE, primary_market: XETRA, primary_currency: EUR, name: iShares Core Euro Government Bond, asset_class: bond_etf, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: IE00B4WXJJ64, requires_isin: true}
+    - {primary_symbol: ZPRR.DE, primary_market: XETRA, primary_currency: EUR, name: SPDR Russell 2000, asset_class: equity_etf, region: USA, economic_currency: USD, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: EXV1.DE, primary_market: XETRA, primary_currency: EUR, name: iShares STOXX Europe 600 Banks, asset_class: equity_etf, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, requires_isin: true}
+    - {primary_symbol: EXH1.DE, primary_market: XETRA, primary_currency: EUR, name: iShares STOXX Europe 600 Oil & Gas, asset_class: equity_etf, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, requires_isin: true}
 
-    - symbol: EUNH.DE
-      name: iShares Core Euro Government Bond UCITS ETF
-      asset_class: bond_etf
-      region: EUROPA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      isin: null
-      trade_republic: unknown
-
-  # --- Cripto cotizada en EUR ---
+  # --- Cripto (3): no tienen ISIN en este universo ---
   cripto:
-    - symbol: BTC-EUR
-      name: Bitcoin
-      asset_class: crypto
-      region: GLOBAL
-      market: CRYPTO
-      currency: EUR
-      timezone: UTC
-      isin: null
-      trade_republic: unknown
+    - {primary_symbol: BTC-EUR, primary_market: CRYPTO, primary_currency: EUR, name: Bitcoin, asset_class: crypto, region: GLOBAL, economic_currency: BTC, timezone: UTC, isin: null}
+    - {primary_symbol: ETH-EUR, primary_market: CRYPTO, primary_currency: EUR, name: Ethereum, asset_class: crypto, region: GLOBAL, economic_currency: ETH, timezone: UTC, isin: null}
+    - {primary_symbol: SOL-EUR, primary_market: CRYPTO, primary_currency: EUR, name: Solana, asset_class: crypto, region: GLOBAL, economic_currency: SOL, timezone: UTC, isin: null}
 
-    - symbol: ETH-EUR
-      name: Ethereum
-      asset_class: crypto
-      region: GLOBAL
-      market: CRYPTO
-      currency: EUR
-      timezone: UTC
-      isin: null
-      trade_republic: unknown
-
-  # --- Contexto de mercado: nunca se recomiendan, solo se leen ---
+  # --- Contexto (19): nunca recomendables ---
   contexto:
-    - symbol: "^VIX"
-      name: CBOE Volatility Index
-      asset_class: volatility_index
-      region: USA
-      market: CBOE
-      currency: USD
-      timezone: America/New_York
-      analizable: false
-      trade_republic: unknown
-
-    - symbol: "^STOXX50E"
-      name: Euro Stoxx 50
-      asset_class: index
-      region: EUROPA
-      market: EU
-      currency: EUR
-      timezone: Europe/Berlin
-      analizable: false
-      trade_republic: unknown
-
-    - symbol: "^GDAXI"
-      name: DAX
-      asset_class: index
-      region: EUROPA
-      market: XETRA
-      currency: EUR
-      timezone: Europe/Berlin
-      analizable: false
-      trade_republic: unknown
-
-    - symbol: "^GSPC"
-      name: S&P 500
-      asset_class: index
-      region: USA
-      market: US
-      currency: USD
-      timezone: America/New_York
-      analizable: false
-      trade_republic: unknown
-
-    - symbol: "^NDX"
-      name: Nasdaq 100
-      asset_class: index
-      region: USA
-      market: US
-      currency: USD
-      timezone: America/New_York
-      analizable: false
-      trade_republic: unknown
-
-    - symbol: "^N225"
-      name: Nikkei 225
-      asset_class: index
+    - {primary_symbol: "^VIX", primary_market: CBOE, primary_currency: USD, name: VIX, asset_class: volatility_index, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, analizable: false}
+    - {primary_symbol: "^GSPC", primary_market: SNP, primary_currency: USD, name: S&P 500, asset_class: index, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, analizable: false}
+    - {primary_symbol: "^NDX", primary_market: NASDAQ, primary_currency: USD, name: Nasdaq 100, asset_class: index, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, analizable: false}
+    - {primary_symbol: "^RUT", primary_market: WCB, primary_currency: USD, name: Russell 2000, asset_class: index, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, analizable: false}
+    - {primary_symbol: "^SOX", primary_market: NASDAQ, primary_currency: USD, name: Philadelphia Semiconductor, asset_class: index, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, analizable: false}
+    - {primary_symbol: "^STOXX", primary_market: ZRH, primary_currency: EUR, name: STOXX Europe 600, asset_class: index, region: EUROPA, economic_currency: EUR, timezone: Europe/Zurich, isin: null, analizable: false}
+    - {primary_symbol: "^STOXX50E", primary_market: ZRH, primary_currency: EUR, name: Euro Stoxx 50, asset_class: index, region: EUROPA, economic_currency: EUR, timezone: Europe/Zurich, isin: null, analizable: false}
+    - {primary_symbol: "^GDAXI", primary_market: XETRA, primary_currency: EUR, name: DAX, asset_class: index, region: EUROPA, economic_currency: EUR, timezone: Europe/Berlin, isin: null, analizable: false}
+    - {primary_symbol: "^FCHI", primary_market: PAR, primary_currency: EUR, name: CAC 40, asset_class: index, region: EUROPA, economic_currency: EUR, timezone: Europe/Paris, isin: null, analizable: false}
+    - {primary_symbol: "^N225", primary_market: OSA, primary_currency: JPY, name: Nikkei 225, asset_class: index, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, analizable: false}
+    - {primary_symbol: "^HSI", primary_market: HKG, primary_currency: HKD, name: Hang Seng, asset_class: index, region: ASIA, economic_currency: HKD, timezone: Asia/Hong_Kong, isin: null, analizable: false}
+    - primary_symbol: 510300.SS
+      primary_market: SHH
+      primary_currency: CNY
+      name: CSI 300 (vía ETF China AMC)
+      asset_class: equity_etf
       region: ASIA
-      market: JP
-      currency: JPY
-      timezone: Asia/Tokyo
+      economic_currency: CNY
+      timezone: Asia/Shanghai
+      isin: null
+      requires_isin: false
       analizable: false
-      trade_republic: unknown
-
-    - symbol: "^HSI"
-      name: Hang Seng
-      asset_class: index
-      region: ASIA
-      market: HK
-      currency: HKD
-      timezone: Asia/Hong_Kong
-      analizable: false
-      trade_republic: unknown
+      notes: >-
+        El índice 000300.SS solo devuelve 1 vela en 2 años. Este ETF lo
+        replica, cierra en horario de Shanghái —que es lo que interesa a la
+        pasada de la mañana— y trae histórico limpio (verificado 2026-08-29).
+        Solo contexto: nunca se recomienda.
+    - {primary_symbol: "^KS11", primary_market: KSC, primary_currency: KRW, name: KOSPI, asset_class: index, region: ASIA, economic_currency: KRW, timezone: Asia/Seoul, isin: null, analizable: false}
+    - {primary_symbol: "^TWII", primary_market: TAI, primary_currency: TWD, name: Taiwan Weighted, asset_class: index, region: ASIA, economic_currency: TWD, timezone: Asia/Taipei, isin: null, analizable: false}
+    - {primary_symbol: EURUSD=X, primary_market: CCY, primary_currency: USD, name: EUR/USD, asset_class: index, region: GLOBAL, economic_currency: USD, timezone: UTC, isin: null, analizable: false}
+    - {primary_symbol: DX-Y.NYB, primary_market: NYB, primary_currency: USD, name: Dollar Index, asset_class: index, region: GLOBAL, economic_currency: USD, timezone: America/New_York, isin: null, analizable: false}
+    - {primary_symbol: "^TNX", primary_market: CGI, primary_currency: USD, name: Treasury 10 años, asset_class: index, region: USA, economic_currency: USD, timezone: America/New_York, isin: null, analizable: false}
+    - {primary_symbol: CL=F, primary_market: NYM, primary_currency: USD, name: WTI, asset_class: index, region: GLOBAL, economic_currency: USD, timezone: America/New_York, isin: null, analizable: false}
+    - {primary_symbol: GC=F, primary_market: CMX, primary_currency: USD, name: Oro, asset_class: index, region: GLOBAL, economic_currency: XAU, timezone: America/New_York, isin: null, analizable: false}

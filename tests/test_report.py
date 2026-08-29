@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -13,6 +13,13 @@ from advisor.analysis.overview import IndexQuote
 from advisor.analysis.scoring import compute_score
 from advisor.config import AdvisorConfig, LevelsConfig, RiskConfig, ScoringConfig
 from advisor.data.fx import FxConverter
+from advisor.events.models import (
+    ALCANCE_ACTIVO,
+    ALCANCE_GLOBAL,
+    TIPO_BANCO_CENTRAL,
+    TIPO_RESULTADOS,
+    MarketEvent,
+)
 from advisor.report.formatter import format_opportunity, format_overview, format_report
 from advisor.report.money import MoneyFormatter, format_eur
 from tests.conftest import FakeProvider
@@ -108,7 +115,8 @@ class TestFormatOpportunity:
         ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
 
         for campo in [
-            "**Ticker:**", "**ISIN:**", "**Mercado:**", "**Disponible en Trade Republic:**",
+            "**Ticker:**", "**ISIN:**", "**Mercado de datos:**", "**Divisa de cotización:**",
+            "**Exposición económica:**", "**Broker / ejecución:**", "**Disponible en Trade Republic:**",
             "**Precio actual:**", "**Tipo de operación:**", "**Puntuación:**",
             "### Tesis", "### Catalizador", "### Entrada", "### Stop / invalidación",
             "### Objetivos", "### Potencial", "### Riesgo", "### Ratio beneficio/riesgo",
@@ -128,6 +136,24 @@ class TestFormatOpportunity:
     def test_isin_ausente_se_marca(self, asset_eur, benign_context, fx: FxConverter) -> None:
         ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
         assert "NO REGISTRADO" in ficha
+
+    def test_isin_no_aplicable_no_se_marca_como_pendiente(self, benign_context, fx: FxConverter) -> None:
+        from advisor.universe.models import Asset
+
+        asset = Asset(
+            symbol="BTC-EUR",
+            name="Bitcoin",
+            asset_class="crypto",
+            region="GLOBAL",
+            market="CRYPTO",
+            currency="EUR",
+            economic_currency="BTC",
+            timezone="UTC",
+        )
+        ficha = format_opportunity(_opportunity(asset, benign_context), fx)
+
+        assert "**ISIN:** No aplica" in ficha
+        assert "NO REGISTRADO" not in ficha
 
     def test_disponibilidad_sin_verificar_sale_advertida(self, asset_usd, benign_context, fx: FxConverter) -> None:
         ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx)
@@ -189,3 +215,45 @@ class TestFormatReport:
         )
         informe = format_report(result, config, fx)
         assert "XYZ.DE" in informe and "histórico insuficiente" in informe
+
+
+class TestEventosEnLaFicha:
+    """El §23 pide 'Próximo evento importante', y unos resultados inminentes
+    son un riesgo con fecha, no una opinión de la IA."""
+
+    def _evento(self, dias: int, tipo: str = TIPO_RESULTADOS, titulo: str = "Publicación de resultados"):
+        base = make_snapshot().timestamp.date()
+        return MarketEvent(
+            fecha=base + timedelta(days=dias),
+            tipo=tipo,
+            alcance=ALCANCE_ACTIVO if tipo == TIPO_RESULTADOS else ALCANCE_GLOBAL,
+            titulo=titulo,
+            fuente="fuente de prueba",
+            confirmada=tipo != TIPO_RESULTADOS,
+        )
+
+    def test_sin_calendario_lo_dice_en_vez_de_callar(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        assert "### Próximo evento importante" in ficha
+        assert "Ninguno con fecha conocida" in ficha
+
+    def test_lista_el_evento_con_su_fuente(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(
+            _opportunity(asset_eur, benign_context), fx, [self._evento(20)]
+        )
+        assert "en 20 días" in ficha
+        assert "fuente de prueba" in ficha
+
+    def test_resultados_inminentes_son_un_riesgo(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, [self._evento(3)])
+        assert "apuesta binaria" not in ficha  # el texto no promete, describe
+        assert "Publica resultados dentro de 3 días" in ficha
+
+    def test_resultados_lejanos_no_generan_riesgo(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, [self._evento(25)])
+        assert "Publica resultados" not in ficha.split("### Qué podría salir mal")[1]
+
+    def test_banco_central_inminente_avisa(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        evento = self._evento(2, TIPO_BANCO_CENTRAL, "Decisión de tipos de la Fed")
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, [evento])
+        assert "mueve todo el mercado" in ficha

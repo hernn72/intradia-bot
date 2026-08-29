@@ -16,7 +16,7 @@ from advisor.universe.models import Asset, Universe
 
 logger = logging.getLogger(__name__)
 
-REGION_ORDER = ("ASIA", "EUROPA", "USA", "GLOBAL")
+REGION_ORDER = ("ASIA", "EMERGING_MARKETS", "EUROPA", "USA", "GLOBAL")
 
 
 def asia_session_change(quotes: List[IndexQuote]) -> Optional[float]:

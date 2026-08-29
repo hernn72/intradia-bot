@@ -2,34 +2,42 @@
 
 Cada activo lleva los metadatos que la restricción fundamental del asesor
 exige comprobar antes de recomendar una compra: nombre, ticker, ISIN,
-mercado, divisa y disponibilidad en Trade Republic.
+mercado de datos, divisa y disponibilidad en Trade Republic.
 
-Sobre ``trade_republic`` e ``isin``: el asesor NO puede consultar el catálogo
-de Trade Republic (no hay API pública), así que ambos campos se mantienen a
-mano. El valor por defecto es deliberadamente ``unknown`` / ``None``: es
-preferible que el informe diga "pendiente de verificación" a que el bot
-afirme una disponibilidad que nadie ha comprobado.
+Sobre ``trade_republic``: el asesor NO puede consultar el catálogo de Trade
+Republic (no hay API pública), así que ese campo se mantiene a mano. El valor
+por defecto es deliberadamente ``unknown``: es preferible que el informe diga
+"pendiente de verificación" a que el bot afirme una disponibilidad que nadie
+ha comprobado. El ISIN es otro dato distinto: se guarda solo cuando se ha
+verificado por una fuente fiable.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, PrivateAttr, field_validator, model_validator
 
 VALID_ASSET_CLASSES = frozenset({
-    "stock", "equity_etf", "bond_etf", "commodity_etf", "leveraged_etf",
+    "stock", "equity_etf", "bond_etf", "commodity_etf", "commodity_etc", "leveraged_etf",
     "index", "volatility_index", "crypto",
 })
 
-VALID_REGIONS = frozenset({"ASIA", "EUROPA", "USA", "GLOBAL"})
+VALID_REGIONS = frozenset({"ASIA", "EUROPA", "USA", "GLOBAL", "EMERGING_MARKETS"})
 
 VALID_TRADE_REPUBLIC = frozenset({"yes", "no", "unknown"})
+
+VALID_BROKERS = frozenset({"trade_republic"})
+
+VALID_EXECUTION_MODES = frozenset({"best_price", "direct_price", "unknown"})
 
 # Un índice no es un instrumento comprable: sirve de contexto, nunca de
 # recomendación de compra.
 _CONTEXT_ONLY_CLASSES = frozenset({"index", "volatility_index"})
+
+_NO_ISIN_REQUIRED_CLASSES = frozenset({"crypto", "index", "volatility_index"})
 
 _ISIN_LENGTH = 12
 
@@ -97,17 +105,55 @@ class Asset(BaseModel):
     region: str
     market: str
     currency: str
+    economic_currency: str
     timezone: str
+    primary_symbol: str
+    primary_market: str
+    primary_currency: str
+    european_symbol: Optional[str] = None
+    european_market: Optional[str] = None
+    european_currency: Optional[str] = None
+    broker: str = "trade_republic"
+    execution_mode: str = "best_price"
     isin: Optional[str] = None
+    requires_isin: Optional[bool] = None
     trade_republic: str = "unknown"
     # Un activo con ``analizable: false`` se carga pero no se analiza: útil
     # para apartar temporalmente un valor sin borrar sus metadatos.
     analizable: bool = True
     notes: Optional[str] = None
 
-    @field_validator("symbol")
+    @model_validator(mode="before")
     @classmethod
-    def _validate_symbol(cls, value: str) -> str:
+    def _fill_compatibility_fields(cls, data):
+        if not isinstance(data, dict):
+            return data
+
+        values = dict(data)
+        if "symbol" not in values and "primary_symbol" in values:
+            values["symbol"] = values["primary_symbol"]
+        if "primary_symbol" not in values and "symbol" in values:
+            values["primary_symbol"] = values["symbol"]
+
+        if "market" not in values and "primary_market" in values:
+            values["market"] = values["primary_market"]
+        if "primary_market" not in values and "market" in values:
+            values["primary_market"] = values["market"]
+
+        if "currency" not in values and "primary_currency" in values:
+            values["currency"] = values["primary_currency"]
+        if "primary_currency" not in values and "currency" in values:
+            values["primary_currency"] = values["currency"]
+
+        if "economic_currency" not in values and "currency" in values:
+            values["economic_currency"] = values["currency"]
+        return values
+
+    @field_validator("symbol", "primary_symbol", "european_symbol")
+    @classmethod
+    def _validate_symbol(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
         cleaned = value.strip().upper()
         if not cleaned:
             raise ValueError("symbol no puede estar vacío")
@@ -135,12 +181,43 @@ class Asset(BaseModel):
             raise ValueError(f"region inválida: '{value}'. Permitidas: {sorted(VALID_REGIONS)}")
         return cleaned
 
-    @field_validator("currency")
+    @field_validator("currency", "economic_currency", "primary_currency", "european_currency")
     @classmethod
-    def _validate_currency(cls, value: str) -> str:
+    def _validate_currency(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        # "GBp" (peniques) y "GBP" (libras) solo se distinguen por la caja de
+        # la última letra y valen 100 veces distinto: el proveedor devuelve
+        # 12.114 para una acción de AstraZeneca que cuesta 121,14 libras.
+        # Pasar a mayúsculas convertiría peniques en libras sin decir nada y
+        # multiplicaría por 100 todos los precios del informe, así que se
+        # rechaza aquí, al cargar, en vez de mentir sobre dinero después.
+        crudo = value.strip()
+        if crudo == "GBp" or crudo.upper() == "GBX":
+            raise ValueError(
+                f"currency '{value}': ese activo cotiza en peniques, no en libras. "
+                "Usa su cotización en EUR (Xetra) o su ADR en USD; con peniques, "
+                "todo importe del informe saldría multiplicado por 100"
+            )
         cleaned = value.strip().upper()
+        if cleaned == "GBP":
+            return cleaned
+        if cleaned == "MULTI":
+            return cleaned
         if len(cleaned) != 3 or not cleaned.isalpha():
-            raise ValueError(f"currency inválida: '{value}'. Debe ser un código ISO 4217 de 3 letras (p. ej. EUR)")
+            raise ValueError(
+                f"currency inválida: '{value}'. Debe ser un código de 3 letras (p. ej. EUR) o MULTI"
+            )
+        return cleaned
+
+    @field_validator("market", "primary_market", "european_market")
+    @classmethod
+    def _validate_market(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip().upper()
+        if not cleaned:
+            raise ValueError("market no puede estar vacío")
         return cleaned
 
     @field_validator("timezone")
@@ -171,8 +248,49 @@ class Asset(BaseModel):
             )
         return cleaned
 
+    @field_validator("broker")
+    @classmethod
+    def _validate_broker(cls, value: str) -> str:
+        cleaned = value.strip().lower()
+        if cleaned not in VALID_BROKERS:
+            raise ValueError(f"broker inválido: '{value}'. Permitidos: {sorted(VALID_BROKERS)}")
+        return cleaned
+
+    @field_validator("execution_mode")
+    @classmethod
+    def _validate_execution_mode(cls, value: str) -> str:
+        cleaned = value.strip().lower()
+        if cleaned not in VALID_EXECUTION_MODES:
+            raise ValueError(
+                f"execution_mode inválido: '{value}'. Permitidos: {sorted(VALID_EXECUTION_MODES)}"
+            )
+        return cleaned
+
     @model_validator(mode="after")
     def _validate_cross_fields(self) -> Asset:
+        # ``symbol`` sigue siendo la identidad canónica de la app: base de
+        # datos, posiciones y deduplicación lo usan como clave. En activos con
+        # doble símbolo, ``symbol`` equivale a ``primary_symbol``; el ticker
+        # europeo es solo una ruta alternativa para leer datos durante la
+        # sesión europea o la preapertura de EE. UU.
+        if self.symbol != self.primary_symbol:
+            raise ValueError(f"{self.symbol}: symbol debe coincidir con primary_symbol")
+        if self.market != self.primary_market:
+            raise ValueError(f"{self.symbol}: market debe coincidir con primary_market")
+        if self.currency != self.primary_currency:
+            raise ValueError(f"{self.symbol}: currency debe coincidir con primary_currency")
+
+        european = [self.european_symbol, self.european_market, self.european_currency]
+        if any(value is not None for value in european) and not all(value is not None for value in european):
+            raise ValueError(
+                f"{self.symbol}: european_symbol, european_market y european_currency deben declararse juntos"
+            )
+
+        if self.requires_isin is None:
+            self.requires_isin = self.asset_class not in _NO_ISIN_REQUIRED_CLASSES
+        if self.isin is not None and not self.requires_isin:
+            raise ValueError(f"{self.symbol}: un {self.asset_class} no debe llevar ISIN en este universo")
+
         if self.asset_class in _CONTEXT_ONLY_CLASSES:
             if self.trade_republic == "yes":
                 raise ValueError(
@@ -185,6 +303,26 @@ class Asset(BaseModel):
                     f"debe llevar analizable: false"
                 )
         return self
+
+    def data_symbol(self, now: Optional[datetime] = None) -> str:
+        """Símbolo que debe consultarse al proveedor de datos en este momento."""
+
+        if self.european_symbol is None or now is None:
+            return self.symbol
+
+        try:
+            berlin_now = now.astimezone(ZoneInfo("Europe/Berlin"))
+            new_york_now = now.astimezone(ZoneInfo("America/New_York"))
+        except ValueError:
+            return self.symbol
+
+        if berlin_now.weekday() >= 5:
+            return self.symbol
+        if 8 <= berlin_now.hour < 22 and new_york_now.hour < 9:
+            return self.european_symbol
+        if new_york_now.hour == 9 and new_york_now.minute < 30:
+            return self.european_symbol
+        return self.symbol
 
     @property
     def is_recommendable(self) -> bool:
@@ -210,11 +348,21 @@ class Asset(BaseModel):
             return "No"
         return "⚠️ PENDIENTE DE VERIFICACIÓN"
 
+    @property
+    def isin_label(self) -> str:
+        """Texto del ISIN para informes, distinguiendo pendiente de no aplicable."""
+        if self.isin is not None:
+            return self.isin
+        if self.requires_isin:
+            return "⚠️ NO REGISTRADO — complétalo en universe.yaml"
+        return "No aplica"
+
 
 class Universe(BaseModel):
     """Universo completo, agrupado por lista."""
 
     groups: Dict[str, List[Asset]]
+    _by_symbol: Dict[str, Asset] = PrivateAttr(default_factory=dict)
 
     @field_validator("groups")
     @classmethod
@@ -236,6 +384,19 @@ class Universe(BaseModel):
                         f"símbolo duplicado '{asset.symbol}': aparece en '{seen[asset.symbol]}' y en '{group_name}'"
                     )
                 seen[asset.symbol] = group_name
+                if asset.european_symbol is not None:
+                    if asset.european_symbol in seen:
+                        raise ValueError(
+                            f"símbolo duplicado '{asset.european_symbol}': aparece como ticker alternativo de "
+                            f"'{asset.symbol}' y en '{seen[asset.european_symbol]}'"
+                        )
+                    seen[asset.european_symbol] = group_name
+        self._by_symbol = {
+            symbol: asset
+            for asset in self.all_assets()
+            for symbol in (asset.symbol, asset.european_symbol)
+            if symbol is not None
+        }
         return self
 
     def all_assets(self) -> List[Asset]:
@@ -259,9 +420,6 @@ class Universe(BaseModel):
         return [asset for asset in selected if asset.analizable]
 
     def get(self, symbol: str) -> Optional[Asset]:
-        """Busca un activo por símbolo (sin distinguir mayúsculas)."""
+        """Busca un activo por símbolo canónico o alternativo, sin distinguir mayúsculas."""
         target = symbol.strip().upper()
-        for asset in self.all_assets():
-            if asset.symbol == target:
-                return asset
-        return None
+        return self._by_symbol.get(target)

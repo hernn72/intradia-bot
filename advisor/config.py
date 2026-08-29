@@ -115,6 +115,28 @@ class ReportConfig(BaseModel):
     benchmark_symbol: str = "^STOXX50E"
 
 
+class EventsConfig(BaseModel):
+    """Calendario de eventos con fecha conocida (resultados y banco central)."""
+
+    enabled: bool = True
+    path: str = "events.yaml"
+    # Ventana que se mira hacia delante al redactar una recomendación.
+    ventana_dias: int = Field(30, gt=0)
+    # Por debajo de estos días, unos resultados dejan de ser un dato de
+    # contexto y pasan a ser un riesgo: el precio se moverá por la
+    # publicación, no por la configuración técnica que motivó la entrada.
+    aviso_resultados_dias: int = Field(7, gt=0)
+
+    @model_validator(mode="after")
+    def _validate_ventana(self) -> EventsConfig:
+        if self.aviso_resultados_dias > self.ventana_dias:
+            raise ValueError(
+                f"aviso_resultados_dias ({self.aviso_resultados_dias}) no puede superar "
+                f"ventana_dias ({self.ventana_dias}): el aviso nunca se dispararía"
+            )
+        return self
+
+
 class AiConfig(BaseModel):
     enabled: bool = False
     model: str = "claude-sonnet-5"
@@ -136,6 +158,7 @@ class AdvisorConfig(BaseModel):
     market_context: MarketContextConfig = Field(default_factory=MarketContextConfig)
     report: ReportConfig = Field(default_factory=ReportConfig)
     ai: AiConfig = Field(default_factory=AiConfig)
+    events: EventsConfig = Field(default_factory=EventsConfig)
 
     @field_validator("base_currency")
     @classmethod

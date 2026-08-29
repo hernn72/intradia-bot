@@ -125,7 +125,7 @@ def run_backtest(
 
     for asset in assets:
         try:
-            df = provider.get_history(asset.symbol, period=period, interval="1d")
+            df = provider.get_history(asset.primary_symbol, period=period, interval="1d")
         except Exception as exc:
             result.skipped.append((asset.symbol, str(exc)))
             continue

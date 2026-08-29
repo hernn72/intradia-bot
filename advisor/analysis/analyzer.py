@@ -69,6 +69,7 @@ def analyze_asset(
     context: MarketContext,
     horizonte: str,
     benchmark_close: Optional[pd.Series] = None,
+    now: Optional[datetime] = None,
 ) -> Opportunity:
     """Analiza un único activo.
 
@@ -78,7 +79,8 @@ def analyze_asset(
     """
 
     window = config.horizonte(horizonte)
-    history = provider.get_history(asset.symbol, period=window.period, interval=window.interval)
+    data_symbol = asset.data_symbol(now)
+    history = provider.get_history(data_symbol, period=window.period, interval=window.interval)
 
     if len(history) < window.min_bars:
         raise ValueError(
@@ -147,7 +149,7 @@ def run_analysis(
     for asset in assets:
         try:
             opportunities.append(
-                analyze_asset(asset, config, provider, context, horizonte, benchmark_close)
+                analyze_asset(asset, config, provider, context, horizonte, benchmark_close, now)
             )
         except Exception as exc:
             logger.warning("%s descartado del análisis: %s", asset.symbol, exc)

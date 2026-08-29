@@ -24,6 +24,7 @@ from advisor.analysis.opportunity import RADAR_OPERAR, Opportunity
 from advisor.config import VALID_HORIZONTES, AdvisorConfig, load_config
 from advisor.data.fx import FxConverter
 from advisor.data.market_data import MarketDataProvider
+from advisor.events.calendar import EventCalendar, YahooEarningsSource
 from advisor.report.formatter import format_report
 from advisor.report.money import MoneyFormatter
 from advisor.report.tracking import format_reviews, review_positions
@@ -129,7 +130,7 @@ def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Univ
             overview=result.overview,
         )
 
-    report = format_report(result, config, fx)
+    report = format_report(result, config, fx, _build_calendar(config))
     print(report)
 
     if not args.sin_guardar:
@@ -145,6 +146,29 @@ def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Univ
             logger.warning("El informe no se pudo enviar por Telegram")
 
     return 0
+
+
+def _build_calendar(config: AdvisorConfig) -> Optional[EventCalendar]:
+    """Calendario de eventos, o ``None`` si está desactivado o no se puede leer.
+
+    Un calendario que no carga no debe impedir que salga el informe: los
+    eventos enriquecen la recomendación, no la sostienen. Pero el fallo se
+    registra, porque quedarse sin eventos en silencio es indistinguible de no
+    tener ninguno.
+    """
+
+    if not config.events.enabled:
+        return None
+    try:
+        calendar = EventCalendar.load(config.events.path, YahooEarningsSource())
+    except (FileNotFoundError, ValueError) as exc:
+        logger.warning("Calendario de eventos no disponible (%s): el informe saldrá sin eventos", exc)
+        return None
+
+    aviso = calendar.avisar_si_se_agota()
+    if aviso:
+        logger.warning("Calendario de eventos: %s", aviso)
+    return calendar
 
 
 def cmd_backtest(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:

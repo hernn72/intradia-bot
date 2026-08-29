@@ -1,0 +1,105 @@
+# Calendario de eventos macro con fecha publicada por la propia institución.
+#
+# Por qué un fichero curado y no una descarga en cada ejecución: son ocho
+# reuniones al año por banco central, publicadas con más de un año de
+# antelación. Descargarlas en el camino de decisión añadiría una dependencia
+# de red que puede fallar justo cuando el asesor tiene que decidir, a cambio
+# de un dato que cambia dos veces al año. Se refresca a mano y el bot avisa
+# cuando se está quedando sin calendario.
+#
+# Cada fecha es la del DÍA DE LA DECISIÓN (segundo día de reunión), que es
+# cuando el mercado se mueve, no la del primer día.
+
+fuentes:
+  fed: "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  bce: "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+
+verificado_el: 2026-08-29
+
+# La Reserva Federal advierte en su propia página: "each meeting date is
+# tentative until confirmed at the meeting immediately preceding it".
+eventos:
+  - fecha: 2026-09-10
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (9-10 sep, Berlín)"
+  - fecha: 2026-10-28
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed"
+    detalle: "Reunión del FOMC (27-28 oct)"
+  - fecha: 2026-10-29
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (28-29 oct)"
+  - fecha: 2026-12-09
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed, con proyecciones económicas"
+    detalle: "Reunión del FOMC (8-9 dic) con Summary of Economic Projections"
+  - fecha: 2026-12-17
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (16-17 dic)"
+  - fecha: 2027-01-27
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed"
+    detalle: "Reunión del FOMC (26-27 ene)"
+  - fecha: 2027-02-04
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (3-4 feb)"
+  - fecha: 2027-03-17
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed, con proyecciones económicas"
+    detalle: "Reunión del FOMC (16-17 mar) con Summary of Economic Projections"
+  - fecha: 2027-03-18
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (17-18 mar)"
+  - fecha: 2027-04-28
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed"
+    detalle: "Reunión del FOMC (27-28 abr)"
+  - fecha: 2027-04-29
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (28-29 abr)"
+  - fecha: 2027-06-09
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed, con proyecciones económicas"
+    detalle: "Reunión del FOMC (8-9 jun) con Summary of Economic Projections"
+  - fecha: 2027-06-10
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (9-10 jun)"
+  - fecha: 2027-07-22
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (21-22 jul)"
+  - fecha: 2027-07-28
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed"
+    detalle: "Reunión del FOMC (27-28 jul)"
+  - fecha: 2027-09-09
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (8-9 sep)"
+  - fecha: 2027-09-15
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed, con proyecciones económicas"
+    detalle: "Reunión del FOMC (14-15 sep) con Summary of Economic Projections"
+  - fecha: 2027-10-27
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed"
+    detalle: "Reunión del FOMC (26-27 oct)"
+  - fecha: 2027-10-28
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (27-28 oct)"
+  - fecha: 2027-12-08
+    institucion: Fed
+    titulo: "Decisión de tipos de la Fed, con proyecciones económicas"
+    detalle: "Reunión del FOMC (7-8 dic) con Summary of Economic Projections"
+  - fecha: 2027-12-16
+    institucion: BCE
+    titulo: "Decisión de tipos del BCE"
+    detalle: "Reunión de política monetaria del Consejo de Gobierno (15-16 dic)"

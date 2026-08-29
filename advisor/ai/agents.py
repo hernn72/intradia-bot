@@ -83,7 +83,8 @@ def build_user_message(opportunity: Opportunity) -> str:
 
     return (
         f"ACTIVO: {asset.name} ({asset.symbol})\n"
-        f"Clase: {asset.asset_class}  |  Región: {asset.region}  |  Mercado: {asset.market}  |  Divisa: {asset.currency}\n"
+        f"Clase: {asset.asset_class}  |  Región: {asset.region}  |  Mercado de datos: {asset.market}  |  "
+        f"Divisa de cotización: {asset.currency}  |  Exposición económica: {asset.economic_currency}\n"
         f"Tipo de operación: {opportunity.tipo_operacion}  |  Horizonte: {opportunity.duracion}\n"
         f"\n"
         f"TÉCNICO (velas de {snapshot.interval}, {snapshot.bars} velas)\n"
