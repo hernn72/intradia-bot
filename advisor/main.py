@@ -28,6 +28,7 @@ from advisor.events.calendar import EventCalendar, YahooEarningsSource
 from advisor.report.formatter import format_report
 from advisor.report.money import MoneyFormatter
 from advisor.report.tracking import format_reviews, review_positions
+from advisor.research.vintage import freeze_vintage, select_symbols
 from advisor.storage.db import AdvisorDB
 from advisor.telegram.notifier import TelegramNotifier
 from advisor.universe.loader import load_universe
@@ -186,6 +187,29 @@ def cmd_backtest(args: argparse.Namespace, config: AdvisorConfig, universe: Univ
     return 0
 
 
+def cmd_congelar_datos(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    provider = MarketDataProvider(config.request_min_interval_seconds)
+    groups: Optional[List[str]] = args.grupos.split(",") if args.grupos else None
+    symbols: Optional[List[str]] = args.symbols.split(",") if args.symbols else None
+    selected = select_symbols(universe, groups=groups, symbols=symbols)
+    result = freeze_vintage(
+        selected,
+        provider,
+        period=args.period,
+        interval=args.interval,
+        root_dir=args.data_dir,
+    )
+
+    print(f"Cosecha congelada: {result.data_vintage_id}")
+    print(f"Manifiesto: {result.manifest_path}")
+    print(f"Símbolos correctos: {len(result.succeeded)}")
+    if result.failed:
+        print(f"Símbolos fallidos: {len(result.failed)}")
+        for symbol, error in result.failed.items():
+            print(f"- {symbol}: {error}")
+    return 0
+
+
 def cmd_seguimiento(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     provider = MarketDataProvider(config.request_min_interval_seconds)
     fx = FxConverter(provider, config.base_currency)
@@ -290,6 +314,14 @@ def build_parser() -> argparse.ArgumentParser:
     backtest.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
                           help="coste de ida y vuelta en %% (Trade Republic: ~1 EUR por orden)")
     backtest.set_defaults(func=cmd_backtest)
+
+    congelar = sub.add_parser("congelar-datos", help="descarga y congela una cosecha de datos para investigación")
+    congelar.add_argument("--grupos", help="grupos del universo separados por comas (por defecto, todos)")
+    congelar.add_argument("--symbols", help="símbolos del universo separados por comas; tiene prioridad sobre --grupos")
+    congelar.add_argument("--period", default="5y", help="rango solicitado a yfinance (1y, 5y, max...)")
+    congelar.add_argument("--interval", default="1d", help="intervalo solicitado a yfinance (1d, 1wk...)")
+    congelar.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
+    congelar.set_defaults(func=cmd_congelar_datos)
 
     seguimiento = sub.add_parser("seguimiento", help="revisa las posiciones abiertas contra su tesis")
     seguimiento.add_argument("--telegram", action="store_true", help="enviar el informe por Telegram")

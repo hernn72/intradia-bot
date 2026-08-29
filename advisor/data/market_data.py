@@ -74,6 +74,35 @@ class MarketDataProvider:
 
         return history
 
+    def get_raw_history(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+        """Descarga OHLCV y acciones corporativas sin ajuste por dividendos.
+
+        yfinance devuelve el OHLC ya ajustado por splits cuando se pide
+        ``auto_adjust=False``. Esta ruta conserva ``Adj Close``, dividendos y
+        splits para que investigación pueda congelar la cosecha original.
+        """
+
+        if not isinstance(symbol, str) or not symbol.strip():
+            raise ValueError("symbol debe ser una cadena no vacía")
+
+        self._rate_limiter.wait()
+
+        try:
+            ticker = yf.Ticker(symbol)
+            history = ticker.history(period=period, interval=interval, auto_adjust=False, actions=True)
+        except Exception as exc:  # pragma: no cover - depende de red externa
+            logger.error("Error al obtener datos brutos de %s: %s", symbol, exc)
+            raise
+
+        if history is None or history.empty:
+            raise ValueError(f"No se han recibido datos para el símbolo '{symbol}'")
+
+        history = history.dropna(subset=["Close"])
+        if history.empty:
+            raise ValueError(f"Datos vacíos tras limpieza para el símbolo '{symbol}'")
+
+        return history
+
     def get_last_close(
         self, symbol: str, period: str = "5d", interval: str = "1d"
     ) -> Tuple[Optional[float], Optional[pd.Timestamp]]:

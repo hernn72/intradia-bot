@@ -10,3 +10,4 @@ __pycache__/
 .env
 *.db
 *.db.bak-*
+data/vintages/
