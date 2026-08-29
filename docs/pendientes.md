@@ -1,7 +1,8 @@
 # Pendientes del asesor
 
-Estado al **29 de agosto de 2026**. P0 y P1 están en `main`; P2.1 y P2.2 están
-implementadas y verificadas.
+Estado al **29 de agosto de 2026**. P0 y P1 están en `main`. P2.0, P2.1 y P2.2
+están implementadas y verificadas, en la rama
+`sizing-riesgo-y-benchmark-regional` y **sin fusionar a `main`**.
 
 Cada punto dice qué falta, por qué importa y qué hay que decidir antes de
 tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
@@ -37,7 +38,7 @@ tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
 ### P2 — Infraestructura de investigación
 
 Ver **`docs/protocolo-investigacion.md`**, que es ahora la especificación que
-gobierna cualquier medición futura. Está acordado y **sin implementar**.
+gobierna cualquier medición futura.
 
 El cambio de encuadre importa: hasta ahora se pensaba que el trabajo pendiente
 era mejorar la estrategia. Al revisar qué puede concluir el backtest actual
@@ -60,9 +61,58 @@ y se indexan por barra, con un test de equivalencia contra el camino por
 prefijos que cubre cuatro configuraciones de benchmark y un caso negativo de
 look-ahead deliberado.
 
-**Siguiente: P2.0**, con la decisión ya tomada — descarga con
-`auto_adjust=False` y `actions=True`, tres vistas derivadas y
-`data_vintage_id` a dos niveles. Ver el protocolo.
+**Hecha también P2.0.** `advisor/research/vintage.py` congela el material
+bruto descargado con `auto_adjust=False` y `actions=True`, deriva las tres
+vistas y verifica los hashes al cargar. Verificado contra la red que en ese
+modo yfinance **ya devuelve el OHLC ajustado por splits** (NVDA cerró a 120,888
+el 2024-06-07, post-split del 10:1) y que `Close` difiere de `Adj Close`, o sea
+que el dividendo no está aplicado. Por eso las vistas no reconstruyen nada.
+
+`gap_for_catalyst` existe como dato pero **NO está enchufada al scoring**, a
+propósito. Enchufarla cambiaría puntuaciones en vivo y eso se mide antes. Con
+AAPL la corrección del hueco vale ~0,09 pp, pero el scoring da 6 puntos si el
+hueco es ≥ 2 % y 3 si es ≥ 1 %: una europea que reparte 4 % anual en un solo
+pago genera un hueco mecánico de ~2 pp, justo encima del primer umbral. Ahí la
+vista no afina, cambia de tramo.
+
+---
+
+## Lo siguiente, por orden
+
+1. **Fusionar a `main`** los dos commits de P2 (`ba3cd16` y `ecd1f5d`). `main`
+   está en `bbccf15`. Nada está pusheado a GitHub todavía.
+2. **Lanzar una cosecha real del universo completo.** Sin ella P2.3 no puede
+   empezar: hoy no hay ninguna cosecha congelada en disco, solo la capacidad de
+   crearla. 126 símbolos a un segundo por descarga son unos 2-3 minutos, y
+   ocupan del orden de 7 MB con dos años de histórico. Hay que decidir el
+   periodo: para el laboratorio interesa el máximo disponible, no los 2 años
+   por defecto de la configuración.
+3. **Pasadas por evento.** Sigue siendo lo único de toda la lista que mejora el
+   bot en producción; el resto del laboratorio no cambia nada de lo que el
+   asesor hace hoy. Decisión ya tomada: reprogramación dinámica, no
+   temporizadores fijos autodescartables, con IDs deterministas por evento y
+   pasada para evitar duplicados, y dos alarmas — `events.yaml` sin ningún
+   evento futuro, y último evento a menos de 30 días. El calendario macro
+   caduca el **2027-12-16**.
+4. **P2.3, el event study.** Es el trozo más grande de todo el protocolo:
+   todas las barras elegibles, sin estado de posición, con solapamiento; modo
+   administrado y modo sin objetivo; MAE/MFE; y la ambigüedad intrabarra
+   conservada como `TARGET_FIRST`/`STOP_FIRST`/`AMBIGUOUS` con las
+   probabilidades publicadas como intervalo.
+5. Después: P2.4 ablación · P2.5 capacidad estadística · P2.6 incertidumbre ·
+   P3 score sin RR y recalibración por horizonte · P4 geometría · P5 reducción
+   a regiones robustas · P6 backtest de sistemas · P7 walk-forward y holdout.
+
+### Nota de método, por si se pierde
+
+Las tres entregas de esta tanda llegaron con la suite en verde y aun así
+tenían defectos reales que solo aparecieron al comprobarlas con datos
+auténticos: el sizing mezclaba euros con divisa nativa (3 acciones de Toyota
+donde iban 566), el test de equivalencia no pasaba nunca un benchmark y dejaba
+pasar una divergencia del 100 % de las barras, y la cosecha congelada no se
+podía releer porque el CSV guardaba 12 dígitos y el hash usaba 17. En los tres
+casos los tests pasaban porque usaban datos sintéticos «redondos». **Verde no
+es verificado**: hay que ejercitar el camino real.
 
 ---
 
