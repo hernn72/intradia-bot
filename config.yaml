@@ -71,6 +71,13 @@ risk:
   risk_free_annual_pct: 2.25
   risk_free_multiple: 2.0
 
+portfolio:
+  # El tamaño sale del riesgo asumido hasta el stop, no de la convicción del
+  # score. Sin capital solo se informa el porcentaje de cartera.
+  capital:
+  risk_per_trade_pct: 0.5    # porcentaje de cartera que se acepta perder si salta el stop
+  max_position_pct: 10.0     # evita posiciones enormes cuando el stop está muy ajustado
+
 market_context:
   vix_symbol: "^VIX"
   vix_threshold: 25.0        # por encima: contexto de riesgo elevado
@@ -79,7 +86,23 @@ market_context:
 
 report:
   top_n: 5                   # máximo de oportunidades desarrolladas (§24)
-  benchmark_symbol: "^STOXX50E"   # referencia para la fortaleza relativa
+  benchmark_symbol: "^STOXX50E"   # último recurso si no hay benchmark regional o de mercado
+  # La fortaleza relativa compara exposición económica. Un valor asiático en
+  # forma de ADR sigue usando Asia; null significa "sin índice comparable".
+  benchmark_by_region:
+    USA: "^GSPC"
+    EUROPA: "^STOXX"
+    ASIA: "^N225"
+    GLOBAL: "^GSPC"
+    EMERGING_MARKETS:
+  benchmark_by_market:
+    JPX: "^N225"
+    OSA: "^N225"
+    HKG: "^HSI"
+    KSC: "^KS11"
+    TAI: "^TWII"
+    SHH: "510300.SS"
+    SNP: "510300.SS"
 
 ai:
   enabled: true              # ANTHROPIC_API_KEY configurada en .env

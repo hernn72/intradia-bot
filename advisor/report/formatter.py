@@ -12,6 +12,7 @@ que aparezca en una recomendación es legible en euros.
 
 from __future__ import annotations
 
+import math
 from typing import List, Optional
 
 from advisor.analysis.analyzer import AnalysisResult
@@ -23,7 +24,7 @@ from advisor.analysis.opportunity import (
     Opportunity,
 )
 from advisor.analysis.overview import REGION_ORDER, IndexQuote
-from advisor.config import AdvisorConfig
+from advisor.config import AdvisorConfig, PortfolioConfig
 from advisor.data.fx import FxConverter
 from advisor.events.calendar import EventCalendar
 from advisor.events.models import TIPO_BANCO_CENTRAL, TIPO_RESULTADOS, MarketEvent
@@ -85,7 +86,10 @@ def format_overview(quotes: List[IndexQuote]) -> str:
 
 
 def format_opportunity(
-    opportunity: Opportunity, fx: FxConverter, eventos: Optional[List[MarketEvent]] = None
+    opportunity: Opportunity,
+    fx: FxConverter,
+    eventos: Optional[List[MarketEvent]] = None,
+    portfolio: Optional[PortfolioConfig] = None,
 ) -> str:
     """Ficha completa de una recomendación."""
 
@@ -214,8 +218,42 @@ def format_opportunity(
     lines.append("")
 
     lines.append("### Dimensionamiento sugerido")
+    sizing = opportunity.sizing
     lines.append(
-        f"{opportunity.sizing_label}: {_num(opportunity.sizing_min_pct)}%–{_num(opportunity.sizing_max_pct)}% de la cartera"
+        f"{sizing.label}: {_num(sizing.position_pct)}% de la cartera, arriesgando "
+        f"{_num(sizing.risk_pct, 2)}% si salta el stop."
+    )
+    if sizing.capped_by is not None:
+        lines.append(
+            f"El {sizing.capped_by} limita la posición; sin tope serían "
+            f"{_num(sizing.uncapped_position_pct)}% de la cartera."
+        )
+    if portfolio is not None and portfolio.capital is not None:
+        capital_native = fx.from_base(portfolio.capital, asset.currency)
+        if capital_native is None:
+            lines.append(
+                f"Capital configurado en {fx.base_currency}, pero no hay tipo de cambio para {asset.currency}: "
+                "no se calcula un número de acciones."
+            )
+        else:
+            max_position_value = capital_native * sizing.position_pct / 100
+            shares = math.floor(max_position_value / levels.price) if levels.price > 0 else 0
+            if shares == 0:
+                lines.append("Con el capital configurado no alcanza para comprar una acción al precio de referencia.")
+            else:
+                position_value = shares * levels.price
+                risk_per_share = levels.price - levels.stop
+                risk_amount = shares * risk_per_share if risk_per_share > 0 else 0.0
+                risk_pct = fx.to_base(risk_amount, asset.currency)
+                risk_pct = risk_pct / portfolio.capital * 100 if risk_pct is not None else None
+                risk_text = f" ({_num(risk_pct, 2)}% de la cartera)" if risk_pct is not None else ""
+                lines.append(
+                    f"{shares} acciones; posición {money(position_value)}; "
+                    f"riesgo si salta el stop {money(risk_amount)}{risk_text}."
+                )
+    lines.append(
+        f"Cálculo hecho con entrada de referencia {money(levels.price)}; si introduces otro precio en "
+        "Trade Republic, recalcula el tamaño."
     )
     lines.append("")
 
@@ -434,7 +472,7 @@ def format_report(
                 if calendar is not None
                 else None
             )
-            lines.append(format_opportunity(opportunity, fx, eventos))
+            lines.append(format_opportunity(opportunity, fx, eventos, config.portfolio))
             lines.append("")
 
     lines.append("## 👀 RADAR")
@@ -510,7 +548,7 @@ def _conclusion(result: AnalysisResult, operar: List[Opportunity]) -> str:
     ]
 
     comprar = [o for o in operar if o.accion == ACCION_COMPRAR]
-    exposure = sum(o.sizing_max_pct for o in comprar[:3])
+    exposure = sum(o.sizing.position_pct for o in comprar[:3])
     liquidez = max(0.0, 100.0 - exposure)
     lines.append(
         f"Liquidez recomendada: {liquidez:.0f}% — suma de las {min(len(comprar), 3)} mejores ideas "

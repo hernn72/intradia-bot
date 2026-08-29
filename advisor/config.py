@@ -11,7 +11,7 @@ archivo: solo de variables de entorno / ``.env``.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -103,6 +103,12 @@ class RiskConfig(BaseModel):
     risk_free_multiple: float = Field(2.0, gt=0)
 
 
+class PortfolioConfig(BaseModel):
+    capital: Optional[float] = Field(None, gt=0)
+    risk_per_trade_pct: float = Field(0.5, gt=0, le=100)
+    max_position_pct: float = Field(10.0, gt=0, le=100)
+
+
 class MarketContextConfig(BaseModel):
     vix_symbol: str = "^VIX"
     vix_threshold: float = Field(25.0, gt=0)
@@ -113,6 +119,26 @@ class MarketContextConfig(BaseModel):
 class ReportConfig(BaseModel):
     top_n: int = Field(5, gt=0)
     benchmark_symbol: str = "^STOXX50E"
+    benchmark_by_region: Dict[str, Optional[str]] = Field(
+        default_factory=lambda: {
+            "USA": "^GSPC",
+            "EUROPA": "^STOXX",
+            "ASIA": "^N225",
+            "GLOBAL": "^GSPC",
+            "EMERGING_MARKETS": None,
+        }
+    )
+    benchmark_by_market: Dict[str, Optional[str]] = Field(
+        default_factory=lambda: {
+            "JPX": "^N225",
+            "OSA": "^N225",
+            "HKG": "^HSI",
+            "KSC": "^KS11",
+            "TAI": "^TWII",
+            "SHH": "510300.SS",
+            "SNP": "510300.SS",
+        }
+    )
 
 
 class EventsConfig(BaseModel):
@@ -155,6 +181,7 @@ class AdvisorConfig(BaseModel):
     levels: LevelsConfig = Field(default_factory=LevelsConfig)
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
     risk: RiskConfig = Field(default_factory=RiskConfig)
+    portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
     market_context: MarketContextConfig = Field(default_factory=MarketContextConfig)
     report: ReportConfig = Field(default_factory=ReportConfig)
     ai: AiConfig = Field(default_factory=AiConfig)

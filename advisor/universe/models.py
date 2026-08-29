@@ -113,6 +113,7 @@ class Asset(BaseModel):
     european_symbol: Optional[str] = None
     european_market: Optional[str] = None
     european_currency: Optional[str] = None
+    benchmark: Optional[str] = None
     broker: str = "trade_republic"
     execution_mode: str = "best_price"
     isin: Optional[str] = None
@@ -157,6 +158,16 @@ class Asset(BaseModel):
         cleaned = value.strip().upper()
         if not cleaned:
             raise ValueError("symbol no puede estar vacío")
+        return cleaned
+
+    @field_validator("benchmark")
+    @classmethod
+    def _validate_benchmark(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip().upper()
+        if not cleaned:
+            raise ValueError("benchmark no puede estar vacío; usa null para indicar explícitamente sin benchmark")
         return cleaned
 
     @field_validator("name")

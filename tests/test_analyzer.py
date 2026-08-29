@@ -8,6 +8,7 @@ from __future__ import annotations
 import pytest
 
 from advisor.analysis.analyzer import analyze_asset, run_analysis
+from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.market_context import build_market_context, fetch_market_context
 from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
 from advisor.config import AdvisorConfig, MarketContextConfig
@@ -20,7 +21,30 @@ from advisor.report.tracking import (
     review_positions,
 )
 from advisor.storage.db import AdvisorDB
+from advisor.universe.models import Asset
 from tests.conftest import FakeProvider, make_ohlcv
+
+
+def _asset(
+    symbol: str,
+    region: str,
+    market: str,
+    asset_class: str = "stock",
+    benchmark: str | None = None,
+    set_benchmark: bool = False,
+) -> Asset:
+    extra = {"benchmark": benchmark} if set_benchmark else {}
+    return Asset(
+        symbol=symbol,
+        name=symbol,
+        asset_class=asset_class,
+        region=region,
+        market=market,
+        currency="USD",
+        timezone="America/New_York",
+        trade_republic="yes",
+        **extra,
+    )
 
 
 @pytest.fixture
@@ -105,6 +129,43 @@ class TestOverview:
         assert quotes[0].error is not None
 
 
+class TestBenchmarkRegional:
+    def test_resuelve_por_region_y_mercado_asiatico(self) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+
+        assert resolve_benchmark_symbol(_asset("AAPL", "USA", "NASDAQ"), config.report) == "^GSPC"
+        assert resolve_benchmark_symbol(_asset("SAP.DE", "EUROPA", "XETRA"), config.report) == "^STOXX"
+        assert resolve_benchmark_symbol(_asset("7203.T", "ASIA", "JPX"), config.report) == "^N225"
+        assert resolve_benchmark_symbol(_asset("0700.HK", "ASIA", "HKG"), config.report) == "^HSI"
+
+    def test_adrs_asiaticos_no_usan_benchmark_usa_por_cotizar_en_nyse(self) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+
+        assert resolve_benchmark_symbol(_asset("TSM", "ASIA", "NYSE", benchmark="^TWII", set_benchmark=True), config.report) == "^TWII"
+        assert resolve_benchmark_symbol(_asset("INFY", "ASIA", "NYSE", benchmark=None, set_benchmark=True), config.report) is None
+
+    def test_cripto_y_emergentes_quedan_sin_benchmark(self) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+
+        assert resolve_benchmark_symbol(_asset("BTC-USD", "GLOBAL", "CRYPTO", "crypto"), config.report) is None
+        assert resolve_benchmark_symbol(_asset("EM", "EMERGING_MARKETS", "NYSE"), config.report) is None
+
+    def test_benchmark_null_en_activo_es_explicitamente_ninguno(self) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        asset = Asset(
+            symbol="CUSTOM",
+            name="Custom",
+            asset_class="stock",
+            region="USA",
+            market="NASDAQ",
+            currency="USD",
+            timezone="America/New_York",
+            benchmark=None,
+        )
+
+        assert resolve_benchmark_symbol(asset, config.report) is None
+
+
 class TestAnalyzeAsset:
     def test_analiza_un_activo(self, asset_eur, config, benign_context, histories) -> None:
         provider = FakeProvider(histories)
@@ -151,6 +212,14 @@ class TestRunAnalysis:
         provider = FakeProvider(histories)
         with pytest.raises(ValueError, match="no hay activos analizables"):
             run_analysis(config, universe, provider, horizonte="swing", groups=["contexto"])
+
+    def test_cachea_benchmarks_compartidos(self, config, universe, histories) -> None:
+        histories["^GSPC"] = make_ohlcv(n=300, start=5000.0, drift=2.0)
+        provider = FakeProvider(histories, closes={"^VIX": 14.0})
+
+        run_analysis(config, universe, provider, horizonte="swing")
+
+        assert provider.calls.count("^GSPC") == 1
 
 
 class TestVerdict:

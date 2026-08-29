@@ -7,6 +7,8 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
+from advisor.analysis.benchmark import resolve_benchmark_symbol
+from advisor.config import ReportConfig
 from advisor.universe.loader import load_universe
 from advisor.universe.models import Asset, Universe, isin_check_digit, validate_isin
 
@@ -249,6 +251,8 @@ class TestUniverse:
         assert universe.get("IS3N.DE").region == "EMERGING_MARKETS"
         assert universe.get("4GLD.DE").asset_class == "commodity_etc"
         assert universe.get("BTC-EUR").requires_isin is False
+        assert resolve_benchmark_symbol(universe.get("TSM"), ReportConfig()) == "^TWII"
+        assert resolve_benchmark_symbol(universe.get("INFY"), ReportConfig()) is None
 
     def test_ningun_activo_cotiza_en_peniques(self) -> None:
         """Las de Londres se sustituyeron por sus cotizaciones en euros o su

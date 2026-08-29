@@ -113,14 +113,34 @@ groups:
     - {primary_symbol: 9984.T, primary_market: JPX, primary_currency: JPY, name: SoftBank Group, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
     - {primary_symbol: 6857.T, primary_market: JPX, primary_currency: JPY, name: Advantest, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
     - {primary_symbol: 8035.T, primary_market: JPX, primary_currency: JPY, name: Tokyo Electron, asset_class: stock, region: ASIA, economic_currency: JPY, timezone: Asia/Tokyo, isin: null, requires_isin: true}
-    - {primary_symbol: TSM, primary_market: NYSE, primary_currency: USD, name: TSMC ADR, asset_class: stock, region: ASIA, economic_currency: TWD, timezone: America/New_York, isin: null, requires_isin: true}
+    - primary_symbol: TSM
+      primary_market: NYSE
+      primary_currency: USD
+      name: TSMC ADR
+      asset_class: stock
+      region: ASIA
+      economic_currency: TWD
+      timezone: America/New_York
+      isin: null
+      requires_isin: true
+      benchmark: "^TWII" # ADR taiwanés: mejor comparable que el Nikkei.
     - {primary_symbol: 005930.KS, primary_market: KSC, primary_currency: KRW, name: Samsung Electronics, asset_class: stock, region: ASIA, economic_currency: KRW, timezone: Asia/Seoul, isin: null, requires_isin: true}
     - {primary_symbol: 000660.KS, primary_market: KSC, primary_currency: KRW, name: SK Hynix, asset_class: stock, region: ASIA, economic_currency: KRW, timezone: Asia/Seoul, isin: null, requires_isin: true}
     - {primary_symbol: 0700.HK, primary_market: HKG, primary_currency: HKD, name: Tencent, asset_class: stock, region: ASIA, economic_currency: HKD, timezone: Asia/Hong_Kong, isin: null, requires_isin: true}
     - {primary_symbol: 9988.HK, primary_market: HKG, primary_currency: HKD, name: Alibaba, asset_class: stock, region: ASIA, economic_currency: HKD, timezone: Asia/Hong_Kong, isin: null, requires_isin: true}
     - {primary_symbol: 1810.HK, primary_market: HKG, primary_currency: HKD, name: Xiaomi, asset_class: stock, region: ASIA, economic_currency: HKD, timezone: Asia/Hong_Kong, isin: null, requires_isin: true}
     - {primary_symbol: 1211.HK, primary_market: HKG, primary_currency: HKD, name: BYD, asset_class: stock, region: ASIA, economic_currency: HKD, timezone: Asia/Hong_Kong, isin: null, requires_isin: true}
-    - {primary_symbol: INFY, primary_market: NYSE, primary_currency: USD, name: Infosys ADR, asset_class: stock, region: ASIA, economic_currency: INR, timezone: America/New_York, isin: null, requires_isin: true}
+    - primary_symbol: INFY
+      primary_market: NYSE
+      primary_currency: USD
+      name: Infosys ADR
+      asset_class: stock
+      region: ASIA
+      economic_currency: INR
+      timezone: America/New_York
+      isin: null
+      requires_isin: true
+      benchmark: null # No hay índice indio verificado en el universo.
 
   # --- ETF/ETC (18), todos con ticker de Xetra ---
   etfs_etc:

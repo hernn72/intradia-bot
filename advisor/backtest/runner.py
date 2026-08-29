@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 
+from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.backtest.engine import POLICY_OPERAR, POLICY_TODAS, BacktestTrade, simulate_asset
 from advisor.config import AdvisorConfig
 from advisor.data.market_data import MarketDataProvider
@@ -114,10 +115,9 @@ def run_backtest(
     vix_close = _fetch_close(provider, config.market_context.vix_symbol)
     trend_close = _fetch_close(provider, config.market_context.trend_symbol)
     trend_sma_close = sma(trend_close, config.market_context.trend_sma) if trend_close is not None else None
-    if config.report.benchmark_symbol == config.market_context.trend_symbol:
-        benchmark_close = trend_close
-    else:
-        benchmark_close = _fetch_close(provider, config.report.benchmark_symbol)
+    benchmark_cache: Dict[str, Optional[pd.Series]] = {}
+    if trend_close is not None:
+        benchmark_cache[config.market_context.trend_symbol] = trend_close
 
     result = BacktestResult(
         horizonte=horizonte, period=period, cost_pct=cost_pct, warmup_bars=window.min_bars
@@ -141,6 +141,12 @@ def run_backtest(
         vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
         trend_at = _as_optional_list(_align(trend_close, df.index))
         trend_sma_at = _as_optional_list(_align(trend_sma_close, df.index))
+        benchmark_symbol = resolve_benchmark_symbol(asset, config.report)
+        benchmark_close = None
+        if benchmark_symbol is not None:
+            if benchmark_symbol not in benchmark_cache:
+                benchmark_cache[benchmark_symbol] = _fetch_close(provider, benchmark_symbol)
+            benchmark_close = benchmark_cache[benchmark_symbol]
         bench = _align(benchmark_close, df.index)
 
         for policy, bucket in ((POLICY_OPERAR, result.trades_operar), (POLICY_TODAS, result.trades_todas)):

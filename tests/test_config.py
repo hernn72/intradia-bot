@@ -6,7 +6,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from advisor.config import AdvisorConfig, IndicatorsConfig, LevelsConfig, ScoringConfig, load_config
+from advisor.config import AdvisorConfig, IndicatorsConfig, LevelsConfig, PortfolioConfig, ScoringConfig, load_config
 
 _MINIMO = {"horizontes": {"swing": {"interval": "1d", "period": "1y", "min_bars": 120}}}
 
@@ -16,6 +16,8 @@ class TestAdvisorConfig:
         config = AdvisorConfig(**_MINIMO)
         assert config.base_currency == "EUR"
         assert config.scoring.fundamentals_enabled is False
+        assert config.portfolio.risk_per_trade_pct == 0.5
+        assert config.report.benchmark_by_region["USA"] == "^GSPC"
 
     def test_rechaza_divisa_base_no_soportada(self) -> None:
         with pytest.raises(ValidationError, match="base_currency"):
@@ -67,6 +69,19 @@ class TestScoringConfig:
     def test_vigilar_no_puede_superar_operar(self) -> None:
         with pytest.raises(ValidationError, match="min_score_vigilar"):
             ScoringConfig(min_score_operar=60, min_score_vigilar=70)
+
+
+class TestPortfolioConfig:
+    def test_capital_opcional_y_positivo_si_se_declara(self) -> None:
+        assert PortfolioConfig().capital is None
+        with pytest.raises(ValidationError, match="capital"):
+            PortfolioConfig(capital=0)
+
+    def test_rechaza_porcentajes_incoherentes(self) -> None:
+        with pytest.raises(ValidationError, match="risk_per_trade_pct"):
+            PortfolioConfig(risk_per_trade_pct=0)
+        with pytest.raises(ValidationError, match="max_position_pct"):
+            PortfolioConfig(max_position_pct=101)
 
 
 class TestLoadConfig:

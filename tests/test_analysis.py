@@ -17,9 +17,10 @@ from advisor.analysis.opportunity import (
     RADAR_VIGILAR,
     classify,
 )
-from advisor.analysis.scoring import compute_score, suggest_sizing
+from advisor.analysis.scoring import compute_score
+from advisor.analysis.sizing import calculate_position_sizing
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
-from advisor.config import IndicatorsConfig, LevelsConfig, RiskConfig, ScoringConfig
+from advisor.config import IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from tests.conftest import make_ohlcv
 
 
@@ -362,16 +363,30 @@ class TestScoring:
         score = compute_score(snapshot, levels, benign_context, ScoringConfig(), 250)
         assert score.grade in {"Excepcional", "Muy atractiva", "Interesante", "Vigilancia", "No operar"}
 
-    def test_volatilidad_alta_rebaja_el_dimensionamiento(self, benign_context) -> None:
-        snapshot = make_snapshot()
-        levels = compute_levels(snapshot, LevelsConfig())
-        score = compute_score(snapshot, levels, benign_context, ScoringConfig(), 250)
+    def test_dimensionamiento_sale_del_riesgo_sin_capital(self) -> None:
+        levels_5 = compute_levels(make_snapshot(price=100.0, atr=2.5, low_lookback=1.0), LevelsConfig())
+        sizing_5 = calculate_position_sizing(levels_5, PortfolioConfig(risk_per_trade_pct=0.5, max_position_pct=100), "Media")
+        assert levels_5.risk_pct == pytest.approx(5.0)
+        assert sizing_5.position_pct == pytest.approx(10.0)
+        assert sizing_5.risk_pct == pytest.approx(0.5)
 
-        _, _, normal_max = suggest_sizing(score, levels, atr_pct=2.0)
-        etiqueta, _, volatil_max = suggest_sizing(score, levels, atr_pct=9.0)
+        levels_2 = compute_levels(make_snapshot(price=100.0, atr=1.0, low_lookback=1.0), LevelsConfig())
+        sizing_2 = calculate_position_sizing(levels_2, PortfolioConfig(risk_per_trade_pct=0.5, max_position_pct=100), "Media")
+        assert levels_2.risk_pct == pytest.approx(2.0)
+        assert sizing_2.position_pct == pytest.approx(25.0)
 
-        assert volatil_max <= normal_max
-        assert "volatilidad" in etiqueta or volatil_max <= 5.0
+    def test_tope_muerde_y_recalcula_riesgo_efectivo(self) -> None:
+        levels = compute_levels(make_snapshot(price=100.0, atr=1.0, low_lookback=1.0), LevelsConfig())
+        sizing = calculate_position_sizing(
+            levels,
+            PortfolioConfig(capital=10_000.0, risk_per_trade_pct=0.5, max_position_pct=10.0),
+            "Media",
+        )
+
+        assert sizing.uncapped_position_pct == pytest.approx(25.0)
+        assert sizing.position_pct == pytest.approx(10.0)
+        assert sizing.capped_by is not None
+        assert sizing.risk_pct == pytest.approx(0.2)
 
 
 class TestClassify:

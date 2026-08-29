@@ -11,7 +11,7 @@ from advisor.analysis.levels import compute_levels
 from advisor.analysis.opportunity import build_opportunity
 from advisor.analysis.overview import IndexQuote
 from advisor.analysis.scoring import compute_score
-from advisor.config import AdvisorConfig, LevelsConfig, RiskConfig, ScoringConfig
+from advisor.config import AdvisorConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.data.fx import FxConverter
 from advisor.events.models import (
     ALCANCE_ACTIVO,
@@ -37,13 +37,14 @@ def fx_sin_datos() -> FxConverter:
     return FxConverter(FakeProvider(), "EUR")
 
 
-def _opportunity(asset, context, horizonte: str = "swing"):
-    snapshot = make_snapshot()
+def _opportunity(asset, context, horizonte: str = "swing", portfolio: PortfolioConfig | None = None, **snapshot_kwargs):
+    portfolio = portfolio or PortfolioConfig()
+    snapshot = make_snapshot(**snapshot_kwargs)
     levels = compute_levels(snapshot, LevelsConfig())
     score = compute_score(snapshot, levels, context, ScoringConfig(), 250)
     return build_opportunity(
         asset=asset, horizonte=horizonte, snapshot=snapshot, levels=levels,
-        score=score, context=context, scoring=ScoringConfig(), risk=RiskConfig(),
+        score=score, context=context, scoring=ScoringConfig(), risk=RiskConfig(), portfolio=portfolio,
     )
 
 
@@ -74,6 +75,11 @@ class TestFormatoDeImportes:
         assert MoneyFormatter(fx, "USD").eur_value(100.0) == pytest.approx(80.0)
         assert MoneyFormatter(fx, "EUR").eur_value(100.0) == pytest.approx(100.0)
         assert MoneyFormatter(fx, "USD").eur_value(None) is None
+
+    def test_valor_desde_euros_a_divisa_nativa(self, fx: FxConverter) -> None:
+        assert fx.from_base(80.0, "USD") == pytest.approx(100.0)
+        assert fx.from_base(100.0, "EUR") == pytest.approx(100.0)
+        assert fx.from_base(None, "USD") is None
 
     def test_columna_compacta_prefiere_euros(self, fx: FxConverter) -> None:
         assert MoneyFormatter(fx, "USD").compact(100.0) == "80,00 €"
@@ -171,6 +177,72 @@ class TestFormatOpportunity:
     def test_tipo_de_operacion_sigue_al_horizonte(self, asset_eur, benign_context, fx: FxConverter) -> None:
         assert "Intradía" in format_opportunity(_opportunity(asset_eur, benign_context, "intradia"), fx)
         assert "Medio plazo" in format_opportunity(_opportunity(asset_eur, benign_context, "medio"), fx)
+
+    def test_dimensionamiento_eur_y_usd_equivale_tras_convertir(self, asset_eur, asset_usd, benign_context) -> None:
+        portfolio = PortfolioConfig(capital=100_000.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
+        fx = FxConverter(FakeProvider(closes={"EURUSD=X": 1.25}), "EUR")
+
+        ficha_eur = format_opportunity(_opportunity(asset_eur, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
+        ficha_usd = format_opportunity(_opportunity(asset_usd, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
+
+        assert "100 acciones; posición 10.000,00 €" in ficha_eur
+        assert "125 acciones; posición 12.500,00 USD (≈ 10.000,00 €)" in ficha_usd
+
+    def test_dimensionamiento_jpy_convierte_capital_a_yenes(self, benign_context) -> None:
+        from advisor.universe.models import Asset
+
+        asset = Asset(
+            symbol="7203.T",
+            name="Toyota",
+            asset_class="stock",
+            region="ASIA",
+            market="JPX",
+            currency="JPY",
+            timezone="Asia/Tokyo",
+        )
+        portfolio = PortfolioConfig(capital=100_000.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
+        fx = FxConverter(FakeProvider(closes={"EURJPY=X": 173.0}), "EUR")
+        opportunity = _opportunity(
+            asset,
+            benign_context,
+            portfolio=portfolio,
+            price=3000.0,
+            atr=75.0,
+            ema_fast=2962.5,
+            ema_slow=2850.0,
+            sma_long=2700.0,
+            low_lookback=1.0,
+            high_lookback=3030.0,
+        )
+
+        ficha = format_opportunity(opportunity, fx, portfolio=portfolio)
+
+        assert "576 acciones; posición 1.728.000,00 JPY (≈ 9.988,44 €)" in ficha
+
+    def test_dimensionamiento_sin_tipo_de_cambio_no_inventa_acciones(self, benign_context) -> None:
+        from advisor.universe.models import Asset
+
+        asset = Asset(
+            symbol="005930.KS",
+            name="Samsung",
+            asset_class="stock",
+            region="ASIA",
+            market="KSC",
+            currency="KRW",
+            timezone="Asia/Seoul",
+        )
+        portfolio = PortfolioConfig(capital=100_000.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
+        ficha = format_opportunity(_opportunity(asset, benign_context, portfolio=portfolio), FxConverter(FakeProvider(), "EUR"), portfolio=portfolio)
+
+        assert "no hay tipo de cambio para KRW" in ficha
+        assert "no se calcula un número de acciones" in ficha
+        assert "acciones; posición" not in ficha
+
+    def test_capital_que_no_alcanza_para_una_accion_se_declara(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        portfolio = PortfolioConfig(capital=50.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
+
+        assert "no alcanza para comprar una acción" in ficha
 
 
 class TestFormatReport:

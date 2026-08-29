@@ -92,6 +92,19 @@ class FxConverter:
             return None
         return amount * rate
 
+    def from_base(self, amount: Optional[float], currency: str) -> Optional[float]:
+        """Convierte ``amount`` desde la divisa base a ``currency``.
+
+        Devuelve ``None`` si ``amount`` es ``None`` o si no hay tipo de cambio.
+        """
+
+        if amount is None:
+            return None
+        rate = self.rate(currency)
+        if rate is None:
+            return None
+        return amount / rate
+
     def needs_conversion(self, currency: str) -> bool:
         """``True`` si ``currency`` no es la divisa base."""
         return currency.strip().upper() != self.base_currency

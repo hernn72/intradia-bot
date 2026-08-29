@@ -12,9 +12,10 @@ from typing import List, Optional
 
 from advisor.analysis.levels import Levels, rr_at_least
 from advisor.analysis.market_context import MarketContext
-from advisor.analysis.scoring import Score, suggest_sizing
+from advisor.analysis.scoring import Score
+from advisor.analysis.sizing import PositionSizing, calculate_position_sizing, conviction_label
 from advisor.analysis.snapshot import TechnicalSnapshot
-from advisor.config import RiskConfig, ScoringConfig
+from advisor.config import PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.universe.models import Asset
 
 RADAR_OPERAR = "OPERAR"
@@ -66,9 +67,7 @@ class Opportunity:
     radar: str
     accion: str
     decision_reasons: List[str]
-    sizing_label: str
-    sizing_min_pct: float
-    sizing_max_pct: float
+    sizing: PositionSizing
     narrative: Optional[Narrative] = None
 
     @property
@@ -184,11 +183,12 @@ def build_opportunity(
     context: MarketContext,
     scoring: ScoringConfig,
     risk: RiskConfig,
+    portfolio: PortfolioConfig,
 ) -> Opportunity:
     """Ensambla la oportunidad ya clasificada y dimensionada."""
 
     radar, accion, reasons = classify(score, levels, context, scoring, risk, asset, horizonte)
-    sizing_label, sizing_min, sizing_max = suggest_sizing(score, levels, snapshot.atr_pct)
+    sizing = calculate_position_sizing(levels, portfolio, conviction_label(score))
 
     return Opportunity(
         asset=asset,
@@ -200,7 +200,5 @@ def build_opportunity(
         radar=radar,
         accion=accion,
         decision_reasons=reasons,
-        sizing_label=sizing_label,
-        sizing_min_pct=sizing_min,
-        sizing_max_pct=sizing_max,
+        sizing=sizing,
     )

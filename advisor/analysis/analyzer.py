@@ -11,10 +11,11 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.levels import compute_levels
 from advisor.analysis.market_context import MarketContext, fetch_market_context
 from advisor.analysis.opportunity import Opportunity, build_opportunity
@@ -111,6 +112,7 @@ def analyze_asset(
         context=context,
         scoring=config.scoring,
         risk=config.risk,
+        portfolio=config.portfolio,
     )
 
 
@@ -139,15 +141,21 @@ def run_analysis(
     # contexto en vez de quedarse en un adorno del informe.
     overview = fetch_overview(provider, universe)
     context = fetch_market_context(provider, config.market_context, asia_session_change(overview))
-    benchmark_close = _fetch_benchmark(
-        provider, config.report.benchmark_symbol, window.period, window.interval
-    )
+    benchmark_cache: Dict[str, Optional[pd.Series]] = {}
 
     opportunities: List[Opportunity] = []
     skipped: List[Tuple[str, str]] = []
 
     for asset in assets:
         try:
+            benchmark_symbol = resolve_benchmark_symbol(asset, config.report)
+            benchmark_close = None
+            if benchmark_symbol is not None:
+                if benchmark_symbol not in benchmark_cache:
+                    benchmark_cache[benchmark_symbol] = _fetch_benchmark(
+                        provider, benchmark_symbol, window.period, window.interval
+                    )
+                benchmark_close = benchmark_cache[benchmark_symbol]
             opportunities.append(
                 analyze_asset(asset, config, provider, context, horizonte, benchmark_close, now)
             )

@@ -9,7 +9,7 @@ from advisor.ai.narrator import enrich_with_narrative, extract_json, parse_narra
 from advisor.analysis.levels import compute_levels
 from advisor.analysis.opportunity import build_opportunity
 from advisor.analysis.scoring import compute_score
-from advisor.config import AiConfig, LevelsConfig, RiskConfig, ScoringConfig
+from advisor.config import AiConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from tests.test_analysis import make_snapshot
 
 _RESPUESTA = {
@@ -28,7 +28,7 @@ def _opportunity(asset, context):
     score = compute_score(snapshot, levels, context, ScoringConfig(), 250)
     return build_opportunity(
         asset=asset, horizonte="swing", snapshot=snapshot, levels=levels,
-        score=score, context=context, scoring=ScoringConfig(), risk=RiskConfig(),
+        score=score, context=context, scoring=ScoringConfig(), risk=RiskConfig(), portfolio=PortfolioConfig(),
     )
 
 

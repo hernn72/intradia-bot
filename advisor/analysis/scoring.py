@@ -22,7 +22,7 @@ puntos evaluables se ha calculado la nota.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from advisor.analysis.levels import Levels, rr_at_least
 from advisor.analysis.market_context import MarketContext
@@ -333,27 +333,3 @@ def compute_score(
             _conviccion(snapshot, min_bars),
         ]
     )
-
-
-def suggest_sizing(score: Score, levels: Levels, atr_pct: Optional[float]) -> Tuple[str, float, float]:
-    """Porcentaje máximo razonable de cartera para la operación.
-
-    Devuelve ``(etiqueta, mínimo_pct, máximo_pct)``. Los tramos siguen la
-    clasificación de convicción del asesor; un activo muy volátil baja un
-    escalón porque el mismo porcentaje de cartera implica más riesgo real.
-    """
-
-    value = score.value
-    if value >= 80 and rr_at_least(levels.rr_ratio, 2.0):
-        label, low, high = "Alta convicción", 5.0, 10.0
-    elif value >= 70:
-        label, low, high = "Convicción media", 2.0, 5.0
-    else:
-        label, low, high = "Especulativa", 0.5, 2.0
-
-    if atr_pct is not None and atr_pct >= 6.0 and label != "Especulativa":
-        if label == "Alta convicción":
-            return "Convicción media (rebajada por volatilidad)", 2.0, 5.0
-        return "Especulativa (rebajada por volatilidad)", 0.5, 2.0
-
-    return label, low, high
