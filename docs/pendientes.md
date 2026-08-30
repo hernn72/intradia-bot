@@ -1,8 +1,8 @@
 # Pendientes del asesor
 
-Estado al **29 de agosto de 2026**. P0 y P1 están en `main`. P2.0, P2.1 y P2.2
-están implementadas y verificadas, en la rama
-`sizing-riesgo-y-benchmark-regional` y **sin fusionar a `main`**.
+Estado al **30 de agosto de 2026**. P0, P1, P2.0, P2.1 y P2.2 están en `main`
+y pusheadas a GitHub (`b732e79`). La rama
+`sizing-riesgo-y-benchmark-regional` ya está fusionada en fast-forward.
 
 Cada punto dice qué falta, por qué importa y qué hay que decidir antes de
 tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
@@ -79,14 +79,24 @@ vista no afina, cambia de tramo.
 
 ## Lo siguiente, por orden
 
-1. **Fusionar a `main`** los dos commits de P2 (`ba3cd16` y `ecd1f5d`). `main`
-   está en `bbccf15`. Nada está pusheado a GitHub todavía.
-2. **Lanzar una cosecha real del universo completo.** Sin ella P2.3 no puede
-   empezar: hoy no hay ninguna cosecha congelada en disco, solo la capacidad de
-   crearla. 126 símbolos a un segundo por descarga son unos 2-3 minutos, y
-   ocupan del orden de 7 MB con dos años de histórico. Hay que decidir el
-   periodo: para el laboratorio interesa el máximo disponible, no los 2 años
-   por defecto de la configuración.
+1. ~~Fusionar a `main` y pushear.~~ **Hecho el 2026-08-30.**
+2. ~~Lanzar una cosecha real del universo completo.~~ **Hecha el 2026-08-30**,
+   con `--period 5y` (el valor por defecto del subcomando, no los 2 años de
+   `config.yaml`). Los 126 símbolos entraron, ninguno falló, 18 MB en disco, y
+   la relectura verifica los tres hashes —manifiesto, serie y acciones
+   corporativas— sin excepción. `data/vintages/` está en `.gitignore`, así que
+   la cosecha vive solo en este portátil: para reproducirla en otra máquina hay
+   que volver a congelar y comprobar que sale el mismo `data_vintage_id`.
+
+   `data_vintage_id`:
+   `071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841`
+
+   Cobertura: mediana de 1255 barras, máximo 1825 (las tres criptos, que cotizan
+   también en fin de semana) y mínimo 446 (`Q8Y0.DE`), con `ARM` en 742 y
+   `DFEN.DE` en 863 porque son jóvenes. Los asiáticos se quedan en ~1220 barras
+   porque yfinance no da 5 años completos de esas plazas. **P2.5 tendrá que
+   tratar la profundidad como variable por activo, no como constante.**
+
 3. **Pasadas por evento.** Sigue siendo lo único de toda la lista que mejora el
    bot en producción; el resto del laboratorio no cambia nada de lo que el
    asesor hace hoy. Decisión ya tomada: reprogramación dinámica, no
@@ -221,7 +231,46 @@ que hoy se mezclan —calidad de la señal y ejecutabilidad en el broker— para
 que el informe pueda decir «🟢 OPERAR, disponibilidad ❓ pendiente» sin
 afirmar nunca «COMPRAR AHORA EN TRADE REPUBLIC» antes de verificarlo.
 
-## 10. Cosas menores pero reales
+## 10. Los datos europeos llegan con retraso frente a los de EE. UU.
+
+Medido el **domingo 2026-08-30**, siendo el viernes 28 la última sesión. Al
+agrupar los 126 símbolos de la cosecha por su última barra aparece un escalón
+por plaza que no es aleatorio:
+
+| Última barra | Símbolos | Plazas |
+|---|---|---|
+| vie 28 (al día) | 53 | EE. UU. e índices estadounidenses |
+| jue 27 (−1 sesión) | 25 | Japón, Hong Kong, Corea, España, `^FCHI` |
+| mié 26 (−2 sesiones) | 45 | **Xetra (31), Euronext, Milán, Copenhague** |
+| dom 30 | 3 | cripto, que cotiza en fin de semana |
+
+**No es un artefacto de la cosecha: es el proveedor.** Comprobado pidiendo de
+nuevo los datos en vivo, con `period=1mo` y con `period=5y`: `SAP.DE` y
+`ASML.AS` terminan el 26 en los cuatro casos, mientras `AAPL` termina el 28 y
+`7203.T` el 27. La serie europea no está truncada por la cola, va retrasada
+entera.
+
+Por qué importa: el asesor recomienda para ejecutar en **Trade Republic**, o
+sea justo las plazas del tramo de −2 sesiones, y hace cuatro pasadas diarias.
+Si el retraso también se da entre semana, las señales de los 31 instrumentos
+de Xetra se calculan sobre un cierre de hace dos sesiones sin que el informe lo
+diga. Es la misma familia de fallo que el precio obsoleto del otro bot.
+
+**Lo que NO está medido, y no hay que darlo por sabido:** esto es *una* medición
+hecha en fin de semana. Puede ser un retraso permanente del proveedor o un
+rezago de fin de semana que se pone al día el lunes. Antes de tocar nada hay
+que **repetir la medición un día de mercado**, comparando la última barra por
+plaza a la misma hora.
+
+**Qué hay que decidir, si se confirma:** si el informe declara la antigüedad
+del dato por activo (barato, honesto, y encaja con separar señal de
+ejecutabilidad del §9) o si se busca otra fuente para las plazas europeas
+(caro). No degradar recomendaciones en silencio.
+
+**No afecta a la cosecha ni a P2.3:** al event study le sobran dos sesiones de
+cola sobre medianas de 1255 barras.
+
+## 11. Cosas menores pero reales
 
 - **`mypy` no se puede ejecutar**: `pyproject.toml` fija
   `python_version = "3.9"` y el mypy instalado exige >=3.10. Hay que decidir
