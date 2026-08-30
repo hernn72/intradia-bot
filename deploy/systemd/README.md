@@ -5,9 +5,13 @@ en días laborables (`07:00`, `08:30`, `14:30`, `21:00`), una pasada por evento
 autodescartable a la hora configurada en `events.pasada_evento_hora`, `TimeoutStartSec=1800`
 y `Persistent=false`.
 
-Las rutas y secretos no viven en las unidades versionadas. El instalador lee
-un fichero externo, por defecto `/etc/intradia-bot/systemd.env`, con estas
-variables:
+Las rutas no viven en las unidades versionadas. El instalador lee un fichero
+externo, por defecto `/etc/intradia-bot/systemd.env`, con estas variables.
+
+Ese fichero **no contiene secretos**: solo rutas, el usuario y un puntero al
+`.env`, que es donde viven las credenciales y que sigue siendo `0600`. Por eso
+va en `0644` y no en `0600`: la comprobación de desfase está pensada para
+correr **sin `sudo`**, y con `0600` de root falla al leerlo.
 
 ```bash
 INTRADIA_BOT_USER=fer
@@ -22,7 +26,7 @@ Instalación o recuperación en una Pi nueva:
 
 ```bash
 sudo install -d -m 0755 /etc/intradia-bot
-sudo install -m 0600 systemd.env /etc/intradia-bot/systemd.env
+sudo install -m 0644 systemd.env /etc/intradia-bot/systemd.env
 sudo ./deploy/install-systemd.sh
 sudo systemctl daemon-reload
 sudo systemctl enable --now intradia-bot.timer

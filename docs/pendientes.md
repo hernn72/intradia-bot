@@ -329,7 +329,35 @@ cualquier aritmética de fechas en P2.5 o P4 fallará o, peor, ordenará
 lexicográficamente sin avisar. `mypy` no lo habría dejado pasar, y `mypy` es
 justo el gate caído.
 
-## 12. Cosas menores pero reales
+## 12. Desplegado en la Pi el 2026-08-30
+
+La Pi pasó de `e952f71` a `1f31d2d`, ocho commits. Hasta ese día producción
+corría **sin P0 ni P1**: dimensionaba por convicción y comparaba todo contra el
+Euro Stoxx 50.
+
+Verificado en la propia Pi, no en local: suite completa con Python 3.13
+(313 pasan, 1 saltado porque `data/vintages/` no existe allí), unidades
+instaladas conservando las cuatro horas, `TimeoutStartSec=1800`,
+`Persistent=false` y las directivas de log, `verificar-systemd` diciendo
+«alineadas», pasada por evento autodescartándose en domingo y disparando con
+la fecha del BCE, y una pasada completa de análisis con código 0 y 107
+recomendaciones guardadas.
+
+Copias de seguridad: `intradia.db.bak-20260830-125315` y las unidades
+originales en `/root/*.bak`.
+
+**Trampa aprendida:** probar la pasada por evento con `--fecha 2026-09-10`
+marcó los tres eventos de ese día como `SENT`, lo que habría silenciado la
+pasada real del BCE. Se limpió la tabla. Cualquier prueba con fecha futura
+tiene que borrar después sus filas de `event_pass`.
+
+### Pendiente menor de esto
+
+`verificar-systemd` lanza un traceback de `PermissionError` en vez de un error
+limpio cuando no puede leer el fichero de entorno. Se resolvió el caso real
+poniéndolo en `0644` (no tiene secretos), pero el mensaje sigue siendo feo.
+
+## 13. Cosas menores pero reales
 
 - **`mypy` no se puede ejecutar**: `pyproject.toml` fija
   `python_version = "3.9"` y el mypy instalado exige >=3.10. Hay que decidir
