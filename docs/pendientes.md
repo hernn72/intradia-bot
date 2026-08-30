@@ -104,14 +104,17 @@ vista no afina, cambia de tramo.
    pasada para evitar duplicados, y dos alarmas — `events.yaml` sin ningún
    evento futuro, y último evento a menos de 30 días. El calendario macro
    caduca el **2027-12-16**.
-4. **P2.3, el event study.** Es el trozo más grande de todo el protocolo:
-   todas las barras elegibles, sin estado de posición, con solapamiento; modo
-   administrado y modo sin objetivo; MAE/MFE; y la ambigüedad intrabarra
-   conservada como `TARGET_FIRST`/`STOP_FIRST`/`AMBIGUOUS` con las
-   probabilidades publicadas como intervalo.
-5. Después: P2.4 ablación · P2.5 capacidad estadística · P2.6 incertidumbre ·
-   P3 score sin RR y recalibración por horizonte · P4 geometría · P5 reducción
-   a regiones robustas · P6 backtest de sistemas · P7 walk-forward y holdout.
+4. ~~P2.3, el event study.~~ **Hecho el 2026-08-30**, en la rama
+   `event-study-p23` (`8a5dd0b`), sin fusionar. `advisor/research/event_study.py`
+   más el subcomando `event-study`. 121.786 señales sobre 107 activos.
+   Resultados en la sección 11.
+
+5. **Cerrar el flanco estadístico antes de usar las bandas.** P2.5 deja de ser
+   una fase futura y pasa a ser un requisito: la banda 80+ tiene 78
+   observaciones y no sostiene ninguna conclusión (ver sección 11).
+6. Después: P2.4 ablación · P2.6 incertidumbre · P3 score sin RR y
+   recalibración por horizonte · P4 geometría · P5 reducción a regiones
+   robustas · P6 backtest de sistemas · P7 walk-forward y holdout.
 
 ### Nota de método, por si se pierde
 
@@ -270,7 +273,64 @@ ejecutabilidad del §9) o si se busca otra fuente para las plazas europeas
 **No afecta a la cosecha ni a P2.3:** al event study le sobran dos sesiones de
 cola sobre medianas de 1255 barras.
 
-## 11. Cosas menores pero reales
+## 11. Resultados de P2.3 y el flanco que abren
+
+Pasada completa sobre la cosecha `071ddb2b`, horizonte swing, coste 0,20 %:
+121.786 señales sobre 107 activos.
+
+| Banda | n | P(objetivo antes de stop) | IC 95 % (muestreo) | net_R medio |
+|---|---|---|---|---|
+| <50 | 51.268 | 0,402 | [0,398, 0,406] | 0,13 |
+| 50-60 | 44.848 | 0,410 | [0,406, 0,415] | 0,09 |
+| 60-70 | 23.027 | 0,443 | [0,437, 0,449] | 0,12 |
+| 70-80 | 2.565 | 0,477 | [0,458, 0,496] | 0,21 |
+| **80+** | **78** | 0,500 | **[0,392, 0,608]** | 0,20 |
+
+**Lo bueno: el score ordena.** La progresión es monótona y los intervalos de
+muestreo de las cuatro primeras bandas se separan. Es la primera evidencia
+medida de que la puntuación tiene capacidad de ordenación.
+
+**Lo que hay que mirar antes de creerse la banda alta:** 80+ tiene 78
+observaciones de 121.786, el 0,06 %. Su intervalo de muestreo mide 0,217 de
+ancho y se solapa con el de 50-60. No sostiene ninguna conclusión.
+
+### La regla de decisión del protocolo se queda corta
+
+El protocolo dice: «Si el intervalo de la banda 80+ no se solapa con el de la
+50-60, la conclusión es sólida». Aplicada literalmente daría por sólida la
+banda 80+, porque ese intervalo es el de **ambigüedad intrabarra** y ha salido
+degenerado: `[0,500, 0,500]`. Pero el intervalo que importa aquí es el de
+**muestreo**, y ese sí se solapa.
+
+Son dos incertidumbres distintas y el protocolo solo instrumentó una. **La
+regla no se cambia a posteriori** —eso es justo lo que el documento prohíbe—,
+pero P2.5 deja de ser opcional: sin capacidad estadística, las bandas altas no
+pueden calibrar nada en P3.
+
+### La ambigüedad intrabarra resultó ser irrelevante, y está medido
+
+27 velas ambiguas de 121.786, el 0,02 %. No es un fallo de detección: con
+stop a 2·ATR y objetivo 2 a 3·ATR, una vela necesita abarcar **5·ATR** para
+tocar ambos niveles.
+
+El hallazgo 6 del protocolo suponía que la ambigüedad penalizaría más a la
+banda 80+ que a la 50-60 y contaminaría la monotonicidad. **A esta geometría
+no ocurre.** La advertencia sigue siendo válida como principio: si P4 acerca
+el objetivo, la fracción ambigua subirá y habrá que volver a mirarla. Por eso
+el estado se conserva aunque hoy no mueva nada.
+
+### Riesgo abierto: los timestamps de la cosecha son cadenas, no `Timestamp`
+
+`read_raw_csv` conserva el índice como texto a propósito, para que el hash sea
+estable. La consecuencia es que `SignalObservation.signal_timestamp` y
+`ManagedEvent.exit_timestamp` están **anotados como `pd.Timestamp` y contienen
+`str`**. Hoy no rompe nada —`_align()` reconvierte a fechas y restaura el
+índice, y está verificado que el benchmark llega a las seis dimensiones—, pero
+cualquier aritmética de fechas en P2.5 o P4 fallará o, peor, ordenará
+lexicográficamente sin avisar. `mypy` no lo habría dejado pasar, y `mypy` es
+justo el gate caído.
+
+## 12. Cosas menores pero reales
 
 - **`mypy` no se puede ejecutar**: `pyproject.toml` fija
   `python_version = "3.9"` y el mypy instalado exige >=3.10. Hay que decidir
