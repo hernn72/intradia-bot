@@ -28,6 +28,7 @@ from advisor.events.calendar import EventCalendar, YahooEarningsSource
 from advisor.report.formatter import format_report
 from advisor.report.money import MoneyFormatter
 from advisor.report.tracking import format_reviews, review_positions
+from advisor.research.event_study import format_event_study_report, run_event_study
 from advisor.research.vintage import freeze_vintage, select_symbols
 from advisor.storage.db import AdvisorDB
 from advisor.telegram.notifier import TelegramNotifier
@@ -210,6 +211,19 @@ def cmd_congelar_datos(args: argparse.Namespace, config: AdvisorConfig, universe
     return 0
 
 
+def cmd_event_study(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    result = run_event_study(
+        config,
+        universe,
+        args.data_vintage_id,
+        horizonte=args.horizonte,
+        cost_pct=args.coste_pct,
+        root_dir=args.data_dir,
+    )
+    print(format_event_study_report(result))
+    return 0
+
+
 def cmd_seguimiento(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     provider = MarketDataProvider(config.request_min_interval_seconds)
     fx = FxConverter(provider, config.base_currency)
@@ -322,6 +336,14 @@ def build_parser() -> argparse.ArgumentParser:
     congelar.add_argument("--interval", default="1d", help="intervalo solicitado a yfinance (1d, 1wk...)")
     congelar.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
     congelar.set_defaults(func=cmd_congelar_datos)
+
+    event_study = sub.add_parser("event-study", help="mide señales potenciales sobre una cosecha congelada")
+    event_study.add_argument("data_vintage_id", help="identificador de la cosecha congelada")
+    event_study.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
+    event_study.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
+                             help="coste de ida y vuelta en %%")
+    event_study.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
+    event_study.set_defaults(func=cmd_event_study)
 
     seguimiento = sub.add_parser("seguimiento", help="revisa las posiciones abiertas contra su tesis")
     seguimiento.add_argument("--telegram", action="store_true", help="enviar el informe por Telegram")

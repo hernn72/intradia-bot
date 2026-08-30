@@ -45,7 +45,8 @@ class SignalObservation:
 def stable_signal_id(asset: str, horizonte: str, timestamp: pd.Timestamp) -> str:
     """Identificador determinista del evento económico de señal."""
 
-    return f"{asset}|{horizonte}|{timestamp.isoformat()}"
+    stamp = timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp)
+    return f"{asset}|{horizonte}|{stamp}"
 
 
 def build_signal_observation(
