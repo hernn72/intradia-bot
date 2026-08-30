@@ -6,7 +6,15 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from advisor.config import AdvisorConfig, IndicatorsConfig, LevelsConfig, PortfolioConfig, ScoringConfig, load_config
+from advisor.config import (
+    AdvisorConfig,
+    EventsConfig,
+    IndicatorsConfig,
+    LevelsConfig,
+    PortfolioConfig,
+    ScoringConfig,
+    load_config,
+)
 
 _MINIMO = {"horizontes": {"swing": {"interval": "1d", "period": "1y", "min_bars": 120}}}
 
@@ -18,6 +26,7 @@ class TestAdvisorConfig:
         assert config.scoring.fundamentals_enabled is False
         assert config.portfolio.risk_per_trade_pct == 0.5
         assert config.report.benchmark_by_region["USA"] == "^GSPC"
+        assert config.events.pasada_evento_hora == "22:30"
 
     def test_rechaza_divisa_base_no_soportada(self) -> None:
         with pytest.raises(ValidationError, match="base_currency"):
@@ -82,6 +91,15 @@ class TestPortfolioConfig:
             PortfolioConfig(risk_per_trade_pct=0)
         with pytest.raises(ValidationError, match="max_position_pct"):
             PortfolioConfig(max_position_pct=101)
+
+
+class TestEventsConfig:
+    def test_hora_de_pasada_por_evento_es_configurable(self) -> None:
+        assert EventsConfig(pasada_evento_hora="21:45").pasada_evento_hora == "21:45"
+
+    def test_rechaza_hora_de_pasada_invalida(self) -> None:
+        with pytest.raises(ValidationError, match="pasada_evento_hora"):
+            EventsConfig(pasada_evento_hora="24:00")
 
 
 class TestLoadConfig:

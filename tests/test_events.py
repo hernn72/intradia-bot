@@ -124,6 +124,14 @@ class TestEventCalendar:
         assert "actualiza events.yaml" in cal.avisar_si_se_agota(HOY)
         assert EventCalendar(macro(date(2027, 12, 16))).avisar_si_se_agota(HOY) is None
 
+    def test_alarmas_declaran_calendario_sin_futuro_y_reutilizan_cobertura(self) -> None:
+        cal = EventCalendar(macro(date(2026, 8, 1)))
+
+        alarmas = cal.alarmas_salud(HOY)
+
+        assert any("ningún evento macro futuro" in alarma for alarma in alarmas)
+        assert any("actualiza events.yaml" in alarma for alarma in alarmas)
+
     def test_la_fecha_estimada_se_declara_como_tal(self) -> None:
         estimada = FuenteFalsa(date(2026, 9, 3)).next_earnings("SAP.DE")
         assert "estimada" in estimada.etiqueta_fuente

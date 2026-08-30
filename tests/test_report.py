@@ -7,10 +7,11 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from advisor.analysis.analyzer import AnalysisResult
-from advisor.analysis.levels import compute_levels
+from advisor.analysis.levels import Levels, compute_levels
 from advisor.analysis.opportunity import build_opportunity
 from advisor.analysis.overview import IndexQuote
 from advisor.analysis.scoring import compute_score
+from advisor.analysis.sizing import calculate_position_sizing
 from advisor.config import AdvisorConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.data.fx import FxConverter
 from advisor.events.models import (
@@ -123,7 +124,8 @@ class TestFormatOpportunity:
         for campo in [
             "**Ticker:**", "**ISIN:**", "**Mercado de datos:**", "**Divisa de cotización:**",
             "**Exposición económica:**", "**Broker / ejecución:**", "**Disponible en Trade Republic:**",
-            "**Precio actual:**", "**Tipo de operación:**", "**Puntuación:**",
+            "**Precio actual:**", "**Tipo de operación:**", "**Señal:**", "**Ejecutabilidad en broker:**",
+            "**Puntuación:**",
             "### Tesis", "### Catalizador", "### Entrada", "### Stop / invalidación",
             "### Objetivos", "### Potencial", "### Riesgo", "### Ratio beneficio/riesgo",
             "### Horizonte temporal", "### Confianza", "### Qué podría salir mal", "### Acción",
@@ -142,6 +144,14 @@ class TestFormatOpportunity:
     def test_isin_ausente_se_marca(self, asset_eur, benign_context, fx: FxConverter) -> None:
         ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
         assert "NO REGISTRADO" in ficha
+
+    def test_disponibilidad_unknown_separa_senal_y_ejecutabilidad(self, asset_usd, benign_context, fx: FxConverter) -> None:
+        ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx)
+
+        assert "**Señal:** 🟢 OPERAR" in ficha
+        assert "**Ejecutabilidad en broker:** ❓ pendiente de verificación" in ficha
+        assert "### Acción\n**COMPRAR**" in ficha
+        assert "**Disponibilidad:** ❓ pendiente de verificación" in ficha
 
     def test_isin_no_aplicable_no_se_marca_como_pendiente(self, benign_context, fx: FxConverter) -> None:
         from advisor.universe.models import Asset
@@ -187,6 +197,39 @@ class TestFormatOpportunity:
 
         assert "100 acciones; posición 10.000,00 €" in ficha_eur
         assert "125 acciones; posición 12.500,00 USD (≈ 10.000,00 €)" in ficha_usd
+
+    @pytest.mark.parametrize(
+        ("capital", "expected_shares", "expected_native"),
+        [
+            (10_000.0, 12, "1.200,00 USD"),
+            (50_000.0, 62, "6.200,00 USD"),
+            (100_000.0, 125, "12.500,00 USD"),
+        ],
+    )
+    def test_dimensionamiento_con_capital_sintetico_y_divisa_no_euro(
+        self,
+        asset_usd,
+        benign_context,
+        capital: float,
+        expected_shares: int,
+        expected_native: str,
+    ) -> None:
+        portfolio = PortfolioConfig(capital=capital, risk_per_trade_pct=0.5, max_position_pct=10.0)
+        fx = FxConverter(FakeProvider(closes={"EURUSD=X": 1.25}), "EUR")
+
+        ficha = format_opportunity(_opportunity(asset_usd, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
+
+        assert f"{expected_shares} acciones; posición {expected_native}" in ficha
+        assert "tope máximo por posición (10%)" in ficha
+
+    def test_dimensionamiento_redondea_acciones_hacia_abajo(self, asset_usd, benign_context) -> None:
+        portfolio = PortfolioConfig(capital=10_400.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
+        fx = FxConverter(FakeProvider(closes={"EURUSD=X": 1.25}), "EUR")
+
+        ficha = format_opportunity(_opportunity(asset_usd, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
+
+        assert "13 acciones; posición 1.300,00 USD" in ficha
+        assert "14 acciones" not in ficha
 
     def test_dimensionamiento_jpy_convierte_capital_a_yenes(self, benign_context) -> None:
         from advisor.universe.models import Asset
@@ -244,6 +287,32 @@ class TestFormatOpportunity:
 
         assert "no alcanza para comprar una acción" in ficha
 
+    def test_stop_invalido_deja_el_dimensionamiento_a_cero(self) -> None:
+        levels = Levels(
+            price=100.0,
+            entry_ideal_low=100.0,
+            entry_ideal_high=100.0,
+            entry_max=100.0,
+            stop=100.0,
+            invalidation_level=None,
+            invalidation_reason="test",
+            stop_basis="test",
+            target1=103.0,
+            target2=106.0,
+            target3=110.0,
+            risk_pp=0.0,
+            reward_pct=6.0,
+            rr_ratio=0.0,
+            extension_atr=None,
+            chase=False,
+        )
+
+        sizing = calculate_position_sizing(levels, PortfolioConfig(capital=100_000.0), "test")
+
+        assert sizing.position_pct == 0.0
+        assert sizing.risk_pct == 0.0
+        assert sizing.capped_by == "riesgo no calculable"
+
 
 class TestFormatReport:
     def _result(self, opportunities, context) -> AnalysisResult:
@@ -268,6 +337,32 @@ class TestFormatReport:
         config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
         informe = format_report(self._result([], benign_context), config, fx)
         assert "NO OPERAR / MANTENER LIQUIDEZ" in informe
+
+    def test_conclusion_dimensiona_ideas_aunque_todas_tengan_disponibilidad_unknown(
+        self,
+        asset_eur,
+        asset_usd,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        """El caso real actual no debe degradar la señal por falta de catálogo del broker."""
+
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        unknown_eur = asset_eur.model_copy(update={"trade_republic": "unknown"})
+        unknown_usd = asset_usd.model_copy(update={"trade_republic": "unknown"})
+
+        informe = format_report(
+            self._result(
+                [_opportunity(unknown_eur, benign_context), _opportunity(unknown_usd, benign_context)],
+                benign_context,
+            ),
+            config,
+            fx,
+        )
+
+        assert "suma de las 0 mejores ideas" not in informe
+        assert "suma de las 2 mejores ideas por señal" in informe
+        assert "La disponibilidad del broker se informa aparte" in informe
 
     def test_nota_del_tipo_de_cambio_solo_si_se_usa(self, asset_eur, asset_usd, benign_context, fx: FxConverter) -> None:
         config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})

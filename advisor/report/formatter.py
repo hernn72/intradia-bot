@@ -116,6 +116,8 @@ def format_opportunity(
     lines.append("")
     lines.append(f"**Precio actual:** {money(snapshot.price)}")
     lines.append(f"**Tipo de operación:** {opportunity.tipo_operacion}")
+    lines.append(f"**Señal:** {opportunity.signal_label}")
+    lines.append(f"**Ejecutabilidad en broker:** {opportunity.broker_execution_label}")
     lines.append(
         f"**Puntuación:** {score.value:.0f}/100 ({score.grade})"
         + (
@@ -270,6 +272,8 @@ def format_opportunity(
     lines.append("")
 
     lines.append(f"### Acción\n**{opportunity.accion}**")
+    lines.append(f"**Señal:** {opportunity.signal_label}")
+    lines.append(f"**Disponibilidad:** {opportunity.broker_execution_label}")
     for reason in opportunity.decision_reasons:
         lines.append(f"  - {reason}")
 
@@ -552,6 +556,6 @@ def _conclusion(result: AnalysisResult, operar: List[Opportunity]) -> str:
     liquidez = max(0.0, 100.0 - exposure)
     lines.append(
         f"Liquidez recomendada: {liquidez:.0f}% — suma de las {min(len(comprar), 3)} mejores ideas "
-        f"en su dimensionamiento máximo."
+        "por señal en su dimensionamiento máximo. La disponibilidad del broker se informa aparte."
     )
     return "\n".join(lines)

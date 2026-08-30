@@ -83,7 +83,8 @@ def _stats_line(trades: List[BacktestTrade]) -> str:
     gross_profit = sum(winners)
     gross_loss = abs(sum(losers))
     avg_winner = _mean(winners)
-    avg_loser = abs(_mean(losers)) if losers else None
+    mean_loser = _mean(losers)
+    avg_loser = abs(mean_loser) if mean_loser is not None else None
     return (
         f"{len(trades)} operaciones | win rate {won / len(trades) * 100:.0f}% | "
         f"expectancy R {_n(mean_r, 2) if mean_r is not None else 'N/D'} | "
@@ -164,7 +165,8 @@ def format_backtest_report(result: BacktestResult) -> str:
         losers = [r for r in rs if r < 0]
         won_pct = sum(1 for t in subset if t.won) / len(subset) * 100 if subset else 0.0
         avg_winner = _mean(winners)
-        avg_loser = abs(_mean(losers)) if losers else None
+        mean_loser = _mean(losers)
+        avg_loser = abs(mean_loser) if mean_loser is not None else None
         enough = len(subset) >= _MIN_SAMPLE and bool(rs)
         lines.append(
             f"  {label:<8} {len(subset):>5} "

@@ -99,11 +99,10 @@ vista no afina, cambia de tramo.
 
 3. **Pasadas por evento.** Sigue siendo lo único de toda la lista que mejora el
    bot en producción; el resto del laboratorio no cambia nada de lo que el
-   asesor hace hoy. Decisión ya tomada: reprogramación dinámica, no
-   temporizadores fijos autodescartables, con IDs deterministas por evento y
-   pasada para evitar duplicados, y dos alarmas — `events.yaml` sin ningún
-   evento futuro, y último evento a menos de 30 días. El calendario macro
-   caduca el **2027-12-16**.
+   asesor hace hoy. Decisión ya tomada: temporizador fijo autodescartable,
+   con IDs deterministas por evento y pasada para evitar duplicados, y dos
+   alarmas — `events.yaml` sin ningún evento futuro, y último evento a menos
+   de 60 días. El calendario macro caduca el **2027-12-16**.
 4. ~~P2.3, el event study.~~ **Hecho el 2026-08-30**, en la rama
    `event-study-p23` (`8a5dd0b`), sin fusionar. `advisor/research/event_study.py`
    más el subcomando `event-study`. 121.786 señales sobre 107 activos.

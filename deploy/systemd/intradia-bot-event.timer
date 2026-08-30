@@ -1,0 +1,13 @@
+[Unit]
+Description=Intradia Bot - pasada fija autodescartable por evento
+
+[Timer]
+# El valor por defecto sale de config.yaml: events.pasada_evento_hora.
+# install-systemd.sh reescribe esta línea al instalar si la configuración cambia.
+OnCalendar=Mon..Fri 22:30
+# Una pasada que llega tarde describe un mercado que ya no existe.
+Persistent=false
+Unit=intradia-bot-event.service
+
+[Install]
+WantedBy=timers.target

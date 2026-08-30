@@ -23,6 +23,28 @@ VALID_HORIZONTES = ("intradia", "swing", "medio")
 SUPPORTED_CURRENCIES = frozenset({"EUR", "USD", "GBP", "CHF", "JPY", "HKD", "SEK", "DKK", "NOK"})
 
 
+def _default_benchmark_by_region() -> Dict[str, Optional[str]]:
+    return {
+        "USA": "^GSPC",
+        "EUROPA": "^STOXX",
+        "ASIA": "^N225",
+        "GLOBAL": "^GSPC",
+        "EMERGING_MARKETS": None,
+    }
+
+
+def _default_benchmark_by_market() -> Dict[str, Optional[str]]:
+    return {
+        "JPX": "^N225",
+        "OSA": "^N225",
+        "HKG": "^HSI",
+        "KSC": "^KS11",
+        "TAI": "^TWII",
+        "SHH": "510300.SS",
+        "SNP": "510300.SS",
+    }
+
+
 class HorizonteConfig(BaseModel):
     """Ventana de datos de un horizonte de análisis."""
 
@@ -119,26 +141,8 @@ class MarketContextConfig(BaseModel):
 class ReportConfig(BaseModel):
     top_n: int = Field(5, gt=0)
     benchmark_symbol: str = "^STOXX50E"
-    benchmark_by_region: Dict[str, Optional[str]] = Field(
-        default_factory=lambda: {
-            "USA": "^GSPC",
-            "EUROPA": "^STOXX",
-            "ASIA": "^N225",
-            "GLOBAL": "^GSPC",
-            "EMERGING_MARKETS": None,
-        }
-    )
-    benchmark_by_market: Dict[str, Optional[str]] = Field(
-        default_factory=lambda: {
-            "JPX": "^N225",
-            "OSA": "^N225",
-            "HKG": "^HSI",
-            "KSC": "^KS11",
-            "TAI": "^TWII",
-            "SHH": "510300.SS",
-            "SNP": "510300.SS",
-        }
-    )
+    benchmark_by_region: Dict[str, Optional[str]] = Field(default_factory=_default_benchmark_by_region)
+    benchmark_by_market: Dict[str, Optional[str]] = Field(default_factory=_default_benchmark_by_market)
 
 
 class EventsConfig(BaseModel):
@@ -146,12 +150,25 @@ class EventsConfig(BaseModel):
 
     enabled: bool = True
     path: str = "events.yaml"
+    pasada_evento_hora: str = "22:30"
     # Ventana que se mira hacia delante al redactar una recomendación.
     ventana_dias: int = Field(30, gt=0)
     # Por debajo de estos días, unos resultados dejan de ser un dato de
     # contexto y pasan a ser un riesgo: el precio se moverá por la
     # publicación, no por la configuración técnica que motivó la entrada.
     aviso_resultados_dias: int = Field(7, gt=0)
+
+    @field_validator("pasada_evento_hora")
+    @classmethod
+    def _validate_pasada_evento_hora(cls, value: str) -> str:
+        cleaned = value.strip()
+        parts = cleaned.split(":")
+        if len(parts) != 2 or not all(part.isdigit() and len(part) == 2 for part in parts):
+            raise ValueError("pasada_evento_hora debe tener formato HH:MM")
+        hour, minute = (int(part) for part in parts)
+        if hour > 23 or minute > 59:
+            raise ValueError("pasada_evento_hora debe ser una hora válida en formato HH:MM")
+        return cleaned
 
     @model_validator(mode="after")
     def _validate_ventana(self) -> EventsConfig:

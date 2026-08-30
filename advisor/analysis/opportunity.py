@@ -79,6 +79,32 @@ class Opportunity:
         return DURACION.get(self.horizonte, "no definida")
 
     @property
+    def signal_label(self) -> str:
+        """Calidad de la señal, separada de si el broker permite ejecutarla."""
+
+        if self.radar == RADAR_OPERAR:
+            return "🟢 OPERAR"
+        if self.radar == RADAR_VIGILAR:
+            return "🟡 VIGILAR"
+        return "🔴 DESCARTAR"
+
+    @property
+    def broker_execution_label(self) -> str:
+        """Estado operativo en el broker, sin contaminar la puntuación."""
+
+        if self.asset.trade_republic == "yes":
+            return "✅ disponible verificado"
+        if self.asset.trade_republic == "no":
+            return "⛔ no disponible"
+        return "❓ pendiente de verificación"
+
+    @property
+    def executable_in_broker(self) -> bool:
+        """Solo un 'yes' explícito permite hablar de ejecución confirmada."""
+
+        return self.asset.trade_republic == "yes"
+
+    @property
     def confianza(self) -> str:
         """Confianza en el análisis: alta, media o baja.
 

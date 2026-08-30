@@ -1,0 +1,16 @@
+[Unit]
+Description=Intradia Bot - pasada por evento
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@INTRADIA_BOT_USER@
+WorkingDirectory=@INTRADIA_BOT_DIR@
+EnvironmentFile=-@INTRADIA_BOT_ENV_FILE@
+# El camino es el mismo que el informe normal, con una consulta previa de
+# calendario y deduplicación en SQLite.
+TimeoutStartSec=1800
+StandardOutput=append:@INTRADIA_BOT_EVENT_LOG@
+StandardError=append:@INTRADIA_BOT_EVENT_LOG@
+ExecStart=@INTRADIA_BOT_PYTHON@ -m advisor.main pasada-evento --horizonte swing

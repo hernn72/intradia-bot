@@ -283,7 +283,7 @@ def _canonical_rows(df: pd.DataFrame, columns: tuple[str, ...]) -> List[List[str
 
 
 def _canonical_float(value: object) -> str:
-    number = float(value)
+    number = float(value) if isinstance(value, (int, float)) else float(str(value))
     if math.isnan(number):
         return "NaN"
     if math.isinf(number):

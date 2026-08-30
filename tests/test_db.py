@@ -57,6 +57,36 @@ class TestRecommendations:
         assert filas[0]["symbol"] == "SIE.DE"
 
 
+class TestEventPasses:
+    def _event_row(self, event_id: str = "2026-09-10|banco_central|global|-|swing|evento") -> dict:
+        return {
+            "event_id": event_id,
+            "event_date": "2026-09-10",
+            "event_type": "banco_central",
+            "event_scope": "global",
+            "symbol": None,
+            "horizonte": "swing",
+            "pass_kind": "evento",
+            "title": "Decisión de tipos del BCE",
+        }
+
+    def test_claimed_es_reintentable(self, db: AdvisorDB) -> None:
+        row = self._event_row()
+
+        assert db.claim_event_passes([row]) == [row["event_id"]]
+        assert db.claim_event_passes([row]) == [row["event_id"]]
+        assert db.get_event_pass(row["event_id"])["status"] == "CLAIMED"
+
+    def test_marca_eventos_como_enviados(self, db: AdvisorDB) -> None:
+        row = self._event_row()
+        db.claim_event_passes([row])
+
+        db.mark_event_passes_sent([row["event_id"]])
+
+        assert db.get_event_pass(row["event_id"])["status"] == "SENT"
+        assert db.claim_event_passes([row]) == []
+
+
 class TestPositions:
     def _abrir(self, db: AdvisorDB, symbol: str = "SAP.DE") -> int:
         return db.open_position(

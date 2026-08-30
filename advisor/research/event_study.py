@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import pandas as pd
@@ -22,6 +23,7 @@ from advisor.analysis.snapshot import SnapshotSeries, build_snapshot_series, sna
 from advisor.config import AdvisorConfig
 from advisor.indicators.technical import sma
 from advisor.research.observations import SignalObservation, build_signal_observation
+from advisor.research.timestamps import parse_timestamp, timestamp_raw
 from advisor.research.vintage import VintageLoad, load_vintage
 from advisor.universe.models import Asset, Universe
 
@@ -63,7 +65,8 @@ class ManagedEvent:
     target: float
     exit_status: str
     exit_idx: int
-    exit_timestamp: pd.Timestamp
+    exit_timestamp_raw: str
+    exit_timestamp: datetime
     exit_price: Optional[float]
     bars_held: int
     risk_pp: float
@@ -85,7 +88,8 @@ class PotentialEvent:
     stop: float
     exit_status: str
     exit_idx: int
-    exit_timestamp: pd.Timestamp
+    exit_timestamp_raw: str
+    exit_timestamp: datetime
     mfe_unbounded_lower_r: float
     mfe_unbounded_upper_r: float
 
@@ -139,6 +143,7 @@ class EventStudyResult:
     max_hold_bars: int
     signals: List[EventStudySignal] = field(default_factory=list)
     evaluated_assets: List[str] = field(default_factory=list)
+    asset_bar_counts: Dict[str, int] = field(default_factory=dict)
     skipped: List[Tuple[str, str]] = field(default_factory=list)
 
     @property
@@ -249,6 +254,7 @@ def run_event_study_on_vintage(
             continue
         signal_df = views.signal_prices
         execution_df = views.execution_prices
+        result.asset_bar_counts[symbol] = len(signal_df)
         if len(signal_df) < warmup + 2 or len(execution_df) != len(signal_df):
             result.skipped.append((symbol, f"histórico insuficiente o vistas desalineadas: {len(signal_df)} velas"))
             continue
@@ -267,7 +273,8 @@ def run_event_study_on_vintage(
             result.skipped.append((symbol, str(exc)))
             continue
 
-        vix_at = _as_optional_list(_align(vix_close, signal_df.index).shift(1) if vix_close is not None else None)
+        vix_aligned = _align(vix_close, signal_df.index) if vix_close is not None else None
+        vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
         trend_at = _as_optional_list(_align(trend_close, signal_df.index))
         trend_sma_at = _as_optional_list(_align(trend_sma_close, signal_df.index))
 
@@ -363,7 +370,8 @@ def evaluate_managed_event(
         target=levels.target2,
         exit_status=status,
         exit_idx=exit_idx,
-        exit_timestamp=df.index[exit_idx],
+        exit_timestamp_raw=timestamp_raw(df.index[exit_idx]),
+        exit_timestamp=parse_timestamp(timestamp_raw(df.index[exit_idx])),
         exit_price=exit_price,
         bars_held=exit_idx - signal_idx,
         risk_pp=event_economics(entry_price, levels.stop, entry_price, 0.0).risk_pp,
@@ -425,7 +433,8 @@ def evaluate_potential_event(
         stop=levels.stop,
         exit_status=status,
         exit_idx=exit_idx,
-        exit_timestamp=df.index[exit_idx],
+        exit_timestamp_raw=timestamp_raw(df.index[exit_idx]),
+        exit_timestamp=parse_timestamp(timestamp_raw(df.index[exit_idx])),
         mfe_unbounded_lower_r=max(0.0, (max_high - entry_price) / risk),
         mfe_unbounded_upper_r=max(0.0, (upper_high - entry_price) / risk),
     )
@@ -563,6 +572,7 @@ def _with_vintage_id(observation: SignalObservation, data_vintage_id: str) -> Si
         asset=observation.asset,
         horizonte=observation.horizonte,
         signal_idx=observation.signal_idx,
+        signal_timestamp_raw=observation.signal_timestamp_raw,
         signal_timestamp=observation.signal_timestamp,
         score_value=observation.score_value,
         evaluable_max=observation.evaluable_max,

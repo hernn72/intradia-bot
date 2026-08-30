@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import sys
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from advisor.analysis.analyzer import AnalysisResult, run_analysis
@@ -24,10 +25,13 @@ from advisor.analysis.opportunity import RADAR_OPERAR, Opportunity
 from advisor.config import VALID_HORIZONTES, AdvisorConfig, load_config
 from advisor.data.fx import FxConverter
 from advisor.data.market_data import MarketDataProvider
+from advisor.deploy.systemd import DEFAULT_CONFIG_ENV, DEFAULT_SYSTEMD_DIR, find_systemd_drift, write_rendered_units
 from advisor.events.calendar import EventCalendar, YahooEarningsSource
+from advisor.events.passes import decide_event_pass, format_event_trigger
 from advisor.report.formatter import format_report
 from advisor.report.money import MoneyFormatter
 from advisor.report.tracking import format_reviews, review_positions
+from advisor.research.capacity import assess_capacity, format_capacity_report
 from advisor.research.event_study import format_event_study_report, run_event_study
 from advisor.research.vintage import freeze_vintage, select_symbols
 from advisor.storage.db import AdvisorDB
@@ -211,6 +215,76 @@ def cmd_congelar_datos(args: argparse.Namespace, config: AdvisorConfig, universe
     return 0
 
 
+def _parse_date(value: Optional[str]) -> date:
+    if value is None:
+        return date.today()
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise ValueError(f"fecha inválida: {value!r}. Usa YYYY-MM-DD") from None
+
+
+def cmd_pasada_evento(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    if not config.events.enabled:
+        logger.info("Pasada por evento autodescartada: calendario de eventos desactivado")
+        return 0
+
+    today = _parse_date(args.fecha)
+    calendar = EventCalendar.load(config.events.path, YahooEarningsSource(today))
+    db = AdvisorDB(config.db_path)
+    decision = decide_event_pass(
+        calendar,
+        universe.analizables(),
+        db,
+        horizonte=args.horizonte,
+        today=today,
+    )
+
+    for alerta in decision.health_alerts:
+        logger.warning("Salud del calendario: %s", alerta)
+
+    if not decision.should_run:
+        logger.info("Pasada por evento autodescartada: %s", decision.discard_reason)
+        return 0
+
+    provider = MarketDataProvider(config.request_min_interval_seconds)
+    fx = FxConverter(provider, config.base_currency)
+    result = run_analysis(config, universe, provider, horizonte=args.horizonte)
+
+    if config.ai.enabled and not args.sin_ia:
+        from advisor.ai.narrator import enrich_with_narrative
+
+        a_redactar = result.by_radar(RADAR_OPERAR)[: config.report.top_n]
+        redactadas = {o.asset.symbol: o for o in enrich_with_narrative(a_redactar, config.ai)}
+        result = AnalysisResult(
+            generated_at=result.generated_at,
+            horizonte=result.horizonte,
+            interval=result.interval,
+            context=result.context,
+            opportunities=[redactadas.get(o.asset.symbol, o) for o in result.opportunities],
+            skipped=result.skipped,
+            overview=result.overview,
+        )
+
+    prefix = format_event_trigger(decision.events)
+    if decision.health_alerts:
+        prefix += "\nAlarmas de calendario: " + "; ".join(decision.health_alerts)
+    report = prefix + "\n\n" + format_report(result, config, fx, calendar)
+    print(report)
+
+    saved = _persist(result, fx, db)
+    logger.info("%d recomendaciones guardadas en %s", saved, config.db_path)
+
+    notifier = _build_notifier()
+    if notifier.send_long_message(report):
+        logger.info("Informe de evento enviado por Telegram")
+        db.mark_event_passes_sent(decision.claimed_event_ids)
+    else:
+        logger.warning("El informe de evento no se pudo enviar por Telegram")
+
+    return 0
+
+
 def cmd_event_study(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     result = run_event_study(
         config,
@@ -222,6 +296,41 @@ def cmd_event_study(args: argparse.Namespace, config: AdvisorConfig, universe: U
     )
     print(format_event_study_report(result))
     return 0
+
+
+def cmd_capacidad_estadistica(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    result = run_event_study(
+        config,
+        universe,
+        args.data_vintage_id,
+        horizonte=args.horizonte,
+        cost_pct=args.coste_pct,
+        root_dir=args.data_dir,
+    )
+    print(format_capacity_report(assess_capacity(result)))
+    return 0
+
+
+def cmd_render_systemd(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    event_time = args.event_time or config.events.pasada_evento_hora
+    write_rendered_units(output_dir=args.output_dir, config_env=args.config_env, event_time=event_time)
+    return 0
+
+
+def cmd_verificar_systemd(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    event_time = args.event_time or config.events.pasada_evento_hora
+    drift = find_systemd_drift(
+        config_env=args.config_env,
+        installed_dir=args.installed_dir,
+        event_time=event_time,
+    )
+    if not drift:
+        print("Unidades systemd alineadas con las plantillas versionadas.")
+        return 0
+    print("Desfase detectado en unidades systemd:")
+    for item in drift:
+        print(f"- {item}")
+    return 1
 
 
 def cmd_seguimiento(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
@@ -344,6 +453,32 @@ def build_parser() -> argparse.ArgumentParser:
                              help="coste de ida y vuelta en %%")
     event_study.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
     event_study.set_defaults(func=cmd_event_study)
+
+    capacidad = sub.add_parser("capacidad-estadistica", help="evalúa el gate P2.5 sobre una cosecha congelada")
+    capacidad.add_argument("data_vintage_id", help="identificador de la cosecha congelada")
+    capacidad.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
+    capacidad.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
+                           help="coste de ida y vuelta en %%")
+    capacidad.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
+    capacidad.set_defaults(func=cmd_capacidad_estadistica)
+
+    pasada_evento = sub.add_parser("pasada-evento", help="ejecuta una pasada extra solo si hoy hay eventos")
+    pasada_evento.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
+    pasada_evento.add_argument("--fecha", help="fecha local YYYY-MM-DD; por defecto, la fecha local del proceso")
+    pasada_evento.add_argument("--sin-ia", action="store_true", help="omitir la capa narrativa del agente IA")
+    pasada_evento.set_defaults(func=cmd_pasada_evento)
+
+    render_systemd = sub.add_parser("render-systemd", help="renderiza plantillas systemd con rutas locales")
+    render_systemd.add_argument("--config-env", default=DEFAULT_CONFIG_ENV, help="EnvironmentFile externo de despliegue")
+    render_systemd.add_argument("--output-dir", required=True, help="directorio donde escribir las unidades renderizadas")
+    render_systemd.add_argument("--event-time", help="hora HH:MM de la pasada por evento; por defecto, config.yaml")
+    render_systemd.set_defaults(func=cmd_render_systemd)
+
+    verificar_systemd = sub.add_parser("verificar-systemd", help="compara systemd instalado contra plantillas resueltas")
+    verificar_systemd.add_argument("--config-env", default=DEFAULT_CONFIG_ENV, help="EnvironmentFile externo de despliegue")
+    verificar_systemd.add_argument("--installed-dir", default=DEFAULT_SYSTEMD_DIR, help="directorio systemd instalado")
+    verificar_systemd.add_argument("--event-time", help="hora HH:MM de la pasada por evento; por defecto, config.yaml")
+    verificar_systemd.set_defaults(func=cmd_verificar_systemd)
 
     seguimiento = sub.add_parser("seguimiento", help="revisa las posiciones abiertas contra su tesis")
     seguimiento.add_argument("--telegram", action="store_true", help="enviar el informe por Telegram")

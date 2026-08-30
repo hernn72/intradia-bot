@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional, Tuple
-
-import pandas as pd
 
 from advisor.analysis.scoring import Score
 from advisor.analysis.snapshot import TechnicalSnapshot
+from advisor.research.timestamps import parse_timestamp, timestamp_raw
 from advisor.universe.models import Asset
 
 
@@ -31,7 +31,8 @@ class SignalObservation:
     asset: str
     horizonte: str
     signal_idx: int
-    signal_timestamp: pd.Timestamp
+    signal_timestamp_raw: str
+    signal_timestamp: datetime
     score_value: float
     evaluable_max: float
     dimensions: Tuple[DimensionObservation, ...]
@@ -42,11 +43,10 @@ class SignalObservation:
     ema_fast: Optional[float]
 
 
-def stable_signal_id(asset: str, horizonte: str, timestamp: pd.Timestamp) -> str:
+def stable_signal_id(asset: str, horizonte: str, timestamp: object) -> str:
     """Identificador determinista del evento económico de señal."""
 
-    stamp = timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp)
-    return f"{asset}|{horizonte}|{stamp}"
+    return f"{asset}|{horizonte}|{timestamp_raw(timestamp)}"
 
 
 def build_signal_observation(
@@ -66,7 +66,8 @@ def build_signal_observation(
         asset=asset.symbol,
         horizonte=horizonte,
         signal_idx=signal_idx,
-        signal_timestamp=snapshot.timestamp,
+        signal_timestamp_raw=timestamp_raw(snapshot.timestamp),
+        signal_timestamp=parse_timestamp(timestamp_raw(snapshot.timestamp)),
         score_value=score.value,
         evaluable_max=score.evaluable_max,
         dimensions=tuple(

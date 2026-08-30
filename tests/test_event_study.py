@@ -19,6 +19,7 @@ from advisor.research.event_study import (
     summarize_by_score_band,
 )
 from advisor.research.observations import SignalObservation, stable_signal_id
+from advisor.research.timestamps import parse_timestamp
 
 
 def _levels(price: float = 100.0, stop: float = 95.0, target: float = 110.0) -> Levels:
@@ -50,7 +51,8 @@ def _observation(score: float = 85.0) -> SignalObservation:
         asset="TEST",
         horizonte="swing",
         signal_idx=0,
-        signal_timestamp=timestamp,
+        signal_timestamp_raw="2026-01-01T00:00:00Z",
+        signal_timestamp=parse_timestamp("2026-01-01T00:00:00Z"),
         score_value=score,
         evaluable_max=80.0,
         dimensions=(),
@@ -160,6 +162,7 @@ def _signal(score: float, status: str) -> EventStudySignal:
         stop=95.0,
         exit_status=STOP_FIRST,
         exit_idx=1,
+        exit_timestamp_raw=managed.exit_timestamp_raw,
         exit_timestamp=managed.exit_timestamp,
         mfe_unbounded_lower_r=managed.mfe_lower_r,
         mfe_unbounded_upper_r=managed.mfe_upper_r,

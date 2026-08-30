@@ -9,6 +9,7 @@ Tres tablas:
   tesis original. Una vez abierta una posición, el seguimiento se hace contra
   esa tesis y no se vuelve a analizar el activo desde cero.
 - ``position_review``: cada revisión de una posición abierta y su veredicto.
+- ``event_pass``: deduplicación de pasadas despertadas por eventos conocidos.
 
 Los importes se guardan en euros cuando hay tipo de cambio (``*_eur``) y
 siempre también en la divisa nativa, para que un fallo de conversión no
@@ -88,6 +89,21 @@ CREATE TABLE IF NOT EXISTS position_review (
     note            TEXT,
     UNIQUE(position_id, created_at)
 );
+
+CREATE TABLE IF NOT EXISTS event_pass (
+    event_id        TEXT PRIMARY KEY,
+    created_at      TEXT NOT NULL,
+    event_date      TEXT NOT NULL,
+    event_type      TEXT NOT NULL,
+    event_scope     TEXT NOT NULL,
+    symbol          TEXT,
+    horizonte       TEXT NOT NULL,
+    pass_kind       TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    status          TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_pass_date ON event_pass(event_date, pass_kind);
 """
 
 
@@ -152,6 +168,61 @@ class AdvisorDB:
                     "SELECT * FROM recommendation ORDER BY created_at DESC, id DESC LIMIT ?", (limit,)
                 )
             return cursor.fetchall()
+
+    # -- Pasadas por evento ---------------------------------------------------
+
+    def claim_event_passes(self, rows: Iterable[Dict[str, Any]]) -> List[str]:
+        """Registra intentos reintentables y devuelve los que aún no se enviaron."""
+
+        claimed: List[str] = []
+        timestamp = datetime.now(timezone.utc).isoformat()
+        with self._connect() as connection:
+            for row in rows:
+                event_id = row["event_id"]
+                existing = connection.execute(
+                    "SELECT status FROM event_pass WHERE event_id = ?",
+                    (event_id,),
+                ).fetchone()
+                if existing is not None and existing["status"] == "SENT":
+                    continue
+                connection.execute(
+                    """
+                    INSERT OR REPLACE INTO event_pass (
+                        event_id, created_at, event_date, event_type, event_scope,
+                        symbol, horizonte, pass_kind, title, status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CLAIMED')
+                    """,
+                    (
+                        event_id,
+                        timestamp,
+                        row["event_date"],
+                        row["event_type"],
+                        row["event_scope"],
+                        row.get("symbol"),
+                        row["horizonte"],
+                        row["pass_kind"],
+                        row["title"],
+                    ),
+                )
+                claimed.append(event_id)
+        return claimed
+
+    def mark_event_passes_sent(self, event_ids: Iterable[str]) -> None:
+        """Marca como completadas las pasadas reservadas por ID determinista."""
+
+        ids = list(event_ids)
+        if not ids:
+            return
+        with self._connect() as connection:
+            connection.executemany(
+                "UPDATE event_pass SET status = 'SENT' WHERE event_id = ?",
+                [(event_id,) for event_id in ids],
+            )
+
+    def get_event_pass(self, event_id: str) -> Optional[sqlite3.Row]:
+        with self._connect() as connection:
+            cursor = connection.execute("SELECT * FROM event_pass WHERE event_id = ?", (event_id,))
+            return cursor.fetchone()
 
     # -- Posiciones --------------------------------------------------------
 

@@ -161,6 +161,12 @@ class EventCalendar:
         """Fecha del último evento macro conocido."""
         return self._macro[-1].fecha
 
+    def futuros_macro(self, hoy: Optional[date] = None) -> List[MarketEvent]:
+        """Eventos macro no caducados; que no haya ninguno es un fallo silencioso."""
+
+        referencia = hoy or date.today()
+        return [e for e in self._macro if e.dias_hasta(referencia) >= 0]
+
     def avisar_si_se_agota(self, hoy: Optional[date] = None) -> Optional[str]:
         """Aviso si al calendario macro le queda poco recorrido, o ``None``."""
         referencia = hoy or date.today()
@@ -171,6 +177,23 @@ class EventCalendar:
                 f"({quedan} días): actualiza events.yaml desde las fuentes que declara"
             )
         return None
+
+    def alarmas_salud(self, hoy: Optional[date] = None) -> List[str]:
+        """Alarmas operativas del calendario macro.
+
+        Un calendario caducado no rompe el análisis: simplemente deja de
+        despertar pasadas por evento. Por eso se informa como salud operativa,
+        no como dato de mercado.
+        """
+
+        alarmas: List[str] = []
+        referencia = hoy or date.today()
+        if not self.futuros_macro(referencia):
+            alarmas.append("events.yaml no contiene ningún evento macro futuro")
+        aviso = self.avisar_si_se_agota(referencia)
+        if aviso:
+            alarmas.append(aviso)
+        return alarmas
 
     def proximos(self, symbol: Optional[str] = None, dias: int = 14, hoy: Optional[date] = None) -> List[MarketEvent]:
         """Eventos entre hoy y ``dias`` días, ordenados por fecha.

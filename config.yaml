@@ -104,6 +104,13 @@ report:
     SHH: "510300.SS"
     SNP: "510300.SS"
 
+events:
+  enabled: true
+  path: "events.yaml"
+  pasada_evento_hora: "22:30"  # pasada fija autodescartable tras el cierre de EE. UU.
+  ventana_dias: 30
+  aviso_resultados_dias: 7
+
 ai:
   enabled: true              # ANTHROPIC_API_KEY configurada en .env
   model: "claude-sonnet-5"

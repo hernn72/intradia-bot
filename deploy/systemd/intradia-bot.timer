@@ -1,0 +1,15 @@
+[Unit]
+Description=Intradia Bot - pasadas programadas
+
+[Timer]
+OnCalendar=Mon..Fri 07:00
+OnCalendar=Mon..Fri 08:30
+OnCalendar=Mon..Fri 14:30
+# Cierre de la bolsa americana.
+OnCalendar=Mon..Fri 21:00
+# Una pasada que llega tarde describe un mercado que ya no existe.
+Persistent=false
+Unit=intradia-bot.service
+
+[Install]
+WantedBy=timers.target

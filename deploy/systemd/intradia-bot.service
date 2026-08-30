@@ -1,0 +1,16 @@
+[Unit]
+Description=Intradia Bot - informe programado
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@INTRADIA_BOT_USER@
+WorkingDirectory=@INTRADIA_BOT_DIR@
+EnvironmentFile=-@INTRADIA_BOT_ENV_FILE@
+# El informe descarga históricos, calcula señales, puede llamar a IA y envía
+# Telegram. Media hora evita matar una pasada lenta sin dejar un proceso vivo.
+TimeoutStartSec=1800
+StandardOutput=append:@INTRADIA_BOT_ANALIZAR_LOG@
+StandardError=append:@INTRADIA_BOT_ANALIZAR_LOG@
+ExecStart=@INTRADIA_BOT_PYTHON@ -m advisor.main analizar --horizonte swing --telegram
