@@ -7,13 +7,17 @@ además de las pasadas por evento, el despliegue versionado en `deploy/` y el
 gate de `mypy`. La Pi corre lo mismo: se desplegó en `1f31d2d`, y `c415dbc`
 solo toca documentación.
 
-**Ojo, hay una tanda entera sin commitear** en el árbol de trabajo, hecha entre
-el 30 y el 31 de agosto: la frescura del dato, P2.4, P2.6, la corrección del
-mapa de bloques de P2.5, el error limpio de `verificar-systemd` y los tests de
-dimensionamiento con capital sintético. Los tres gates pasan (365 tests, `ruff`
-y `mypy` limpios) y los comandos están ejercitados contra datos reales, pero
-**nada de esto está en `main` ni en la Pi**: producción sigue sin declarar la
-antigüedad del dato.
+El **31 de agosto** entró una tanda grande, ya en `main` y **desplegada en la
+Pi** (`39aab6c`): la frescura del dato y la detección de sesiones ausentes,
+P2.4, P2.6, la corrección del mapa de bloques de P2.5, el error limpio de
+`verificar-systemd` y los tests de dimensionamiento con capital sintético.
+Verificado en la propia Pi: 366 tests pasan y 2 se saltan (los que necesitan la
+cosecha, que allí no está), `verificar-systemd` dice «alineadas», una pasada
+real termina con código 0 y los dos timers siguen vivos. Copia de seguridad en
+`intradia.db.bak-20260831-081832`.
+
+Con eso, **el laboratorio P2 está completo** (P2.0 a P2.6) y en producción el
+informe ya declara la antigüedad del dato y las sesiones que le faltan.
 
 Cada punto dice qué falta, por qué importa y qué hay que decidir antes de
 tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
@@ -91,48 +95,89 @@ vista no afina, cambia de tramo.
 
 ---
 
-## Lo siguiente, por orden
+## Lo que falta, por orden
 
-1. ~~Fusionar a `main` y pushear.~~ **Hecho el 2026-08-30.**
-2. ~~Lanzar una cosecha real del universo completo.~~ **Hecha el 2026-08-30**,
-   con `--period 5y` (el valor por defecto del subcomando, no los 2 años de
-   `config.yaml`). Los 126 símbolos entraron, ninguno falló, 18 MB en disco, y
-   la relectura verifica los tres hashes —manifiesto, serie y acciones
-   corporativas— sin excepción. `data/vintages/` está en `.gitignore`, así que
-   la cosecha vive solo en este portátil: para reproducirla en otra máquina hay
-   que volver a congelar y comprobar que sale el mismo `data_vintage_id`.
+### A. Decisiones que son tuyas, y que bloquean lo demás
 
-   `data_vintage_id`:
-   `071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841`
+1. **Qué hacer con las sesiones ausentes.** Hoy el informe las declara y sigue
+   puntuando, que respeta la regla de no degradar *en silencio*. Pero una sesión
+   que falta no es un dato viejo: contamina EMA, RSI, ATR, MACD y los retornos, y
+   deja la fortaleza relativa restando dos series de calendarios distintos. Las
+   opciones son mantener la declaración, marcar la calidad como degradada de
+   forma explícita, o un veto configurable. **Cambiar cuándo el bot recomienda no
+   es una decisión del bot.** Contexto entero en la sección 10.
+2. **Declarar el estimador del bloque antes de tocar P3.** Peso igual por bloque
+   o tasa agrupada: la elección decide el signo del resultado y el protocolo
+   nunca la fijó. Hay que escribirla **antes** de volver a mirar los números;
+   elegirla después es exactamente lo que el documento prohíbe. Sin esto, P3 no
+   puede empezar. Sección 11.
+3. **Fundamentales: proveedor y coste.** Es la única brecha que cuesta dinero.
+   Mientras no esté, la nota se normaliza sobre 80 y el ratio pesa 25 de 100 en
+   vez de 20. Sección 3.
+4. **Noticias: quién filtra y con qué criterio.** Los datos son gratis; el
+   problema medido es la relevancia. Sección 4.
+5. **Si se paga otra fuente para las plazas europeas.** Antes era un lujo. Con
+   sesiones que sencillamente no existen en la serie, ya no está claro que lo
+   sea. Sección 10.
 
-   Cobertura: mediana de 1255 barras, máximo 1825 (las tres criptos, que cotizan
-   también en fin de semana) y mínimo 446 (`Q8Y0.DE`), con `ARM` en 742 y
-   `DFEN.DE` en 863 porque son jóvenes. Los asiáticos se quedan en ~1220 barras
-   porque yfinance no da 5 años completos de esas plazas. **P2.5 tendrá que
-   tratar la profundidad como variable por activo, no como constante.**
+### B. Medir antes de decidir (no cuesta dinero, solo días)
 
-3. **Pasadas por evento.** Sigue siendo lo único de toda la lista que mejora el
-   bot en producción; el resto del laboratorio no cambia nada de lo que el
-   asesor hace hoy. Decisión ya tomada: temporizador fijo autodescartable,
-   con IDs deterministas por evento y pasada para evitar duplicados, y dos
-   alarmas — `events.yaml` sin ningún evento futuro, y último evento a menos
-   de 60 días. El calendario macro caduca el **2027-12-16**.
-4. ~~P2.3, el event study.~~ **Hecho el 2026-08-30**, en la rama
-   `event-study-p23` (`8a5dd0b`), sin fusionar. `advisor/research/event_study.py`
-   más el subcomando `event-study`. 121.786 señales sobre 107 activos.
-   Resultados en la sección 11.
+6. **Repetir la medición de sesiones ausentes varios días seguidos.** Lo del
+   viernes 28 es **una** observación. Hasta tener varias no se puede afirmar que
+   el proveedor se salte sesiones de forma sistemática en Europa. El comando ya
+   existe: `frescura-datos`, y el informe lo declara en cada pasada.
+7. **El desfase activo/benchmark en la fortaleza relativa.** Medido, sin decidir.
+   Declararlo es barato; corregirlo exige alinear las series por sesión, y eso sí
+   toca el cálculo.
+8. **La barra en curso tratada como cierre.** Las pasadas de las 08:30 y las
+   14:30 puntúan sobre la sesión del día sin cerrar. Ahora se declara, pero no
+   está resuelto, y arreglarlo de verdad necesita horarios de cierre por plaza
+   que no tenemos.
 
-5. ~~Cerrar el flanco estadístico antes de usar las bandas.~~ **P2.5 hecha el
-   2026-08-30** y **ejecutada sobre la cosecha `071ddb2b` el 2026-08-31**. El
-   veredicto y lo que salió al ejecutarla están en la sección 11, y no es lo
-   que se esperaba: al ejecutar el gate aparecieron dos defectos en su propio
-   mapa de bloques, y corregirlos cambia la lectura de P2.3.
-6. ~~P2.4 ablación · P2.6 incertidumbre.~~ **Las dos hechas el 2026-08-31**,
-   sin commitear. Resultados en las secciones 14 y 15.
-7. Queda: **P3** score sin RR y recalibración por horizonte · **P4** geometría ·
-   **P5** reducción a regiones robustas · **P6** backtest de sistemas · **P7**
-   walk-forward y holdout. P3 no puede empezar tal y como está definido: ver el
-   final de la sección 11.
+### C. Laboratorio
+
+9. **P3** — sacar el RR del score y recalibrar umbrales por horizonte.
+   Bloqueado por el punto 2. P2.4 ya dejó el material: la dimensión del ratio
+   reparte 10 de sus 20 puntos a casi todo, así que no ordena, diluye.
+10. **P4** geometría · **P5** reducción a regiones robustas · **P6** backtest de
+    sistemas · **P7** walk-forward y holdout. P4 hereda de P2.6 una advertencia:
+    la opción B mejora en promedio pero con heterogeneidad alta, así que lo
+    primero es preguntarse en qué régimen mejora y en cuál no.
+11. **Rehacer la calibración con los 107 activos.** Todo lo medido
+    históricamente sale de 21.
+
+### D. Trabajo manual, sin atajo
+
+12. **89 ISIN de 107**, uno a uno contra Deutsche Börse y Euronext. `yfinance`
+    devuelve ISIN falsos que superan el dígito de control.
+13. **Disponibilidad real en Trade Republic** de los 107. El tratamiento ya está
+    resuelto (señal y ejecutabilidad van separadas); falta el dato, y no hay API.
+14. **Doble símbolo**: ningún activo declara `european_symbol`. Hay que verificar
+    los tickers de Xetra uno a uno antes de elegir cotización por sesión.
+
+### E. Menores
+
+15. El **calendario macro de `events.yaml` caduca el 2027-12-16**. El bot avisa
+    a 60 días, pero conviene refrescarlo antes.
+16. **`^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F` y `GC=F` no alimentan el
+    contexto de mercado**, que sigue puntuando solo con VIX, tendencia europea y
+    sesión asiática.
+17. **`economic_currency` se guarda y no se usa.** Descomponer el ATR en riesgo
+    de activo y de divisa es un cambio de cálculo, y hay que medirlo.
+18. **Los eventos no puntúan**, a propósito, hasta medir que mejoran las señales.
+
+### La cosecha congelada, para no volver a buscarla
+
+`data_vintage_id`:
+`071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841`
+
+126 símbolos a 5 años, 18 MB, los tres hashes verificados al releer. Mediana de
+1255 barras, máximo 1825 (las tres criptos, que cotizan también en fin de
+semana), mínimo 446 (`Q8Y0.DE`), con `ARM` en 742 y `DFEN.DE` en 863 porque son
+jóvenes; los asiáticos se quedan en ~1220 porque `yfinance` no da cinco años de
+esas plazas. `data/vintages/` está en `.gitignore`: **la cosecha vive solo en el
+portátil**, y reproducirla en otra máquina exige volver a congelar y comprobar
+que sale el mismo identificador.
 
 ### Nota de método, por si se pierde
 
@@ -168,18 +213,22 @@ Tres hechos verificados:
 Es decir, corregir el ratio y decidir la geometría son la misma decisión.
 Detalle en `docs/ratio-beneficio-riesgo.md` y en el protocolo.
 
-## 2. Pasadas por evento
+## 2. ~~Pasadas por evento~~ — hechas y en producción
 
-El asesor ya sabe qué días hay Fed, BCE o resultados de un activo del
-universo. Falta que se despierte solo esos días, que es lo que se pidió desde
-el principio. Sigue desbloqueado y sin depender de P2.
+Resuelto el 2026-08-30 y desplegado. Temporizador fijo autodescartable a las
+22:30, que es el único hueco real del horario: las 21:00 caen en el cierre
+americano y por eso no pueden ver los resultados que se publican después. Se
+descartó la reprogramación dinámica porque con systemd exigiría dar permisos
+sobre systemd a un bot de bolsa. IDs deterministas por evento y pasada, y solo
+una pasada efectivamente enviada deduplica: reservar y morir antes de enviar
+dejaba el evento silenciado para siempre.
 
-**Qué hay que decidir:** si la pasada extra es un temporizador fijo adicional
-que se autodescarta cuando no hay eventos (simple, robusto), o un temporizador
-que se reprograma según el calendario (elegante, más frágil). Recomendación:
-lo primero.
+**Trampa aprendida:** probar con `--fecha` futura marca esos eventos como
+enviados y silenciaría la pasada real. Cualquier prueba con fecha futura tiene
+que borrar después sus filas de `event_pass`.
 
-**Cuidado con:** el calendario macro de `events.yaml` caduca el **2027-12-16**.
+**Sigue vigente el aviso:** el calendario macro de `events.yaml` caduca el
+**2027-12-16**.
 El bot avisa solo cuando quedan menos de 60 días, pero conviene refrescarlo
 antes desde las fuentes que el propio fichero declara.
 
@@ -262,7 +311,7 @@ están en `unknown`.
 **Lo que sigue pendiente es el dato**, no su tratamiento: verificar la
 disponibilidad real de los 107, que no tiene fuente automática.
 
-## 10. Los datos europeos llegan con retraso: confirmado con el mercado abierto
+## 10. Los datos europeos: no llegan tarde, les faltan sesiones
 
 **La pregunta que quedaba abierta está resuelta.** La medición del domingo era
 una sola muestra en fin de semana y no permitía distinguir un retraso real del
@@ -577,9 +626,14 @@ hashes de la cosecha. Lo cubre, en `tests/test_timestamps.py`, el test
 `test_cosecha_real_mantiene_hashes_y_bytes_tras_parsear_y_serializar_salidas`,
 que compara byte a byte contra la cosecha real y se salta si no está presente.
 
-## 12. Desplegado en la Pi el 2026-08-30
+## 12. Despliegues en la Pi
 
-La Pi pasó de `e952f71` a `1f31d2d`, ocho commits. Hasta ese día producción
+**El 2026-08-31** la Pi pasó a `39aab6c` con la tanda de frescura, sesiones
+ausentes, P2.4, P2.6 y el mapa de bloques. Verificado allí: 366 pasan y 2 se
+saltan, `verificar-systemd` alineado, pasada real con código 0, timers vivos.
+Copia en `intradia.db.bak-20260831-081832`.
+
+Antes, el **2026-08-30**, la Pi pasó de `e952f71` a `1f31d2d`, ocho commits. Hasta ese día producción
 corría **sin P0 ni P1**: dimensionaba por convicción y comparaba todo contra el
 Euro Stoxx 50.
 
