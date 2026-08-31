@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
@@ -14,6 +14,7 @@ from advisor.analysis.overview import IndexQuote
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.sizing import calculate_position_sizing
 from advisor.config import AdvisorConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
+from advisor.data.freshness import DataFreshness
 from advisor.data.fx import FxConverter
 from advisor.events.models import (
     ALCANCE_ACTIVO,
@@ -43,12 +44,14 @@ def fx_sin_datos() -> FxConverter:
 
 def _opportunity(asset, context, horizonte: str = "swing", portfolio: PortfolioConfig | None = None, **snapshot_kwargs):
     portfolio = portfolio or PortfolioConfig()
+    data_freshness = snapshot_kwargs.pop("data_freshness", None)
     snapshot = make_snapshot(**snapshot_kwargs)
     levels = compute_levels(snapshot, LevelsConfig())
     score = compute_score(snapshot, levels, context, ScoringConfig(), 250)
     return build_opportunity(
         asset=asset, horizonte=horizonte, snapshot=snapshot, levels=levels,
         score=score, context=context, scoring=ScoringConfig(), risk=RiskConfig(), portfolio=portfolio,
+        data_freshness=data_freshness,
     )
 
 
@@ -477,6 +480,39 @@ class TestFormatReport:
         assert "⚠️ dato 2026-08-25 (1s)" in informe
         assert "1 activos descartados: AAPL" in informe
         assert "## SAP" not in informe
+
+    def test_informe_declara_sesion_ausente_intermedia_y_marca_compacta(
+        self,
+        asset_eur,
+        hostile_context,
+        fx: FxConverter,
+    ) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        freshness = DataFreshness(
+            last_bar_date=date(2026, 8, 31),
+            natural_days=0,
+            sessions_approx=0,
+            label="hoy; al día",
+            may_be_partial_current_session=True,
+            benchmark_symbol="^STOXX50E",
+            absent_reference_sessions=(date(2026, 8, 28),),
+            reference_sessions_checked=3,
+        )
+        opportunity = _opportunity(
+            asset_eur,
+            hostile_context,
+            timestamp=pd.Timestamp("2026-08-31", tz="UTC"),
+            data_freshness=freshness,
+        )
+
+        informe = format_report(self._result([opportunity], hostile_context), config, fx)
+
+        assert "0 sesiones cerradas perdidas: 1 activo; última barra 2026-08-31 (XETRA)." in informe
+        assert "Sesiones ausentes frente al benchmark: 1 activo." in informe
+        assert "SAP.DE: faltan 2026-08-28 presentes en ^STOXX50E." in informe
+        assert "⚠️ Barra potencialmente parcial: última barra fechada hoy, puede no ser cierre de sesión." in informe
+        assert "  - SAP.DE" in informe
+        assert "⚠️ falta sesión 2026-08-28" in informe
 
     def test_conclusion_dimensiona_ideas_aunque_todas_tengan_disponibilidad_unknown(
         self,

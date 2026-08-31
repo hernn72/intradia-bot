@@ -23,6 +23,7 @@ from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_ove
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import build_snapshot
 from advisor.config import AdvisorConfig
+from advisor.data.freshness import calcular_frescura_serie
 from advisor.data.market_data import MarketDataProvider
 from advisor.universe.models import Asset, Universe
 
@@ -70,6 +71,7 @@ def analyze_asset(
     context: MarketContext,
     horizonte: str,
     benchmark_close: Optional[pd.Series] = None,
+    benchmark_symbol: Optional[str] = None,
     now: Optional[datetime] = None,
 ) -> Opportunity:
     """Analiza un único activo.
@@ -87,6 +89,14 @@ def analyze_asset(
         raise ValueError(
             f"histórico insuficiente: {len(history)} velas, se requieren {window.min_bars}"
         )
+
+    reference = now or datetime.now(timezone.utc)
+    data_freshness = calcular_frescura_serie(
+        history,
+        reference,
+        benchmark_close=benchmark_close,
+        benchmark_symbol=benchmark_symbol,
+    )
 
     snapshot = build_snapshot(
         symbol=asset.symbol,
@@ -113,6 +123,7 @@ def analyze_asset(
         scoring=config.scoring,
         risk=config.risk,
         portfolio=config.portfolio,
+        data_freshness=data_freshness,
     )
 
 
@@ -157,7 +168,7 @@ def run_analysis(
                     )
                 benchmark_close = benchmark_cache[benchmark_symbol]
             opportunities.append(
-                analyze_asset(asset, config, provider, context, horizonte, benchmark_close, now)
+                analyze_asset(asset, config, provider, context, horizonte, benchmark_close, benchmark_symbol, now)
             )
         except Exception as exc:
             logger.warning("%s descartado del análisis: %s", asset.symbol, exc)

@@ -6,7 +6,7 @@ aproximación explícita porque el proyecto no mantiene calendarios bursátiles.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -28,6 +28,18 @@ class DataFreshness:
     natural_days: int
     sessions_approx: int
     label: str
+    may_be_partial_current_session: bool = False
+    benchmark_symbol: Optional[str] = None
+    absent_reference_sessions: tuple[date, ...] = field(default_factory=tuple)
+    reference_sessions_checked: int = 0
+
+    @property
+    def has_absent_reference_sessions(self) -> bool:
+        return bool(self.absent_reference_sessions)
+
+    @property
+    def has_reference_calendar(self) -> bool:
+        return self.benchmark_symbol is not None
 
 
 @dataclass(frozen=True)
@@ -82,6 +94,55 @@ def calcular_frescura_dato(last_bar_timestamp: object, reference: datetime) -> D
         natural_days=natural_days,
         sessions_approx=sessions_approx,
         label=_freshness_label(natural_days, sessions_approx),
+        may_be_partial_current_session=last_bar_date == reference_date,
+    )
+
+
+def calcular_frescura_serie(
+    history: pd.DataFrame,
+    reference: datetime,
+    benchmark_close: Optional[pd.Series] = None,
+    benchmark_symbol: Optional[str] = None,
+    recent_reference_sessions: int = 10,
+) -> DataFreshness:
+    """Calcula frescura de cola y sesiones ausentes frente al benchmark.
+
+    Las ausencias se buscan solo en sesiones interiores: fechas que existen
+    en el benchmark hasta la última fecha del activo, y faltan en el activo.
+    Las sesiones posteriores a la última barra del activo ya están cubiertas
+    por ``sessions_approx``.
+    """
+
+    if history.empty:
+        raise ValueError("el histórico está vacío")
+
+    freshness = calcular_frescura_dato(history.index[-1], reference)
+    if benchmark_symbol is None:
+        return freshness
+    if benchmark_close is None or benchmark_close.empty:
+        return DataFreshness(
+            **_freshness_kwargs(freshness),
+            benchmark_symbol=benchmark_symbol,
+        )
+
+    asset_dates = _fechas_indice(history.index)
+    benchmark_dates = _fechas_indice(benchmark_close.dropna().index)
+    if not asset_dates or not benchmark_dates:
+        return DataFreshness(
+            **_freshness_kwargs(freshness),
+            benchmark_symbol=benchmark_symbol,
+        )
+
+    last_asset_date = asset_dates[-1]
+    reference_dates = [value for value in benchmark_dates if value <= last_asset_date]
+    checked_dates = reference_dates[-recent_reference_sessions:]
+    asset_date_set = set(asset_dates)
+    absent = tuple(value for value in checked_dates if value not in asset_date_set)
+    return DataFreshness(
+        **_freshness_kwargs(freshness),
+        benchmark_symbol=benchmark_symbol,
+        absent_reference_sessions=absent,
+        reference_sessions_checked=len(checked_dates),
     )
 
 
@@ -118,6 +179,21 @@ def _fecha(value: object) -> date:
     if isinstance(value, date):
         return value
     raise TypeError(f"timestamp no soportado para frescura: {value!r}")
+
+
+def _fechas_indice(index: pd.Index) -> List[date]:
+    dates = sorted({_fecha(value) for value in index})
+    return dates
+
+
+def _freshness_kwargs(freshness: DataFreshness) -> dict:
+    return {
+        "last_bar_date": freshness.last_bar_date,
+        "natural_days": freshness.natural_days,
+        "sessions_approx": freshness.sessions_approx,
+        "label": freshness.label,
+        "may_be_partial_current_session": freshness.may_be_partial_current_session,
+    }
 
 
 def _sesiones_cerradas_perdidas_entre(last_bar_date: date, reference_date: date) -> int:

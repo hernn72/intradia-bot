@@ -340,28 +340,77 @@ dimensionamiento miran la frescura.
 - ~~Repetir la medición dentro de la sesión europea.~~ **Hecho el 2026-08-31**,
   ver abajo.
 
-### Con Xetra ya cotizando, el viernes sigue sin aparecer
+### El giro: no es un retraso, es un HUECO
 
-Medido a las 07:08 y 07:11 UTC, con la sesión de Xetra abierta desde las 07:00:
+Siguiendo la medición dentro de la sesión apareció lo que de verdad pasa, y
+obliga a corregir todo lo anterior de esta sección.
 
-| Última barra | Símbolos | Plazas |
-|---|---|---|
-| lun 31 (al día) | 1 | **CPH** |
-| vie 28 (al día) | 4 | MCE (3), NASDAQ |
-| jue 27 (−1 sesión) | 25 | XETRA (13), PAR (6), MIL (3), AMS (2), MCE |
+A las 07:11 UTC, con Xetra abierto desde las 07:00, `SAP.DE`, `SIE.DE`,
+`ASML.AS` y `MC.PA` seguían en el jueves 27. A las 07:22 UTC saltaron a la barra
+del **lunes 31**. Pero el viernes **no apareció por el camino**. Pidiendo la
+serie diaria de un mes:
 
-`SAP.DE`, `SIE.DE`, `ASML.AS` y `MC.PA` siguen en el jueves 27 once minutos
-después de abrir. Y aparece un caso que descoloca el modelo mental: **`NOVO-B.CO`
-ya sirve la barra de HOY** mientras Xetra todavía no sirve la del viernes. O sea
-que el proveedor no va «retrasado N sesiones» de forma ordenada; sirve unas
-plazas en tiempo casi real y otras con un hueco, y el hueco no se cierra al
-abrir el mercado.
+```
+SAP.DE      ... 2026-08-26, 2026-08-27, 2026-08-31
+SIE.DE      ... 2026-08-26, 2026-08-27, 2026-08-31
+ASML.AS     ... 2026-08-26, 2026-08-27, 2026-08-31
+MC.PA       ... 2026-08-26, 2026-08-27, 2026-08-31
+ITX.MC      ... 2026-08-26, 2026-08-27, 2026-08-31
+NOVO-B.CO   ... 2026-08-26, 2026-08-27, 2026-08-31
 
-Conclusión operativa: **el rezago de ~1 sesión en Xetra, París, Milán y
-Ámsterdam es el estado normal del proveedor durante la sesión**, no un artefacto
-de fin de semana. Las cuatro pasadas diarias del bot puntúan esas 31 acciones
-alemanas con un cierre que le falta la última sesión. Ahora, al menos, el
-informe lo dice.
+^GDAXI      ... 2026-08-26, 2026-08-27, 2026-08-28, 2026-08-31
+^STOXX50E   ... 2026-08-26, 2026-08-27, 2026-08-28, 2026-08-31
+IBE.MC      ... 2026-08-26, 2026-08-27, 2026-08-28, 2026-08-31
+AAPL        ... 2026-08-26, 2026-08-27, 2026-08-28
+```
+
+El viernes 28 fue sesión normal en las cinco plazas. **Los índices la tienen y
+los valores no.** Para esos valores la sesión no llega tarde: **no existe**, y la
+serie sigue con la barra del lunes, que además es la sesión **en curso**, no un
+cierre.
+
+Eso cambia el diagnóstico y empeora las consecuencias:
+
+1. **Los indicadores se calculan sobre una serie a la que le falta una sesión
+   real.** EMA, RSI, ATR, MACD y los retornos a 20, 60 y 120 velas se computan
+   saltándose el viernes, sin que nada lo diga. No es un dato viejo que se pueda
+   declarar y seguir: es una observación ausente en medio del cálculo.
+2. **La fortaleza relativa resta dos series de calendarios distintos**, porque el
+   benchmark sí tiene el viernes. Ya no es una hipótesis: está medido.
+3. **El asesor trata como cierre una barra sin cerrar.** Las pasadas de las 08:30
+   y las 14:30 puntúan sobre la sesión en curso.
+
+### El instrumento medía el fallo equivocado
+
+La primera versión de la frescura miraba la antigüedad de la **última** barra.
+Con el hueco, la última barra es la de hoy, así que el informe desplegado en la
+Pi llegó a imprimir «0 sesiones cerradas perdidas: 30 activos» **justo cuando a
+26 de esos 30 les faltaba el viernes**. Estaba afirmando que el dato era perfecto
+en el peor momento posible.
+
+Corregido: además de la antigüedad, ahora se detectan las **sesiones ausentes**
+comparando la serie del activo contra el calendario de su **benchmark**, que es
+la referencia que el propio activo ya usa para la fortaleza relativa y que por
+tanto no cuesta descargas nuevas. Los activos sin comparable —cripto y
+`EMERGING_MARKETS`— se declaran como «sin calendario de referencia» en vez de
+inventarse uno. Y si la última barra es de hoy se declara **barra potencialmente
+parcial**, sin fingir más precisión de la que hay: no tenemos horarios de cierre
+por plaza.
+
+Verificado contra la red el 2026-08-31: el informe señala los **26 activos**
+europeos a los que les falta el 28, nombrando la sesión y el benchmark.
+
+### Lo que esto deja abierto, y es más gordo que antes
+
+- **Declarar ya no es obviamente suficiente.** La regla del proyecto es no
+  degradar **en silencio**, y declarar en voz alta y seguir puntuando la respeta.
+  Pero un hueco no es un dato viejo: contamina el cálculo, no solo su
+  antigüedad. Queda como decisión del dueño del proyecto, no del bot.
+- **¿Es de todos los lunes o de este?** Una sola observación. Hay que repetirla
+  varios días antes de concluir si el proveedor se salta sesiones de forma
+  sistemática en las plazas europeas.
+- Con esto sobre la mesa, **buscar otra fuente para las plazas europeas** deja de
+  ser una opción cara y se acerca a ser necesaria.
 
 **No afecta a la cosecha ni a P2.3:** al event study le sobran una o dos
 sesiones de cola sobre medianas de 1255 barras.

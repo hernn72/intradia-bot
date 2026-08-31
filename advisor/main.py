@@ -20,14 +20,17 @@ import sys
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
+
 from advisor.analysis.analyzer import AnalysisResult, run_analysis
+from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.opportunity import RADAR_OPERAR, Opportunity
 from advisor.config import VALID_HORIZONTES, AdvisorConfig, load_config
 from advisor.data.freshness import (
     FreshnessBucket,
     FreshnessRow,
     agrupar_frescura_por_fecha,
-    calcular_frescura_dato,
+    calcular_frescura_serie,
     mercado_para_simbolo,
 )
 from advisor.data.fx import FxConverter
@@ -232,6 +235,7 @@ def cmd_frescura_datos(args: argparse.Namespace, config: AdvisorConfig, universe
     rows = medir_frescura_datos(
         assets,
         provider,
+        config,
         reference,
         period=args.period,
         interval=args.interval,
@@ -243,19 +247,31 @@ def cmd_frescura_datos(args: argparse.Namespace, config: AdvisorConfig, universe
 def medir_frescura_datos(
     assets: List[Asset],
     provider: MarketDataProvider,
+    config: AdvisorConfig,
     reference: datetime,
     period: str = "1mo",
     interval: str = "1d",
 ) -> List[FreshnessRow]:
-    """Pide la última barra de cada activo y devuelve filas agrupables."""
+    """Pide barras de activo y benchmark y devuelve filas agrupables."""
 
     rows: List[FreshnessRow] = []
+    benchmark_cache: Dict[str, Optional[pd.Series]] = {}
     for asset in assets:
         data_symbol = asset.data_symbol(reference)
         market = mercado_para_simbolo(asset, data_symbol)
         try:
             history = provider.get_history(data_symbol, period=period, interval=interval)
-            last_bar = history.index[-1]
+            benchmark_symbol = resolve_benchmark_symbol(asset, config.report)
+            benchmark_close = None
+            if benchmark_symbol is not None:
+                if benchmark_symbol not in benchmark_cache:
+                    try:
+                        benchmark_history = provider.get_history(benchmark_symbol, period=period, interval=interval)
+                        benchmark_cache[benchmark_symbol] = benchmark_history["Close"]
+                    except Exception as exc:
+                        logger.warning("Sin datos del benchmark %s para frescura: %s", benchmark_symbol, exc)
+                        benchmark_cache[benchmark_symbol] = None
+                benchmark_close = benchmark_cache[benchmark_symbol]
         except Exception as exc:
             rows.append(FreshnessRow(asset.symbol, data_symbol, market, None, str(exc)))
             continue
@@ -264,7 +280,12 @@ def medir_frescura_datos(
                 symbol=asset.symbol,
                 data_symbol=data_symbol,
                 market=market,
-                freshness=calcular_frescura_dato(last_bar, reference),
+                freshness=calcular_frescura_serie(
+                    history,
+                    reference,
+                    benchmark_close=benchmark_close,
+                    benchmark_symbol=benchmark_symbol,
+                ),
             )
         )
     return rows
@@ -532,8 +553,8 @@ def format_frescura_datos(rows: List[FreshnessRow], measured_at: Optional[dateti
 
     lines.append("")
     lines.append("Detalle por símbolo:")
-    lines.append("| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad |")
-    lines.append("|---|---|---|---|---|")
+    lines.append("| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad | Referencia | Sesiones ausentes |")
+    lines.append("|---|---|---|---|---|---|---|")
     for row in rows:
         lines.append(_freshness_detail_row(row))
 
@@ -573,12 +594,28 @@ def _freshness_bucket_row(bucket: FreshnessBucket) -> str:
 
 def _freshness_detail_row(row: FreshnessRow) -> str:
     if row.freshness is None:
-        return f"| {row.symbol} | {row.data_symbol} | {row.market} | N/D | error |"
+        return f"| {row.symbol} | {row.data_symbol} | {row.market} | N/D | error | N/D | N/D |"
     freshness = row.freshness
+    partial = "; barra de hoy posiblemente parcial" if freshness.may_be_partial_current_session else ""
     return (
         f"| {row.symbol} | {row.data_symbol} | {row.market} | "
-        f"{freshness.last_bar_date.isoformat()} | {freshness.label} |"
+        f"{freshness.last_bar_date.isoformat()} | {freshness.label}{partial} | "
+        f"{_benchmark_label(freshness)} | {_absent_sessions_label(freshness)} |"
     )
+
+
+def _benchmark_label(freshness) -> str:
+    if freshness.benchmark_symbol is None:
+        return "sin comparable"
+    return freshness.benchmark_symbol
+
+
+def _absent_sessions_label(freshness) -> str:
+    if freshness.benchmark_symbol is None:
+        return "sin calendario de referencia"
+    if not freshness.absent_reference_sessions:
+        return "sin sesiones ausentes recientes"
+    return ", ".join(value.isoformat() for value in freshness.absent_reference_sessions)
 
 
 def _fecha_corta(value: date) -> str:

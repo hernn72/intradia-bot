@@ -16,6 +16,7 @@ from advisor.analysis.scoring import Score
 from advisor.analysis.sizing import PositionSizing, calculate_position_sizing, conviction_label
 from advisor.analysis.snapshot import TechnicalSnapshot
 from advisor.config import PortfolioConfig, RiskConfig, ScoringConfig
+from advisor.data.freshness import DataFreshness
 from advisor.universe.models import Asset
 
 RADAR_OPERAR = "OPERAR"
@@ -68,6 +69,7 @@ class Opportunity:
     accion: str
     decision_reasons: List[str]
     sizing: PositionSizing
+    data_freshness: Optional[DataFreshness] = None
     narrative: Optional[Narrative] = None
 
     @property
@@ -210,6 +212,7 @@ def build_opportunity(
     scoring: ScoringConfig,
     risk: RiskConfig,
     portfolio: PortfolioConfig,
+    data_freshness: Optional[DataFreshness] = None,
 ) -> Opportunity:
     """Ensambla la oportunidad ya clasificada y dimensionada."""
 
@@ -227,4 +230,5 @@ def build_opportunity(
         accion=accion,
         decision_reasons=reasons,
         sizing=sizing,
+        data_freshness=data_freshness,
     )

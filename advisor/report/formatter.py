@@ -13,7 +13,7 @@ que aparezca en una recomendación es legible en euros.
 from __future__ import annotations
 
 import math
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 import pandas as pd
@@ -130,12 +130,21 @@ def format_opportunity(
     lines.append(f"**Tipo de operación:** {opportunity.tipo_operacion}")
     lines.append(f"**Señal:** {opportunity.signal_label}")
     lines.append(f"**Ejecutabilidad en broker:** {opportunity.broker_execution_label}")
-    freshness = _freshness_for_snapshot(snapshot.timestamp, reference)
+    freshness = _freshness_for_opportunity(opportunity, reference)
     lines.append(f"**Datos de mercado:** última barra {freshness.last_bar_date.isoformat()} ({freshness.label})")
     if freshness.sessions_approx >= 1:
         lines.append(
             "⚠️ Dato retrasado: esta recomendación usa una última barra con "
             f"{freshness.sessions_approx} sesiones cerradas aproximadas perdidas."
+        )
+    if freshness.has_absent_reference_sessions:
+        lines.append(
+            "⚠️ Sesiones ausentes: faltan sesiones presentes en "
+            f"{freshness.benchmark_symbol}: {_dates_label(freshness.absent_reference_sessions)}."
+        )
+    if freshness.may_be_partial_current_session:
+        lines.append(
+            "⚠️ Barra potencialmente parcial: la última barra es de hoy y puede no ser un cierre."
         )
     lines.append(
         f"**Puntuación:** {score.value:.0f}/100 ({score.grade})"
@@ -593,6 +602,12 @@ def _freshness_for_snapshot(timestamp: pd.Timestamp, reference: datetime) -> Dat
     return calcular_frescura_dato(timestamp, reference)
 
 
+def _freshness_for_opportunity(opportunity: Opportunity, reference: datetime) -> DataFreshness:
+    if opportunity.data_freshness is not None:
+        return opportunity.data_freshness
+    return _freshness_for_snapshot(opportunity.snapshot.timestamp, reference)
+
+
 def _freshness_rows_for_opportunities(opportunities: List[Opportunity], reference: datetime) -> List[FreshnessRow]:
     rows: List[FreshnessRow] = []
     for opportunity in opportunities:
@@ -602,7 +617,7 @@ def _freshness_rows_for_opportunities(opportunities: List[Opportunity], referenc
                 symbol=opportunity.asset.symbol,
                 data_symbol=data_symbol,
                 market=mercado_para_simbolo(opportunity.asset, data_symbol),
-                freshness=_freshness_for_snapshot(opportunity.snapshot.timestamp, reference),
+                freshness=_freshness_for_opportunity(opportunity, reference),
             )
         )
     return rows
@@ -652,12 +667,58 @@ def _report_freshness_summary(opportunities: List[Opportunity], reference: datet
         marker = "⚠️ " if step >= 1 else "  - "
         detail = "; ".join(_bucket_detail(bucket) for bucket in step_buckets)
         lines.append(f"{marker}{_session_step_label(step)}: {_plural_activos(count)}; última barra {detail}.")
+
+    absent_rows = [
+        row
+        for row in rows
+        if row.freshness is not None and row.freshness.has_absent_reference_sessions
+    ]
+    if absent_rows:
+        lines.append(
+            f"⚠️ Sesiones ausentes frente al benchmark: {_plural_activos(len(absent_rows))}."
+        )
+        for row in absent_rows:
+            assert row.freshness is not None
+            lines.append(
+                f"  - {row.symbol}: faltan {_dates_label(row.freshness.absent_reference_sessions)} "
+                f"presentes en {row.freshness.benchmark_symbol}."
+            )
+    else:
+        lines.append("  - Sesiones ausentes frente al benchmark: 0 activos con referencia comparable.")
+
+    no_reference = [
+        row
+        for row in rows
+        if row.freshness is not None and not row.freshness.has_reference_calendar
+    ]
+    if no_reference:
+        symbols = ", ".join(row.symbol for row in no_reference)
+        lines.append(f"  - Sin calendario de referencia comparable: {symbols}.")
+
+    partial_rows = [
+        row
+        for row in rows
+        if row.freshness is not None and row.freshness.may_be_partial_current_session
+    ]
+    if partial_rows:
+        lines.append("⚠️ Barra potencialmente parcial: última barra fechada hoy, puede no ser cierre de sesión.")
+        for row in partial_rows:
+            lines.append(f"  - {row.symbol}")
     return "\n".join(lines)
 
 
 def _compact_freshness_marker(opportunity: Opportunity, reference: datetime) -> str:
-    freshness = _freshness_for_snapshot(opportunity.snapshot.timestamp, reference)
-    if freshness.sessions_approx < 1:
+    freshness = _freshness_for_opportunity(opportunity, reference)
+    markers: List[str] = []
+    if freshness.has_absent_reference_sessions:
+        markers.append(f"⚠️ falta sesión {_dates_label(freshness.absent_reference_sessions)}")
+    if freshness.sessions_approx >= 1:
+        sessions = "1s" if freshness.sessions_approx == 1 else f"{freshness.sessions_approx}s"
+        markers.append(f"⚠️ dato {freshness.last_bar_date.isoformat()} ({sessions})")
+    if not markers:
         return ""
-    sessions = "1s" if freshness.sessions_approx == 1 else f"{freshness.sessions_approx}s"
-    return f" ⚠️ dato {freshness.last_bar_date.isoformat()} ({sessions})"
+    return " " + "; ".join(markers)
+
+
+def _dates_label(values: tuple[date, ...]) -> str:
+    return ", ".join(value.isoformat() for value in values)
