@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from datetime import date, datetime
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -20,7 +21,7 @@ from advisor.analysis.levels import Levels, compute_levels, compute_levels_from_
 from advisor.analysis.market_context import build_market_context
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import SnapshotSeries, build_snapshot_series, snapshot_from_series
-from advisor.config import AdvisorConfig
+from advisor.config import AdvisorConfig, LevelsConfig
 from advisor.indicators.technical import sma
 from advisor.research.observations import SignalObservation, build_signal_observation
 from advisor.research.timestamps import parse_timestamp, timestamp_raw
@@ -144,6 +145,7 @@ class EventStudyResult:
     signals: List[EventStudySignal] = field(default_factory=list)
     evaluated_assets: List[str] = field(default_factory=list)
     asset_bar_counts: Dict[str, int] = field(default_factory=dict)
+    session_dates_by_asset: Dict[str, Tuple[date, ...]] = field(default_factory=dict)
     skipped: List[Tuple[str, str]] = field(default_factory=list)
 
     @property
@@ -255,6 +257,10 @@ def run_event_study_on_vintage(
         signal_df = views.signal_prices
         execution_df = views.execution_prices
         result.asset_bar_counts[symbol] = len(signal_df)
+        result.session_dates_by_asset[symbol] = tuple(
+            parse_timestamp(timestamp_raw(timestamp)).astimezone(ZoneInfo(asset.timezone)).date()
+            for timestamp in signal_df.index
+        )
         if len(signal_df) < warmup + 2 or len(execution_df) != len(signal_df):
             result.skipped.append((symbol, f"histórico insuficiente o vistas desalineadas: {len(signal_df)} velas"))
             continue
@@ -307,6 +313,48 @@ def run_event_study_on_vintage(
         result.evaluated_assets.append(symbol)
 
     return result
+
+
+def replay_managed_population(
+    result: EventStudyResult,
+    vintage: VintageLoad,
+    levels_config: LevelsConfig,
+    *,
+    cost_pct: Optional[float] = None,
+) -> Dict[str, ManagedEvent]:
+    """Reevalúa la población administrada con otros niveles, sin recalcular señales."""
+
+    if result.data_vintage_id != vintage.data_vintage_id:
+        raise ValueError(
+            f"cosecha distinta: result={result.data_vintage_id} vintage={vintage.data_vintage_id}"
+        )
+    replayed: Dict[str, ManagedEvent] = {}
+    effective_cost = result.cost_pct if cost_pct is None else cost_pct
+    for signal in result.signals:
+        obs = signal.observation
+        try:
+            views = vintage.by_symbol[obs.asset]
+        except KeyError:
+            raise ValueError(f"{obs.asset}: activo ausente en la cosecha {vintage.data_vintage_id}") from None
+        levels = compute_levels_from_inputs(
+            price=obs.price,
+            atr=obs.atr,
+            low_lookback=obs.low_lookback,
+            high_lookback=obs.high_lookback,
+            ema_fast=obs.ema_fast,
+            config=levels_config,
+        )
+        if levels is None:
+            raise ValueError(f"{obs.signal_id}: la configuración no produce niveles comparables")
+        replayed[obs.signal_id] = evaluate_managed_event(
+            obs,
+            views.execution_prices,
+            obs.signal_idx,
+            levels,
+            result.max_hold_bars,
+            effective_cost,
+        )
+    return replayed
 
 
 def evaluate_managed_event(
@@ -440,12 +488,20 @@ def evaluate_potential_event(
     )
 
 
-def summarize_by_score_band(signals: Iterable[EventStudySignal]) -> List[BandSummary]:
+def band_of_full_score(signal: EventStudySignal) -> str:
+    return score_band(signal.observation.score_value)
+
+
+def summarize_by_score_band(
+    signals: Iterable[EventStudySignal],
+    *,
+    band_of: Callable[[EventStudySignal], str] = band_of_full_score,
+) -> List[BandSummary]:
     """Agrupa por bandas de score y publica intervalos conservando ambiguos."""
 
     buckets: Dict[str, List[EventStudySignal]] = {label: [] for label, _, _ in SCORE_BANDS}
     for signal in signals:
-        label = _score_band(signal.observation.score_value)
+        label = band_of(signal)
         buckets[label].append(signal)
 
     summaries: List[BandSummary] = []
@@ -585,11 +641,15 @@ def _with_vintage_id(observation: SignalObservation, data_vintage_id: str) -> Si
     )
 
 
-def _score_band(score: float) -> str:
+def score_band(score: float) -> str:
     for label, lower, upper in SCORE_BANDS:
         if score >= lower and (upper is None or score < upper):
             return label
     return SCORE_BANDS[0][0]
+
+
+def _score_band(score: float) -> str:
+    return score_band(score)
 
 
 def _frozen_close(vintage: VintageLoad, symbol: Optional[str]) -> Optional[pd.Series]:

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
-from advisor.deploy.systemd import UNIT_NAMES, find_systemd_drift, write_rendered_units
+import pytest
+
+from advisor.deploy.systemd import UNIT_NAMES, find_systemd_drift, load_env_file, write_rendered_units
 
 
 def _env_file(tmp_path: Path) -> Path:
@@ -65,3 +68,32 @@ def test_check_systemd_drift_ignora_placeholders_resueltos_y_detecta_diferencias
 def test_todas_las_unidades_esperadas_estan_versionadas() -> None:
     for name in UNIT_NAMES:
         assert (Path("deploy/systemd") / name).is_file()
+
+
+def test_load_env_file_falla_limpio_si_no_tiene_permiso_de_lectura(tmp_path) -> None:
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        pytest.skip("root puede leer ficheros aunque el modo sea 000")
+
+    env = _env_file(tmp_path)
+    env.chmod(0o000)
+
+    with pytest.raises(ValueError) as error:
+        load_env_file(env)
+
+    mensaje = str(error.value)
+    assert str(env) in mensaje
+    assert "no se puede leer el fichero de entorno" in mensaje
+    assert "permiso de lectura" in mensaje
+    assert "0644" in mensaje
+
+
+def test_load_env_file_falla_limpio_si_no_existe(tmp_path) -> None:
+    env = tmp_path / "no-existe.env"
+
+    with pytest.raises(ValueError) as error:
+        load_env_file(env)
+
+    mensaje = str(error.value)
+    assert str(env) in mensaje
+    assert "no se puede leer el fichero de entorno" in mensaje
+    assert "Comprueba que existe" in mensaje

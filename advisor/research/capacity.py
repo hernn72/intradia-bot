@@ -2,9 +2,8 @@
 
 El objetivo no es descubrir cortes de producción, sino impedir que una banda
 con poca profundidad parezca concluyente por tener muchas señales solapadas.
-El intervalo se estima con medias por bloque temporal: cada bloque contiene
-todos los activos y produce una proporción, y el error estándar se calcula
-sobre esas medias. Sigue sin ser el bootstrap por bloques de P2.6; solo evita
+El intervalo se estima con bootstrap P2.6 sobre medias por bloque temporal:
+cada bloque contiene todos los activos y produce una proporción, evitando
 tratar señales solapadas como ensayos independientes.
 Los cortes siguientes son parámetros provisionales de ingeniería: no son
 verdad estadística ni sustituyen un diseño formal de inferencia.
@@ -12,11 +11,28 @@ verdad estadística ni sustituyen un diseño formal de inferencia.
 
 from __future__ import annotations
 
-import math
+from bisect import bisect_right
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Sequence, Tuple
+from datetime import date
+from typing import Callable, Dict, Iterable, List, Sequence, Tuple
+from zoneinfo import ZoneInfo
 
-from advisor.research.event_study import AMBIGUOUS, FINAL_EXIT, SCORE_BANDS, EventStudyResult, EventStudySignal
+from advisor.research.bootstrap import (
+    DEFAULT_RESAMPLES,
+    DEFAULT_SEED,
+    bootstrap_block_mean_interval,
+    session_block_lookup,
+)
+from advisor.research.event_study import (
+    AMBIGUOUS,
+    FINAL_EXIT,
+    SCORE_BANDS,
+    EventStudyResult,
+    EventStudySignal,
+    band_of_full_score,
+    score_band,
+)
+from advisor.universe.models import Asset, Universe
 
 RESOLUTION_HIGH = "HIGH"
 RESOLUTION_MEDIUM = "MEDIUM"
@@ -44,6 +60,26 @@ class CapacityThresholds:
 
 
 DEFAULT_THRESHOLDS = CapacityThresholds()
+
+PROTOCOL_BLOCK_LENGTH_SESSIONS = {
+    "swing": 60,
+    "medio": 300,
+}
+
+MARKET_TIMEZONES = {
+    "AMS": "Europe/Amsterdam",
+    "CPH": "Europe/Copenhagen",
+    "CRYPTO": "UTC",
+    "HKG": "Asia/Hong_Kong",
+    "JPX": "Asia/Tokyo",
+    "KSC": "Asia/Seoul",
+    "MCE": "Europe/Madrid",
+    "MIL": "Europe/Rome",
+    "NASDAQ": "America/New_York",
+    "NYSE": "America/New_York",
+    "PAR": "Europe/Paris",
+    "XETRA": "Europe/Berlin",
+}
 
 
 @dataclass(frozen=True)
@@ -94,30 +130,84 @@ class CapacityReport:
     comparisons: List[CapacityComparison]
 
 
+@dataclass(frozen=True)
+class TemporalBlockMap:
+    """Mapa P2.5: bloques de sesiones de bolsa, no de fechas UTC observadas.
+
+    La espina se construye con sesiones de activos no cripto. Las señales de
+    cripto se asignan a la última sesión de esa espina que no sea posterior a
+    su fecha civil UTC; pueden participar en un bloque, pero no crear sesiones
+    ni bloques para los demás activos.
+    """
+
+    block_length: int
+    session_spine: Tuple[date, ...]
+    session_to_block: Dict[date, int]
+    assets: Dict[str, Asset]
+
+    def session_date(self, signal: EventStudySignal) -> date:
+        asset = self._asset(signal)
+        zone = _market_zone(asset)
+        return signal.observation.signal_timestamp.astimezone(zone).date()
+
+    def effective_session_date(self, signal: EventStudySignal) -> date:
+        session = self.session_date(signal)
+        asset = self._asset(signal)
+        if asset.asset_class == "crypto":
+            spine_index = bisect_right(self.session_spine, session) - 1
+            if spine_index < 0:
+                raise ValueError(
+                    f"{asset.symbol}: señal cripto {session.isoformat()} anterior a la primera sesión de bolsa"
+                )
+            return self.session_spine[spine_index]
+        return session
+
+    def block_for(self, signal: EventStudySignal) -> int:
+        session = self.effective_session_date(signal)
+        asset = self._asset(signal)
+        try:
+            return self.session_to_block[session]
+        except KeyError:
+            raise ValueError(
+                f"{asset.symbol}: fecha de sesión {session.isoformat()} no existe en la espina de bolsa"
+            ) from None
+
+    def _asset(self, signal: EventStudySignal) -> Asset:
+        symbol = signal.observation.asset
+        try:
+            return self.assets[symbol]
+        except KeyError:
+            raise ValueError(f"{symbol}: activo sin metadatos de universo para calcular bloques temporales") from None
+
+
 def assess_capacity(
     result: EventStudyResult,
     *,
+    universe: Universe,
     thresholds: CapacityThresholds = DEFAULT_THRESHOLDS,
     comparisons: Sequence[Tuple[str, str]] = (("50-60", "80+"),),
+    band_of: Callable[[EventStudySignal], str] = band_of_full_score,
 ) -> CapacityReport:
     """Evalúa capacidad global, por banda y por comparación concreta."""
 
-    block_length = result.max_hold_bars
-    block_lookup = _temporal_block_lookup(result.signals, block_length)
+    block_length = _protocol_block_length(result.horizonte, result.max_hold_bars)
+    block_lookup = _temporal_block_lookup(result, block_length, universe)
     global_summary = _summary(
         "GLOBAL",
         result.signals,
         block_length=block_length,
         block_lookup=block_lookup,
         thresholds=thresholds,
+        band_of=band_of,
     )
     band_summaries = [
         _summary(
             label,
-            [signal for signal in result.signals if _score_band(signal.observation.score_value) == label],
+            [signal for signal in result.signals if band_of(signal) == label],
             block_length=block_length,
             block_lookup=block_lookup,
             thresholds=thresholds,
+            band_of=band_of,
         )
         for label, _, _ in SCORE_BANDS
     ]
@@ -170,13 +260,14 @@ def _summary(
     signals: Sequence[EventStudySignal],
     *,
     block_length: int,
-    block_lookup: Dict[object, int],
+    block_lookup: TemporalBlockMap,
     thresholds: CapacityThresholds,
+    band_of: Callable[[EventStudySignal], str] = band_of_full_score,
 ) -> CapacitySummary:
     nominal_n = len(signals)
     n_by_band = {band: 0 for band, _, _ in SCORE_BANDS}
     for signal in signals:
-        n_by_band[_score_band(signal.observation.score_value)] += 1
+        n_by_band[band_of(signal)] += 1
 
     n_blocks = _temporal_blocks(signals, block_lookup)
     block_rates = _block_success_rates(signals, block_lookup)
@@ -295,19 +386,79 @@ def _classify_capacity(
     return RESOLUTION_LOW, INSUFICIENTE, False, reasons
 
 
-def _temporal_block_lookup(signals: Sequence[EventStudySignal], block_length: int) -> Dict[object, int]:
-    dates = sorted({signal.observation.signal_timestamp.date() for signal in signals})
-    return {day: i // block_length for i, day in enumerate(dates)}
+def _protocol_block_length(horizonte: str, max_hold_bars: int) -> int:
+    key = horizonte.lower()
+    try:
+        block_length = PROTOCOL_BLOCK_LENGTH_SESSIONS[key]
+    except KeyError:
+        raise ValueError(f"P2.5 no define longitud de bloque para horizonte '{horizonte}'") from None
+    if block_length <= max_hold_bars:
+        raise ValueError(
+            f"bloque P2.5 inválido para {key}: {block_length} sesiones <= MAX_HOLD_BARS {max_hold_bars}"
+        )
+    return block_length
 
 
-def _temporal_blocks(signals: Sequence[EventStudySignal], block_lookup: Dict[object, int]) -> int:
-    return len({block_lookup[signal.observation.signal_timestamp.date()] for signal in signals})
+def _temporal_block_lookup(result: EventStudyResult, block_length: int, universe: Universe) -> TemporalBlockMap:
+    assets = _assets_for_result(result, universe)
+    spine = _equity_session_spine(result, assets)
+    session_to_block = session_block_lookup(spine, block_length)
+    return TemporalBlockMap(
+        block_length=block_length,
+        session_spine=spine,
+        session_to_block=session_to_block,
+        assets=assets,
+    )
 
 
-def _block_success_rates(signals: Sequence[EventStudySignal], block_lookup: Dict[object, int]) -> List[Tuple[float, int]]:
+def _assets_for_result(result: EventStudyResult, universe: Universe) -> Dict[str, Asset]:
+    assets: Dict[str, Asset] = {}
+    symbols = {
+        *result.session_dates_by_asset.keys(),
+        *(signal.observation.asset for signal in result.signals),
+    }
+    for symbol in symbols:
+        asset = universe.get(symbol)
+        if asset is None:
+            raise ValueError(f"{symbol}: activo sin metadatos de universo para calcular bloques temporales")
+        _market_zone(asset)
+        assets[symbol] = asset
+    return assets
+
+
+def _equity_session_spine(result: EventStudyResult, assets: Dict[str, Asset]) -> Tuple[date, ...]:
+    dates = {
+        session_date
+        for symbol, asset in assets.items()
+        if asset.asset_class != "crypto"
+        for session_date in result.session_dates_by_asset.get(symbol, ())
+    }
+    if not dates:
+        raise ValueError("P2.5 necesita al menos un activo no cripto para construir la espina de sesiones")
+    weekend_dates = sorted(day for day in dates if day.weekday() >= 5)
+    if weekend_dates:
+        sample = ", ".join(day.isoformat() for day in weekend_dates[:5])
+        raise ValueError(f"la espina de sesiones de bolsa contiene fines de semana: {sample}")
+    return tuple(sorted(dates))
+
+
+def _market_zone(asset: Asset) -> ZoneInfo:
+    market = asset.primary_market
+    try:
+        timezone_name = MARKET_TIMEZONES[market]
+    except KeyError:
+        raise ValueError(f"{asset.symbol}: plaza '{market}' sin zona horaria en MARKET_TIMEZONES") from None
+    return ZoneInfo(timezone_name)
+
+
+def _temporal_blocks(signals: Sequence[EventStudySignal], block_lookup: TemporalBlockMap) -> int:
+    return len({block_lookup.block_for(signal) for signal in signals})
+
+
+def _block_success_rates(signals: Sequence[EventStudySignal], block_lookup: TemporalBlockMap) -> List[Tuple[float, int]]:
     buckets: Dict[int, List[EventStudySignal]] = {}
     for signal in signals:
-        block = block_lookup[signal.observation.signal_timestamp.date()]
+        block = block_lookup.block_for(signal)
         buckets.setdefault(block, []).append(signal)
     return [
         (_rate(_target_first(bucket), len(bucket)), len(bucket))
@@ -315,26 +466,26 @@ def _block_success_rates(signals: Sequence[EventStudySignal], block_lookup: Dict
     ]
 
 
-def _block_mean_interval(block_rates: Sequence[Tuple[float, int]], z: float = 1.96) -> Tuple[float, float]:
-    """Intervalo normal sobre medias por bloque; P2.6 lo sustituirá por bootstrap.
+def _block_mean_interval(block_rates: Sequence[Tuple[float, int]]) -> Tuple[float, float]:
+    """Intervalo bootstrap P2.6 sobre medias por bloque completo."""
 
-    Con 40+ bloques la diferencia frente a Student es pequeña; usar ``z``
-    mantiene el cálculo estable y explícito hasta que exista el remuestreo por
-    bloques completos.
-    """
-
-    if not block_rates:
-        return 0.0, 0.0
-    rates = [rate for rate, _ in block_rates]
-    mean = sum(rates) / len(rates)
-    if len(rates) < 2:
-        return 0.0, 1.0
-    variance = sum((rate - mean) ** 2 for rate in rates) / (len(rates) - 1)
-    margin = z * math.sqrt(variance) / math.sqrt(len(rates))
-    return max(0.0, mean - margin), min(1.0, mean + margin)
+    return bootstrap_block_mean_interval(
+        block_rates,
+        seed=DEFAULT_SEED,
+        n_resamples=DEFAULT_RESAMPLES,
+        confidence=0.95,
+    )
 
 
 def _target_first(signals: Iterable[EventStudySignal]) -> int:
+    """Cuenta solo éxitos observables y deja AMBIGUOUS fuera del numerador.
+
+    El denominador conserva las señales ambiguas, por lo que la tasa usada por
+    el gate es la cota inferior publicada por el event study. Es una decisión
+    explícita y conservadora para capacidad, no una resolución intrabarra ni
+    un colapso silencioso del intervalo lower/upper a un punto estimado.
+    """
+
     return sum(1 for signal in signals if signal.managed.exit_status == "TARGET_FIRST")
 
 
@@ -343,10 +494,7 @@ def _rate(count: int, total: int) -> float:
 
 
 def _score_band(score: float) -> str:
-    for label, lower, upper in SCORE_BANDS:
-        if score >= lower and (upper is None or score < upper):
-            return label
-    return SCORE_BANDS[0][0]
+    return score_band(score)
 
 
 def _resolution_rank(value: str) -> int:

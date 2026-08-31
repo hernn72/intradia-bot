@@ -28,7 +28,17 @@ def load_env_file(path: str | Path) -> Dict[str, str]:
 
     env_path = Path(path)
     values: Dict[str, str] = {}
-    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+    try:
+        text = env_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        reason = exc.strerror or str(exc)
+        raise ValueError(
+            f"{env_path}: no se puede leer el fichero de entorno ({reason}). "
+            "Comprueba que existe y que el usuario que ejecuta verificar-systemd "
+            "tiene permiso de lectura; ajusta la ruta o los permisos (0644 si procede)."
+        ) from exc
+
+    for raw_line in text.splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue

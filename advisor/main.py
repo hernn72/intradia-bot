@@ -17,12 +17,19 @@ import json
 import logging
 import os
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from advisor.analysis.analyzer import AnalysisResult, run_analysis
 from advisor.analysis.opportunity import RADAR_OPERAR, Opportunity
 from advisor.config import VALID_HORIZONTES, AdvisorConfig, load_config
+from advisor.data.freshness import (
+    FreshnessBucket,
+    FreshnessRow,
+    agrupar_frescura_por_fecha,
+    calcular_frescura_dato,
+    mercado_para_simbolo,
+)
 from advisor.data.fx import FxConverter
 from advisor.data.market_data import MarketDataProvider
 from advisor.deploy.systemd import DEFAULT_CONFIG_ENV, DEFAULT_SYSTEMD_DIR, find_systemd_drift, write_rendered_units
@@ -31,13 +38,15 @@ from advisor.events.passes import decide_event_pass, format_event_trigger
 from advisor.report.formatter import format_report
 from advisor.report.money import MoneyFormatter
 from advisor.report.tracking import format_reviews, review_positions
+from advisor.research.ablation import format_ablation_report, run_ablation
 from advisor.research.capacity import assess_capacity, format_capacity_report
 from advisor.research.event_study import format_event_study_report, run_event_study
+from advisor.research.uncertainty import compare_target_geometry, format_paired_comparison
 from advisor.research.vintage import freeze_vintage, select_symbols
 from advisor.storage.db import AdvisorDB
 from advisor.telegram.notifier import TelegramNotifier
 from advisor.universe.loader import load_universe
-from advisor.universe.models import Universe
+from advisor.universe.models import Asset, Universe
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +224,61 @@ def cmd_congelar_datos(args: argparse.Namespace, config: AdvisorConfig, universe
     return 0
 
 
+def cmd_frescura_datos(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    provider = MarketDataProvider(config.request_min_interval_seconds)
+    groups: Optional[List[str]] = args.grupos.split(",") if args.grupos else None
+    assets = _assets_por_grupos(universe, groups)
+    reference = datetime.now(timezone.utc)
+    rows = medir_frescura_datos(
+        assets,
+        provider,
+        reference,
+        period=args.period,
+        interval=args.interval,
+    )
+    print(format_frescura_datos(rows, reference))
+    return 0
+
+
+def medir_frescura_datos(
+    assets: List[Asset],
+    provider: MarketDataProvider,
+    reference: datetime,
+    period: str = "1mo",
+    interval: str = "1d",
+) -> List[FreshnessRow]:
+    """Pide la última barra de cada activo y devuelve filas agrupables."""
+
+    rows: List[FreshnessRow] = []
+    for asset in assets:
+        data_symbol = asset.data_symbol(reference)
+        market = mercado_para_simbolo(asset, data_symbol)
+        try:
+            history = provider.get_history(data_symbol, period=period, interval=interval)
+            last_bar = history.index[-1]
+        except Exception as exc:
+            rows.append(FreshnessRow(asset.symbol, data_symbol, market, None, str(exc)))
+            continue
+        rows.append(
+            FreshnessRow(
+                symbol=asset.symbol,
+                data_symbol=data_symbol,
+                market=market,
+                freshness=calcular_frescura_dato(last_bar, reference),
+            )
+        )
+    return rows
+
+
+def _assets_por_grupos(universe: Universe, groups: Optional[List[str]]) -> List[Asset]:
+    if groups is None:
+        return universe.all_assets()
+    unknown = [group for group in groups if group not in universe.groups]
+    if unknown:
+        raise ValueError(f"grupos desconocidos: {unknown}. Disponibles: {sorted(universe.groups)}")
+    return [asset for group in groups for asset in universe.groups[group]]
+
+
 def _parse_date(value: Optional[str]) -> date:
     if value is None:
         return date.today()
@@ -307,7 +371,38 @@ def cmd_capacidad_estadistica(args: argparse.Namespace, config: AdvisorConfig, u
         cost_pct=args.coste_pct,
         root_dir=args.data_dir,
     )
-    print(format_capacity_report(assess_capacity(result)))
+    print(format_capacity_report(assess_capacity(result, universe=universe)))
+    return 0
+
+
+def cmd_ablacion_score(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    result = run_event_study(
+        config,
+        universe,
+        args.data_vintage_id,
+        horizonte=args.horizonte,
+        cost_pct=args.coste_pct,
+        root_dir=args.data_dir,
+    )
+    print(format_ablation_report(run_ablation(result, universe=universe)))
+    return 0
+
+
+def cmd_comparacion_pareada(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    comparison = compare_target_geometry(
+        config,
+        universe,
+        args.data_vintage_id,
+        horizonte=args.horizonte,
+        cost_pct=args.coste_pct,
+        root_dir=args.data_dir,
+        target_multiples_b=_parse_float_list(args.multiplos_b),
+        block_lengths=_parse_int_list(args.longitudes_bloque),
+        seed=args.semilla,
+        n_resamples=args.remuestreos,
+        mode=args.modo,
+    )
+    print(format_paired_comparison(comparison))
     return 0
 
 
@@ -412,6 +507,106 @@ def cmd_posiciones(args: argparse.Namespace, config: AdvisorConfig, universe: Un
     return 0
 
 
+_DIA_SEMANA = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
+
+
+def format_frescura_datos(rows: List[FreshnessRow], measured_at: Optional[datetime] = None) -> str:
+    buckets = agrupar_frescura_por_fecha(rows)
+    lines: List[str] = []
+    if measured_at is not None:
+        lines.append(f"Medición: {measured_at:%Y-%m-%d %H:%M:%S %Z}")
+        lines.append("")
+
+    lines.extend(["| Última barra | Símbolos | Plazas |", "|---|---|---|"])
+    for bucket in buckets:
+        lines.append(_freshness_bucket_row(bucket))
+
+    dispersion = _market_dispersion_rows(rows)
+    if dispersion:
+        lines.append("")
+        lines.append("Dispersión por plaza:")
+        lines.append("| Plaza | Escalón mayoritario | No coinciden |")
+        lines.append("|---|---|---|")
+        for market, majority_date, mismatch_count, total_count in dispersion:
+            lines.append(f"| {market} | {_fecha_corta(majority_date)} | {mismatch_count} / {total_count} |")
+
+    lines.append("")
+    lines.append("Detalle por símbolo:")
+    lines.append("| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad |")
+    lines.append("|---|---|---|---|---|")
+    for row in rows:
+        lines.append(_freshness_detail_row(row))
+
+    failed = [row for row in rows if row.error is not None]
+    if failed:
+        lines.append("")
+        lines.append("Símbolos sin datos:")
+        for row in failed:
+            lines.append(f"- {row.symbol} ({row.data_symbol}, {row.market}): {row.error}")
+    return "\n".join(lines)
+
+
+def _market_dispersion_rows(rows: List[FreshnessRow]) -> List[tuple[str, date, int, int]]:
+    counts_by_market: Dict[str, Dict[date, int]] = {}
+    for row in rows:
+        if row.freshness is None:
+            continue
+        market_counts = counts_by_market.setdefault(row.market, {})
+        last_bar_date = row.freshness.last_bar_date
+        market_counts[last_bar_date] = market_counts.get(last_bar_date, 0) + 1
+
+    result: List[tuple[str, date, int, int]] = []
+    for market, date_counts in counts_by_market.items():
+        majority_date, majority_count = max(date_counts.items(), key=lambda item: (item[1], item[0]))
+        total_count = sum(date_counts.values())
+        result.append((market, majority_date, total_count - majority_count, total_count))
+    return sorted(result, key=lambda item: item[0])
+
+
+def _freshness_bucket_row(bucket: FreshnessBucket) -> str:
+    freshness = bucket.freshness
+    return (
+        f"| {_fecha_corta(bucket.last_bar_date)} ({_sesiones_label(freshness.sessions_approx)}) "
+        f"| {bucket.symbols_count} | {bucket.markets_label} |"
+    )
+
+
+def _freshness_detail_row(row: FreshnessRow) -> str:
+    if row.freshness is None:
+        return f"| {row.symbol} | {row.data_symbol} | {row.market} | N/D | error |"
+    freshness = row.freshness
+    return (
+        f"| {row.symbol} | {row.data_symbol} | {row.market} | "
+        f"{freshness.last_bar_date.isoformat()} | {freshness.label} |"
+    )
+
+
+def _fecha_corta(value: date) -> str:
+    return f"{_DIA_SEMANA[value.weekday()]} {value.day:02d}"
+
+
+def _sesiones_label(sessions_approx: int) -> str:
+    if sessions_approx == 0:
+        return "al día"
+    if sessions_approx == 1:
+        return "−1 sesión"
+    return f"−{sessions_approx} sesiones"
+
+
+def _parse_float_list(value: str) -> List[float]:
+    try:
+        return [float(part.strip()) for part in value.split(",") if part.strip()]
+    except ValueError:
+        raise ValueError(f"lista de floats inválida: {value}") from None
+
+
+def _parse_int_list(value: str) -> List[int]:
+    try:
+        return [int(part.strip()) for part in value.split(",") if part.strip()]
+    except ValueError:
+        raise ValueError(f"lista de enteros inválida: {value}") from None
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="advisor",
@@ -446,6 +641,12 @@ def build_parser() -> argparse.ArgumentParser:
     congelar.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
     congelar.set_defaults(func=cmd_congelar_datos)
 
+    frescura = sub.add_parser("frescura-datos", help="mide el retraso de la última barra por plaza")
+    frescura.add_argument("--grupos", help="grupos del universo separados por comas (por defecto, todos)")
+    frescura.add_argument("--period", default="1mo", help="rango solicitado al proveedor (por defecto, 1mo)")
+    frescura.add_argument("--interval", default="1d", help="intervalo solicitado al proveedor (por defecto, 1d)")
+    frescura.set_defaults(func=cmd_frescura_datos)
+
     event_study = sub.add_parser("event-study", help="mide señales potenciales sobre una cosecha congelada")
     event_study.add_argument("data_vintage_id", help="identificador de la cosecha congelada")
     event_study.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
@@ -461,6 +662,29 @@ def build_parser() -> argparse.ArgumentParser:
                            help="coste de ida y vuelta en %%")
     capacidad.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
     capacidad.set_defaults(func=cmd_capacidad_estadistica)
+
+    ablacion = sub.add_parser("ablacion-score", help="diagnostica y ablaciona el RR dentro del score")
+    ablacion.add_argument("data_vintage_id", help="identificador de la cosecha congelada")
+    ablacion.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
+    ablacion.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
+                          help="coste de ida y vuelta en %%")
+    ablacion.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
+    ablacion.set_defaults(func=cmd_ablacion_score)
+
+    comparacion = sub.add_parser("comparacion-pareada", help="mide P2.6 con bootstrap por bloques pareados")
+    comparacion.add_argument("data_vintage_id", help="identificador de la cosecha congelada")
+    comparacion.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
+    comparacion.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
+                             help="coste de ida y vuelta en %%")
+    comparacion.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
+    comparacion.add_argument("--multiplos-b", default="1.5,3.5,5.0",
+                             help="target_atr_multiples de B separados por comas")
+    comparacion.add_argument("--longitudes-bloque", default="40,60,80,120",
+                             help="longitudes de bloque separadas por comas")
+    comparacion.add_argument("--semilla", type=int, default=20260830, help="semilla entera reproducible")
+    comparacion.add_argument("--remuestreos", type=int, default=2000, help="número de remuestreos bootstrap")
+    comparacion.add_argument("--modo", choices=["replica", "completo"], default="replica")
+    comparacion.set_defaults(func=cmd_comparacion_pareada)
 
     pasada_evento = sub.add_parser("pasada-evento", help="ejecuta una pasada extra solo si hoy hay eventos")
     pasada_evento.add_argument("--horizonte", choices=["swing", "medio"], default="swing")

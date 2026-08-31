@@ -1,8 +1,19 @@
 # Pendientes del asesor
 
-Estado al **30 de agosto de 2026**. P0, P1, P2.0, P2.1 y P2.2 están en `main`
-y pusheadas a GitHub (`b732e79`). La rama
-`sizing-riesgo-y-benchmark-regional` ya está fusionada en fast-forward.
+Estado al **31 de agosto de 2026**.
+
+En `main` y pusheadas a GitHub (`c415dbc`) están P0, P1, P2.0–P2.3 y P2.5,
+además de las pasadas por evento, el despliegue versionado en `deploy/` y el
+gate de `mypy`. La Pi corre lo mismo: se desplegó en `1f31d2d`, y `c415dbc`
+solo toca documentación.
+
+**Ojo, hay una tanda entera sin commitear** en el árbol de trabajo, hecha entre
+el 30 y el 31 de agosto: la frescura del dato, P2.4, P2.6, la corrección del
+mapa de bloques de P2.5, el error limpio de `verificar-systemd` y los tests de
+dimensionamiento con capital sintético. Los tres gates pasan (365 tests, `ruff`
+y `mypy` limpios) y los comandos están ejercitados contra datos reales, pero
+**nada de esto está en `main` ni en la Pi**: producción sigue sin declarar la
+antigüedad del dato.
 
 Cada punto dice qué falta, por qué importa y qué hay que decidir antes de
 tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
@@ -17,6 +28,9 @@ tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
   del proveedor, ya visibles en el informe y como riesgo cuando son inminentes.
 - Desplegado en la Pi con cuatro pasadas diarias (07:00, 08:30, 14:30 y 21:00,
   hora local de la Pi, UTC+1), de lunes a viernes.
+- **Frescura del dato** (sin commitear): el informe declara siempre la
+  antigüedad de la última barra de cada activo, y el subcomando
+  `frescura-datos` reproduce la medición del retraso por plaza. Sección 10.
 - **P0 — dimensionamiento por riesgo.** El tamaño sale del
   presupuesto de riesgo y de la distancia al stop, no de la convicción:
   `position_pct = risk_per_trade_pct / risk_pp`, con tope `max_position_pct`
@@ -108,12 +122,17 @@ vista no afina, cambia de tramo.
    más el subcomando `event-study`. 121.786 señales sobre 107 activos.
    Resultados en la sección 11.
 
-5. **Cerrar el flanco estadístico antes de usar las bandas.** P2.5 deja de ser
-   una fase futura y pasa a ser un requisito: la banda 80+ tiene 78
-   observaciones y no sostiene ninguna conclusión (ver sección 11).
-6. Después: P2.4 ablación · P2.6 incertidumbre · P3 score sin RR y
-   recalibración por horizonte · P4 geometría · P5 reducción a regiones
-   robustas · P6 backtest de sistemas · P7 walk-forward y holdout.
+5. ~~Cerrar el flanco estadístico antes de usar las bandas.~~ **P2.5 hecha el
+   2026-08-30** y **ejecutada sobre la cosecha `071ddb2b` el 2026-08-31**. El
+   veredicto y lo que salió al ejecutarla están en la sección 11, y no es lo
+   que se esperaba: al ejecutar el gate aparecieron dos defectos en su propio
+   mapa de bloques, y corregirlos cambia la lectura de P2.3.
+6. ~~P2.4 ablación · P2.6 incertidumbre.~~ **Las dos hechas el 2026-08-31**,
+   sin commitear. Resultados en las secciones 14 y 15.
+7. Queda: **P3** score sin RR y recalibración por horizonte · **P4** geometría ·
+   **P5** reducción a regiones robustas · **P6** backtest de sistemas · **P7**
+   walk-forward y holdout. P3 no puede empezar tal y como está definido: ver el
+   final de la sección 11.
 
 ### Nota de método, por si se pierde
 
@@ -228,83 +247,257 @@ No hay API pública del catálogo. El informe lo marca con
 significa que **ninguna recomendación está confirmada como ejecutable**.
 
 **Decisión tomada:** *no* degradar `unknown` a VIGILAR. Con 107 de 107 en
-`unknown` eso inutilizaría el sistema. Lo correcto es separar dos conceptos
-que hoy se mezclan —calidad de la señal y ejecutabilidad en el broker— para
-que el informe pueda decir «🟢 OPERAR, disponibilidad ❓ pendiente» sin
-afirmar nunca «COMPRAR AHORA EN TRADE REPUBLIC» antes de verificarlo.
+`unknown` eso inutilizaría el sistema.
 
-## 10. Los datos europeos llegan con retraso frente a los de EE. UU.
+**Separación hecha el 2026-08-30** (`1f31d2d`): calidad de la señal y
+ejecutabilidad en el broker ya son dos campos distintos del informe —`Señal:` y
+`Ejecutabilidad en broker:` en la ficha del activo, `Señal:` y
+`Disponibilidad:` en el bloque de acción—, de modo que puede decir «OPERAR,
+disponibilidad pendiente» sin afirmar nunca «COMPRAR AHORA EN TRADE REPUBLIC»
+antes de verificarlo. La liquidez recomendada se sigue calculando sobre las
+mejores ideas **por señal**, y el informe lo declara: condicionarla a
+disponibilidad verificada lo dejaba en cero ideas, precisamente porque los 107
+están en `unknown`.
 
-Medido el **domingo 2026-08-30**, siendo el viernes 28 la última sesión. Al
-agrupar los 126 símbolos de la cosecha por su última barra aparece un escalón
-por plaza que no es aleatorio:
+**Lo que sigue pendiente es el dato**, no su tratamiento: verificar la
+disponibilidad real de los 107, que no tiene fuente automática.
+
+## 10. Los datos europeos llegan con retraso: confirmado con el mercado abierto
+
+**La pregunta que quedaba abierta está resuelta.** La medición del domingo era
+una sola muestra en fin de semana y no permitía distinguir un retraso real del
+proveedor de un rezago que se pusiera al día el lunes. Ya está repetida en día
+de mercado, y el retraso es real.
+
+### Las tres mediciones
+
+| Momento | Xetra y Euronext | EE. UU. |
+|---|---|---|
+| dom 30, por la mañana | mié 26 (−2 sesiones) | vie 28 |
+| dom 30, 17:20 | jue 27 (−1 sesión) | vie 28 |
+| lun 31, 06:51 UTC | jue 27 (−1 sesión) | vie 28 |
+
+O sea: **no es una constante por plaza, es un rezago que se va rellenando**, y
+entre la mañana y la tarde del domingo el proveedor completó una sesión. Lo que
+no rellenó, ni el domingo ni antes de abrir el lunes, es el viernes 28 de las
+plazas europeas.
+
+Medición completa del lunes 2026-08-31 a las 06:51 UTC, con la última sesión
+cerrada siendo el viernes 28:
 
 | Última barra | Símbolos | Plazas |
 |---|---|---|
-| vie 28 (al día) | 53 | EE. UU. e índices estadounidenses |
-| jue 27 (−1 sesión) | 25 | Japón, Hong Kong, Corea, España, `^FCHI` |
-| mié 26 (−2 sesiones) | 45 | **Xetra (31), Euronext, Milán, Copenhague** |
-| dom 30 | 3 | cripto, que cotiza en fin de semana |
+| lun 31 (al día) | 25 | JPX (7), HKG (5), CRYPTO (3), KSC (3), CCY, CMX, NYB, NYM, OSA, SHH, TAI |
+| vie 28 (al día) | 57 | NASDAQ (27), NYSE (19), MCE (3), ZRH (2), CBOE, CGI, PAR, SNP, WCB, XETRA |
+| jue 27 (−1 sesión) | 44 | **XETRA (31)**, PAR (6), MIL (3), AMS (2), CPH, MCE |
 
-**No es un artefacto de la cosecha: es el proveedor.** Comprobado pidiendo de
-nuevo los datos en vivo, con `period=1mo` y con `period=5y`: `SAP.DE` y
-`ASML.AS` terminan el 26 en los cuatro casos, mientras `AAPL` termina el 28 y
-`7203.T` el 27. La serie europea no está truncada por la cola, va retrasada
-entera.
+### El hallazgo nuevo: el retraso es por símbolo, no por plaza
 
-Por qué importa: el asesor recomienda para ejecutar en **Trade Republic**, o
-sea justo las plazas del tramo de −2 sesiones, y hace cuatro pasadas diarias.
-Si el retraso también se da entre semana, las señales de los 31 instrumentos
-de Xetra se calculan sobre un cierre de hace dos sesiones sin que el informe lo
-diga. Es la misma familia de fallo que el precio obsoleto del otro bot.
+Xetra aparece en dos filas a la vez, y eso es lo importante. El único símbolo de
+Xetra que sí tiene el viernes es **`^GDAXI`**, el índice. El único de París es
+**`^FCHI`**, también índice. Y en Madrid, `IBE.MC`, `SAN.MC` y `BBVA.MC` están al
+día mientras `ITX.MC` no.
 
-**Lo que NO está medido, y no hay que darlo por sabido:** esto es *una* medición
-hecha en fin de semana. Puede ser un retraso permanente del proveedor o un
-rezago de fin de semana que se pone al día el lunes. Antes de tocar nada hay
-que **repetir la medición un día de mercado**, comparando la última barra por
-plaza a la misma hora.
+El patrón es **índices al día, valores retrasados**. Y tiene una consecuencia
+analítica que no es cosmética: la fortaleza relativa compara el activo contra su
+benchmark, así que hoy compara **un valor sin el viernes contra un índice con el
+viernes**. No es ruido aleatorio, es un desfase sistemático de una sesión en un
+lado de la resta, justo en las 31 acciones alemanas que son el grueso de lo que
+se opera en Trade Republic.
 
-**Qué hay que decidir, si se confirma:** si el informe declara la antigüedad
-del dato por activo (barato, honesto, y encaja con separar señal de
-ejecutabilidad del §9) o si se busca otra fuente para las plazas europeas
-(caro). No degradar recomendaciones en silencio.
+### Lo que se ha hecho
 
-**No afecta a la cosecha ni a P2.3:** al event study le sobran dos sesiones de
-cola sobre medianas de 1255 barras.
+- `advisor/data/freshness.py`: núcleo puro que calcula la antigüedad en días
+  naturales y en **sesiones cerradas perdidas**, que no es lo mismo que días
+  laborables transcurridos. La sesión en curso no cuenta: el lunes por la mañana
+  una acción de EE. UU. con la barra del viernes no ha perdido ningún dato. Las
+  sesiones son aproximadas y el propio módulo lo dice, porque no hay calendario
+  de festivos.
+- El informe **declara la antigüedad siempre**, no solo cuando hay algo que
+  comprar. Salió así de ejercitar el camino real: la primera versión ponía la
+  línea dentro de la ficha de la oportunidad, y un informe sin oportunidades
+  —que es lo que dio el domingo— no decía absolutamente nada sobre el retraso.
+  Ahora hay un bloque de frescura en la situación global, y RADAR y DESCARTADOS
+  marcan el activo con dato viejo.
+- `frescura-datos`: subcomando que reproduce la medición entera en un comando,
+  con la hora exacta de la medición y una tabla de dispersión por plaza que
+  cuenta cuántos símbolos no coinciden con el escalón mayoritario de la suya.
+  Esa tabla es la que delató que el rezago es por símbolo.
 
-## 11. Resultados de P2.3 y el flanco que abren
+**Decisión aplicada, la que ya estaba tomada:** declarar, nunca degradar en
+silencio. Ni la puntuación, ni el radar, ni las exclusiones, ni el
+dimensionamiento miran la frescura.
+
+### Lo que sigue abierto
+
+- **El desfase activo/benchmark.** Ahora que está medido, hay que decidir qué
+  hacer con una fortaleza relativa que resta series con un día de diferencia.
+  Declararlo por activo es barato; corregirlo exige alinear las series por
+  sesión, y eso sí toca el cálculo.
+- **Si se busca otra fuente para las plazas europeas.** Es la opción cara y
+  ahora hay con qué compararla: el subcomando mide el retraso de cualquier
+  proveedor con el mismo criterio.
+- ~~Repetir la medición dentro de la sesión europea.~~ **Hecho el 2026-08-31**,
+  ver abajo.
+
+### Con Xetra ya cotizando, el viernes sigue sin aparecer
+
+Medido a las 07:08 y 07:11 UTC, con la sesión de Xetra abierta desde las 07:00:
+
+| Última barra | Símbolos | Plazas |
+|---|---|---|
+| lun 31 (al día) | 1 | **CPH** |
+| vie 28 (al día) | 4 | MCE (3), NASDAQ |
+| jue 27 (−1 sesión) | 25 | XETRA (13), PAR (6), MIL (3), AMS (2), MCE |
+
+`SAP.DE`, `SIE.DE`, `ASML.AS` y `MC.PA` siguen en el jueves 27 once minutos
+después de abrir. Y aparece un caso que descoloca el modelo mental: **`NOVO-B.CO`
+ya sirve la barra de HOY** mientras Xetra todavía no sirve la del viernes. O sea
+que el proveedor no va «retrasado N sesiones» de forma ordenada; sirve unas
+plazas en tiempo casi real y otras con un hueco, y el hueco no se cierra al
+abrir el mercado.
+
+Conclusión operativa: **el rezago de ~1 sesión en Xetra, París, Milán y
+Ámsterdam es el estado normal del proveedor durante la sesión**, no un artefacto
+de fin de semana. Las cuatro pasadas diarias del bot puntúan esas 31 acciones
+alemanas con un cierre que le falta la última sesión. Ahora, al menos, el
+informe lo dice.
+
+**No afecta a la cosecha ni a P2.3:** al event study le sobran una o dos
+sesiones de cola sobre medianas de 1255 barras.
+
+## 11. P2.3 y P2.5: la frase «el score ordena» se queda sin instrumento
+
+Esta sección decía que el score ordena. **Hay que retirarlo**, y el motivo no es
+que se haya medido lo contrario: es que el instrumento en el que se apoyaba no
+existía.
+
+### Lo que P2.3 midió, que sigue siendo cierto
 
 Pasada completa sobre la cosecha `071ddb2b`, horizonte swing, coste 0,20 %:
-121.786 señales sobre 107 activos.
+121.786 señales sobre 107 activos. Proporción agrupada de tocar objetivo antes
+que stop, por banda:
 
-| Banda | n | P(objetivo antes de stop) | IC 95 % (muestreo) | net_R medio |
+| Banda | n | P(objetivo antes de stop) | net_R medio |
+|---|---|---|---|
+| <50 | 51.268 | 0,402 | 0,13 |
+| 50-60 | 44.848 | 0,410 | 0,09 |
+| 60-70 | 23.027 | 0,443 | 0,12 |
+| 70-80 | 2.565 | 0,477 | 0,21 |
+| 80+ | 78 | 0,500 | 0,20 |
+
+Eso es un **hecho descriptivo de esta cosecha** y no lo discute nadie. La
+progresión de la probabilidad es monótona. Conviene fijarse en que la columna de
+`net_R`, que el protocolo declara la métrica **primaria**, nunca lo fue.
+
+### El instrumento que no existía
+
+La versión anterior de esta sección publicaba además un intervalo de confianza
+del 95 % por banda, de anchura ±0,004, y concluía que las bandas se separaban.
+Ese intervalo **no lo produce ningún código del repositorio**, no tiene test, y
+trata 121.786 señales solapadas de 107 activos correlacionados como si fueran
+ensayos independientes. Es exactamente la unidad de independencia que el
+protocolo declara incorrecta en P2.6. Su anchura no mide nada y no debe volver a
+citarse.
+
+Con eso, la frase «el score ordena» se queda sin respaldo. **No es lo mismo que
+haber medido que no ordena**, y confundir las dos cosas sería el mismo error de
+sobrelectura en dirección contraria.
+
+### Al ejecutar el gate aparecieron dos defectos en su propio mapa de bloques
+
+Marco, porque importa: esto **no es cambiar las reglas después de ver los
+resultados**, que es lo que el protocolo prohíbe. Es lo contrario. El código se
+había desviado de lo que el documento escribió antes de medir, y se le ha
+devuelto a la regla escrita. El antes y el después se publican los dos.
+
+- **Las señales europeas caían en el bloque del día anterior.** Los bloques se
+  construían con `signal_timestamp.date()` sobre un `datetime` en UTC, pero las
+  barras diarias vienen selladas a la medianoche local de la plaza expresada en
+  UTC. Verificado en la cosecha: la primera barra de `SAP.DE` es
+  `2021-08-29T22:00:00Z`, que es la sesión del **lunes 30** en Berlín, mientras
+  la de `AAPL` es `2021-08-30T04:00:00Z`. Resultado: fechas de sábado y domingo
+  en un calendario de renta variable, y señales europeas y estadounidenses de la
+  misma sesión en bloques distintos. Rompe justo lo que P2.6 exige, que el
+  bloque contenga **todos los activos** de esa ventana.
+- **La longitud del bloque no estaba en sesiones.** Se contaba sobre el conjunto
+  de fechas distintas presentes, inflado por la cripto, que cotiza en fin de
+  semana. Un bloque nominal de 40 eran unas 27 a 34 sesiones de bolsa: **más
+  corto que el periodo de tenencia** `MAX_HOLD_BARS` = 40, cuando el protocolo
+  exige que lo supere y escribe 60 sesiones para swing y 300 para medio.
+- **El gate resolvía una ambigüedad que tiene prohibido resolver:** contaba
+  `AMBIGUOUS` como fallo. Ahora publica la cota inferior y deja la ambigüedad en
+  el denominador, coherente con el `lower`/`upper` del event study.
+
+Corregido: la fecha de sesión se deriva con `zoneinfo` y una tabla explícita de
+plazas que **falla ruidosamente** si aparece una sin declarar; la espina de
+sesiones se construye con los activos no cripto y la cripto se engancha a la
+última sesión bursátil sin crear sesiones nuevas; y la longitud sale de la tabla
+del protocolo, validada contra `MAX_HOLD_BARS`.
+
+Efecto medido de la corrección: **1.702** señales cambian de bloque solo por la
+fecha de sesión, **236** fechas de fin de semana desaparecen del calendario de
+renta variable, y **116.866 de 121.786** cambian de bloque al sumar la longitud
+correcta.
+
+### El veredicto de P2.5 con el mapa arreglado
+
+| Banda | n | bloques | Intervalo por bloque | Veredicto |
 |---|---|---|---|---|
-| <50 | 51.268 | 0,402 | [0,398, 0,406] | 0,13 |
-| 50-60 | 44.848 | 0,410 | [0,406, 0,415] | 0,09 |
-| 60-70 | 23.027 | 0,443 | [0,437, 0,449] | 0,12 |
-| 70-80 | 2.565 | 0,477 | [0,458, 0,496] | 0,21 |
-| **80+** | **78** | 0,500 | **[0,392, 0,608]** | 0,20 |
+| GLOBAL | 121.786 | 21 | [0,345, 0,444] | LIMITADA |
+| <50 | 51.268 | 21 | [0,362, 0,456] | LIMITADA |
+| 50-60 | 44.848 | 21 | [0,312, 0,427] | LIMITADA |
+| 60-70 | 23.027 | 20 | [0,347, 0,467] | LIMITADA |
+| 70-80 | 2.565 | 20 | [0,305, 0,473] | **no concluyente** (bloque mínimo 2) |
+| 80+ | 78 | 16 | [0,409, 0,620] | **INSUFICIENTE** |
 
-**Lo bueno: el score ordena.** La progresión es monótona y los intervalos de
-muestreo de las cuatro primeras bandas se separan. Es la primera evidencia
-medida de que la puntuación tiene capacidad de ordenación.
+Bloque de 60 sesiones, 2.000 remuestreos. Antes de corregir el mapa salían 43
+bloques y casi todo SUFICIENTE con resolución HIGH: **aquella suficiencia era un
+artefacto de bloques demasiado cortos y mal fechados**. Con la unidad que el
+protocolo declara, la resolución del diseño es MEDIUM y **los intervalos de las
+tres bandas bajas se solapan casi por completo**.
 
-**Lo que hay que mirar antes de creerse la banda alta:** 80+ tiene 78
-observaciones de 121.786, el 0,06 %. Su intervalo de muestreo mide 0,217 de
-ancho y se solapa con el de 50-60. No sostiene ninguna conclusión.
+### Qué se puede afirmar y qué no
 
-### La regla de decisión del protocolo se queda corta
+Dos lecturas independientes del resultado, hechas por separado y sin verse,
+llegaron a la misma conclusión: **indeterminado**.
 
-El protocolo dice: «Si el intervalo de la banda 80+ no se solapa con el de la
-50-60, la conclusión es sólida». Aplicada literalmente daría por sólida la
-banda 80+, porque ese intervalo es el de **ambigüedad intrabarra** y ha salido
-degenerado: `[0,500, 0,500]`. Pero el intervalo que importa aquí es el de
-**muestreo**, y ese sí se solapa.
+- Se puede afirmar que la banda **80+ no calibra nada**: 78 señales, el 0,06 %,
+  presentes en 16 de 21 bloques, con bloques de 4,9 observaciones de media.
+- Se puede afirmar que la banda **70-80 tampoco es concluyente**, y eso importa
+  más de lo que parece: `min_score_operar` vale **70** en `config.yaml`, o sea
+  que el umbral de producción cae justo en el borde de la primera banda sin
+  capacidad.
+- **No** se puede afirmar que el score ordene, porque el instrumento que lo
+  decía no existía.
+- **No** se puede afirmar que no ordene: con la unidad correcta el diseño
+  simplemente no tiene resolución para el tamaño de efecto en juego (los saltos
+  entre bandas valen 0,008 a 0,075 y el suelo de resolución ronda 0,10).
+- **No** se puede afirmar que el gate haya refutado P2.3. El gate no es un test
+  de ordenación; su única comparación por defecto es 50-60 contra 80+.
 
-Son dos incertidumbres distintas y el protocolo solo instrumentó una. **La
-regla no se cambia a posteriori** —eso es justo lo que el documento prohíbe—,
-pero P2.5 deja de ser opcional: sin capacidad estadística, las bandas altas no
-pueden calibrar nada en P3.
+Una de las dos lecturas calculó además, con scripts propios fuera del
+repositorio, que la ponderación decide el signo: con la tasa agrupada más
+bootstrap de bloques la mitad alta sí separa, y con peso igual por bloque no
+separa ninguna. **Eso no está en el repositorio, no tiene test y no se ha
+verificado**, así que queda anotado como hipótesis para P2.6, no como resultado.
+Lo que sí deja claro es que **la ponderación del bloque nunca se declaró en el
+protocolo**, y elegirla ahora, a la vista de los resultados, sería justo lo que
+el documento prohíbe.
+
+### Consecuencia para P3
+
+P3 estaba definido como «sacar el RR del score, comprobar ordenación y
+recalibrar umbrales por horizonte». Tal cual, **no puede empezar**:
+
+1. No puede heredar «el score ordena» como premisa, porque entonces
+   «comprobar» se convierte en «confirmar».
+2. Antes de volver a mirar hay que **declarar el estimador**: peso igual por
+   bloque o tasa agrupada. Fijarlo después de ver los resultados invalida la
+   medición.
+3. La recalibración de umbrales está bloqueada **por encima de 70**, no solo en
+   80+. Lo único con capacidad es la frontera baja, y ahí no hay separación.
+
 
 ### La ambigüedad intrabarra resultó ser irrelevante, y está medido
 
@@ -318,16 +511,22 @@ no ocurre.** La advertencia sigue siendo válida como principio: si P4 acerca
 el objetivo, la fracción ambigua subirá y habrá que volver a mirarla. Por eso
 el estado se conserva aunque hoy no mueva nada.
 
-### Riesgo abierto: los timestamps de la cosecha son cadenas, no `Timestamp`
+### ~~Riesgo abierto: los timestamps son cadenas~~ — cerrado el 2026-08-30
 
 `read_raw_csv` conserva el índice como texto a propósito, para que el hash sea
-estable. La consecuencia es que `SignalObservation.signal_timestamp` y
-`ManagedEvent.exit_timestamp` están **anotados como `pd.Timestamp` y contienen
-`str`**. Hoy no rompe nada —`_align()` reconvierte a fechas y restaura el
-índice, y está verificado que el benchmark llega a las seis dimensiones—, pero
-cualquier aritmética de fechas en P2.5 o P4 fallará o, peor, ordenará
-lexicográficamente sin avisar. `mypy` no lo habría dejado pasar, y `mypy` es
-justo el gate caído.
+estable. El defecto era que `SignalObservation.signal_timestamp` y
+`ManagedEvent.exit_timestamp` estaban anotados como `pd.Timestamp` y contenían
+`str`: no rompía nada entonces, pero cualquier aritmética de fechas en P2.5 o
+P4 habría fallado o, peor, ordenado lexicográficamente sin avisar.
+
+Resuelto en `1f31d2d` separando los dos papeles en `advisor/research/timestamps.py`:
+`*_timestamp_raw` guarda el texto congelado, que es formato de archivo y entra
+en los hashes, y `*_timestamp` guarda el `datetime` timezone-aware para
+cálculo. El texto **nunca se reserializa**: `+00:00` y `Z` significan el mismo
+instante pero son bytes distintos, y sustituir uno por otro rompería los 126
+hashes de la cosecha. Lo cubre, en `tests/test_timestamps.py`, el test
+`test_cosecha_real_mantiene_hashes_y_bytes_tras_parsear_y_serializar_salidas`,
+que compara byte a byte contra la cosecha real y se salta si no está presente.
 
 ## 12. Desplegado en la Pi el 2026-08-30
 
@@ -351,23 +550,41 @@ marcó los tres eventos de ese día como `SENT`, lo que habría silenciado la
 pasada real del BCE. Se limpió la tabla. Cualquier prueba con fecha futura
 tiene que borrar después sus filas de `event_pass`.
 
-### Pendiente menor de esto
+### ~~Pendiente menor de esto~~ — arreglado el 2026-08-31 (sin commitear)
 
-`verificar-systemd` lanza un traceback de `PermissionError` en vez de un error
-limpio cuando no puede leer el fichero de entorno. Se resolvió el caso real
-poniéndolo en `0644` (no tiene secretos), pero el mensaje sigue siendo feo.
+`verificar-systemd` lanzaba un traceback de `PermissionError` cuando no podía
+leer el fichero de entorno. Ahora `load_env_file` convierte cualquier `OSError`
+de lectura en un `ValueError` con la ruta, la causa y qué hacer, que es el tipo
+que `main()` ya captura para devolver código 1 con un mensaje limpio. Cubierto
+con un fichero en `chmod 000` —que se salta solo si los tests corren como root,
+donde los permisos no aplican— y con el fichero inexistente.
 
 ## 13. Cosas menores pero reales
 
-- **`mypy` no se puede ejecutar**: `pyproject.toml` fija
-  `python_version = "3.9"` y el mypy instalado exige >=3.10. Hay que decidir
-  si el proyecto sube a 3.10+ (la Pi ya va con 3.13) o si el venv baja. Es un
-  gate de calidad caído, no un fallo de código.
+- ~~**`mypy` no se puede ejecutar**~~ — **gate levantado el 2026-08-30**
+  (`1f31d2d`). `pyproject.toml` fija ahora `python_version = "3.12"`, alineado
+  con el 3.13 de la Pi, en vez del 3.9 que el mypy instalado rechazaba. Llevaba
+  caído desde el principio, y es el gate que habría cazado el defecto de tipos
+  de los timestamps de la cosecha.
 - **`capital:` sigue vacío en `config.yaml`**, a propósito: sin cifra el
   informe muestra solo porcentajes, que es el comportamiento deseado hasta que
-  se configure expresamente. Falta añadir tests del sizing con capital
-  sintético (10.000 / 50.000 / 100.000) en vez de poner una cifra ficticia en
-  producción para ejercitarlo.
+  se configure expresamente. ~~Falta añadir tests del sizing con capital
+  sintético.~~ **Hechos el 2026-08-31** (sin commitear): capital 10.000, 50.000
+  y 100.000, con un activo en euros, uno en yenes con tipo de cambio —donde el
+  test comprueba las 566 acciones contra un cálculo hecho a mano, para que el
+  defecto histórico de las 3 acciones de Toyota no pueda volver sin ponerse
+  rojo—, uno en divisa sin tipo de cambio, donde no se inventa un número de
+  acciones, y el tope `max_position_pct`.
+- **La tabla `MARKET_TIMEZONES` del gate solo cubre las plazas de los activos
+  analizables** (comprobado: hoy no falta ninguna). Si se añade un analizable en
+  una plaza nueva —`ZRH` ya está en el universo como contexto—, el gate falla
+  ruidosamente nombrándola. Es deliberado: el recurso silencioso a UTC es
+  justamente el defecto que se acaba de corregir.
+- **Diagnóstico equivocado, anotado para no repetirlo:** se atribuyó la lentitud
+  del gate a que `block_for` escaneaba la espina en lineal. Se corrigió —había
+  además un diccionario que se construía y se tiraba— pero medido, el comando
+  solo mejoró 0,5 s de 64. El tiempo se lo lleva el event study, no el mapa de
+  bloques.
 - **Resuelto en P2.2**: `_signal()` ya no recalcula los indicadores sobre
   `df.iloc[:j+1]` en cada barra. El camino por prefijos se conserva como
   `_signal_prefix()` porque es la referencia contra la que se comprueba la
@@ -385,3 +602,107 @@ poniéndolo en `0644` (no tiene secretos), pero el mensaje sigue siendo feo.
 - **El backtest se calibró con 21 activos, no con 107**: todo lo medido sale
   de `europa`, `usa_en_xetra` y `etfs_ucits` del universo viejo. Rehacerlo
   forma parte de P2 y siguientes, ya bajo el protocolo.
+
+## 14. P2.4 — la ablación del score, hecha el 2026-08-31
+
+`advisor/research/ablation.py` y el subcomando `ablacion-score`. Núcleo puro
+sobre un `EventStudyResult` ya calculado: no vuelve a recorrer la cosecha, no
+llama a `compute_score`, y sobre todo **no pasa por `classify()`**, que es donde
+vive el veto `min_rr_ratio: 1.5`. Esa dependencia de orden la exige el
+protocolo: medir la capacidad de ordenación del RR sobre una muestra que el
+propio RR ya depuró no mide nada. Las 121.786 señales entran enteras, cero
+descartes.
+
+La nota sin RR se reconstruye de las dimensiones ya guardadas en
+`SignalObservation`, con denominador `evaluable_max` menos el peso de la
+dimensión, o sea 80 − 20 = **60**.
+
+### El hallazgo: el ratio beneficio/riesgo es prácticamente constante
+
+| Banda | mediana puntos RR | p10 | p90 | mediana RR bruto | mediana RR neto |
+|---|---|---|---|---|---|
+| <50 | 10,000 | 10,000 | 15,000 | 1,500 | 1,472 |
+| 50-60 | 10,000 | 10,000 | 10,000 | 1,500 | 1,461 |
+| 60-70 | 10,000 | 10,000 | 10,000 | 1,500 | 1,455 |
+| 70-80 | 10,000 | 10,000 | 10,000 | 1,500 | 1,458 |
+| 80+ | 10,000 | 10,000 | 10,000 | 1,500 | 1,462 |
+
+La dimensión que pesa **20 puntos de 100 reparte 10 a casi todo el mundo**, y el
+ratio bruto vale 1,5 en la mediana de las cinco bandas. Es la confirmación
+medida, sobre 121.786 señales, de lo que la sección 1 decía por construcción:
+con `target2_structural: false` el ratio vale 1,5 salvo que un soporte cercano
+acerque el stop.
+
+Una dimensión casi constante no ordena nada; lo que hace es **diluir**. Y se
+puede escribir exacto: si la dimensión da 10 de 20 puntos, la diferencia entre
+la nota con RR y la nota sin RR vale `−0,4167·puntos + 16,667`, que se anula
+justo en la nota 50. Por eso la columna de contribución del informe sale
+positiva en la banda baja (+2,42) y cada vez más negativa al subir (−1,58,
+−4,17, −7,30, −10,33): **no es información sobre el activo, es aritmética de
+normalización**. El RR está comprimiendo todas las notas hacia el centro.
+
+### Qué pasa al quitarlo
+
+| Banda | n con RR | n sin RR |
+|---|---|---|
+| <50 | 51.268 | 55.520 |
+| 50-60 | 44.848 | 30.260 |
+| 60-70 | 23.027 | 27.190 |
+| 70-80 | 2.565 | **7.608** |
+| 80+ | 78 | **1.208** |
+
+La banda 80+ pasa de 78 señales a 1.208, quince veces más, y la 70-80 casi se
+triplica. Migran 6.192 señales de 60-70 a 70-80 y 1.130 de 70-80 a 80+. Y la
+banda 70-80 sin RR **pasa a ser medible**: intervalo [0,367, 0,483] con
+`net_R` medio **0,150**, el más alto de la tabla.
+
+Aviso que hay que leer entero: la tabla sin RR usa **los mismos cortes** de
+banda sobre una nota normalizada sobre 60 puntos, así que no son bandas
+comparables una a una. Recalibrar los umbrales es P3 y aquí no se ha hecho.
+Todas las bandas siguen en LIMITADA con el mapa de bloques corregido, y 50-60
+sin RR sale no concluyente.
+
+**P2.4 mide y no decide.** Lo que entrega es el material que P3 necesitaba: hay
+razón medida para sacar el RR del score, y hay que recalibrar los umbrales
+después, no heredarlos.
+
+## 15. P2.6 — infraestructura de incertidumbre, hecha el 2026-08-31
+
+`advisor/research/bootstrap.py` y `advisor/research/uncertainty.py`, más el
+subcomando `comparacion-pareada`. La unidad de remuestreo es el **bloque
+temporal completo con todos los activos dentro**, reutilizando la espina de
+sesiones corregida de P2.5 (no hay un segundo mapa de bloques, que era la
+tentación evidente y habría hecho que los dos módulos dijeran cosas distintas de
+los mismos datos). El pareado es por `signal_id`. Los cuantiles están
+implementados a mano para que el número no dependa de la versión de una
+librería, y la semilla es fija y está testeada.
+
+El gate P2.5 ahora delega su intervalo en este bootstrap en vez de usar la
+aproximación normal que él mismo declaraba provisional. Eso movió los intervalos
+publicados en el tercer decimal —el global de [0,346, 0,449] a [0,345, 0,444]—
+**sin cambiar ningún veredicto**.
+
+### La demostración: la «opción B» del ratio, por fin medida
+
+Comparación pareada de la geometría actual (objetivo 2 a 3,0·ATR) contra la
+opción B (3,5·ATR), sobre las mismas señales, sin tocar `config.yaml`:
+
+| Bloque | n bloques | ΔR medio | IC por bloque | Dispersión | Esperada por ruido | Heterogeneidad |
+|---|---|---|---|---|---|---|
+| 40 | 31 | +0,022 | [+0,005, +0,038] | 0,048 | [0,008, 0,013] | alta |
+| 60 | 21 | +0,022 | [+0,006, +0,037] | 0,038 | [0,007, 0,013] | alta |
+| 80 | 16 | +0,021 | [+0,003, +0,040] | 0,040 | [0,005, 0,011] | alta |
+| 120 | 11 | +0,020 | [+0,005, +0,035] | 0,027 | [0,005, 0,013] | alta |
+
+**Veredicto del comando: NO CONCLUYENTE**, porque alguna longitud baja de 12
+bloques. Y aunque el intervalo excluya el cero en las cuatro longitudes, la
+heterogeneidad sale **alta** en todas: la dispersión observada entre bloques es
+tres o cuatro veces la que cabría esperar bajo un efecto verdadero constante. Es
+decir, el +0,022 R **no es un efecto estable, es un promedio de regímenes que se
+comportan distinto**. Justo el caso que el protocolo describe cuando dice que se
+prefiere el intervalo y la heterogeneidad al p-valor.
+
+**No se adopta nada.** `config.yaml` no se toca, la geometría no se cambia y la
+opción B no queda elegida. Elegir geometría es P4, y con esta heterogeneidad lo
+primero que P4 tendrá que preguntarse es en qué régimen mejora y en cuál no.
+

@@ -13,7 +13,10 @@ que aparezca en una recomendación es legible en euros.
 from __future__ import annotations
 
 import math
+from datetime import datetime
 from typing import List, Optional
+
+import pandas as pd
 
 from advisor.analysis.analyzer import AnalysisResult
 from advisor.analysis.opportunity import (
@@ -25,6 +28,14 @@ from advisor.analysis.opportunity import (
 )
 from advisor.analysis.overview import REGION_ORDER, IndexQuote
 from advisor.config import AdvisorConfig, PortfolioConfig
+from advisor.data.freshness import (
+    DataFreshness,
+    FreshnessBucket,
+    FreshnessRow,
+    agrupar_frescura_por_fecha,
+    calcular_frescura_dato,
+    mercado_para_simbolo,
+)
 from advisor.data.fx import FxConverter
 from advisor.events.calendar import EventCalendar
 from advisor.events.models import TIPO_BANCO_CENTRAL, TIPO_RESULTADOS, MarketEvent
@@ -88,6 +99,7 @@ def format_overview(quotes: List[IndexQuote]) -> str:
 def format_opportunity(
     opportunity: Opportunity,
     fx: FxConverter,
+    reference: datetime,
     eventos: Optional[List[MarketEvent]] = None,
     portfolio: Optional[PortfolioConfig] = None,
 ) -> str:
@@ -118,6 +130,13 @@ def format_opportunity(
     lines.append(f"**Tipo de operación:** {opportunity.tipo_operacion}")
     lines.append(f"**Señal:** {opportunity.signal_label}")
     lines.append(f"**Ejecutabilidad en broker:** {opportunity.broker_execution_label}")
+    freshness = _freshness_for_snapshot(snapshot.timestamp, reference)
+    lines.append(f"**Datos de mercado:** última barra {freshness.last_bar_date.isoformat()} ({freshness.label})")
+    if freshness.sessions_approx >= 1:
+        lines.append(
+            "⚠️ Dato retrasado: esta recomendación usa una última barra con "
+            f"{freshness.sessions_approx} sesiones cerradas aproximadas perdidas."
+        )
     lines.append(
         f"**Puntuación:** {score.value:.0f}/100 ({score.grade})"
         + (
@@ -456,6 +475,8 @@ def format_report(
         f" — {result.context.reason}"
     )
     lines.append("")
+    lines.append(_report_freshness_summary(result.opportunities, result.generated_at))
+    lines.append("")
 
     lines.append("## 🔥 OPORTUNIDADES DETECTADAS")
     lines.append("")
@@ -476,7 +497,7 @@ def format_report(
                 if calendar is not None
                 else None
             )
-            lines.append(format_opportunity(opportunity, fx, eventos, config.portfolio))
+            lines.append(format_opportunity(opportunity, fx, result.generated_at, eventos, config.portfolio))
             lines.append("")
 
     lines.append("## 👀 RADAR")
@@ -486,7 +507,8 @@ def format_report(
             reason = opportunity.decision_reasons[0] if opportunity.decision_reasons else "sin motivo registrado"
             lines.append(
                 f"  - {opportunity.asset.symbol} ({opportunity.asset.name}) — "
-                f"score {opportunity.score.value:.0f}, ratio {_num(opportunity.levels.rr_ratio)}:1 — {reason}"
+                f"score {opportunity.score.value:.0f}, ratio {_num(opportunity.levels.rr_ratio)}:1"
+                f"{_compact_freshness_marker(opportunity, result.generated_at)} — {reason}"
             )
     else:
         lines.append("Sin activos en vigilancia.")
@@ -495,7 +517,13 @@ def format_report(
     lines.append("## 🔴 DESCARTADOS")
     lines.append("")
     if descartar:
-        lines.append(f"{len(descartar)} activos descartados: " + ", ".join(o.asset.symbol for o in descartar))
+        lines.append(
+            f"{len(descartar)} activos descartados: "
+            + ", ".join(
+                f"{opportunity.asset.symbol}{_compact_freshness_marker(opportunity, result.generated_at)}"
+                for opportunity in descartar
+            )
+        )
     else:
         lines.append("Ninguno.")
     if result.skipped:
@@ -559,3 +587,77 @@ def _conclusion(result: AnalysisResult, operar: List[Opportunity]) -> str:
         "por señal en su dimensionamiento máximo. La disponibilidad del broker se informa aparte."
     )
     return "\n".join(lines)
+
+
+def _freshness_for_snapshot(timestamp: pd.Timestamp, reference: datetime) -> DataFreshness:
+    return calcular_frescura_dato(timestamp, reference)
+
+
+def _freshness_rows_for_opportunities(opportunities: List[Opportunity], reference: datetime) -> List[FreshnessRow]:
+    rows: List[FreshnessRow] = []
+    for opportunity in opportunities:
+        data_symbol = opportunity.asset.data_symbol(reference)
+        rows.append(
+            FreshnessRow(
+                symbol=opportunity.asset.symbol,
+                data_symbol=data_symbol,
+                market=mercado_para_simbolo(opportunity.asset, data_symbol),
+                freshness=_freshness_for_snapshot(opportunity.snapshot.timestamp, reference),
+            )
+        )
+    return rows
+
+
+def _session_step(sessions_approx: int) -> int:
+    if sessions_approx <= 0:
+        return 0
+    if sessions_approx == 1:
+        return 1
+    return 2
+
+
+def _session_step_label(step: int) -> str:
+    if step == 0:
+        return "0 sesiones cerradas perdidas"
+    if step == 1:
+        return "1 sesión cerrada perdida"
+    return "2 o más sesiones cerradas perdidas"
+
+
+def _plural_activos(count: int) -> str:
+    return "1 activo" if count == 1 else f"{count} activos"
+
+
+def _bucket_detail(bucket: FreshnessBucket) -> str:
+    return f"{bucket.last_bar_date.isoformat()} ({bucket.markets_label})"
+
+
+def _report_freshness_summary(opportunities: List[Opportunity], reference: datetime) -> str:
+    rows = _freshness_rows_for_opportunities(opportunities, reference)
+    if not rows:
+        return "**Frescura de datos:** 0 activos analizados con snapshot; no hay barras que declarar."
+
+    buckets = agrupar_frescura_por_fecha(rows)
+    grouped: dict[int, List[FreshnessBucket]] = {0: [], 1: [], 2: []}
+    for bucket in buckets:
+        grouped[_session_step(bucket.freshness.sessions_approx)].append(bucket)
+
+    lines = [f"**Frescura de datos:** {_plural_activos(len(rows))} analizados con snapshot."]
+    for step in (0, 1, 2):
+        step_buckets = grouped[step]
+        count = sum(bucket.symbols_count for bucket in step_buckets)
+        if count == 0:
+            lines.append(f"  - {_session_step_label(step)}: 0 activos.")
+            continue
+        marker = "⚠️ " if step >= 1 else "  - "
+        detail = "; ".join(_bucket_detail(bucket) for bucket in step_buckets)
+        lines.append(f"{marker}{_session_step_label(step)}: {_plural_activos(count)}; última barra {detail}.")
+    return "\n".join(lines)
+
+
+def _compact_freshness_marker(opportunity: Opportunity, reference: datetime) -> str:
+    freshness = _freshness_for_snapshot(opportunity.snapshot.timestamp, reference)
+    if freshness.sessions_approx < 1:
+        return ""
+    sessions = "1s" if freshness.sessions_approx == 1 else f"{freshness.sessions_approx}s"
+    return f" ⚠️ dato {freshness.last_bar_date.isoformat()} ({sessions})"

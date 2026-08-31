@@ -12,6 +12,7 @@ from advisor.research.event_study import (
     TARGET_FIRST,
     EventStudySignal,
     PotentialEvent,
+    band_of_full_score,
     classify_target_stop_bar,
     evaluate_managed_event,
     evaluate_potential_event,
@@ -144,6 +145,18 @@ def test_intervalo_por_banda_usa_seguros_y_ambiguos_sin_colapsar() -> None:
     assert by_label["80+"].lower == pytest.approx(2 / 3)
     assert by_label["80+"].upper == pytest.approx(2 / 3)
     assert all(band.lower <= band.upper for band in by_label.values())
+
+
+def test_summarize_por_defecto_no_cambia() -> None:
+    signals = [
+        _signal(score=45.0, status=STOP_FIRST),
+        _signal(score=55.0, status=TARGET_FIRST),
+        _signal(score=65.0, status=STOP_FIRST),
+        _signal(score=75.0, status=TARGET_FIRST),
+        _signal(score=85.0, status=TARGET_FIRST),
+    ]
+
+    assert summarize_by_score_band(signals) == summarize_by_score_band(signals, band_of=band_of_full_score)
 
 
 def _signal(score: float, status: str) -> EventStudySignal:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pandas as pd
 import pytest
 
 from advisor.analysis.analyzer import AnalysisResult
@@ -25,6 +26,8 @@ from advisor.report.formatter import format_opportunity, format_overview, format
 from advisor.report.money import MoneyFormatter, format_eur
 from tests.conftest import FakeProvider
 from tests.test_analysis import make_snapshot
+
+REPORT_REFERENCE = datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc)
 
 
 @pytest.fixture
@@ -119,7 +122,7 @@ class TestFormatOverview:
 
 class TestFormatOpportunity:
     def test_ficha_incluye_los_campos_obligatorios(self, asset_eur, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE)
 
         for campo in [
             "**Ticker:**", "**ISIN:**", "**Mercado de datos:**", "**Divisa de cotización:**",
@@ -133,25 +136,60 @@ class TestFormatOpportunity:
             assert campo in ficha, f"falta {campo}"
 
     def test_precios_de_un_activo_en_euros_llevan_simbolo(self, asset_eur, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE)
         assert "€" in ficha
 
     def test_precios_en_dolares_muestran_equivalente_en_euros(self, asset_usd, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx, REPORT_REFERENCE)
         assert "USD" in ficha
         assert "≈" in ficha and "€" in ficha
 
     def test_isin_ausente_se_marca(self, asset_eur, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE)
         assert "NO REGISTRADO" in ficha
 
     def test_disponibilidad_unknown_separa_senal_y_ejecutabilidad(self, asset_usd, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx, REPORT_REFERENCE)
 
         assert "**Señal:** 🟢 OPERAR" in ficha
         assert "**Ejecutabilidad en broker:** ❓ pendiente de verificación" in ficha
         assert "### Acción\n**COMPRAR**" in ficha
         assert "**Disponibilidad:** ❓ pendiente de verificación" in ficha
+
+    def test_declara_frescura_y_avisa_si_la_barra_es_vieja(
+        self,
+        asset_eur,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        opportunity = _opportunity(asset_eur, benign_context, timestamp=pd.Timestamp("2026-08-26", tz="UTC"))
+
+        ficha = format_opportunity(
+            opportunity,
+            fx,
+            REPORT_REFERENCE,
+        )
+
+        assert "**Datos de mercado:** última barra 2026-08-26" in ficha
+        assert "hace 4 días naturales; ≈2 sesiones sin festivos" in ficha
+        assert "Dato retrasado" in ficha
+
+    def test_avisa_con_una_sesion_cerrada_perdida(
+        self,
+        asset_eur,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        opportunity = _opportunity(asset_eur, benign_context, timestamp=pd.Timestamp("2026-08-27", tz="UTC"))
+
+        ficha = format_opportunity(
+            opportunity,
+            fx,
+            REPORT_REFERENCE,
+        )
+
+        assert "≈1 sesión sin festivos" in ficha
+        assert "Dato retrasado" in ficha
 
     def test_isin_no_aplicable_no_se_marca_como_pendiente(self, benign_context, fx: FxConverter) -> None:
         from advisor.universe.models import Asset
@@ -166,37 +204,75 @@ class TestFormatOpportunity:
             economic_currency="BTC",
             timezone="UTC",
         )
-        ficha = format_opportunity(_opportunity(asset, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset, benign_context), fx, REPORT_REFERENCE)
 
         assert "**ISIN:** No aplica" in ficha
         assert "NO REGISTRADO" not in ficha
 
     def test_disponibilidad_sin_verificar_sale_advertida(self, asset_usd, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx, REPORT_REFERENCE)
         assert "PENDIENTE DE VERIFICACIÓN" in ficha
 
     def test_dimension_excluida_aparece_en_el_desglose(self, asset_eur, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE)
         assert "fundamental: excluida" in ficha
         assert "puntos evaluables" in ficha
 
     def test_sin_ia_no_se_inventan_probabilidades(self, asset_eur, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE)
         assert "no estima probabilidades" in ficha
 
     def test_tipo_de_operacion_sigue_al_horizonte(self, asset_eur, benign_context, fx: FxConverter) -> None:
-        assert "Intradía" in format_opportunity(_opportunity(asset_eur, benign_context, "intradia"), fx)
-        assert "Medio plazo" in format_opportunity(_opportunity(asset_eur, benign_context, "medio"), fx)
+        assert "Intradía" in format_opportunity(_opportunity(asset_eur, benign_context, "intradia"), fx, REPORT_REFERENCE)
+        assert "Medio plazo" in format_opportunity(_opportunity(asset_eur, benign_context, "medio"), fx, REPORT_REFERENCE)
 
     def test_dimensionamiento_eur_y_usd_equivale_tras_convertir(self, asset_eur, asset_usd, benign_context) -> None:
         portfolio = PortfolioConfig(capital=100_000.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
         fx = FxConverter(FakeProvider(closes={"EURUSD=X": 1.25}), "EUR")
 
-        ficha_eur = format_opportunity(_opportunity(asset_eur, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
-        ficha_usd = format_opportunity(_opportunity(asset_usd, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
+        ficha_eur = format_opportunity(
+            _opportunity(asset_eur, benign_context, portfolio=portfolio),
+            fx,
+            REPORT_REFERENCE,
+            portfolio=portfolio,
+        )
+        ficha_usd = format_opportunity(
+            _opportunity(asset_usd, benign_context, portfolio=portfolio),
+            fx,
+            REPORT_REFERENCE,
+            portfolio=portfolio,
+        )
 
         assert "100 acciones; posición 10.000,00 €" in ficha_eur
         assert "125 acciones; posición 12.500,00 USD (≈ 10.000,00 €)" in ficha_usd
+
+    @pytest.mark.parametrize(
+        ("capital", "expected_shares", "expected_position"),
+        [
+            (10_000.0, 10, "1.000,00 €"),
+            (50_000.0, 50, "5.000,00 €"),
+            (100_000.0, 100, "10.000,00 €"),
+        ],
+    )
+    def test_dimensionamiento_con_capital_sintetico_y_activo_en_euros(
+        self,
+        asset_eur,
+        benign_context,
+        fx: FxConverter,
+        capital: float,
+        expected_shares: int,
+        expected_position: str,
+    ) -> None:
+        portfolio = PortfolioConfig(capital=capital, risk_per_trade_pct=0.5, max_position_pct=10.0)
+
+        ficha = format_opportunity(
+            _opportunity(asset_eur, benign_context, portfolio=portfolio),
+            fx,
+            REPORT_REFERENCE,
+            portfolio=portfolio,
+        )
+
+        assert f"{expected_shares} acciones; posición {expected_position}" in ficha
 
     @pytest.mark.parametrize(
         ("capital", "expected_shares", "expected_native"),
@@ -217,7 +293,12 @@ class TestFormatOpportunity:
         portfolio = PortfolioConfig(capital=capital, risk_per_trade_pct=0.5, max_position_pct=10.0)
         fx = FxConverter(FakeProvider(closes={"EURUSD=X": 1.25}), "EUR")
 
-        ficha = format_opportunity(_opportunity(asset_usd, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
+        ficha = format_opportunity(
+            _opportunity(asset_usd, benign_context, portfolio=portfolio),
+            fx,
+            REPORT_REFERENCE,
+            portfolio=portfolio,
+        )
 
         assert f"{expected_shares} acciones; posición {expected_native}" in ficha
         assert "tope máximo por posición (10%)" in ficha
@@ -226,7 +307,12 @@ class TestFormatOpportunity:
         portfolio = PortfolioConfig(capital=10_400.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
         fx = FxConverter(FakeProvider(closes={"EURUSD=X": 1.25}), "EUR")
 
-        ficha = format_opportunity(_opportunity(asset_usd, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
+        ficha = format_opportunity(
+            _opportunity(asset_usd, benign_context, portfolio=portfolio),
+            fx,
+            REPORT_REFERENCE,
+            portfolio=portfolio,
+        )
 
         assert "13 acciones; posición 1.300,00 USD" in ficha
         assert "14 acciones" not in ficha
@@ -243,24 +329,32 @@ class TestFormatOpportunity:
             currency="JPY",
             timezone="Asia/Tokyo",
         )
-        portfolio = PortfolioConfig(capital=100_000.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
-        fx = FxConverter(FakeProvider(closes={"EURJPY=X": 173.0}), "EUR")
+        capital = 100_000.0
+        max_position_pct = 10.0
+        precio_jpy = 3054.0
+        eurjpy = 173.0
+        expected_shares = int((capital * max_position_pct / 100 * eurjpy) // precio_jpy)
+        expected_position_jpy = expected_shares * precio_jpy
+        assert expected_shares == 566
+        portfolio = PortfolioConfig(capital=capital, risk_per_trade_pct=0.5, max_position_pct=max_position_pct)
+        fx = FxConverter(FakeProvider(closes={"EURJPY=X": eurjpy}), "EUR")
         opportunity = _opportunity(
             asset,
             benign_context,
             portfolio=portfolio,
-            price=3000.0,
-            atr=75.0,
-            ema_fast=2962.5,
-            ema_slow=2850.0,
-            sma_long=2700.0,
+            price=precio_jpy,
+            atr=76.35,
+            ema_fast=3015.825,
+            ema_slow=2900.0,
+            sma_long=2750.0,
             low_lookback=1.0,
-            high_lookback=3030.0,
+            high_lookback=3084.54,
         )
 
-        ficha = format_opportunity(opportunity, fx, portfolio=portfolio)
+        ficha = format_opportunity(opportunity, fx, REPORT_REFERENCE, portfolio=portfolio)
 
-        assert "576 acciones; posición 1.728.000,00 JPY (≈ 9.988,44 €)" in ficha
+        assert f"{expected_shares} acciones; posición {expected_position_jpy:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") in ficha
+        assert "3 acciones" not in ficha
 
     def test_dimensionamiento_sin_tipo_de_cambio_no_inventa_acciones(self, benign_context) -> None:
         from advisor.universe.models import Asset
@@ -275,7 +369,12 @@ class TestFormatOpportunity:
             timezone="Asia/Seoul",
         )
         portfolio = PortfolioConfig(capital=100_000.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
-        ficha = format_opportunity(_opportunity(asset, benign_context, portfolio=portfolio), FxConverter(FakeProvider(), "EUR"), portfolio=portfolio)
+        ficha = format_opportunity(
+            _opportunity(asset, benign_context, portfolio=portfolio),
+            FxConverter(FakeProvider(), "EUR"),
+            REPORT_REFERENCE,
+            portfolio=portfolio,
+        )
 
         assert "no hay tipo de cambio para KRW" in ficha
         assert "no se calcula un número de acciones" in ficha
@@ -283,7 +382,12 @@ class TestFormatOpportunity:
 
     def test_capital_que_no_alcanza_para_una_accion_se_declara(self, asset_eur, benign_context, fx: FxConverter) -> None:
         portfolio = PortfolioConfig(capital=50.0, risk_per_trade_pct=0.5, max_position_pct=10.0)
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context, portfolio=portfolio), fx, portfolio=portfolio)
+        ficha = format_opportunity(
+            _opportunity(asset_eur, benign_context, portfolio=portfolio),
+            fx,
+            REPORT_REFERENCE,
+            portfolio=portfolio,
+        )
 
         assert "no alcanza para comprar una acción" in ficha
 
@@ -337,6 +441,42 @@ class TestFormatReport:
         config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
         informe = format_report(self._result([], benign_context), config, fx)
         assert "NO OPERAR / MANTENER LIQUIDEZ" in informe
+
+    def test_informe_declara_frescura_sin_operar(
+        self,
+        asset_eur,
+        asset_usd,
+        benign_context,
+        hostile_context,
+        fx: FxConverter,
+    ) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        no_disponible = asset_usd.model_copy(update={"trade_republic": "no"})
+        radar_viejo = _opportunity(
+            asset_eur,
+            hostile_context,
+            timestamp=pd.Timestamp("2026-08-25", tz="UTC"),
+        )
+        descartado_al_dia = _opportunity(
+            no_disponible,
+            benign_context,
+            timestamp=pd.Timestamp("2026-08-27", tz="UTC"),
+        )
+
+        informe = format_report(
+            self._result([radar_viejo, descartado_al_dia], hostile_context),
+            config,
+            fx,
+        )
+
+        assert "Ninguna oportunidad cumple hoy los criterios de entrada." in informe
+        assert "**Frescura de datos:** 2 activos analizados con snapshot." in informe
+        assert "0 sesiones cerradas perdidas: 1 activo; última barra 2026-08-27 (NASDAQ)." in informe
+        assert "⚠️ 1 sesión cerrada perdida: 1 activo; última barra 2026-08-25 (XETRA)." in informe
+        assert "SAP.DE (SAP) — score" in informe
+        assert "⚠️ dato 2026-08-25 (1s)" in informe
+        assert "1 activos descartados: AAPL" in informe
+        assert "## SAP" not in informe
 
     def test_conclusion_dimensiona_ideas_aunque_todas_tengan_disponibilidad_unknown(
         self,
@@ -400,27 +540,27 @@ class TestEventosEnLaFicha:
         )
 
     def test_sin_calendario_lo_dice_en_vez_de_callar(self, asset_eur, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx)
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE)
         assert "### Próximo evento importante" in ficha
         assert "Ninguno con fecha conocida" in ficha
 
     def test_lista_el_evento_con_su_fuente(self, asset_eur, benign_context, fx: FxConverter) -> None:
         ficha = format_opportunity(
-            _opportunity(asset_eur, benign_context), fx, [self._evento(20)]
+            _opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE, [self._evento(20)]
         )
         assert "en 20 días" in ficha
         assert "fuente de prueba" in ficha
 
     def test_resultados_inminentes_son_un_riesgo(self, asset_eur, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, [self._evento(3)])
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE, [self._evento(3)])
         assert "apuesta binaria" not in ficha  # el texto no promete, describe
         assert "Publica resultados dentro de 3 días" in ficha
 
     def test_resultados_lejanos_no_generan_riesgo(self, asset_eur, benign_context, fx: FxConverter) -> None:
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, [self._evento(25)])
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE, [self._evento(25)])
         assert "Publica resultados" not in ficha.split("### Qué podría salir mal")[1]
 
     def test_banco_central_inminente_avisa(self, asset_eur, benign_context, fx: FxConverter) -> None:
         evento = self._evento(2, TIPO_BANCO_CENTRAL, "Decisión de tipos de la Fed")
-        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, [evento])
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE, [evento])
         assert "mueve todo el mercado" in ficha
