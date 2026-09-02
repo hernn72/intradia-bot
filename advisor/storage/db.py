@@ -1,6 +1,6 @@
 """Persistencia SQLite del asesor.
 
-Tres tablas:
+Tablas:
 
 - ``recommendation``: una fila por activo y ejecución. Es el registro
   histórico de lo que el bot recomendó y con qué números, para poder
@@ -10,6 +10,7 @@ Tres tablas:
   esa tesis y no se vuelve a analizar el activo desde cero.
 - ``position_review``: cada revisión de una posición abierta y su veredicto.
 - ``event_pass``: deduplicación de pasadas despertadas por eventos conocidos.
+- ``data_freshness_measurement``: frescura y sesiones ausentes por pasada.
 
 Los importes se guardan en euros cuando hay tipo de cambio (``*_eur``) y
 siempre también en la divisa nativa, para que un fallo de conversión no
@@ -18,6 +19,7 @@ pierda el dato original.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -104,6 +106,25 @@ CREATE TABLE IF NOT EXISTS event_pass (
 );
 
 CREATE INDEX IF NOT EXISTS idx_event_pass_date ON event_pass(event_date, pass_kind);
+
+CREATE TABLE IF NOT EXISTS data_freshness_measurement (
+    id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+    measured_at                     TEXT NOT NULL,
+    symbol                          TEXT NOT NULL,
+    data_symbol                     TEXT NOT NULL,
+    market                          TEXT NOT NULL,
+    benchmark_symbol                TEXT,
+    last_bar_date                   TEXT,
+    natural_days                    INTEGER,
+    sessions_approx                INTEGER,
+    may_be_partial_current_session  INTEGER NOT NULL,
+    absent_reference_sessions       TEXT NOT NULL,
+    reference_sessions_checked      INTEGER NOT NULL,
+    error                           TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_data_freshness_symbol
+ON data_freshness_measurement(symbol, measured_at);
 """
 
 
@@ -166,6 +187,56 @@ class AdvisorDB:
             else:
                 cursor = connection.execute(
                     "SELECT * FROM recommendation ORDER BY created_at DESC, id DESC LIMIT ?", (limit,)
+                )
+            return cursor.fetchall()
+
+    # -- Frescura de datos ------------------------------------------------
+
+    def insert_freshness_measurements(self, rows: Iterable[Dict[str, Any]]) -> int:
+        """Guarda mediciones de frescura de una pasada."""
+
+        rows = [freshness_measurement_to_row(row) for row in rows]
+        if not rows:
+            return 0
+
+        columns = [
+            "measured_at", "symbol", "data_symbol", "market", "benchmark_symbol",
+            "last_bar_date", "natural_days", "sessions_approx", "may_be_partial_current_session",
+            "absent_reference_sessions", "reference_sessions_checked", "error",
+        ]
+        placeholders = ", ".join(f":{column}" for column in columns)
+        sql = f"INSERT INTO data_freshness_measurement ({', '.join(columns)}) VALUES ({placeholders})"
+
+        with self._connect() as connection:
+            connection.executemany(sql, rows)
+        return len(rows)
+
+    def get_recent_freshness_measurements(
+        self,
+        symbol: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[sqlite3.Row]:
+        """Últimas mediciones de frescura, opcionalmente filtradas por símbolo."""
+
+        with self._connect() as connection:
+            if symbol:
+                cursor = connection.execute(
+                    """
+                    SELECT * FROM data_freshness_measurement
+                    WHERE symbol = ?
+                    ORDER BY measured_at DESC, id DESC
+                    LIMIT ?
+                    """,
+                    (symbol.strip().upper(), limit),
+                )
+            else:
+                cursor = connection.execute(
+                    """
+                    SELECT * FROM data_freshness_measurement
+                    ORDER BY measured_at DESC, id DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
                 )
             return cursor.fetchall()
 
@@ -347,3 +418,14 @@ class AdvisorDB:
                 (position_id, limit),
             )
             return cursor.fetchall()
+
+
+def freshness_measurement_to_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Convierte una medición de frescura a tipos persistibles en SQLite."""
+
+    absent = row.get("absent_reference_sessions") or ()
+    return {
+        **row,
+        "may_be_partial_current_session": int(bool(row.get("may_be_partial_current_session"))),
+        "absent_reference_sessions": json.dumps(list(absent), ensure_ascii=False),
+    }

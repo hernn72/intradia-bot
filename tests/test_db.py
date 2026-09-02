@@ -57,6 +57,52 @@ class TestRecommendations:
         assert filas[0]["symbol"] == "SIE.DE"
 
 
+class TestFreshnessMeasurements:
+    def _row(self, symbol: str = "SAP.DE") -> dict:
+        return {
+            "measured_at": "2026-09-02T08:30:00+00:00",
+            "symbol": symbol,
+            "data_symbol": symbol,
+            "market": "XETRA",
+            "benchmark_symbol": "^STOXX",
+            "last_bar_date": "2026-08-31",
+            "natural_days": 0,
+            "sessions_approx": 0,
+            "may_be_partial_current_session": True,
+            "absent_reference_sessions": ["2026-08-28"],
+            "reference_sessions_checked": 10,
+            "error": None,
+        }
+
+    def test_guarda_y_recupera_mediciones(self, db: AdvisorDB) -> None:
+        assert db.insert_freshness_measurements([self._row(), self._row("SIE.DE")]) == 2
+        rows = db.get_recent_freshness_measurements(symbol="sap.de")
+
+        assert len(rows) == 1
+        assert rows[0]["symbol"] == "SAP.DE"
+        assert rows[0]["may_be_partial_current_session"] == 1
+        assert rows[0]["absent_reference_sessions"] == '["2026-08-28"]'
+
+    def test_guarda_errores_de_descarga(self, db: AdvisorDB) -> None:
+        row = self._row("ERR.DE")
+        row.update(
+            benchmark_symbol=None,
+            last_bar_date=None,
+            natural_days=None,
+            sessions_approx=None,
+            may_be_partial_current_session=False,
+            absent_reference_sessions=[],
+            reference_sessions_checked=0,
+            error="sin datos",
+        )
+
+        db.insert_freshness_measurements([row])
+        stored = db.get_recent_freshness_measurements()[0]
+
+        assert stored["last_bar_date"] is None
+        assert stored["error"] == "sin datos"
+
+
 class TestEventPasses:
     def _event_row(self, event_id: str = "2026-09-10|banco_central|global|-|swing|evento") -> dict:
         return {

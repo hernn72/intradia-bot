@@ -118,7 +118,34 @@ def opportunity_to_row(opportunity: Opportunity, fx: FxConverter, created_at: st
 def _persist(result: AnalysisResult, fx: FxConverter, db: AdvisorDB) -> int:
     created_at = result.generated_at.isoformat()
     rows = [opportunity_to_row(o, fx, created_at) for o in result.opportunities]
-    return db.insert_recommendations(rows)
+    saved = db.insert_recommendations(rows)
+    freshness_saved = db.insert_freshness_measurements(
+        freshness_row_to_measurement(row, created_at) for row in result.freshness_rows
+    )
+    logger.info("%d mediciones de frescura guardadas en %s", freshness_saved, db.path)
+    return saved
+
+
+def freshness_row_to_measurement(row: FreshnessRow, measured_at: str) -> Dict[str, Any]:
+    """Convierte una fila de frescura a la forma persistida."""
+
+    freshness = row.freshness
+    return {
+        "measured_at": measured_at,
+        "symbol": row.symbol,
+        "data_symbol": row.data_symbol,
+        "market": row.market,
+        "benchmark_symbol": freshness.benchmark_symbol if freshness is not None else None,
+        "last_bar_date": freshness.last_bar_date.isoformat() if freshness is not None else None,
+        "natural_days": freshness.natural_days if freshness is not None else None,
+        "sessions_approx": freshness.sessions_approx if freshness is not None else None,
+        "may_be_partial_current_session": freshness.may_be_partial_current_session if freshness is not None else False,
+        "absent_reference_sessions": [
+            value.isoformat() for value in freshness.absent_reference_sessions
+        ] if freshness is not None else [],
+        "reference_sessions_checked": freshness.reference_sessions_checked if freshness is not None else 0,
+        "error": row.error,
+    }
 
 
 def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
@@ -241,6 +268,13 @@ def cmd_frescura_datos(args: argparse.Namespace, config: AdvisorConfig, universe
         interval=args.interval,
     )
     print(format_frescura_datos(rows, reference))
+    return 0
+
+
+def cmd_frescura_historico(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    db = AdvisorDB(config.db_path)
+    rows = db.get_recent_freshness_measurements(symbol=args.symbol, limit=args.limit)
+    print(format_frescura_historico(rows))
     return 0
 
 
@@ -567,6 +601,42 @@ def format_frescura_datos(rows: List[FreshnessRow], measured_at: Optional[dateti
     return "\n".join(lines)
 
 
+def format_frescura_historico(rows) -> str:
+    """Tabla legible del histórico acumulado de frescura."""
+
+    lines = [
+        "| Medición | Símbolo | Datos | Plaza | Última barra | Antigüedad | Referencia | Parcial | Sesiones ausentes | Error |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for row in rows:
+        absent = _decode_absent_sessions(row["absent_reference_sessions"])
+        if row["error"]:
+            age = "error"
+        elif row["sessions_approx"] is None:
+            age = "N/D"
+        else:
+            age = _sesiones_label(row["sessions_approx"])
+        lines.append(
+            f"| {row['measured_at']} | {row['symbol']} | {row['data_symbol']} | {row['market']} | "
+            f"{row['last_bar_date'] or 'N/D'} | {age} | {row['benchmark_symbol'] or 'sin comparable'} | "
+            f"{'sí' if row['may_be_partial_current_session'] else 'no'} | "
+            f"{', '.join(absent) if absent else 'sin sesiones ausentes'} | {row['error'] or ''} |"
+        )
+    if not rows:
+        lines.append("| N/D | N/D | N/D | N/D | N/D | N/D | N/D | N/D | N/D | sin mediciones |")
+    return "\n".join(lines)
+
+
+def _decode_absent_sessions(raw: str) -> List[str]:
+    try:
+        values = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(values, list):
+        return []
+    return [str(value) for value in values]
+
+
 def _market_dispersion_rows(rows: List[FreshnessRow]) -> List[tuple[str, date, int, int]]:
     counts_by_market: Dict[str, Dict[date, int]] = {}
     for row in rows:
@@ -683,6 +753,11 @@ def build_parser() -> argparse.ArgumentParser:
     frescura.add_argument("--period", default="1mo", help="rango solicitado al proveedor (por defecto, 1mo)")
     frescura.add_argument("--interval", default="1d", help="intervalo solicitado al proveedor (por defecto, 1d)")
     frescura.set_defaults(func=cmd_frescura_datos)
+
+    frescura_hist = sub.add_parser("frescura-historico", help="consulta el histórico persistido de frescura")
+    frescura_hist.add_argument("--symbol", help="filtrar por símbolo")
+    frescura_hist.add_argument("--limit", type=int, default=50, help="número máximo de filas")
+    frescura_hist.set_defaults(func=cmd_frescura_historico)
 
     event_study = sub.add_parser("event-study", help="mide señales potenciales sobre una cosecha congelada")
     event_study.add_argument("data_vintage_id", help="identificador de la cosecha congelada")

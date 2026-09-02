@@ -8,7 +8,7 @@ import pandas as pd
 
 from advisor.config import AdvisorConfig
 from advisor.data.freshness import agrupar_frescura_por_fecha, calcular_frescura_dato, calcular_frescura_serie
-from advisor.main import format_frescura_datos, medir_frescura_datos
+from advisor.main import format_frescura_datos, format_frescura_historico, medir_frescura_datos
 from advisor.universe.models import Asset
 from tests.conftest import FakeProvider, make_ohlcv
 
@@ -167,3 +167,28 @@ class TestMedirFrescuraDatos:
 
         assert "| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad | Referencia | Sesiones ausentes |" in salida
         assert "| SAP.DE | SAP.DE | XETRA | 2026-08-31 | hoy; al día; barra de hoy posiblemente parcial | ^STOXX | 2026-08-28 |" in salida
+
+    def test_formatea_historico_persistido(self, tmp_path) -> None:
+        from advisor.storage.db import AdvisorDB
+
+        db = AdvisorDB(tmp_path / "freshness.db")
+        db.insert_freshness_measurements([
+            {
+                "measured_at": "2026-09-02T08:30:00+00:00",
+                "symbol": "SAP.DE",
+                "data_symbol": "SAP.DE",
+                "market": "XETRA",
+                "benchmark_symbol": "^STOXX",
+                "last_bar_date": "2026-08-31",
+                "natural_days": 0,
+                "sessions_approx": 0,
+                "may_be_partial_current_session": True,
+                "absent_reference_sessions": ["2026-08-28"],
+                "reference_sessions_checked": 10,
+                "error": None,
+            }
+        ])
+
+        salida = format_frescura_historico(db.get_recent_freshness_measurements())
+
+        assert "| 2026-09-02T08:30:00+00:00 | SAP.DE | SAP.DE | XETRA | 2026-08-31 | al día | ^STOXX | sí | 2026-08-28 |  |" in salida

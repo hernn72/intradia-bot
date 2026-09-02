@@ -23,7 +23,7 @@ from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_ove
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import build_snapshot
 from advisor.config import AdvisorConfig
-from advisor.data.freshness import calcular_frescura_serie
+from advisor.data.freshness import FreshnessRow, calcular_frescura_serie, mercado_para_simbolo
 from advisor.data.market_data import MarketDataProvider
 from advisor.universe.models import Asset, Universe
 
@@ -41,6 +41,7 @@ class AnalysisResult:
     opportunities: List[Opportunity] = field(default_factory=list)
     skipped: List[Tuple[str, str]] = field(default_factory=list)
     overview: List[IndexQuote] = field(default_factory=list)
+    freshness_rows: List[FreshnessRow] = field(default_factory=list)
 
     def by_radar(self, radar: str) -> List[Opportunity]:
         return [o for o in self.opportunities if o.radar == radar]
@@ -156,6 +157,7 @@ def run_analysis(
 
     opportunities: List[Opportunity] = []
     skipped: List[Tuple[str, str]] = []
+    freshness_rows: List[FreshnessRow] = []
 
     for asset in assets:
         try:
@@ -167,12 +169,30 @@ def run_analysis(
                         provider, benchmark_symbol, window.period, window.interval
                     )
                 benchmark_close = benchmark_cache[benchmark_symbol]
-            opportunities.append(
-                analyze_asset(asset, config, provider, context, horizonte, benchmark_close, benchmark_symbol, now)
+            opportunity = analyze_asset(asset, config, provider, context, horizonte, benchmark_close, benchmark_symbol, now)
+            opportunities.append(opportunity)
+            data_symbol = asset.data_symbol(now)
+            freshness_rows.append(
+                FreshnessRow(
+                    symbol=asset.symbol,
+                    data_symbol=data_symbol,
+                    market=mercado_para_simbolo(asset, data_symbol),
+                    freshness=opportunity.data_freshness,
+                )
             )
         except Exception as exc:
             logger.warning("%s descartado del análisis: %s", asset.symbol, exc)
             skipped.append((asset.symbol, str(exc)))
+            data_symbol = asset.data_symbol(now)
+            freshness_rows.append(
+                FreshnessRow(
+                    symbol=asset.symbol,
+                    data_symbol=data_symbol,
+                    market=mercado_para_simbolo(asset, data_symbol),
+                    freshness=None,
+                    error=str(exc),
+                )
+            )
 
     opportunities.sort(key=lambda o: (o.score.value, o.levels.rr_ratio), reverse=True)
 
@@ -184,4 +204,5 @@ def run_analysis(
         opportunities=opportunities,
         skipped=skipped,
         overview=overview,
+        freshness_rows=freshness_rows,
     )
