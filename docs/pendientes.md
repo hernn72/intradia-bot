@@ -16,16 +16,31 @@ cosecha, que allí no está), `verificar-systemd` dice «alineadas», una pasada
 real termina con código 0 y los dos timers siguen vivos. Copia de seguridad en
 `intradia.db.bak-20260831-081832`.
 
-El **2 de septiembre** se cerró el paquete de calidad de datos pendiente:
-histórico persistido de frescura, pre-registro del estimador primario de bloque,
-fortaleza relativa por intersección de sesiones comunes, recorte de barras
-diarias no cerradas por cierre regular de plaza y vocabulario
-`OK`/`DEGRADADO`/`INCOMPLETO` con veto configurable de apertura. No se tocó
-despliegue en la Pi.
+El **2 de septiembre** se cerró el paquete de calidad de datos pendiente, ya en
+`main` (`d795127`) y **desplegado en la Pi**: histórico persistido de frescura,
+pre-registro del estimador primario de bloque, fortaleza relativa por
+intersección de sesiones comunes, recorte de barras diarias no cerradas por
+cierre regular de plaza y vocabulario `OK`/`DEGRADADO`/`INCOMPLETO` con veto
+configurable de apertura. Verificado en la propia Pi: 382 tests pasan y 3 se
+saltan (los que necesitan la cosecha), `verificar-systemd` dice «alineadas», una
+pasada real termina con código 0 con 107 mediciones guardadas —calidad OK=82,
+INCOMPLETO=17, DEGRADADO=8— y los dos timers siguen vivos. Copia de seguridad en
+`intradia.db.bak-20260902-181942`.
+
+Tres defectos de esa tanda **solo aparecieron al revisarla contra datos reales**,
+y los tres pasaban la suite: el veto usaba la ventana entera de indicadores y
+habría vetado para siempre a activos con huecos de hace meses; con la IA
+activada —que es como corre la Pi— `cmd_analizar` perdía `freshness_rows` en
+silencio y el histórico no se habría guardado nunca; y la fortaleza relativa
+seguía desalineada por zona horaria en la cosecha. Sección 16.
 
 Con eso, **el laboratorio P2 está completo** (P2.0 a P2.6) y en producción el
 informe ya declara la antigüedad del dato, sesiones ausentes, cierre de sesión y
 calidad del dato antes de recomendar una apertura.
+
+**Por dónde seguir mañana:** P3 está desbloqueado y es el siguiente paso, pero
+antes hay que decidir una cosa que lo condiciona —si se rehace el event study
+con la fortaleza relativa ya alineada— y eso está en el punto 7 de la lista.
 
 Cada punto dice qué falta, por qué importa y qué hay que decidir antes de
 tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
@@ -154,38 +169,50 @@ vista no afina, cambia de tramo.
 
 ### C. Laboratorio
 
-7. **P3** — sacar el RR del score y recalibrar umbrales por horizonte.
+7. **Decidir si se rehace el event study con la fortaleza relativa alineada.**
+   Lo medido hasta hoy sobre la cosecha comparaba diez activos contra el índice
+   de la víspera (sección 16). La fortaleza relativa entra en el score, así que
+   P2.3 y P2.4 se calcularon con ese sesgo en 10 de 107 activos. Rehacer la
+   pasada es barato —no hay que volver a congelar nada, la cosecha no cambia— y
+   la alternativa es dejar constancia y seguir. **Conviene resolverlo antes de
+   P3**, porque P3 recalibra umbrales sobre esos mismos números.
+8. **P3** — sacar el RR del score y recalibrar umbrales por horizonte.
    Ya no está bloqueado por el estimador: el protocolo pre-registra desde el
    2026-09-02 que el primario es la media por bloque de la expectancy neta en R.
    P3 no hereda como premisa que «el score ordena»; debe medirlo bajo ese
    estimador y publicar siempre tasa agrupada y `P(objetivo antes de stop)` como
    secundarias.
-8. **P4** geometría · **P5** reducción a regiones robustas · **P6** backtest de
+9. **P4** geometría · **P5** reducción a regiones robustas · **P6** backtest de
     sistemas · **P7** walk-forward y holdout. P4 hereda de P2.6 una advertencia:
     la opción B mejora en promedio pero con heterogeneidad alta, así que lo
     primero es preguntarse en qué régimen mejora y en cuál no.
-9. **Rehacer la calibración con los 107 activos.** Todo lo medido
+10. **Rehacer la calibración con los 107 activos.** Todo lo medido
     históricamente sale de 21.
 
 ### D. Trabajo manual, sin atajo
 
-10. **89 ISIN de 107**, uno a uno contra Deutsche Börse y Euronext. `yfinance`
+11. **89 ISIN de 107**, uno a uno contra Deutsche Börse y Euronext. `yfinance`
     devuelve ISIN falsos que superan el dígito de control.
-11. **Disponibilidad real en Trade Republic** de los 107. El tratamiento ya está
+12. **Disponibilidad real en Trade Republic** de los 107. El tratamiento ya está
     resuelto (señal y ejecutabilidad van separadas); falta el dato, y no hay API.
-12. **Doble símbolo**: ningún activo declara `european_symbol`. Hay que verificar
+13. **Doble símbolo**: ningún activo declara `european_symbol`. Hay que verificar
     los tickers de Xetra uno a uno antes de elegir cotización por sesión.
 
 ### E. Menores
 
-13. El **calendario macro de `events.yaml` caduca el 2027-12-16**. El bot avisa
+14. El **calendario macro de `events.yaml` caduca el 2027-12-16**. El bot avisa
     a 60 días, pero conviene refrescarlo antes.
-14. **`^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F` y `GC=F` no alimentan el
+15. **`^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F` y `GC=F` no alimentan el
     contexto de mercado**, que sigue puntuando solo con VIX, tendencia europea y
     sesión asiática.
-15. **`economic_currency` se guarda y no se usa.** Descomponer el ATR en riesgo
+16. **`economic_currency` se guarda y no se usa.** Descomponer el ATR en riesgo
     de activo y de divisa es un cambio de cálculo, y hay que medirlo.
-16. **Los eventos no puntúan**, a propósito, hasta medir que mejoran las señales.
+17. **`market_for_symbol` clasifica como cripto cualquier símbolo con guion.**
+    Hoy no rompe nada porque la plaza de un activo sale del universo y esa
+    función solo resuelve benchmarks e índices de contexto, pero `BRK-B` cae en
+    `CRYPTO` si alguien la usa para un activo. Es una trampa esperando a un
+    llamante nuevo.
+18. **Los eventos no puntúan**, a propósito, hasta medir que mejoran las señales.
 
 ### La cosecha congelada, para no volver a buscarla
 
@@ -829,3 +856,73 @@ prefiere el intervalo y la heterogeneidad al p-valor.
 **No se adopta nada.** `config.yaml` no se toca, la geometría no se cambia y la
 opción B no queda elegida. Elegir geometría es P4, y con esta heterogeneidad lo
 primero que P4 tendrá que preguntarse es en qué régimen mejora y en cuál no.
+
+## 16. La fortaleza relativa estaba desalineada por zona horaria en la cosecha
+
+Salió al revisar el paquete del 2 de septiembre, no de un test. Es el mismo
+error que P2.5 corrigió en el mapa de bloques, en otro sitio.
+
+La cosecha sella cada barra a la **medianoche local de su plaza expresada en
+UTC**. Verificado en los ficheros:
+
+```
+SXR8.DE   2021-08-29T22:00:00Z   → sesión del lunes 30 en Fráncfort
+^GSPC     2021-08-30T04:00:00Z   → sesión del lunes 30 en Nueva York
+^TWII     2021-08-29T16:00:00Z   → sesión del lunes 30 en Taipéi
+```
+
+Al derivar la fecha de sesión normalizando la marca en UTC, las plazas europeas
+y asiáticas se fechan **un día antes** y las americanas no. Mientras el activo y
+su índice comparten convención el error se cancela —una acción alemana contra el
+Euro Stoxx se desplaza igual en los dos lados de la resta—, y por eso no saltó.
+
+**Hay diez pares que cruzan continente y ahí no se cancela:**
+
+| Activo | Plaza | Benchmark | Plaza |
+|---|---|---|---|
+| `SXR8.DE`, `EUNL.DE`, `EQQQ.DE`, `VVSM.DE`, `DFEN.DE`, `Q8Y0.DE`, `4GLD.DE`, `ZPRR.DE` | XETRA | `^GSPC` | NYSE |
+| `AZN` | NASDAQ | `^STOXX` | XETRA |
+| `TSM` | NYSE | `^TWII` | TAI |
+
+Un ETF alemán sobre el S&P 500 se comparaba contra el índice **de la víspera**.
+Medido: `SXR8.DE` contra `^GSPC` daba 982 sesiones comunes de 1.255, y
+declarando las zonas da 1.235.
+
+**Corregido**: `relative_strength` y `relative_strength_series` reciben la zona
+de cada serie, y los dos llamantes la declaran —producción desde el universo y
+la tabla de plazas, investigación desde la misma tabla—. El test de regresión
+usa la cosecha real y se salta si no está presente.
+
+**En vivo no cambia nada, y está comprobado contra la red**: yfinance devuelve
+el índice ya localizado en la zona de la plaza, así que la fortaleza relativa de
+`SXR8.DE` sale idéntica antes y después. Lo que cambia es lo medido sobre la
+cosecha.
+
+**Lo que deja abierto**: la fortaleza relativa entra en el score, así que P2.3 y
+P2.4 se calcularon con ese sesgo en 10 de 107 activos. Está en el punto 7 de la
+lista, y conviene resolverlo antes de P3.
+
+## 17. Lo que la revisión del 2 de septiembre enseña sobre el método
+
+Tres defectos reales en una sola tanda, los tres con la suite en verde, ruff y
+mypy limpios. Ninguno se encontró leyendo el código: los tres salieron de
+ejercitarlo contra datos auténticos.
+
+- **El veto vetaba de más.** Usaba la ventana entera de indicadores, 200
+  sesiones. Medido sobre el universo real: 20 activos de 107, y tres de ellos
+  (`AZN`, `TSM`, `NOVO-B.CO`) por sesiones que les faltaban hace meses. Un veto
+  que no habría caducado nunca. Solo se ve corriendo la pasada completa y
+  mirando a quién le cae.
+- **El histórico no se guardaba.** Con la IA activada, `cmd_analizar`
+  reconstruía el resultado campo a campo y perdía `freshness_rows` en silencio.
+  Los tests pasaban porque ninguno recorría ese camino. Se vio al preguntarle a
+  la base de datos cuántas filas tenía y encontrar cero.
+- **La fortaleza relativa seguía desalineada.** Sección 16.
+
+La regla que se confirma, y que ya estaba escrita: **verde no es verificado**.
+La pregunta útil después de una entrega no es «¿pasan los tests?», sino «¿qué
+número de la salida real puedo comprobar a mano?».
+
+Corolario nuevo: cuando un cambio decide **cuándo el bot recomienda**, hay que
+medir a cuántos activos les cae y por qué motivo, no solo comprobar que la regla
+se aplica.
