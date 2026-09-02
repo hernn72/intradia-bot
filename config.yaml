@@ -84,6 +84,11 @@ market_context:
   trend_symbol: "^STOXX50E"  # referencia de tendencia del mercado europeo
   trend_sma: 200
 
+data_quality:
+  settlement_minutes: 20     # margen tras el cierre regular antes de aceptar la barra diaria como cerrada
+  veto_incomplete_open: true # sesiones cerradas ausentes frente al benchmark bloquean abrir, sin tocar el score
+  veto_window_sessions: 20   # solo vetan los huecos de estas últimas sesiones; los más viejos se declaran
+
 report:
   top_n: 5                   # máximo de oportunidades desarrolladas (§24)
   benchmark_symbol: "^STOXX50E"   # último recurso si no hay benchmark regional o de mercado

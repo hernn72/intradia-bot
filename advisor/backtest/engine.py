@@ -162,12 +162,8 @@ def _signal_prefix(
     """Evalúa la señal al cierre de la vela ``j`` con datos hasta esa vela."""
 
     prefix = df.iloc[: j + 1]
-    bench_prefix = None
-    if benchmark_close is not None:
-        bench_prefix = benchmark_close.iloc[: j + 1].dropna()
-
     try:
-        snapshot = build_snapshot(asset.symbol, prefix, config.indicators, config.levels, interval, bench_prefix)
+        snapshot = build_snapshot(asset.symbol, prefix, config.indicators, config.levels, interval, benchmark_close)
     except ValueError:
         return None
 

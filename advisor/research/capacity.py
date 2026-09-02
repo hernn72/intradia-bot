@@ -14,9 +14,9 @@ from __future__ import annotations
 from bisect import bisect_right
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Callable, Dict, Iterable, List, Sequence, Tuple
-from zoneinfo import ZoneInfo
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
+from advisor.data.sessions import market_timezone
 from advisor.research.bootstrap import (
     DEFAULT_RESAMPLES,
     DEFAULT_SEED,
@@ -27,6 +27,8 @@ from advisor.research.event_study import (
     AMBIGUOUS,
     FINAL_EXIT,
     SCORE_BANDS,
+    STOP_FIRST,
+    TARGET_FIRST,
     EventStudyResult,
     EventStudySignal,
     band_of_full_score,
@@ -65,22 +67,6 @@ PROTOCOL_BLOCK_LENGTH_SESSIONS = {
     "swing": 60,
     "medio": 300,
 }
-
-MARKET_TIMEZONES = {
-    "AMS": "Europe/Amsterdam",
-    "CPH": "Europe/Copenhagen",
-    "CRYPTO": "UTC",
-    "HKG": "Asia/Hong_Kong",
-    "JPX": "Asia/Tokyo",
-    "KSC": "Asia/Seoul",
-    "MCE": "Europe/Madrid",
-    "MIL": "Europe/Rome",
-    "NASDAQ": "America/New_York",
-    "NYSE": "America/New_York",
-    "PAR": "Europe/Paris",
-    "XETRA": "Europe/Berlin",
-}
-
 
 @dataclass(frozen=True)
 class CapacitySummary:
@@ -128,6 +114,21 @@ class CapacityReport:
     global_summary: CapacitySummary
     bands: List[CapacitySummary]
     comparisons: List[CapacityComparison]
+    estimators: Optional[PreregisteredEstimatorSummary] = None
+
+
+@dataclass(frozen=True)
+class PreregisteredEstimatorSummary:
+    """Estimadores fijados el 2026-09-02 antes de volver a mirar resultados."""
+
+    block_length: int
+    n_blocks: int
+    n_observable: int
+    primary_block_expectancy_net_r: float
+    secondary_pooled_expectancy_net_r: float
+    secondary_pooled_target_first_rate: float
+    secondary_target_first_lower: float
+    secondary_target_first_upper: float
 
 
 @dataclass(frozen=True)
@@ -222,6 +223,7 @@ def assess_capacity(
         global_summary=global_summary,
         bands=band_summaries,
         comparisons=capacity_comparisons,
+        estimators=preregistered_estimators(result, universe=universe, block_lookup=block_lookup),
     )
 
 
@@ -232,9 +234,10 @@ def format_capacity_report(report: CapacityReport) -> str:
         report.horizonte,
         f"Capacidad global: {report.global_summary.verdict}",
         _format_summary(report.global_summary),
-        "",
-        "Bandas de score:",
     ]
+    if report.estimators is not None:
+        lines.extend(["", format_preregistered_estimators(report.estimators)])
+    lines.extend(["", "Bandas de score:"])
     for summary in report.bands:
         lines.append(f"Score {summary.label}: {summary.verdict}")
         lines.append(_format_summary(summary))
@@ -253,6 +256,67 @@ def format_capacity_report(report: CapacityReport) -> str:
         lines.append("")
         lines.append("Conclusión: no se permite calibrar un threshold apoyándose en 80+.")
     return "\n".join(lines)
+
+
+def preregistered_estimators(
+    result: EventStudyResult,
+    *,
+    universe: Universe,
+    block_lookup: Optional[TemporalBlockMap] = None,
+) -> PreregisteredEstimatorSummary:
+    """Calcula el paquete de estimadores pre-registrado el 2026-09-02."""
+
+    block_length = _protocol_block_length(result.horizonte, result.max_hold_bars)
+    lookup = block_lookup or _temporal_block_lookup(result, block_length, universe)
+    block_values: Dict[int, List[EventStudySignal]] = {}
+    for signal in result.signals:
+        block_values.setdefault(lookup.block_for(signal), []).append(signal)
+
+    block_expectancies: List[Optional[float]] = []
+    for _, signals in sorted(block_values.items()):
+        values = [
+            signal.managed.net_r_multiple
+            for signal in signals
+            if signal.managed.net_r_multiple is not None
+        ]
+        block_expectancies.append(_mean_float(values))
+    observable_block_expectancies = [value for value in block_expectancies if value is not None]
+    pooled_values = [
+        signal.managed.net_r_multiple
+        for signal in result.signals
+        if signal.managed.net_r_multiple is not None
+    ]
+    total = len(result.signals)
+    target_first = sum(1 for signal in result.signals if signal.managed.exit_status == TARGET_FIRST)
+    ambiguous = sum(1 for signal in result.signals if signal.managed.exit_status == AMBIGUOUS)
+    resolved = sum(
+        1
+        for signal in result.signals
+        if signal.managed.exit_status in {TARGET_FIRST, STOP_FIRST}
+    )
+    return PreregisteredEstimatorSummary(
+        block_length=block_length,
+        n_blocks=len(observable_block_expectancies),
+        n_observable=len(pooled_values),
+        primary_block_expectancy_net_r=_mean_float(observable_block_expectancies) or 0.0,
+        secondary_pooled_expectancy_net_r=_mean_float(pooled_values) or 0.0,
+        secondary_pooled_target_first_rate=target_first / resolved if resolved else 0.0,
+        secondary_target_first_lower=target_first / total if total else 0.0,
+        secondary_target_first_upper=(target_first + ambiguous) / total if total else 0.0,
+    )
+
+
+def format_preregistered_estimators(summary: PreregisteredEstimatorSummary) -> str:
+    """Texto común: primario y secundarios juntos, nunca separados."""
+
+    return (
+        "Estimadores pre-registrados 2026-09-02: "
+        f"primario=media por bloque de expectancy neta en R {summary.primary_block_expectancy_net_r:+.3f} "
+        f"(bloques={summary.n_blocks}, longitud={summary.block_length} sesiones); "
+        f"secundarios=tasa agrupada expectancy neta en R {summary.secondary_pooled_expectancy_net_r:+.3f}, "
+        f"tasa agrupada TARGET_FIRST/(TARGET_FIRST+STOP_FIRST) {summary.secondary_pooled_target_first_rate:.3f}, "
+        f"P(objetivo antes de stop) [{summary.secondary_target_first_lower:.3f}, {summary.secondary_target_first_upper:.3f}]."
+    )
 
 
 def _summary(
@@ -442,13 +506,11 @@ def _equity_session_spine(result: EventStudyResult, assets: Dict[str, Asset]) ->
     return tuple(sorted(dates))
 
 
-def _market_zone(asset: Asset) -> ZoneInfo:
-    market = asset.primary_market
+def _market_zone(asset: Asset):
     try:
-        timezone_name = MARKET_TIMEZONES[market]
-    except KeyError:
-        raise ValueError(f"{asset.symbol}: plaza '{market}' sin zona horaria en MARKET_TIMEZONES") from None
-    return ZoneInfo(timezone_name)
+        return market_timezone(asset.primary_market)
+    except ValueError:
+        raise ValueError(f"{asset.symbol}: plaza '{asset.primary_market}' sin cierre regular declarado") from None
 
 
 def _temporal_blocks(signals: Sequence[EventStudySignal], block_lookup: TemporalBlockMap) -> int:
@@ -491,6 +553,12 @@ def _target_first(signals: Iterable[EventStudySignal]) -> int:
 
 def _rate(count: int, total: int) -> float:
     return count / total if total else 0.0
+
+
+def _mean_float(values: Sequence[float]) -> Optional[float]:
+    if not values:
+        return None
+    return sum(values) / len(values)
 
 
 def _score_band(score: float) -> str:

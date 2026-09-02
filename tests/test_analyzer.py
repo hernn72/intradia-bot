@@ -66,7 +66,10 @@ class TestMarketContext:
 
     def test_risk_off_con_vix_alto_y_tendencia_bajista(self) -> None:
         provider = FakeProvider(
-            {"^STOXX50E": make_ohlcv(n=300, start=5000.0, drift=-1.0)}, closes={"^VIX": 35.0}
+            {
+                "^STOXX50E": make_ohlcv(n=300, start=5000.0, drift=-1.0),
+                "^VIX": make_ohlcv(n=30, start=35.0, drift=0.0),
+            }
         )
         context = fetch_market_context(provider, MarketContextConfig())
         assert context.label == "RISK_OFF"

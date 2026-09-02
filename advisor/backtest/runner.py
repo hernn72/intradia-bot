@@ -147,13 +147,11 @@ def run_backtest(
             if benchmark_symbol not in benchmark_cache:
                 benchmark_cache[benchmark_symbol] = _fetch_close(provider, benchmark_symbol)
             benchmark_close = benchmark_cache[benchmark_symbol]
-        bench = _align(benchmark_close, df.index)
-
         for policy, bucket in ((POLICY_OPERAR, result.trades_operar), (POLICY_TODAS, result.trades_todas)):
             bucket.extend(
                 simulate_asset(
                     asset, df, config, horizonte, policy, cost_pct,
-                    benchmark_close=bench, vix_at=vix_at,
+                    benchmark_close=benchmark_close, vix_at=vix_at,
                     trend_price_at=trend_at, trend_sma_at=trend_sma_at,
                 )
             )

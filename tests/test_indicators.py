@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from advisor.indicators.technical import atr, ema, last_atr, macd, relative_strength, rsi, sma
+from advisor.indicators.technical import atr, ema, last_atr, macd, relative_strength, relative_strength_series, rsi, sma
 from tests.conftest import make_ohlcv
 
 
@@ -100,6 +100,21 @@ class TestRelativeStrength:
         larga = make_ohlcv(n=60)["Close"]
         assert relative_strength(corta, larga, 20) is None
         assert relative_strength(larga, corta, 20) is None
+
+    def test_usa_interseccion_de_sesiones_comunes(self) -> None:
+        asset_index = pd.date_range("2026-01-01", periods=25, freq="D", tz="UTC")
+        benchmark_index = asset_index.delete([3, 7]).append(pd.DatetimeIndex([pd.Timestamp("2026-02-10", tz="UTC")]))
+        activo = pd.Series(range(100, 125), index=asset_index, dtype=float)
+        indice = pd.Series(range(200, 200 + len(benchmark_index)), index=benchmark_index, dtype=float)
+
+        common = activo.index.normalize().intersection(indice.index.normalize())
+        expected_asset = (activo.loc[common[-1]] / activo.loc[common[-21]] - 1) * 100
+        expected_bench = (indice.loc[common[-1]] / indice.loc[common[-21]] - 1) * 100
+
+        assert relative_strength(activo, indice, 20) == pytest.approx(expected_asset - expected_bench)
+        series = relative_strength_series(activo, indice, 20)
+        assert series.loc[asset_index[3]] != series.loc[asset_index[3]]
+        assert series.dropna().iloc[-1] == pytest.approx(expected_asset - expected_bench)
 
     def test_lookback_invalido(self) -> None:
         with pytest.raises(ValueError):

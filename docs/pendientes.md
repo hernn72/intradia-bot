@@ -1,6 +1,6 @@
 # Pendientes del asesor
 
-Estado al **31 de agosto de 2026**.
+Estado al **2 de septiembre de 2026**.
 
 En `main` y pusheadas a GitHub (`c415dbc`) están P0, P1, P2.0–P2.3 y P2.5,
 además de las pasadas por evento, el despliegue versionado en `deploy/` y el
@@ -16,8 +16,16 @@ cosecha, que allí no está), `verificar-systemd` dice «alineadas», una pasada
 real termina con código 0 y los dos timers siguen vivos. Copia de seguridad en
 `intradia.db.bak-20260831-081832`.
 
+El **2 de septiembre** se cerró el paquete de calidad de datos pendiente:
+histórico persistido de frescura, pre-registro del estimador primario de bloque,
+fortaleza relativa por intersección de sesiones comunes, recorte de barras
+diarias no cerradas por cierre regular de plaza y vocabulario
+`OK`/`DEGRADADO`/`INCOMPLETO` con veto configurable de apertura. No se tocó
+despliegue en la Pi.
+
 Con eso, **el laboratorio P2 está completo** (P2.0 a P2.6) y en producción el
-informe ya declara la antigüedad del dato y las sesiones que le faltan.
+informe ya declara la antigüedad del dato, sesiones ausentes, cierre de sesión y
+calidad del dato antes de recomendar una apertura.
 
 Cada punto dice qué falta, por qué importa y qué hay que decidir antes de
 tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
@@ -32,9 +40,30 @@ tocarlo. Orden dentro de cada bloque: lo que más cambia el resultado, primero.
   del proveedor, ya visibles en el informe y como riesgo cuando son inminentes.
 - Desplegado en la Pi con cuatro pasadas diarias (07:00, 08:30, 14:30 y 21:00,
   hora local de la Pi, UTC+1), de lunes a viernes.
-- **Frescura del dato** (sin commitear): el informe declara siempre la
-  antigüedad de la última barra de cada activo, y el subcomando
-  `frescura-datos` reproduce la medición del retraso por plaza. Sección 10.
+- **Frescura y calidad del dato.** El informe declara siempre la antigüedad de
+  la última barra, sesiones ausentes frente al benchmark, cierre regular usado y
+  calidad `OK`/`DEGRADADO`/`INCOMPLETO`. Cada pasada persiste el histórico de
+  frescura y `frescura-historico` permite consultar lo acumulado. `INCOMPLETO`
+  veta abrir por defecto sin tocar `score.value`; `DEGRADADO` se declara y no
+  veta.
+
+  **Dos ventanas, y el motivo está medido.** Se declara sobre la ventana que
+  alimenta los indicadores (200 sesiones, que es `sma_long`), pero solo veta un
+  hueco dentro de `veto_window_sessions` (20 por defecto). La primera versión
+  vetaba con la ventana larga y, medido el 2026-09-02 sobre el universo real,
+  eso vetaba 20 activos de 107: 17 por huecos recientes de verdad —los ETF
+  alemanes— y **tres por sesiones que les faltaban hace meses** (`AZN`, `TSM`,
+  `NOVO-B.CO`). Ese veto no habría caducado nunca. Con ventana de 5, 10 o 20
+  sesiones el resultado es el mismo, 17, así que 20 no es un número elegido para
+  que salga lo que queríamos: es la meseta.
+
+  **Si la Pi pasa días apagada, el veto no se ve afectado.** La serie del activo
+  y la del benchmark se descargan enteras en cada pasada, así que la calidad se
+  calcula igual tras una parada larga. Lo que sí queda con huecos es el
+  histórico de frescura, y ahí la trampa es de lectura: **la ausencia de filas
+  significa que no se midió, no que no faltara ninguna sesión**. Por eso cada
+  fila guarda la calidad y la ventana de veto con la que se calculó, para que el
+  histórico se interprete solo y no dependa del `config.yaml` de aquel día.
 - **P0 — dimensionamiento por riesgo.** El tamaño sale del
   presupuesto de riesgo y de la distancia al stop, no de la convicción:
   `position_pct = risk_per_trade_pct / risk_pp`, con tope `max_position_pct`
@@ -99,72 +128,64 @@ vista no afina, cambia de tramo.
 
 ### A. Decisiones que son tuyas, y que bloquean lo demás
 
-1. **Qué hacer con las sesiones ausentes.** Hoy el informe las declara y sigue
-   puntuando, que respeta la regla de no degradar *en silencio*. Pero una sesión
-   que falta no es un dato viejo: contamina EMA, RSI, ATR, MACD y los retornos, y
-   deja la fortaleza relativa restando dos series de calendarios distintos. Las
-   opciones son mantener la declaración, marcar la calidad como degradada de
-   forma explícita, o un veto configurable. **Cambiar cuándo el bot recomienda no
-   es una decisión del bot.** Contexto entero en la sección 10.
-2. **Declarar el estimador del bloque antes de tocar P3.** Peso igual por bloque
-   o tasa agrupada: la elección decide el signo del resultado y el protocolo
-   nunca la fijó. Hay que escribirla **antes** de volver a mirar los números;
-   elegirla después es exactamente lo que el documento prohíbe. Sin esto, P3 no
-   puede empezar. Sección 11.
-3. **Fundamentales: proveedor y coste.** Es la única brecha que cuesta dinero.
+1. **Fundamentales: proveedor y coste.** Es la única brecha que cuesta dinero.
    Mientras no esté, la nota se normaliza sobre 80 y el ratio pesa 25 de 100 en
    vez de 20. Sección 3.
-4. **Noticias: quién filtra y con qué criterio.** Los datos son gratis; el
+2. **Noticias: quién filtra y con qué criterio.** Los datos son gratis; el
    problema medido es la relevancia. Sección 4.
-5. **Si se paga otra fuente para las plazas europeas.** Antes era un lujo. Con
-   sesiones que sencillamente no existen en la serie, ya no está claro que lo
-   sea. Sección 10.
+3. **Si se paga otra fuente para las plazas europeas.** La política operativa ya
+   existe sin coste: `INCOMPLETO` veta apertura por defecto y el histórico de
+   frescura permitirá medir recurrencia. Pagar otra fuente queda abierto, pero
+   no se decide con una sola observación. Sección 10.
 
 ### B. Medir antes de decidir (no cuesta dinero, solo días)
 
-6. **Repetir la medición de sesiones ausentes varios días seguidos.** Lo del
-   viernes 28 es **una** observación. Hasta tener varias no se puede afirmar que
-   el proveedor se salte sesiones de forma sistemática en Europa. El comando ya
-   existe: `frescura-datos`, y el informe lo declara en cada pasada.
-7. **El desfase activo/benchmark en la fortaleza relativa.** Medido, sin decidir.
-   Declararlo es barato; corregirlo exige alinear las series por sesión, y eso sí
-   toca el cálculo.
-8. **La barra en curso tratada como cierre.** Las pasadas de las 08:30 y las
-   14:30 puntúan sobre la sesión del día sin cerrar. Ahora se declara, pero no
-   está resuelto, y arreglarlo de verdad necesita horarios de cierre por plaza
-   que no tenemos.
+4. **Repetir la medición de sesiones ausentes varios días seguidos.** Resuelto
+   como mecanismo: cada pasada guarda instante, símbolo, plaza, benchmark,
+   última barra, sesiones ausentes, parcialidad y errores. Sigue abierta la
+   interpretación estadística del histórico cuando haya varios días reales.
+5. **El desfase activo/benchmark en la fortaleza relativa.** Resuelto: producción
+   e investigación usan la misma función, alineando activo y benchmark por
+   intersección de sesiones comunes, sin `ffill` ni comparación por posición.
+6. **La barra en curso tratada como cierre.** Resuelto para barras diarias:
+   tabla de cierres regulares por plaza con `zoneinfo`, margen configurable de
+   20 minutos, recorte común a activo, benchmark y contexto. No modela festivos
+   ni medias sesiones; si falta plaza, falla ruidosamente. Cripto no se recorta.
 
 ### C. Laboratorio
 
-9. **P3** — sacar el RR del score y recalibrar umbrales por horizonte.
-   Bloqueado por el punto 2. P2.4 ya dejó el material: la dimensión del ratio
-   reparte 10 de sus 20 puntos a casi todo, así que no ordena, diluye.
-10. **P4** geometría · **P5** reducción a regiones robustas · **P6** backtest de
+7. **P3** — sacar el RR del score y recalibrar umbrales por horizonte.
+   Ya no está bloqueado por el estimador: el protocolo pre-registra desde el
+   2026-09-02 que el primario es la media por bloque de la expectancy neta en R.
+   P3 no hereda como premisa que «el score ordena»; debe medirlo bajo ese
+   estimador y publicar siempre tasa agrupada y `P(objetivo antes de stop)` como
+   secundarias.
+8. **P4** geometría · **P5** reducción a regiones robustas · **P6** backtest de
     sistemas · **P7** walk-forward y holdout. P4 hereda de P2.6 una advertencia:
     la opción B mejora en promedio pero con heterogeneidad alta, así que lo
     primero es preguntarse en qué régimen mejora y en cuál no.
-11. **Rehacer la calibración con los 107 activos.** Todo lo medido
+9. **Rehacer la calibración con los 107 activos.** Todo lo medido
     históricamente sale de 21.
 
 ### D. Trabajo manual, sin atajo
 
-12. **89 ISIN de 107**, uno a uno contra Deutsche Börse y Euronext. `yfinance`
+10. **89 ISIN de 107**, uno a uno contra Deutsche Börse y Euronext. `yfinance`
     devuelve ISIN falsos que superan el dígito de control.
-13. **Disponibilidad real en Trade Republic** de los 107. El tratamiento ya está
+11. **Disponibilidad real en Trade Republic** de los 107. El tratamiento ya está
     resuelto (señal y ejecutabilidad van separadas); falta el dato, y no hay API.
-14. **Doble símbolo**: ningún activo declara `european_symbol`. Hay que verificar
+12. **Doble símbolo**: ningún activo declara `european_symbol`. Hay que verificar
     los tickers de Xetra uno a uno antes de elegir cotización por sesión.
 
 ### E. Menores
 
-15. El **calendario macro de `events.yaml` caduca el 2027-12-16**. El bot avisa
+13. El **calendario macro de `events.yaml` caduca el 2027-12-16**. El bot avisa
     a 60 días, pero conviene refrescarlo antes.
-16. **`^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F` y `GC=F` no alimentan el
+14. **`^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F` y `GC=F` no alimentan el
     contexto de mercado**, que sigue puntuando solo con VIX, tendencia europea y
     sesión asiática.
-17. **`economic_currency` se guarda y no se usa.** Descomponer el ATR en riesgo
+15. **`economic_currency` se guarda y no se usa.** Descomponer el ATR en riesgo
     de activo y de divisa es un cambio de cálculo, y hay que medirlo.
-18. **Los eventos no puntúan**, a propósito, hasta medir que mejoran las señales.
+16. **Los eventos no puntúan**, a propósito, hasta medir que mejoran las señales.
 
 ### La cosecha congelada, para no volver a buscarla
 
@@ -808,4 +829,3 @@ prefiere el intervalo y la heterogeneidad al p-valor.
 **No se adopta nada.** `config.yaml` no se toca, la geometría no se cambia y la
 opción B no queda elegida. Elegir geometría es P4, y con esta heterogeneidad lo
 primero que P4 tendrá que preguntarse es en qué régimen mejora y en cuál no.
-

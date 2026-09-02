@@ -139,6 +139,44 @@ def macd(
     return macd_line, signal_line, macd_line - signal_line
 
 
+def relative_strength_series(series: pd.Series, benchmark: pd.Series, lookback: int) -> pd.Series:
+    """Fortaleza relativa por intersección de sesiones comunes.
+
+    Activo y benchmark se reducen simétricamente a las mismas fechas antes de
+    calcular retornos. No se arrastra el último cierre del benchmark ni se
+    compara por posición de índice.
+    """
+
+    if lookback <= 0:
+        raise ValueError("lookback debe ser mayor que 0")
+    if series.empty:
+        raise ValueError("series no puede estar vacía")
+    if benchmark.empty:
+        return pd.Series(index=series.index, dtype=float)
+
+    asset = series.dropna().copy()
+    bench = benchmark.dropna().copy()
+    asset_dates = _session_index(asset.index)
+    bench_dates = _session_index(bench.index)
+    asset.index = asset_dates
+    bench.index = bench_dates
+    asset = asset[~asset.index.duplicated(keep="last")]
+    bench = bench[~bench.index.duplicated(keep="last")]
+
+    common = asset.index.intersection(bench.index)
+    if len(common) <= lookback:
+        return pd.Series(index=series.index, dtype=float)
+
+    aligned_asset = asset.reindex(common)
+    aligned_bench = bench.reindex(common)
+    rs_common = aligned_asset.pct_change(lookback) * 100 - aligned_bench.pct_change(lookback) * 100
+
+    target = _session_index(series.index)
+    values = rs_common.reindex(target)
+    values.index = series.index
+    return values
+
+
 def relative_strength(series: pd.Series, benchmark: pd.Series, lookback: int) -> float | None:
     """Fortaleza relativa: diferencia (en puntos porcentuales) entre el retorno
     del activo y el del índice de referencia en las últimas ``lookback`` velas.
@@ -148,19 +186,23 @@ def relative_strength(series: pd.Series, benchmark: pd.Series, lookback: int) ->
     referencia.
     """
 
-    if lookback <= 0:
-        raise ValueError("lookback debe ser mayor que 0")
-
-    def _return(values: pd.Series) -> float | None:
-        if len(values) <= lookback:
-            return None
-        past = float(values.iloc[-(lookback + 1)])
-        if past == 0:
-            return None
-        return (float(values.iloc[-1]) / past - 1) * 100
-
-    asset_return = _return(series)
-    bench_return = _return(benchmark)
-    if asset_return is None or bench_return is None:
+    values = relative_strength_series(series, benchmark, lookback)
+    if values.empty:
         return None
-    return asset_return - bench_return
+    value = values.iloc[-1]
+    if pd.isna(value):
+        return None
+    return float(value)
+
+
+def _session_index(index: pd.Index) -> pd.Index:
+    if isinstance(index, pd.DatetimeIndex):
+        idx = index
+    else:
+        try:
+            idx = pd.DatetimeIndex(index)
+        except (TypeError, ValueError):
+            return pd.Index(index)
+    if idx.tz is not None:
+        idx = idx.tz_localize(None)
+    return idx.normalize()

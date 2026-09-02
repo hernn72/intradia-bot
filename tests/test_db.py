@@ -70,7 +70,10 @@ class TestFreshnessMeasurements:
             "sessions_approx": 0,
             "may_be_partial_current_session": True,
             "absent_reference_sessions": ["2026-08-28"],
+            "absent_recent_sessions": ["2026-08-28"],
             "reference_sessions_checked": 10,
+            "veto_window_sessions": 20,
+            "quality": "INCOMPLETO",
             "error": None,
         }
 
@@ -82,6 +85,9 @@ class TestFreshnessMeasurements:
         assert rows[0]["symbol"] == "SAP.DE"
         assert rows[0]["may_be_partial_current_session"] == 1
         assert rows[0]["absent_reference_sessions"] == '["2026-08-28"]'
+        assert rows[0]["absent_recent_sessions"] == '["2026-08-28"]'
+        assert rows[0]["quality"] == "INCOMPLETO"
+        assert rows[0]["veto_window_sessions"] == 20
 
     def test_guarda_errores_de_descarga(self, db: AdvisorDB) -> None:
         row = self._row("ERR.DE")

@@ -34,6 +34,7 @@ from advisor.data.freshness import (
     FreshnessRow,
     agrupar_frescura_por_fecha,
     calcular_frescura_dato,
+    classify_data_quality,
     mercado_para_simbolo,
 )
 from advisor.data.fx import FxConverter
@@ -131,17 +132,26 @@ def format_opportunity(
     lines.append(f"**Señal:** {opportunity.signal_label}")
     lines.append(f"**Ejecutabilidad en broker:** {opportunity.broker_execution_label}")
     freshness = _freshness_for_opportunity(opportunity, reference)
-    lines.append(f"**Datos de mercado:** última barra {freshness.last_bar_date.isoformat()} ({freshness.label})")
+    lines.append(
+        f"**Datos de mercado:** {freshness.quality}; última barra {freshness.last_bar_date.isoformat()} "
+        f"({freshness.label})"
+    )
+    if freshness.session_close_status:
+        lines.append(f"**Cierre de sesión:** {freshness.session_close_status}")
     if freshness.sessions_approx >= 1:
         lines.append(
             "⚠️ Dato retrasado: esta recomendación usa una última barra con "
             f"{freshness.sessions_approx} sesiones cerradas aproximadas perdidas."
         )
-    if freshness.has_absent_reference_sessions:
+    if freshness.absent_recent_sessions:
         lines.append(
-            "⚠️ Sesiones ausentes: faltan sesiones presentes en "
-            f"{freshness.benchmark_symbol}: {_dates_label(freshness.absent_reference_sessions)}."
+            "⚠️ Calidad INCOMPLETO: faltan sesiones recientes presentes en "
+            f"{freshness.benchmark_symbol}: {_dates_label(freshness.absent_recent_sessions)}."
         )
+    for reason in freshness.quality_reasons:
+        if reason.startswith("INCOMPLETO"):
+            continue
+        lines.append(f"⚠️ Calidad {reason}")
     if freshness.may_be_partial_current_session:
         lines.append(
             "⚠️ Barra potencialmente parcial: la última barra es de hoy y puede no ser un cierre."
@@ -485,6 +495,11 @@ def format_report(
     )
     lines.append("")
     lines.append(_report_freshness_summary(result.opportunities, result.generated_at))
+    lines.append(
+        "Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre regular local "
+        f"+ {config.data_quality.settlement_minutes} min. No se modelan festivos ni medias sesiones; "
+        "cripto no tiene sesión de cierre."
+    )
     lines.append("")
 
     lines.append("## 🔥 OPORTUNIDADES DETECTADAS")
@@ -599,7 +614,7 @@ def _conclusion(result: AnalysisResult, operar: List[Opportunity]) -> str:
 
 
 def _freshness_for_snapshot(timestamp: pd.Timestamp, reference: datetime) -> DataFreshness:
-    return calcular_frescura_dato(timestamp, reference)
+    return classify_data_quality(calcular_frescura_dato(timestamp, reference))
 
 
 def _freshness_for_opportunity(opportunity: Opportunity, reference: datetime) -> DataFreshness:
@@ -658,6 +673,17 @@ def _report_freshness_summary(opportunities: List[Opportunity], reference: datet
         grouped[_session_step(bucket.freshness.sessions_approx)].append(bucket)
 
     lines = [f"**Frescura de datos:** {_plural_activos(len(rows))} analizados con snapshot."]
+    quality_counts: dict[str, int] = {}
+    for row in rows:
+        if row.freshness is None:
+            continue
+        quality_counts[row.freshness.quality] = quality_counts.get(row.freshness.quality, 0) + 1
+    if quality_counts:
+        lines.append(
+            "  - Calidad: "
+            + ", ".join(f"{quality}={quality_counts[quality]}" for quality in sorted(quality_counts))
+            + "."
+        )
     for step in (0, 1, 2):
         step_buckets = grouped[step]
         count = sum(bucket.symbols_count for bucket in step_buckets)
@@ -710,6 +736,8 @@ def _report_freshness_summary(opportunities: List[Opportunity], reference: datet
 def _compact_freshness_marker(opportunity: Opportunity, reference: datetime) -> str:
     freshness = _freshness_for_opportunity(opportunity, reference)
     markers: List[str] = []
+    if freshness.quality != "OK":
+        markers.append(f"calidad {freshness.quality}")
     if freshness.has_absent_reference_sessions:
         markers.append(f"⚠️ falta sesión {_dates_label(freshness.absent_reference_sessions)}")
     if freshness.sessions_approx >= 1:

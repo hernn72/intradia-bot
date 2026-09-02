@@ -105,12 +105,27 @@ def test_intervalo_de_capacidad_delega_en_bootstrap_p26() -> None:
     )
 
 
+def test_capacidad_publica_estimador_primario_y_secundarios() -> None:
+    signals = [
+        _with_day(_signal(score=55.0, status=TARGET_FIRST), 0),
+        _with_day(_signal(score=55.0, status=capacity.STOP_FIRST), 1),
+        _with_day(_signal(score=55.0, status=capacity.AMBIGUOUS), 2),
+    ]
+    report = assess_capacity(_result(signals), universe=_universe())
+    salida = format_capacity_report(report)
+
+    assert "Estimadores pre-registrados 2026-09-02" in salida
+    assert "primario=media por bloque de expectancy neta en R" in salida
+    assert "secundarios=tasa agrupada expectancy neta en R" in salida
+    assert "P(objetivo antes de stop)" in salida
+
+
 def test_plaza_sin_zona_falla_ruidosamente() -> None:
     signal = _with_day(_signal(score=55.0, status=TARGET_FIRST), 0)
     universe = _universe(market="SIN_TABLA")
     result = _result([signal])
 
-    with pytest.raises(ValueError, match="plaza 'SIN_TABLA' sin zona horaria"):
+    with pytest.raises(ValueError, match="plaza 'SIN_TABLA' sin cierre regular declarado"):
         assess_capacity(result, universe=universe)
 
 

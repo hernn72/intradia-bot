@@ -138,6 +138,12 @@ class MarketContextConfig(BaseModel):
     trend_sma: int = Field(200, gt=0)
 
 
+class DataQualityConfig(BaseModel):
+    settlement_minutes: int = Field(20, ge=0)
+    veto_incomplete_open: bool = True
+    veto_window_sessions: int = Field(20, gt=0)
+
+
 class ReportConfig(BaseModel):
     top_n: int = Field(5, gt=0)
     benchmark_symbol: str = "^STOXX50E"
@@ -200,6 +206,7 @@ class AdvisorConfig(BaseModel):
     risk: RiskConfig = Field(default_factory=RiskConfig)
     portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
     market_context: MarketContextConfig = Field(default_factory=MarketContextConfig)
+    data_quality: DataQualityConfig = Field(default_factory=DataQualityConfig)
     report: ReportConfig = Field(default_factory=ReportConfig)
     ai: AiConfig = Field(default_factory=AiConfig)
     events: EventsConfig = Field(default_factory=EventsConfig)

@@ -15,8 +15,8 @@ from advisor.analysis.market_context import MarketContext
 from advisor.analysis.scoring import Score
 from advisor.analysis.sizing import PositionSizing, calculate_position_sizing, conviction_label
 from advisor.analysis.snapshot import TechnicalSnapshot
-from advisor.config import PortfolioConfig, RiskConfig, ScoringConfig
-from advisor.data.freshness import DataFreshness
+from advisor.config import DataQualityConfig, PortfolioConfig, RiskConfig, ScoringConfig
+from advisor.data.freshness import QUALITY_DEGRADED, QUALITY_INCOMPLETE, DataFreshness
 from advisor.universe.models import Asset
 
 RADAR_OPERAR = "OPERAR"
@@ -132,6 +132,8 @@ def classify(
     risk: RiskConfig,
     asset: Asset,
     horizonte: str = "",
+    data_freshness: Optional[DataFreshness] = None,
+    data_quality: Optional[DataQualityConfig] = None,
 ) -> tuple:
     """Decide radar y acción a partir de criterios objetivos.
 
@@ -192,6 +194,14 @@ def classify(
             )
             return RADAR_VIGILAR, ACCION_ESPERAR, reasons
 
+    if data_freshness is not None:
+        if data_freshness.quality == QUALITY_INCOMPLETE and (data_quality is None or data_quality.veto_incomplete_open):
+            reasons.extend(data_freshness.quality_reasons)
+            reasons.append("apertura vetada por calidad del dato INCOMPLETO; la puntuación se conserva sin ajustar")
+            return RADAR_VIGILAR, ACCION_ESPERAR, reasons
+        if data_freshness.quality == QUALITY_DEGRADED:
+            reasons.extend(data_freshness.quality_reasons)
+
     if not asset.is_recommendable:
         reasons.append("no disponible en Trade Republic: no puede ejecutarse")
         return RADAR_DESCARTAR, ACCION_DESCARTAR, reasons
@@ -212,11 +222,22 @@ def build_opportunity(
     scoring: ScoringConfig,
     risk: RiskConfig,
     portfolio: PortfolioConfig,
+    data_quality: Optional[DataQualityConfig] = None,
     data_freshness: Optional[DataFreshness] = None,
 ) -> Opportunity:
     """Ensambla la oportunidad ya clasificada y dimensionada."""
 
-    radar, accion, reasons = classify(score, levels, context, scoring, risk, asset, horizonte)
+    radar, accion, reasons = classify(
+        score,
+        levels,
+        context,
+        scoring,
+        risk,
+        asset,
+        horizonte,
+        data_freshness,
+        data_quality,
+    )
     sizing = calculate_position_sizing(levels, portfolio, conviction_label(score))
 
     return Opportunity(

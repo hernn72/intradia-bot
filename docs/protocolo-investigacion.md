@@ -540,7 +540,24 @@ validación temporal.
 
 ## Reglas del protocolo, fijadas de antemano
 
-1. **Métrica primaria**: expectancy neta en R. Se declara antes de mirar.
+### Pre-registro del estimador de bloque — 2026-09-02
+
+Se declara aquí **antes de volver a mirar números**. El estimador primario de
+P3 en adelante es la **media por bloque de la expectancy neta en R**: cada
+bloque temporal completo produce una expectancy neta media en R y el resultado
+primario es la media simple de esos bloques.
+
+La tasa agrupada de expectancy neta en R y `P(objetivo antes de stop)` quedan
+como métricas secundarias. Se publican siempre junto al estimador primario y
+nunca solas, para impedir elegir a posteriori la métrica que mejor cuente la
+historia.
+
+P3 queda redefinido: ya no hereda como premisa que «el score ordena». Lo que
+P3 debe medir es si ordena bajo este estimador primario, con la tasa agrupada
+y la probabilidad de objetivo antes de stop como contexto secundario.
+
+1. **Métrica primaria**: media por bloque de la expectancy neta en R. Se
+   declara antes de mirar.
 2. **Restricciones**: muestra mínima, profit factor > 1, drawdown máximo,
    expectancy > 0. Las secundarias (drawdown, estabilidad entre ventanas,
    número de operaciones, dispersión) solo desempatan.

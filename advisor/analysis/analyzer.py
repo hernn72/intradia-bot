@@ -9,7 +9,7 @@ es puro y se puede probar sin red.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
@@ -25,6 +25,7 @@ from advisor.analysis.snapshot import build_snapshot
 from advisor.config import AdvisorConfig
 from advisor.data.freshness import FreshnessRow, calcular_frescura_serie, mercado_para_simbolo
 from advisor.data.market_data import MarketDataProvider
+from advisor.data.sessions import market_for_symbol, market_session, trim_unclosed_bar
 from advisor.universe.models import Asset, Universe
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,12 @@ class AnalysisResult:
 
 
 def _fetch_benchmark(
-    provider: MarketDataProvider, symbol: str, period: str, interval: str
+    provider: MarketDataProvider,
+    symbol: str,
+    period: str,
+    interval: str,
+    reference: datetime,
+    settlement_minutes: int,
 ) -> Optional[pd.Series]:
     """Cierres del índice de referencia para la fortaleza relativa.
 
@@ -62,7 +68,16 @@ def _fetch_benchmark(
     except Exception as exc:
         logger.warning("Sin datos del índice de referencia %s: %s", symbol, exc)
         return None
-    return history["Close"]
+    trimmed = trim_unclosed_bar(
+        history,
+        market=market_for_symbol(symbol),
+        reference=reference,
+        settlement_minutes=settlement_minutes,
+        interval=interval,
+    )
+    if trimmed.removed_last_bar:
+        logger.info("%s benchmark: %s", symbol, trimmed.status)
+    return trimmed.df["Close"]
 
 
 def analyze_asset(
@@ -84,20 +99,39 @@ def analyze_asset(
 
     window = config.horizonte(horizonte)
     data_symbol = asset.data_symbol(now)
-    history = provider.get_history(data_symbol, period=window.period, interval=window.interval)
+    reference = now or datetime.now(timezone.utc)
+    raw_history = provider.get_history(data_symbol, period=window.period, interval=window.interval)
+    trim = trim_unclosed_bar(
+        raw_history,
+        market=mercado_para_simbolo(asset, data_symbol),
+        reference=reference,
+        settlement_minutes=config.data_quality.settlement_minutes,
+        interval=window.interval,
+    )
+    if trim.removed_last_bar:
+        logger.info("%s: %s", asset.symbol, trim.status)
+    history = trim.df
 
     if len(history) < window.min_bars:
         raise ValueError(
-            f"histórico insuficiente: {len(history)} velas, se requieren {window.min_bars}"
+            f"histórico insuficiente tras recorte de barra no cerrada: {len(history)} velas, "
+            f"se requieren {window.min_bars}; {trim.status}"
         )
 
-    reference = now or datetime.now(timezone.utc)
     data_freshness = calcular_frescura_serie(
         history,
         reference,
         benchmark_close=benchmark_close,
         benchmark_symbol=benchmark_symbol,
+        recent_reference_sessions=_indicator_reference_sessions(config),
+        veto_window_sessions=config.data_quality.veto_window_sessions,
+        asset_timezone=asset.timezone,
+        benchmark_timezone=market_session(market_for_symbol(benchmark_symbol)).timezone if benchmark_symbol else None,
     )
+    partial = data_freshness.may_be_partial_current_session
+    if trim.removed_last_bar or trim.status.startswith("última barra cerrada") or trim.status == "sin sesión de cierre":
+        partial = False
+    data_freshness = replace(data_freshness, session_close_status=trim.status, may_be_partial_current_session=partial)
 
     snapshot = build_snapshot(
         symbol=asset.symbol,
@@ -124,6 +158,7 @@ def analyze_asset(
         scoring=config.scoring,
         risk=config.risk,
         portfolio=config.portfolio,
+        data_quality=config.data_quality,
         data_freshness=data_freshness,
     )
 
@@ -151,8 +186,15 @@ def run_analysis(
     # El panorama se descarga antes que el contexto: la sesión asiática, ya
     # cerrada cuando Europa abre, entra como señal en la puntuación de
     # contexto en vez de quedarse en un adorno del informe.
+    reference = now or datetime.now(timezone.utc)
     overview = fetch_overview(provider, universe)
-    context = fetch_market_context(provider, config.market_context, asia_session_change(overview))
+    context = fetch_market_context(
+        provider,
+        config.market_context,
+        asia_session_change(overview),
+        reference=reference,
+        settlement_minutes=config.data_quality.settlement_minutes,
+    )
     benchmark_cache: Dict[str, Optional[pd.Series]] = {}
 
     opportunities: List[Opportunity] = []
@@ -166,7 +208,12 @@ def run_analysis(
             if benchmark_symbol is not None:
                 if benchmark_symbol not in benchmark_cache:
                     benchmark_cache[benchmark_symbol] = _fetch_benchmark(
-                        provider, benchmark_symbol, window.period, window.interval
+                        provider,
+                        benchmark_symbol,
+                        window.period,
+                        window.interval,
+                        reference,
+                        config.data_quality.settlement_minutes,
                     )
                 benchmark_close = benchmark_cache[benchmark_symbol]
             opportunity = analyze_asset(asset, config, provider, context, horizonte, benchmark_close, benchmark_symbol, now)
@@ -205,4 +252,17 @@ def run_analysis(
         skipped=skipped,
         overview=overview,
         freshness_rows=freshness_rows,
+    )
+
+
+def _indicator_reference_sessions(config: AdvisorConfig) -> int:
+    return max(
+        config.indicators.sma_long,
+        config.indicators.ema_slow,
+        config.indicators.rsi_period + 1,
+        config.indicators.atr_period + 1,
+        config.indicators.macd_slow + config.indicators.macd_signal,
+        config.indicators.volume_lookback + 1,
+        config.levels.lookback_bars,
+        120,
     )

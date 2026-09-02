@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import sys
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -35,6 +36,7 @@ from advisor.data.freshness import (
 )
 from advisor.data.fx import FxConverter
 from advisor.data.market_data import MarketDataProvider
+from advisor.data.sessions import market_for_symbol, market_session
 from advisor.deploy.systemd import DEFAULT_CONFIG_ENV, DEFAULT_SYSTEMD_DIR, find_systemd_drift, write_rendered_units
 from advisor.events.calendar import EventCalendar, YahooEarningsSource
 from advisor.events.passes import decide_event_pass, format_event_trigger
@@ -42,7 +44,12 @@ from advisor.report.formatter import format_report
 from advisor.report.money import MoneyFormatter
 from advisor.report.tracking import format_reviews, review_positions
 from advisor.research.ablation import format_ablation_report, run_ablation
-from advisor.research.capacity import assess_capacity, format_capacity_report
+from advisor.research.capacity import (
+    assess_capacity,
+    format_capacity_report,
+    format_preregistered_estimators,
+    preregistered_estimators,
+)
 from advisor.research.event_study import format_event_study_report, run_event_study
 from advisor.research.uncertainty import compare_target_geometry, format_paired_comparison
 from advisor.research.vintage import freeze_vintage, select_symbols
@@ -143,7 +150,12 @@ def freshness_row_to_measurement(row: FreshnessRow, measured_at: str) -> Dict[st
         "absent_reference_sessions": [
             value.isoformat() for value in freshness.absent_reference_sessions
         ] if freshness is not None else [],
+        "absent_recent_sessions": [
+            value.isoformat() for value in freshness.absent_recent_sessions
+        ] if freshness is not None else [],
         "reference_sessions_checked": freshness.reference_sessions_checked if freshness is not None else 0,
+        "veto_window_sessions": freshness.veto_window_sessions if freshness is not None else 0,
+        "quality": freshness.quality if freshness is not None else "SIN_DATO",
         "error": row.error,
     }
 
@@ -165,14 +177,13 @@ def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Univ
         # llega a leer.
         a_redactar = result.by_radar(RADAR_OPERAR)[: config.report.top_n]
         redactadas = {o.asset.symbol: o for o in enrich_with_narrative(a_redactar, config.ai)}
-        result = AnalysisResult(
-            generated_at=result.generated_at,
-            horizonte=result.horizonte,
-            interval=result.interval,
-            context=result.context,
+        # `replace` y no un constructor a mano: reconstruir el resultado campo a
+        # campo ya perdió `freshness_rows` en silencio, y con la IA activada
+        # —que es como corre la Pi— eso dejaba el histórico de frescura vacío
+        # sin que fallara nada.
+        result = replace(
+            result,
             opportunities=[redactadas.get(o.asset.symbol, o) for o in result.opportunities],
-            skipped=result.skipped,
-            overview=result.overview,
         )
 
     report = format_report(result, config, fx, _build_calendar(config))
@@ -319,6 +330,10 @@ def medir_frescura_datos(
                     reference,
                     benchmark_close=benchmark_close,
                     benchmark_symbol=benchmark_symbol,
+                    asset_timezone=asset.timezone,
+                    benchmark_timezone=market_session(market_for_symbol(benchmark_symbol)).timezone
+                    if benchmark_symbol
+                    else None,
                 ),
             )
         )
@@ -375,14 +390,13 @@ def cmd_pasada_evento(args: argparse.Namespace, config: AdvisorConfig, universe:
 
         a_redactar = result.by_radar(RADAR_OPERAR)[: config.report.top_n]
         redactadas = {o.asset.symbol: o for o in enrich_with_narrative(a_redactar, config.ai)}
-        result = AnalysisResult(
-            generated_at=result.generated_at,
-            horizonte=result.horizonte,
-            interval=result.interval,
-            context=result.context,
+        # `replace` y no un constructor a mano: reconstruir el resultado campo a
+        # campo ya perdió `freshness_rows` en silencio, y con la IA activada
+        # —que es como corre la Pi— eso dejaba el histórico de frescura vacío
+        # sin que fallara nada.
+        result = replace(
+            result,
             opportunities=[redactadas.get(o.asset.symbol, o) for o in result.opportunities],
-            skipped=result.skipped,
-            overview=result.overview,
         )
 
     prefix = format_event_trigger(decision.events)
@@ -413,7 +427,7 @@ def cmd_event_study(args: argparse.Namespace, config: AdvisorConfig, universe: U
         cost_pct=args.coste_pct,
         root_dir=args.data_dir,
     )
-    print(format_event_study_report(result))
+    print(format_event_study_report(result, format_preregistered_estimators(preregistered_estimators(result, universe=universe))))
     return 0
 
 

@@ -18,9 +18,12 @@ from advisor.research.capacity import (
     DEFAULT_THRESHOLDS,
     INSUFICIENTE,
     CapacityReport,
+    PreregisteredEstimatorSummary,
     TemporalBlockMap,
     _temporal_block_lookup,
     assess_capacity,
+    format_preregistered_estimators,
+    preregistered_estimators,
 )
 from advisor.research.event_study import (
     FINAL_EXIT,
@@ -60,6 +63,7 @@ class PairedComparison:
     levels_b: Dict[str, object]
     population: PairedPopulation
     capacity: CapacityReport
+    estimators_a: PreregisteredEstimatorSummary
     results: Tuple[BlockBootstrapResult, ...]
     conclusion_estable: bool
     verdict: str
@@ -188,6 +192,7 @@ def compare_target_geometry(
         levels_b=levels_b.model_dump(),
         population=paired,
         capacity=capacity,
+        estimators_a=preregistered_estimators(result_a, universe=universe),
         results=results,
         conclusion_estable=conclusion_estable,
         verdict=verdict,
@@ -224,6 +229,7 @@ def format_paired_comparison(comparison: PairedComparison) -> str:
         f"n_blocks={comparison.capacity.global_summary.n_blocks}; "
         f"resolution={comparison.capacity.global_summary.resolution}; "
         f"reasons={list(comparison.capacity.global_summary.reasons)}",
+        format_preregistered_estimators(comparison.estimators_a),
         f"comparaciones_publicadas=1 par de políticas x {len(comparison.results)} longitudes de bloque = {comparison.comparaciones_publicadas} filas",
         "La réplica conserva las señales y las bandas de score de A; solo reevalúa niveles administrados.",
         "",

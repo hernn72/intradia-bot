@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 
 from advisor.config import MarketContextConfig
 from advisor.data.market_data import MarketDataProvider
+from advisor.data.sessions import market_for_symbol, trim_unclosed_bar
 from advisor.indicators.technical import sma
 
 logger = logging.getLogger(__name__)
@@ -145,6 +147,8 @@ def fetch_market_context(
     provider: MarketDataProvider,
     config: MarketContextConfig,
     asia_change_pct: Optional[float] = None,
+    reference: Optional[datetime] = None,
+    settlement_minutes: int = 20,
 ) -> MarketContext:
     """Descarga VIX e índice de referencia y clasifica el contexto.
 
@@ -152,7 +156,20 @@ def fetch_market_context(
     informe lo refleja como "N/D" en vez de abortar el análisis.
     """
 
-    vix_value, _ = provider.get_last_close(config.vix_symbol)
+    vix_value = None
+    try:
+        vix_history = provider.get_history(config.vix_symbol, period="5d", interval="1d")
+        vix_trimmed = trim_unclosed_bar(
+            vix_history,
+            market=market_for_symbol(config.vix_symbol),
+            reference=reference or datetime.now(timezone.utc),
+            settlement_minutes=settlement_minutes,
+            interval="1d",
+        )
+        if not vix_trimmed.df.empty:
+            vix_value = float(vix_trimmed.df["Close"].iloc[-1])
+    except Exception as exc:
+        logger.warning("Contexto de mercado — sin datos de %s: %s", config.vix_symbol, exc)
 
     trend_price: Optional[float] = None
     trend_sma: Optional[float] = None
@@ -161,10 +178,18 @@ def fetch_market_context(
     except Exception as exc:
         logger.warning("Contexto de mercado — sin datos de %s: %s", config.trend_symbol, exc)
     else:
-        close = history["Close"]
-        trend_price = float(close.iloc[-1])
-        if len(close) >= config.trend_sma:
-            last_sma = sma(close, config.trend_sma).iloc[-1]
-            trend_sma = float(last_sma) if last_sma == last_sma else None  # NaN-safe
+        trimmed = trim_unclosed_bar(
+            history,
+            market=market_for_symbol(config.trend_symbol),
+            reference=reference or datetime.now(timezone.utc),
+            settlement_minutes=settlement_minutes,
+            interval="1d",
+        )
+        close = trimmed.df["Close"]
+        if not close.empty:
+            trend_price = float(close.iloc[-1])
+            if len(close) >= config.trend_sma:
+                last_sma = sma(close, config.trend_sma).iloc[-1]
+                trend_sma = float(last_sma) if last_sma == last_sma else None  # NaN-safe
 
     return build_market_context(vix_value, trend_price, trend_sma, config, asia_change_pct)

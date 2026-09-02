@@ -7,7 +7,14 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from advisor.config import AdvisorConfig
-from advisor.data.freshness import agrupar_frescura_por_fecha, calcular_frescura_dato, calcular_frescura_serie
+from advisor.data.freshness import (
+    QUALITY_DEGRADED,
+    QUALITY_INCOMPLETE,
+    QUALITY_OK,
+    agrupar_frescura_por_fecha,
+    calcular_frescura_dato,
+    calcular_frescura_serie,
+)
 from advisor.main import format_frescura_datos, format_frescura_historico, medir_frescura_datos
 from advisor.universe.models import Asset
 from tests.conftest import FakeProvider, make_ohlcv
@@ -168,6 +175,27 @@ class TestMedirFrescuraDatos:
         assert "| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad | Referencia | Sesiones ausentes |" in salida
         assert "| SAP.DE | SAP.DE | XETRA | 2026-08-31 | hoy; al día; barra de hoy posiblemente parcial | ^STOXX | 2026-08-28 |" in salida
 
+    def test_calidad_incompleto_degradado_ok(self) -> None:
+        reference = datetime(2026, 8, 31, 18, 0, tzinfo=timezone.utc)
+        activo_incompleto = make_ohlcv(n=4, start_date="2026-08-26").drop(pd.Timestamp("2026-08-28", tz="UTC"))
+        activo_incompleto.loc[pd.Timestamp("2026-08-31", tz="UTC")] = activo_incompleto.iloc[-1]
+        benchmark = make_ohlcv(n=4, start_date="2026-08-26")
+        benchmark.loc[pd.Timestamp("2026-08-31", tz="UTC")] = benchmark.iloc[-1]
+
+        incompleto = calcular_frescura_serie(
+            activo_incompleto.sort_index(),
+            reference,
+            benchmark_close=benchmark["Close"],
+            benchmark_symbol="^STOXX",
+        )
+        degradado = calcular_frescura_serie(make_ohlcv(n=2, start_date="2026-08-26"), reference)
+        ok = calcular_frescura_serie(make_ohlcv(n=4, start_date="2026-08-26"), reference, benchmark["Close"], "^STOXX")
+
+        assert incompleto.quality == QUALITY_INCOMPLETE
+        assert "INCOMPLETO" in incompleto.quality_reasons[0]
+        assert degradado.quality == QUALITY_DEGRADED
+        assert ok.quality == QUALITY_OK
+
     def test_formatea_historico_persistido(self, tmp_path) -> None:
         from advisor.storage.db import AdvisorDB
 
@@ -184,7 +212,10 @@ class TestMedirFrescuraDatos:
                 "sessions_approx": 0,
                 "may_be_partial_current_session": True,
                 "absent_reference_sessions": ["2026-08-28"],
+                "absent_recent_sessions": ["2026-08-28"],
                 "reference_sessions_checked": 10,
+                "veto_window_sessions": 20,
+                "quality": "INCOMPLETO",
                 "error": None,
             }
         ])
@@ -192,3 +223,93 @@ class TestMedirFrescuraDatos:
         salida = format_frescura_historico(db.get_recent_freshness_measurements())
 
         assert "| 2026-09-02T08:30:00+00:00 | SAP.DE | SAP.DE | XETRA | 2026-08-31 | al día | ^STOXX | sí | 2026-08-28 |  |" in salida
+
+    def test_hueco_viejo_declara_pero_no_veta(self) -> None:
+        """Un hueco fuera de la ventana de veto se declara, no bloquea abrir.
+
+        Medido el 2026-09-02 sobre el universo real: con la ventana larga,
+        AZN, TSM y NOVO-B.CO quedaban vetados por sesiones que les faltaban
+        hace meses, y ese veto no habría caducado nunca.
+        """
+
+        reference = datetime(2026, 8, 31, 18, 0, tzinfo=timezone.utc)
+        benchmark = make_ohlcv(n=30, start_date="2026-07-20")
+        hueco = pd.Timestamp(benchmark.index[2])
+        activo = benchmark.drop(hueco)
+
+        viejo = calcular_frescura_serie(
+            activo,
+            reference,
+            benchmark_close=benchmark["Close"],
+            benchmark_symbol="^STOXX",
+            recent_reference_sessions=200,
+            veto_window_sessions=5,
+        )
+        reciente = calcular_frescura_serie(
+            activo,
+            reference,
+            benchmark_close=benchmark["Close"],
+            benchmark_symbol="^STOXX",
+            recent_reference_sessions=200,
+            veto_window_sessions=200,
+        )
+
+        assert viejo.absent_reference_sessions == (hueco.date(),)
+        assert viejo.absent_recent_sessions == ()
+        assert viejo.quality == QUALITY_DEGRADED
+        assert reciente.quality == QUALITY_INCOMPLETE
+
+
+class TestPersistenciaEnLaPasadaReal:
+    """La IA activada no puede vaciar el histórico de frescura.
+
+    `cmd_analizar` reconstruía el `AnalysisResult` campo a campo tras redactar
+    con la IA y se dejaba `freshness_rows` fuera. Los tests pasaban, pero en la
+    Pi —que corre con la IA activada— no se guardaba ni una medición.
+    """
+
+    def test_guarda_frescura_con_la_ia_activada(self, tmp_path, monkeypatch) -> None:
+        import argparse
+        from datetime import datetime, timezone as tz
+
+        import advisor.ai.narrator as narrator
+        import advisor.main as main
+        from advisor.analysis.analyzer import AnalysisResult
+        from advisor.config import load_config
+        from advisor.data.freshness import FreshnessRow, calcular_frescura_dato
+        from advisor.storage.db import AdvisorDB
+        from advisor.universe.loader import load_universe
+
+        reference = datetime(2026, 9, 2, 10, 0, tzinfo=tz.utc)
+        fila = FreshnessRow(
+            symbol="SAP.DE",
+            data_symbol="SAP.DE",
+            market="XETRA",
+            freshness=calcular_frescura_dato(pd.Timestamp("2026-09-01", tz="UTC"), reference),
+        )
+        resultado = AnalysisResult(
+            generated_at=reference,
+            horizonte="swing",
+            interval="1d",
+            context=None,
+            opportunities=[],
+            skipped=[],
+            overview=[],
+            freshness_rows=[fila],
+        )
+
+        config = load_config("config.yaml").model_copy(update={"db_path": tmp_path / "pasada.db"})
+        assert config.ai.enabled, "el test cubre justo el camino con IA"
+
+        monkeypatch.setattr(main, "run_analysis", lambda *a, **k: resultado)
+        monkeypatch.setattr(main, "format_report", lambda *a, **k: "")
+        monkeypatch.setattr(main, "_build_calendar", lambda *a, **k: None)
+        monkeypatch.setattr(narrator, "enrich_with_narrative", lambda opportunities, _config: opportunities)
+
+        args = argparse.Namespace(
+            grupos=None, horizonte="swing", sin_ia=False, sin_guardar=False, telegram=False
+        )
+        assert main.cmd_analizar(args, config, load_universe("universe.yaml")) == 0
+
+        guardadas = AdvisorDB(config.db_path).get_recent_freshness_measurements()
+        assert [row["symbol"] for row in guardadas] == ["SAP.DE"]

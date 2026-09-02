@@ -21,7 +21,7 @@ import pandas as pd
 
 from advisor.config import IndicatorsConfig, LevelsConfig
 from advisor.indicators.technical import atr as atr_series
-from advisor.indicators.technical import ema, last_atr, macd, relative_strength, rsi, sma
+from advisor.indicators.technical import ema, last_atr, macd, relative_strength, relative_strength_series, rsi, sma
 
 RETURN_SHORT_BARS = 20
 RETURN_MEDIUM_BARS = 60
@@ -165,17 +165,9 @@ def build_snapshot_series(
 ) -> SnapshotSeries:
     """Calcula indicadores causales para todo ``df`` sin cambiar su semántica en cada vela.
 
-    ``benchmark_close`` debe venir indexado sobre las fechas de ``df``, con o
-    sin huecos: es lo que produce ``runner._align``. Los NaN se ignoran, el
-    retorno del índice se calcula sobre sus últimas observaciones disponibles
-    y se reproyecta a las fechas del activo arrastrando el último valor
-    conocido, que es lo que hace la referencia por prefijos.
-
-    Un benchmark con índice propio y distinto al del activo NO reproduce esa
-    referencia: ``relative_strength`` compara ahí por posición dos series de
-    longitudes distintas, y esta función compara por fecha. Medido, no
-    supuesto. Ese caso no se da hoy porque el único llamante recibe la serie
-    ya alineada.
+    ``benchmark_close`` puede venir con calendario propio. La fortaleza
+    relativa se calcula por intersección de sesiones comunes, con la misma
+    función que usa el camino puntual de producción.
     """
 
     if df is None or df.empty:
@@ -220,11 +212,7 @@ def build_snapshot_series(
 
     rs = None
     if benchmark_close is not None and not benchmark_close.empty:
-        compact_benchmark = benchmark_close.dropna()
-        if len(compact_benchmark) > RETURN_SHORT_BARS:
-            benchmark_return = compact_benchmark.pct_change(RETURN_SHORT_BARS) * 100
-            projected_benchmark_return = benchmark_return.reindex(df.index, method="ffill")
-            rs = close.pct_change(RETURN_SHORT_BARS) * 100 - projected_benchmark_return
+        rs = relative_strength_series(close, benchmark_close, RETURN_SHORT_BARS)
 
     return SnapshotSeries(
         df=df,

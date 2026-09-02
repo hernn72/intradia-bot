@@ -119,7 +119,10 @@ CREATE TABLE IF NOT EXISTS data_freshness_measurement (
     sessions_approx                INTEGER,
     may_be_partial_current_session  INTEGER NOT NULL,
     absent_reference_sessions       TEXT NOT NULL,
+    absent_recent_sessions          TEXT NOT NULL,
     reference_sessions_checked      INTEGER NOT NULL,
+    veto_window_sessions            INTEGER NOT NULL,
+    quality                         TEXT NOT NULL,
     error                           TEXT
 );
 
@@ -202,7 +205,8 @@ class AdvisorDB:
         columns = [
             "measured_at", "symbol", "data_symbol", "market", "benchmark_symbol",
             "last_bar_date", "natural_days", "sessions_approx", "may_be_partial_current_session",
-            "absent_reference_sessions", "reference_sessions_checked", "error",
+            "absent_reference_sessions", "absent_recent_sessions", "reference_sessions_checked",
+            "veto_window_sessions", "quality", "error",
         ]
         placeholders = ", ".join(f":{column}" for column in columns)
         sql = f"INSERT INTO data_freshness_measurement ({', '.join(columns)}) VALUES ({placeholders})"
@@ -424,8 +428,10 @@ def freshness_measurement_to_row(row: Dict[str, Any]) -> Dict[str, Any]:
     """Convierte una medición de frescura a tipos persistibles en SQLite."""
 
     absent = row.get("absent_reference_sessions") or ()
+    absent_recent = row.get("absent_recent_sessions") or ()
     return {
         **row,
         "may_be_partial_current_session": int(bool(row.get("may_be_partial_current_session"))),
         "absent_reference_sessions": json.dumps(list(absent), ensure_ascii=False),
+        "absent_recent_sessions": json.dumps(list(absent_recent), ensure_ascii=False),
     }

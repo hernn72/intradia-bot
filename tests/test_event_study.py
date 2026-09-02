@@ -147,6 +147,25 @@ def test_intervalo_por_banda_usa_seguros_y_ambiguos_sin_colapsar() -> None:
     assert all(band.lower <= band.upper for band in by_label.values())
 
 
+def test_informe_event_study_publica_estimadores_pre_registrados() -> None:
+    from advisor.research.event_study import EventStudyResult, format_event_study_report
+
+    result = EventStudyResult(
+        data_vintage_id="vintage",
+        horizonte="swing",
+        cost_pct=0.2,
+        warmup_bars=120,
+        max_hold_bars=40,
+        signals=[_signal(score=85.0, status=TARGET_FIRST)],
+    )
+
+    report = format_event_study_report(result, "Estimadores pre-registrados 2026-09-02: primario=x; secundarios=y")
+
+    assert "Estimadores pre-registrados 2026-09-02" in report
+    assert "primario=" in report
+    assert "secundarios=" in report
+
+
 def test_summarize_por_defecto_no_cambia() -> None:
     signals = [
         _signal(score=45.0, status=STOP_FIRST),

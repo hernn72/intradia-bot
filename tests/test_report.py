@@ -173,7 +173,7 @@ class TestFormatOpportunity:
             REPORT_REFERENCE,
         )
 
-        assert "**Datos de mercado:** última barra 2026-08-26" in ficha
+        assert "**Datos de mercado:** DEGRADADO; última barra 2026-08-26" in ficha
         assert "hace 4 días naturales; ≈2 sesiones sin festivos" in ficha
         assert "Dato retrasado" in ficha
 

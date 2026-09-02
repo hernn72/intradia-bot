@@ -22,6 +22,7 @@ from advisor.analysis.scoring import Component, Dimension, Score, compute_score
 from advisor.analysis.sizing import calculate_position_sizing
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
+from advisor.data.freshness import QUALITY_DEGRADED, QUALITY_INCOMPLETE, DataFreshness
 from tests.conftest import make_ohlcv
 
 
@@ -560,3 +561,42 @@ class TestClassify:
         )
         assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
         assert motivos == []
+
+    def test_incompleto_veta_apertura_sin_tocar_score(self, asset_eur, benign_context) -> None:
+        score = self._score_con_valor(90.0)
+        freshness = DataFreshness(
+            last_bar_date=pd.Timestamp("2026-08-31").date(),
+            natural_days=0,
+            sessions_approx=0,
+            label="hoy; al día",
+            benchmark_symbol="^STOXX",
+            quality=QUALITY_INCOMPLETE,
+            quality_reasons=("INCOMPLETO: faltan sesiones cerradas frente al calendario del benchmark 2026-08-28",),
+        )
+
+        radar, accion, motivos = classify(
+            score, compute_levels(make_snapshot(), LevelsConfig()), benign_context,
+            ScoringConfig(), RiskConfig(), asset_eur, data_freshness=freshness,
+        )
+
+        assert score.value == 90.0
+        assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
+        assert any("apertura vetada" in motivo for motivo in motivos)
+
+    def test_degradado_declara_pero_no_veta(self, asset_eur, benign_context) -> None:
+        freshness = DataFreshness(
+            last_bar_date=pd.Timestamp("2026-08-29").date(),
+            natural_days=2,
+            sessions_approx=1,
+            label="hace 2 días naturales; ≈1 sesión sin festivos",
+            quality=QUALITY_DEGRADED,
+            quality_reasons=("DEGRADADO: dato viejo",),
+        )
+
+        radar, accion, motivos = classify(
+            self._score_con_valor(90.0), compute_levels(make_snapshot(), LevelsConfig()), benign_context,
+            ScoringConfig(), RiskConfig(), asset_eur, data_freshness=freshness,
+        )
+
+        assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
+        assert motivos == ["DEGRADADO: dato viejo"]

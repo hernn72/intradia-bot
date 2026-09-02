@@ -271,10 +271,14 @@ def run_event_study_on_vintage(
             if benchmark_symbol not in benchmark_cache:
                 benchmark_cache[benchmark_symbol] = _frozen_close(vintage, benchmark_symbol)
             benchmark_close = benchmark_cache[benchmark_symbol]
-        bench = _align(benchmark_close, signal_df.index)
-
         try:
-            snapshot_series = build_snapshot_series(signal_df, config.indicators, config.levels, window.interval, bench)
+            snapshot_series = build_snapshot_series(
+                signal_df,
+                config.indicators,
+                config.levels,
+                window.interval,
+                benchmark_close,
+            )
         except ValueError as exc:
             result.skipped.append((symbol, str(exc)))
             continue
@@ -541,7 +545,7 @@ def summarize_by_score_band(
     return summaries
 
 
-def format_event_study_report(result: EventStudyResult) -> str:
+def format_event_study_report(result: EventStudyResult, estimator_summary: Optional[str] = None) -> str:
     """Informe textual por bandas, manteniendo probabilidades como intervalo."""
 
     lines = [
@@ -554,6 +558,8 @@ def format_event_study_report(result: EventStudyResult) -> str:
     ]
     if result.skipped:
         lines.append(f"Saltos registrados: {len(result.skipped)}")
+    if estimator_summary is not None:
+        lines.extend(["", estimator_summary])
     counts = result.status_counts
     lines.extend(
         [
