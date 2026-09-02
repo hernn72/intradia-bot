@@ -162,6 +162,8 @@ def build_snapshot_series(
     levels: LevelsConfig,
     interval: str,
     benchmark_close: Optional[pd.Series] = None,
+    asset_timezone: Optional[str] = None,
+    benchmark_timezone: Optional[str] = None,
 ) -> SnapshotSeries:
     """Calcula indicadores causales para todo ``df`` sin cambiar su semántica en cada vela.
 
@@ -212,7 +214,9 @@ def build_snapshot_series(
 
     rs = None
     if benchmark_close is not None and not benchmark_close.empty:
-        rs = relative_strength_series(close, benchmark_close, RETURN_SHORT_BARS)
+        rs = relative_strength_series(
+            close, benchmark_close, RETURN_SHORT_BARS, asset_timezone, benchmark_timezone
+        )
 
     return SnapshotSeries(
         df=df,
@@ -284,6 +288,8 @@ def build_snapshot(
     levels: LevelsConfig,
     interval: str,
     benchmark_close: Optional[pd.Series] = None,
+    asset_timezone: Optional[str] = None,
+    benchmark_timezone: Optional[str] = None,
 ) -> TechnicalSnapshot:
     """Calcula el ``TechnicalSnapshot`` de ``symbol`` a partir de su OHLCV.
 
@@ -347,7 +353,9 @@ def build_snapshot(
 
     rs = None
     if benchmark_close is not None and not benchmark_close.empty:
-        rs = relative_strength(close, benchmark_close, RETURN_SHORT_BARS)
+        rs = relative_strength(
+            close, benchmark_close, RETURN_SHORT_BARS, asset_timezone, benchmark_timezone
+        )
 
     return TechnicalSnapshot(
         symbol=symbol,

@@ -119,3 +119,35 @@ class TestRelativeStrength:
     def test_lookback_invalido(self) -> None:
         with pytest.raises(ValueError):
             relative_strength(pd.Series([1.0]), pd.Series([1.0]), 0)
+
+
+def test_fortaleza_relativa_alinea_por_zona_en_la_cosecha_real() -> None:
+    """Un ETF alemán sobre el S&P no puede compararse contra el índice de la víspera.
+
+    La cosecha sella cada barra a la medianoche local de su plaza expresada en
+    UTC: una sesión de Fráncfort viaja como `…T22:00:00Z` del día anterior y una
+    de Nueva York como `…T04:00:00Z` del mismo día. Sin declarar la zona, la
+    intersección empareja sesiones desplazadas un día.
+    """
+
+    from pathlib import Path
+
+    import pytest
+
+    from advisor.indicators.technical import _session_index
+
+    VINTAGE_ID = "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841"
+    vintage_dir = Path("data/vintages") / VINTAGE_ID
+    if not vintage_dir.is_dir():
+        pytest.skip(f"cosecha real no disponible: {vintage_dir}")
+
+    activo = pd.read_csv(vintage_dir / "SXR8.DE.csv", index_col=0)
+    indice = pd.read_csv(vintage_dir / "%5EGSPC.csv", index_col=0)
+
+    sin_zona = _session_index(pd.Index(activo.index)).intersection(_session_index(pd.Index(indice.index)))
+    con_zona = _session_index(pd.Index(activo.index), "Europe/Berlin").intersection(
+        _session_index(pd.Index(indice.index), "America/New_York")
+    )
+
+    assert len(sin_zona) < len(con_zona)
+    assert len(con_zona) > 1200

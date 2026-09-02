@@ -270,7 +270,8 @@ class TestPersistenciaEnLaPasadaReal:
 
     def test_guarda_frescura_con_la_ia_activada(self, tmp_path, monkeypatch) -> None:
         import argparse
-        from datetime import datetime, timezone as tz
+        from datetime import datetime
+        from datetime import timezone as tz
 
         import advisor.ai.narrator as narrator
         import advisor.main as main

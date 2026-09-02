@@ -14,6 +14,7 @@ necesitaba la estrategia de tendencia original.
 from __future__ import annotations
 
 from typing import Tuple
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -139,12 +140,26 @@ def macd(
     return macd_line, signal_line, macd_line - signal_line
 
 
-def relative_strength_series(series: pd.Series, benchmark: pd.Series, lookback: int) -> pd.Series:
+def relative_strength_series(
+    series: pd.Series,
+    benchmark: pd.Series,
+    lookback: int,
+    series_timezone: str | None = None,
+    benchmark_timezone: str | None = None,
+) -> pd.Series:
     """Fortaleza relativa por intersección de sesiones comunes.
 
     Activo y benchmark se reducen simétricamente a las mismas fechas antes de
     calcular retornos. No se arrastra el último cierre del benchmark ni se
     compara por posición de índice.
+
+    Las zonas horarias no son un adorno: la cosecha congelada sella cada barra
+    a la medianoche local de su plaza expresada en UTC, así que una sesión de
+    Fráncfort viaja como ``…T22:00:00Z`` del día anterior y una de Nueva York
+    como ``…T04:00:00Z`` del mismo día. Sin declarar la zona, un ETF alemán
+    sobre el S&P 500 se compara contra el índice de la víspera. Medido sobre la
+    cosecha: `SXR8.DE` contra `^GSPC` daba 982 sesiones comunes de 1.255, y
+    alineado por zona da 1.235.
     """
 
     if lookback <= 0:
@@ -156,8 +171,8 @@ def relative_strength_series(series: pd.Series, benchmark: pd.Series, lookback: 
 
     asset = series.dropna().copy()
     bench = benchmark.dropna().copy()
-    asset_dates = _session_index(asset.index)
-    bench_dates = _session_index(bench.index)
+    asset_dates = _session_index(asset.index, series_timezone)
+    bench_dates = _session_index(bench.index, benchmark_timezone)
     asset.index = asset_dates
     bench.index = bench_dates
     asset = asset[~asset.index.duplicated(keep="last")]
@@ -171,13 +186,19 @@ def relative_strength_series(series: pd.Series, benchmark: pd.Series, lookback: 
     aligned_bench = bench.reindex(common)
     rs_common = aligned_asset.pct_change(lookback) * 100 - aligned_bench.pct_change(lookback) * 100
 
-    target = _session_index(series.index)
+    target = _session_index(series.index, series_timezone)
     values = rs_common.reindex(target)
     values.index = series.index
     return values
 
 
-def relative_strength(series: pd.Series, benchmark: pd.Series, lookback: int) -> float | None:
+def relative_strength(
+    series: pd.Series,
+    benchmark: pd.Series,
+    lookback: int,
+    series_timezone: str | None = None,
+    benchmark_timezone: str | None = None,
+) -> float | None:
     """Fortaleza relativa: diferencia (en puntos porcentuales) entre el retorno
     del activo y el del índice de referencia en las últimas ``lookback`` velas.
 
@@ -186,7 +207,9 @@ def relative_strength(series: pd.Series, benchmark: pd.Series, lookback: int) ->
     referencia.
     """
 
-    values = relative_strength_series(series, benchmark, lookback)
+    values = relative_strength_series(
+        series, benchmark, lookback, series_timezone, benchmark_timezone
+    )
     if values.empty:
         return None
     value = values.iloc[-1]
@@ -195,7 +218,7 @@ def relative_strength(series: pd.Series, benchmark: pd.Series, lookback: int) ->
     return float(value)
 
 
-def _session_index(index: pd.Index) -> pd.Index:
+def _session_index(index: pd.Index, timezone_name: str | None = None) -> pd.Index:
     if isinstance(index, pd.DatetimeIndex):
         idx = index
     else:
@@ -204,5 +227,7 @@ def _session_index(index: pd.Index) -> pd.Index:
         except (TypeError, ValueError):
             return pd.Index(index)
     if idx.tz is not None:
+        if timezone_name is not None:
+            idx = idx.tz_convert(ZoneInfo(timezone_name))
         idx = idx.tz_localize(None)
     return idx.normalize()

@@ -140,6 +140,10 @@ def analyze_asset(
         levels=config.levels,
         interval=window.interval,
         benchmark_close=benchmark_close,
+        asset_timezone=asset.timezone,
+        benchmark_timezone=(
+            market_session(market_for_symbol(benchmark_symbol)).timezone if benchmark_symbol else None
+        ),
     )
 
     levels = compute_levels(snapshot, config.levels)

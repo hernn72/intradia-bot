@@ -22,6 +22,8 @@ from advisor.analysis.market_context import build_market_context
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import SnapshotSeries, build_snapshot_series, snapshot_from_series
 from advisor.config import AdvisorConfig, LevelsConfig
+from advisor.data.freshness import mercado_para_simbolo
+from advisor.data.sessions import market_for_symbol, market_session
 from advisor.indicators.technical import sma
 from advisor.research.observations import SignalObservation, build_signal_observation
 from advisor.research.timestamps import parse_timestamp, timestamp_raw
@@ -278,6 +280,12 @@ def run_event_study_on_vintage(
                 config.levels,
                 window.interval,
                 benchmark_close,
+                asset_timezone=market_session(mercado_para_simbolo(asset, symbol)).timezone,
+                benchmark_timezone=(
+                    market_session(market_for_symbol(benchmark_symbol)).timezone
+                    if benchmark_symbol
+                    else None
+                ),
             )
         except ValueError as exc:
             result.skipped.append((symbol, str(exc)))
