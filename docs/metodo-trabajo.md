@@ -453,7 +453,28 @@ Una tarea está terminada solo cuando **todo** esto es cierto:
 
 ---
 
-## 11. Ficha de proveedor externo (obligatoria antes de escribir un collector)
+## 11. Límites de la sesión de Codex
+
+Comprobados el 2026-09-14, cada uno a costa de una ejecución de ficha. No los
+anuncia: se presentan como BLOCKER de la tarea.
+
+| Límite | Síntoma | Cómo se compensa |
+|---|---|---|
+| No escribe en `.git` | `Unable to create '.git/index.lock': Operation not permitted` | La rama se crea antes desde Claude Code; Codex deja el árbol listo y **lista en el handoff los ficheros a commitear**; el commit y el push los hace Claude Code |
+| No tiene DNS | `Failed to resolve 'pypi.org'`; el proveedor de datos no responde | Las dependencias se instalan antes; la verificación contra datos reales la ejecuta Claude Code y se anota quién la hizo |
+| No escribe fuera del directorio principal del repositorio | En un worktree hermano falla hasta `mkdir` | **Nada de worktrees**: las fichas en paralelo se serializan, o las hace Claude Code |
+
+Git en solo lectura (`status`, `diff`, `log`, `rev-parse`) sí funciona, así que
+Codex puede establecer su línea base y medir su propio diff.
+
+Consecuencia sobre la sección 8: cuando Codex es el autor, el ciclo real es
+**Codex implementa → Claude Code verifica contra datos reales y commitea →
+revisor independiente**. La verificación real no es opcional por delegarla:
+es el paso que descubrió los defectos de las tres últimas entregas.
+
+---
+
+## 12. Ficha de proveedor externo (obligatoria antes de escribir un collector)
 
 Copiar a la ficha de la tarea que introduce la fuente (B-02, B-03, B-04,
 B-05, o una segunda fuente de precios si OD-02 lo decide). Sin esta ficha

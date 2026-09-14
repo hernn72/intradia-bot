@@ -9,40 +9,47 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — 2026-09-14
+# START HERE — actualizado 2026-09-14 (fin de la segunda sesión)
 
 Estado actual:
-- Rama `fix/execution-data-quality`, HEAD `e53e385`, 3 commits por delante de
-  `main` (`6d32cf2`). Árbol limpio salvo `graphify-out/` (sin seguimiento).
-- 398 tests, `ruff` y `mypy` limpios (verificado 2026-09-14, Python 3.12).
-- PR 1 (fases 1–3 de la línea 0) hecho en rama. PR 2–5 pendientes.
-- Laboratorio P2.0–P2.6 implementado, no congelado (GATE P2 abierto).
-- La Pi corre `d795127` según `docs/pendientes.md`; NO verificado desde aquí.
-- Línea base real capturada en `evidence/2026-09-14-L0-baseline/`.
-- Esta documentación (método, gates, decisiones, fichas) está en el árbol de
-  trabajo; el propietario decide si la commitea en esta rama antes del merge.
+- `main` sigue en `6d32cf2`. **Nada mergeado todavía**: cuatro ramas en cadena,
+  cada una desde la anterior, todas pusheadas y con CI verde:
+    fix/execution-data-quality   e53e385  PR 1 (fases 1-3) + docs previas
+    ci/github-actions            e5ed089  T-001 CI  · ACEPTADA
+    feat/run-manifest-migrations 1c76add  T-002 migraciones + manifiesto · ACEPTADA (revisada y desplegada)
+    fix/exchange-calendars       5fb3394  T-003 calendarios de plaza · EN_REVISION
+  `feat/universe-vintage` existe en `1c76add` y está vacía (T-006 no llegó a empezar).
+- La Pi corre `1c76add` (T-002), base migrada a v2, timers vivos, NTP ok.
+  Tiene ya instalada `exchange_calendars==4.13.2` (Python 3.13/ARM, verificada).
+- 431 tests, ruff y mypy limpios en `fix/exchange-calendars`.
 
-Primera acción del propietario (no de un agente):
-- OA-01: mergear `fix/execution-data-quality` en `main` (fast-forward).
+Primera acción del propietario:
+- OA-01: mergear la cadena en `main` (basta con `fix/exchange-calendars`, es lineal)
+  cuando T-003 esté aceptada. OA-02: branch protection con `checks (3.12)` y `checks (3.13)`.
 
 Primera tarea ejecutable:
-- T-001 — CI en GitHub Actions. Ficha: docs/tareas/T-001-ci-github-actions.md
+- **Revisión independiente de T-003** (obligatoria: toca fechado de sesiones).
+  Los puntos concretos a refutar están al final de
+  `docs/tareas/T-003-calendarios-de-plaza.md`, sección «Cierre de la ficha».
 
 Quién debe hacerla:
-- Codex
-
-Prompt exacto:
-- PROMPT_CODEX_TASK (abajo) con `<FICHA> = docs/tareas/T-001-ci-github-actions.md`
+- Opus (subagente `revisor` con PROMPT_REVIEW), no el autor.
 
 Qué debe devolver:
-- Rama `ci/github-actions` con el workflow, run de CI en verde en 3.12 y 3.13,
-  `evidence/<fecha>-T-001-ci/README.md`, ficha con handoff rellenado y el
-  bloque de branch protection para OA-02.
+- Hallazgos clasificados con reproducción y VEREDICTO ACEPTAR/CORREGIR/RECHAZAR.
 
 Criterio para continuar:
-- CI verde y ficha ACEPTADA → T-002 (Codex→Opus). Después, en paralelo:
-  T-003 (Codex→Opus) y T-006 (Codex). Luego T-004 (Opus) y T-005
-  (Opus→Codex→Opus). Orden completo en docs/roadmap.md, «Qué hacer ahora».
+- Aceptada T-003 → desplegar en la Pi y verificar allí → **T-004** (Opus: causa
+  de los huecos; la población exacta ya está medida: 28 activos con 2026-09-07,
+  14 con 2026-03-06, 2+2 en XKRX, 1 en XCSE) → **T-006** (universe vintage) →
+  T-005 (calidad y códigos).
+
+Cómo delegar en Codex (aprendido a golpes, ver docs/metodo-trabajo.md):
+- No puede escribir en `.git`: crea tú la rama, y el commit y el push los haces tú.
+- No tiene DNS: instala tú las dependencias y ejecuta tú las verificaciones
+  contra datos reales.
+- No escribe fuera del directorio principal del repositorio: **nada de
+  worktrees hermanos**; las fichas en paralelo se serializan.
 ```
 
 ---
