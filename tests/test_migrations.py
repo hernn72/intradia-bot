@@ -78,7 +78,7 @@ def _create_v1_db(path) -> None:
 def test_migrations_base_nueva_llega_a_ultima_version() -> None:
     db = AdvisorDB(":memory:")
 
-    assert db.schema_version() == 2
+    assert db.schema_version() == 3
     with db._connect() as conn:
         tables = {
             row["name"]
@@ -94,7 +94,7 @@ def test_migrations_base_v1_existente_se_marca_y_migra(tmp_path) -> None:
 
     db = AdvisorDB(path)
 
-    assert db.schema_version() == 2
+    assert db.schema_version() == 3
     with db._connect() as conn:
         assert conn.execute("SELECT count(*) FROM recommendation").fetchone()[0] == 3
         assert conn.execute("SELECT count(*) FROM recommendation WHERE run_id IS NULL").fetchone()[0] == 3
@@ -154,7 +154,7 @@ def test_migracion_que_falla_a_mitad_no_deja_esquema_a_medias(tmp_path, monkeypa
     # Con la migración buena, la misma base abre y migra sin tropezar con restos.
     monkeypatch.setattr(db_module, "MIGRATIONS", _REAL_MIGRATIONS)
     monkeypatch.setattr(migrations, "MIGRATIONS", _REAL_MIGRATIONS)
-    assert AdvisorDB(path).schema_version() == 2
+    assert AdvisorDB(path).schema_version() == 3
 
 
 def test_segunda_apertura_es_idempotente(tmp_path) -> None:
@@ -164,10 +164,10 @@ def test_segunda_apertura_es_idempotente(tmp_path) -> None:
     AdvisorDB(path)
     AdvisorDB(path)
 
-    assert len(list(tmp_path.glob("intradia.db.bak-*"))) == 1
+    assert len(list(tmp_path.glob("intradia.db.bak-*"))) == 2
     with sqlite3.connect(path) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
-        assert conn.execute("SELECT count(DISTINCT backup_path) FROM backup_log").fetchone()[0] == 1
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert conn.execute("SELECT count(DISTINCT backup_path) FROM backup_log").fetchone()[0] == 2
 
 
 def test_backup_conserva_los_conteos_registrados(tmp_path) -> None:
@@ -177,7 +177,9 @@ def test_backup_conserva_los_conteos_registrados(tmp_path) -> None:
     backup = next(tmp_path.glob("intradia.db.bak-*-pre-v2"))
 
     with sqlite3.connect(path) as conn:
-        logged = dict(conn.execute("SELECT table_name, row_count FROM backup_log").fetchall())
+        logged = dict(
+            conn.execute("SELECT table_name, row_count FROM backup_log WHERE backup_path = ?", (str(backup),)).fetchall()
+        )
     with sqlite3.connect(f"file:{backup}?mode=ro", uri=True) as copy:
         assert copy.execute("PRAGMA user_version").fetchone()[0] == 1
         for table, count in logged.items():

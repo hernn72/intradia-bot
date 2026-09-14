@@ -1,0 +1,835 @@
+2026-09-14 14:35:10 [INFO] advisor.analysis.analyzer: Analizando 107 activos (horizonte swing, velas de 1d)
+2026-09-14 14:35:10 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:10 [ERROR] yfinance: Failed to get ticker '510300.SS' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:10 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:10 [ERROR] advisor.data.market_data: Error al obtener datos de 510300.SS: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:10 [WARNING] advisor.analysis.overview: Panorama — sin datos de 510300.SS: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:11 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:11 [ERROR] yfinance: Failed to get ticker '^HSI' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:11 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:11 [ERROR] advisor.data.market_data: Error al obtener datos de ^HSI: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:11 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^HSI: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:12 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:12 [ERROR] yfinance: Failed to get ticker '^KS11' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:12 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:12 [ERROR] yfinance: $^KS11: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:12 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^KS11: No se han recibido datos para el símbolo '^KS11'
+2026-09-14 14:35:13 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:13 [ERROR] yfinance: Failed to get ticker '^N225' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:13 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:13 [ERROR] yfinance: $^N225: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:13 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^N225: No se han recibido datos para el símbolo '^N225'
+2026-09-14 14:35:14 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:14 [ERROR] yfinance: Failed to get ticker '^TWII' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:14 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:14 [ERROR] yfinance: $^TWII: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:14 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^TWII: No se han recibido datos para el símbolo '^TWII'
+2026-09-14 14:35:15 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:15 [ERROR] yfinance: Failed to get ticker '^FCHI' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:15 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:15 [ERROR] yfinance: $^FCHI: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:15 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^FCHI: No se han recibido datos para el símbolo '^FCHI'
+2026-09-14 14:35:16 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:16 [ERROR] yfinance: Failed to get ticker '^GDAXI' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:16 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:16 [ERROR] yfinance: $^GDAXI: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:16 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^GDAXI: No se han recibido datos para el símbolo '^GDAXI'
+2026-09-14 14:35:17 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:17 [ERROR] yfinance: Failed to get ticker '^STOXX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:17 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:17 [ERROR] yfinance: $^STOXX: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:17 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^STOXX: No se han recibido datos para el símbolo '^STOXX'
+2026-09-14 14:35:18 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:18 [ERROR] yfinance: Failed to get ticker '^STOXX50E' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:18 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:18 [ERROR] yfinance: $^STOXX50E: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:18 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^STOXX50E: No se han recibido datos para el símbolo '^STOXX50E'
+2026-09-14 14:35:19 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:19 [ERROR] yfinance: Failed to get ticker '^GSPC' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:19 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:19 [ERROR] yfinance: $^GSPC: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:19 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^GSPC: No se han recibido datos para el símbolo '^GSPC'
+2026-09-14 14:35:20 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:20 [ERROR] yfinance: Failed to get ticker '^NDX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:20 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:20 [ERROR] yfinance: $^NDX: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:20 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^NDX: No se han recibido datos para el símbolo '^NDX'
+2026-09-14 14:35:21 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:21 [ERROR] yfinance: Failed to get ticker '^RUT' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:21 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:21 [ERROR] yfinance: $^RUT: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:21 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^RUT: No se han recibido datos para el símbolo '^RUT'
+2026-09-14 14:35:22 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:22 [ERROR] yfinance: Failed to get ticker '^SOX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:22 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:22 [ERROR] yfinance: $^SOX: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:22 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^SOX: No se han recibido datos para el símbolo '^SOX'
+2026-09-14 14:35:23 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:23 [ERROR] yfinance: Failed to get ticker '^TNX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:23 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:23 [ERROR] yfinance: $^TNX: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:23 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^TNX: No se han recibido datos para el símbolo '^TNX'
+2026-09-14 14:35:24 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:24 [ERROR] yfinance: Failed to get ticker '^VIX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:24 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:24 [ERROR] yfinance: $^VIX: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:24 [WARNING] advisor.analysis.overview: Panorama — sin datos de ^VIX: No se han recibido datos para el símbolo '^VIX'
+2026-09-14 14:35:25 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:25 [ERROR] yfinance: Failed to get ticker 'CL=F' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:25 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:25 [ERROR] yfinance: $CL=F: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:25 [WARNING] advisor.analysis.overview: Panorama — sin datos de CL=F: No se han recibido datos para el símbolo 'CL=F'
+2026-09-14 14:35:26 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:26 [ERROR] yfinance: Failed to get ticker 'DX-Y.NYB' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:26 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:26 [ERROR] yfinance: $DX-Y.NYB: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:26 [WARNING] advisor.analysis.overview: Panorama — sin datos de DX-Y.NYB: No se han recibido datos para el símbolo 'DX-Y.NYB'
+2026-09-14 14:35:27 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:27 [ERROR] yfinance: Failed to get ticker 'EURUSD=X' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:27 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:27 [ERROR] yfinance: $EURUSD=X: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:27 [WARNING] advisor.analysis.overview: Panorama — sin datos de EURUSD=X: No se han recibido datos para el símbolo 'EURUSD=X'
+2026-09-14 14:35:28 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:28 [ERROR] yfinance: Failed to get ticker 'GC=F' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:28 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:28 [ERROR] yfinance: $GC=F: possibly delisted; no price data found  (period=1mo)
+2026-09-14 14:35:28 [WARNING] advisor.analysis.overview: Panorama — sin datos de GC=F: No se han recibido datos para el símbolo 'GC=F'
+2026-09-14 14:35:29 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:29 [ERROR] yfinance: Failed to get ticker '^VIX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:29 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:29 [ERROR] yfinance: $^VIX: possibly delisted; no price data found  (period=5d)
+2026-09-14 14:35:29 [WARNING] advisor.analysis.market_context: Contexto de mercado — sin datos de ^VIX: No se han recibido datos para el símbolo '^VIX'
+2026-09-14 14:35:30 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:30 [ERROR] yfinance: Failed to get ticker '^STOXX50E' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:30 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:30 [ERROR] yfinance: $^STOXX50E: possibly delisted; no price data found  (period=2y)
+2026-09-14 14:35:30 [WARNING] advisor.analysis.market_context: Contexto de mercado — sin datos de ^STOXX50E: No se han recibido datos para el símbolo '^STOXX50E'
+2026-09-14 14:35:31 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:31 [ERROR] yfinance: Failed to get ticker '^GSPC' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:31 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:31 [ERROR] yfinance: $^GSPC: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:31 [WARNING] advisor.analysis.analyzer: Sin datos del índice de referencia ^GSPC: No se han recibido datos para el símbolo '^GSPC'
+2026-09-14 14:35:32 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:32 [ERROR] yfinance: Failed to get ticker 'AAPL' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:32 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:32 [ERROR] yfinance: $AAPL: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:32 [WARNING] advisor.analysis.analyzer: AAPL descartado del análisis: No se han recibido datos para el símbolo 'AAPL'
+2026-09-14 14:35:33 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:33 [ERROR] yfinance: Failed to get ticker 'MSFT' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:33 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:33 [ERROR] yfinance: $MSFT: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:33 [WARNING] advisor.analysis.analyzer: MSFT descartado del análisis: No se han recibido datos para el símbolo 'MSFT'
+2026-09-14 14:35:34 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:34 [ERROR] yfinance: Failed to get ticker 'GOOGL' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:34 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:34 [ERROR] yfinance: $GOOGL: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:34 [WARNING] advisor.analysis.analyzer: GOOGL descartado del análisis: No se han recibido datos para el símbolo 'GOOGL'
+2026-09-14 14:35:35 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:35 [ERROR] yfinance: Failed to get ticker 'AMZN' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:35 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:35 [ERROR] yfinance: $AMZN: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:35 [WARNING] advisor.analysis.analyzer: AMZN descartado del análisis: No se han recibido datos para el símbolo 'AMZN'
+2026-09-14 14:35:36 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:36 [ERROR] yfinance: Failed to get ticker 'META' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:36 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:36 [ERROR] yfinance: $META: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:36 [WARNING] advisor.analysis.analyzer: META descartado del análisis: No se han recibido datos para el símbolo 'META'
+2026-09-14 14:35:37 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:37 [ERROR] yfinance: Failed to get ticker 'TSLA' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:37 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:37 [ERROR] yfinance: $TSLA: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:37 [WARNING] advisor.analysis.analyzer: TSLA descartado del análisis: No se han recibido datos para el símbolo 'TSLA'
+2026-09-14 14:35:38 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:38 [ERROR] yfinance: Failed to get ticker 'ORCL' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:38 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:38 [ERROR] yfinance: $ORCL: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:38 [WARNING] advisor.analysis.analyzer: ORCL descartado del análisis: No se han recibido datos para el símbolo 'ORCL'
+2026-09-14 14:35:39 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:39 [ERROR] yfinance: Failed to get ticker 'CRM' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:39 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:39 [ERROR] yfinance: $CRM: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:39 [WARNING] advisor.analysis.analyzer: CRM descartado del análisis: No se han recibido datos para el símbolo 'CRM'
+2026-09-14 14:35:40 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:40 [ERROR] yfinance: Failed to get ticker 'NOW' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:40 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:40 [ERROR] yfinance: $NOW: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:40 [WARNING] advisor.analysis.analyzer: NOW descartado del análisis: No se han recibido datos para el símbolo 'NOW'
+2026-09-14 14:35:41 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:41 [ERROR] yfinance: Failed to get ticker 'ADBE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:41 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:41 [ERROR] yfinance: $ADBE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:41 [WARNING] advisor.analysis.analyzer: ADBE descartado del análisis: No se han recibido datos para el símbolo 'ADBE'
+2026-09-14 14:35:42 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:42 [ERROR] yfinance: Failed to get ticker 'NFLX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:42 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:42 [ERROR] yfinance: $NFLX: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:42 [WARNING] advisor.analysis.analyzer: NFLX descartado del análisis: No se han recibido datos para el símbolo 'NFLX'
+2026-09-14 14:35:43 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:43 [ERROR] yfinance: Failed to get ticker 'NVDA' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:43 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:43 [ERROR] yfinance: $NVDA: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:43 [WARNING] advisor.analysis.analyzer: NVDA descartado del análisis: No se han recibido datos para el símbolo 'NVDA'
+2026-09-14 14:35:44 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:44 [ERROR] yfinance: Failed to get ticker 'AVGO' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:44 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:44 [ERROR] yfinance: $AVGO: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:44 [WARNING] advisor.analysis.analyzer: AVGO descartado del análisis: No se han recibido datos para el símbolo 'AVGO'
+2026-09-14 14:35:45 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:45 [ERROR] yfinance: Failed to get ticker 'AMD' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:45 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:45 [ERROR] yfinance: $AMD: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:45 [WARNING] advisor.analysis.analyzer: AMD descartado del análisis: No se han recibido datos para el símbolo 'AMD'
+2026-09-14 14:35:46 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:46 [ERROR] yfinance: Failed to get ticker 'MU' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:46 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:46 [ERROR] yfinance: $MU: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:46 [WARNING] advisor.analysis.analyzer: MU descartado del análisis: No se han recibido datos para el símbolo 'MU'
+2026-09-14 14:35:47 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:47 [ERROR] yfinance: Failed to get ticker 'QCOM' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:47 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:47 [ERROR] yfinance: $QCOM: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:47 [WARNING] advisor.analysis.analyzer: QCOM descartado del análisis: No se han recibido datos para el símbolo 'QCOM'
+2026-09-14 14:35:48 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:48 [ERROR] yfinance: Failed to get ticker 'MRVL' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:48 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:48 [ERROR] yfinance: $MRVL: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:48 [WARNING] advisor.analysis.analyzer: MRVL descartado del análisis: No se han recibido datos para el símbolo 'MRVL'
+2026-09-14 14:35:49 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:49 [ERROR] yfinance: Failed to get ticker 'INTC' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:49 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:49 [ERROR] yfinance: $INTC: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:49 [WARNING] advisor.analysis.analyzer: INTC descartado del análisis: No se han recibido datos para el símbolo 'INTC'
+2026-09-14 14:35:50 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:50 [ERROR] yfinance: Failed to get ticker 'AMAT' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:50 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:50 [ERROR] yfinance: $AMAT: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:50 [WARNING] advisor.analysis.analyzer: AMAT descartado del análisis: No se han recibido datos para el símbolo 'AMAT'
+2026-09-14 14:35:51 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:51 [ERROR] yfinance: Failed to get ticker 'LRCX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:51 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:51 [ERROR] yfinance: $LRCX: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:51 [WARNING] advisor.analysis.analyzer: LRCX descartado del análisis: No se han recibido datos para el símbolo 'LRCX'
+2026-09-14 14:35:52 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:52 [ERROR] yfinance: Failed to get ticker 'ARM' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:52 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:52 [ERROR] yfinance: $ARM: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:52 [WARNING] advisor.analysis.analyzer: ARM descartado del análisis: No se han recibido datos para el símbolo 'ARM'
+2026-09-14 14:35:53 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:53 [ERROR] yfinance: Failed to get ticker 'PLTR' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:53 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:53 [ERROR] yfinance: $PLTR: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:53 [WARNING] advisor.analysis.analyzer: PLTR descartado del análisis: No se han recibido datos para el símbolo 'PLTR'
+2026-09-14 14:35:54 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:54 [ERROR] yfinance: Failed to get ticker 'PANW' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:54 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:54 [ERROR] yfinance: $PANW: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:54 [WARNING] advisor.analysis.analyzer: PANW descartado del análisis: No se han recibido datos para el símbolo 'PANW'
+2026-09-14 14:35:55 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:55 [ERROR] yfinance: Failed to get ticker 'CRWD' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:55 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:55 [ERROR] yfinance: $CRWD: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:55 [WARNING] advisor.analysis.analyzer: CRWD descartado del análisis: No se han recibido datos para el símbolo 'CRWD'
+2026-09-14 14:35:56 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:56 [ERROR] yfinance: Failed to get ticker 'UBER' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:56 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:56 [ERROR] yfinance: $UBER: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:56 [WARNING] advisor.analysis.analyzer: UBER descartado del análisis: No se han recibido datos para el símbolo 'UBER'
+2026-09-14 14:35:57 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:57 [ERROR] yfinance: Failed to get ticker 'APP' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:57 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:57 [ERROR] yfinance: $APP: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:57 [WARNING] advisor.analysis.analyzer: APP descartado del análisis: No se han recibido datos para el símbolo 'APP'
+2026-09-14 14:35:58 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:58 [ERROR] yfinance: Failed to get ticker 'JPM' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:58 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:58 [ERROR] yfinance: $JPM: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:58 [WARNING] advisor.analysis.analyzer: JPM descartado del análisis: No se han recibido datos para el símbolo 'JPM'
+2026-09-14 14:35:59 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:59 [ERROR] yfinance: Failed to get ticker 'GS' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:35:59 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:35:59 [ERROR] yfinance: $GS: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:35:59 [WARNING] advisor.analysis.analyzer: GS descartado del análisis: No se han recibido datos para el símbolo 'GS'
+2026-09-14 14:36:00 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:00 [ERROR] yfinance: Failed to get ticker 'V' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:00 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:00 [ERROR] yfinance: $V: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:00 [WARNING] advisor.analysis.analyzer: V descartado del análisis: No se han recibido datos para el símbolo 'V'
+2026-09-14 14:36:01 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:01 [ERROR] yfinance: Failed to get ticker 'MA' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:01 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:01 [ERROR] yfinance: $MA: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:01 [WARNING] advisor.analysis.analyzer: MA descartado del análisis: No se han recibido datos para el símbolo 'MA'
+2026-09-14 14:36:02 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:02 [ERROR] yfinance: Failed to get ticker 'BRK-B' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:02 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:02 [ERROR] yfinance: $BRK-B: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:02 [WARNING] advisor.analysis.analyzer: BRK-B descartado del análisis: No se han recibido datos para el símbolo 'BRK-B'
+2026-09-14 14:36:03 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:03 [ERROR] yfinance: Failed to get ticker 'LLY' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:03 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:03 [ERROR] yfinance: $LLY: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:03 [WARNING] advisor.analysis.analyzer: LLY descartado del análisis: No se han recibido datos para el símbolo 'LLY'
+2026-09-14 14:36:04 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:04 [ERROR] yfinance: Failed to get ticker 'ABBV' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:04 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:04 [ERROR] yfinance: $ABBV: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:04 [WARNING] advisor.analysis.analyzer: ABBV descartado del análisis: No se han recibido datos para el símbolo 'ABBV'
+2026-09-14 14:36:05 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:05 [ERROR] yfinance: Failed to get ticker 'VRTX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:05 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:05 [ERROR] yfinance: $VRTX: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:05 [WARNING] advisor.analysis.analyzer: VRTX descartado del análisis: No se han recibido datos para el símbolo 'VRTX'
+2026-09-14 14:36:06 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:06 [ERROR] yfinance: Failed to get ticker 'GE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:06 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:06 [ERROR] yfinance: $GE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:06 [WARNING] advisor.analysis.analyzer: GE descartado del análisis: No se han recibido datos para el símbolo 'GE'
+2026-09-14 14:36:07 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:07 [ERROR] yfinance: Failed to get ticker 'RTX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:07 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:07 [ERROR] yfinance: $RTX: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:07 [WARNING] advisor.analysis.analyzer: RTX descartado del análisis: No se han recibido datos para el símbolo 'RTX'
+2026-09-14 14:36:08 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:08 [ERROR] yfinance: Failed to get ticker 'LMT' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:08 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:08 [ERROR] yfinance: $LMT: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:08 [WARNING] advisor.analysis.analyzer: LMT descartado del análisis: No se han recibido datos para el símbolo 'LMT'
+2026-09-14 14:36:09 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:09 [ERROR] yfinance: Failed to get ticker 'CAT' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:09 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:09 [ERROR] yfinance: $CAT: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:09 [WARNING] advisor.analysis.analyzer: CAT descartado del análisis: No se han recibido datos para el símbolo 'CAT'
+2026-09-14 14:36:10 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:10 [ERROR] yfinance: Failed to get ticker 'XOM' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:10 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:10 [ERROR] yfinance: $XOM: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:10 [WARNING] advisor.analysis.analyzer: XOM descartado del análisis: No se han recibido datos para el símbolo 'XOM'
+2026-09-14 14:36:11 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:11 [ERROR] yfinance: Failed to get ticker 'CVX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:11 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:11 [ERROR] yfinance: $CVX: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:11 [WARNING] advisor.analysis.analyzer: CVX descartado del análisis: No se han recibido datos para el símbolo 'CVX'
+2026-09-14 14:36:12 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:12 [ERROR] yfinance: Failed to get ticker 'COIN' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:12 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:12 [ERROR] yfinance: $COIN: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:12 [WARNING] advisor.analysis.analyzer: COIN descartado del análisis: No se han recibido datos para el símbolo 'COIN'
+2026-09-14 14:36:13 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:13 [ERROR] yfinance: Failed to get ticker '^STOXX' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:13 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:13 [ERROR] yfinance: $^STOXX: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:13 [WARNING] advisor.analysis.analyzer: Sin datos del índice de referencia ^STOXX: No se han recibido datos para el símbolo '^STOXX'
+2026-09-14 14:36:14 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:14 [ERROR] yfinance: Failed to get ticker 'SAP.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:14 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:14 [ERROR] yfinance: $SAP.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:14 [WARNING] advisor.analysis.analyzer: SAP.DE descartado del análisis: No se han recibido datos para el símbolo 'SAP.DE'
+2026-09-14 14:36:15 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:15 [ERROR] yfinance: Failed to get ticker 'SIE.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:15 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:15 [ERROR] yfinance: $SIE.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:15 [WARNING] advisor.analysis.analyzer: SIE.DE descartado del análisis: No se han recibido datos para el símbolo 'SIE.DE'
+2026-09-14 14:36:16 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:16 [ERROR] yfinance: Failed to get ticker 'ALV.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:16 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:16 [ERROR] yfinance: $ALV.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:16 [WARNING] advisor.analysis.analyzer: ALV.DE descartado del análisis: No se han recibido datos para el símbolo 'ALV.DE'
+2026-09-14 14:36:17 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:17 [ERROR] yfinance: Failed to get ticker 'MBG.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:17 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:17 [ERROR] yfinance: $MBG.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:17 [WARNING] advisor.analysis.analyzer: MBG.DE descartado del análisis: No se han recibido datos para el símbolo 'MBG.DE'
+2026-09-14 14:36:18 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:18 [ERROR] yfinance: Failed to get ticker 'RHM.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:18 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:18 [ERROR] yfinance: $RHM.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:18 [WARNING] advisor.analysis.analyzer: RHM.DE descartado del análisis: No se han recibido datos para el símbolo 'RHM.DE'
+2026-09-14 14:36:19 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:19 [ERROR] yfinance: Failed to get ticker 'ENR.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:19 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:19 [ERROR] yfinance: $ENR.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:19 [WARNING] advisor.analysis.analyzer: ENR.DE descartado del análisis: No se han recibido datos para el símbolo 'ENR.DE'
+2026-09-14 14:36:20 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:20 [ERROR] yfinance: Failed to get ticker 'DTE.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:20 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:20 [ERROR] yfinance: $DTE.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:20 [WARNING] advisor.analysis.analyzer: DTE.DE descartado del análisis: No se han recibido datos para el símbolo 'DTE.DE'
+2026-09-14 14:36:21 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:21 [ERROR] yfinance: Failed to get ticker 'DBK.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:21 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:21 [ERROR] yfinance: $DBK.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:21 [WARNING] advisor.analysis.analyzer: DBK.DE descartado del análisis: No se han recibido datos para el símbolo 'DBK.DE'
+2026-09-14 14:36:22 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:22 [ERROR] yfinance: Failed to get ticker 'MUV2.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:22 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:22 [ERROR] yfinance: $MUV2.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:22 [WARNING] advisor.analysis.analyzer: MUV2.DE descartado del análisis: No se han recibido datos para el símbolo 'MUV2.DE'
+2026-09-14 14:36:23 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:23 [ERROR] yfinance: Failed to get ticker 'IFX.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:23 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:23 [ERROR] yfinance: $IFX.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:23 [WARNING] advisor.analysis.analyzer: IFX.DE descartado del análisis: No se han recibido datos para el símbolo 'IFX.DE'
+2026-09-14 14:36:24 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:24 [ERROR] yfinance: Failed to get ticker 'ASML.AS' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:24 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:24 [ERROR] yfinance: $ASML.AS: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:24 [WARNING] advisor.analysis.analyzer: ASML.AS descartado del análisis: No se han recibido datos para el símbolo 'ASML.AS'
+2026-09-14 14:36:25 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:25 [ERROR] yfinance: Failed to get ticker 'ADYEN.AS' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:25 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:25 [ERROR] yfinance: $ADYEN.AS: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:25 [WARNING] advisor.analysis.analyzer: ADYEN.AS descartado del análisis: No se han recibido datos para el símbolo 'ADYEN.AS'
+2026-09-14 14:36:26 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:26 [ERROR] yfinance: Failed to get ticker 'MC.PA' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:26 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:26 [ERROR] yfinance: $MC.PA: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:26 [WARNING] advisor.analysis.analyzer: MC.PA descartado del análisis: No se han recibido datos para el símbolo 'MC.PA'
+2026-09-14 14:36:27 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:27 [ERROR] yfinance: Failed to get ticker 'AIR.PA' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:27 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:27 [ERROR] yfinance: $AIR.PA: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:27 [WARNING] advisor.analysis.analyzer: AIR.PA descartado del análisis: No se han recibido datos para el símbolo 'AIR.PA'
+2026-09-14 14:36:28 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:28 [ERROR] yfinance: Failed to get ticker 'SU.PA' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:28 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:28 [ERROR] yfinance: $SU.PA: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:28 [WARNING] advisor.analysis.analyzer: SU.PA descartado del análisis: No se han recibido datos para el símbolo 'SU.PA'
+2026-09-14 14:36:29 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:29 [ERROR] yfinance: Failed to get ticker 'SAF.PA' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:29 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:29 [ERROR] yfinance: $SAF.PA: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:29 [WARNING] advisor.analysis.analyzer: SAF.PA descartado del análisis: No se han recibido datos para el símbolo 'SAF.PA'
+2026-09-14 14:36:30 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:30 [ERROR] yfinance: Failed to get ticker 'TTE.PA' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:30 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:30 [ERROR] yfinance: $TTE.PA: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:30 [WARNING] advisor.analysis.analyzer: TTE.PA descartado del análisis: No se han recibido datos para el símbolo 'TTE.PA'
+2026-09-14 14:36:31 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:31 [ERROR] yfinance: Failed to get ticker 'OR.PA' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:31 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:31 [ERROR] yfinance: $OR.PA: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:31 [WARNING] advisor.analysis.analyzer: OR.PA descartado del análisis: No se han recibido datos para el símbolo 'OR.PA'
+2026-09-14 14:36:32 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:32 [ERROR] yfinance: Failed to get ticker 'IBE.MC' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:32 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:32 [ERROR] yfinance: $IBE.MC: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:32 [WARNING] advisor.analysis.analyzer: IBE.MC descartado del análisis: No se han recibido datos para el símbolo 'IBE.MC'
+2026-09-14 14:36:33 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:33 [ERROR] yfinance: Failed to get ticker 'ITX.MC' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:33 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:33 [ERROR] yfinance: $ITX.MC: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:33 [WARNING] advisor.analysis.analyzer: ITX.MC descartado del análisis: No se han recibido datos para el símbolo 'ITX.MC'
+2026-09-14 14:36:34 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:34 [ERROR] yfinance: Failed to get ticker 'SAN.MC' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:34 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:34 [ERROR] yfinance: $SAN.MC: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:34 [WARNING] advisor.analysis.analyzer: SAN.MC descartado del análisis: No se han recibido datos para el símbolo 'SAN.MC'
+2026-09-14 14:36:35 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:35 [ERROR] yfinance: Failed to get ticker 'BBVA.MC' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:35 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:35 [ERROR] yfinance: $BBVA.MC: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:35 [WARNING] advisor.analysis.analyzer: BBVA.MC descartado del análisis: No se han recibido datos para el símbolo 'BBVA.MC'
+2026-09-14 14:36:37 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:37 [ERROR] yfinance: Failed to get ticker 'RACE.MI' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:37 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:37 [ERROR] yfinance: $RACE.MI: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:37 [WARNING] advisor.analysis.analyzer: RACE.MI descartado del análisis: No se han recibido datos para el símbolo 'RACE.MI'
+2026-09-14 14:36:38 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:38 [ERROR] yfinance: Failed to get ticker 'UCG.MI' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:38 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:38 [ERROR] yfinance: $UCG.MI: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:38 [WARNING] advisor.analysis.analyzer: UCG.MI descartado del análisis: No se han recibido datos para el símbolo 'UCG.MI'
+2026-09-14 14:36:39 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:39 [ERROR] yfinance: Failed to get ticker 'ENI.MI' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:39 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:39 [ERROR] yfinance: $ENI.MI: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:39 [WARNING] advisor.analysis.analyzer: ENI.MI descartado del análisis: No se han recibido datos para el símbolo 'ENI.MI'
+2026-09-14 14:36:40 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:40 [ERROR] yfinance: Failed to get ticker 'NOVO-B.CO' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:40 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:40 [ERROR] yfinance: $NOVO-B.CO: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:40 [WARNING] advisor.analysis.analyzer: NOVO-B.CO descartado del análisis: No se han recibido datos para el símbolo 'NOVO-B.CO'
+2026-09-14 14:36:41 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:41 [ERROR] yfinance: Failed to get ticker 'RRU.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:41 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:41 [ERROR] yfinance: $RRU.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:41 [WARNING] advisor.analysis.analyzer: RRU.DE descartado del análisis: No se han recibido datos para el símbolo 'RRU.DE'
+2026-09-14 14:36:42 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:42 [ERROR] yfinance: Failed to get ticker 'BSP.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:42 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:42 [ERROR] yfinance: $BSP.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:42 [WARNING] advisor.analysis.analyzer: BSP.DE descartado del análisis: No se han recibido datos para el símbolo 'BSP.DE'
+2026-09-14 14:36:43 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:43 [ERROR] yfinance: Failed to get ticker 'AZN' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:43 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:43 [ERROR] yfinance: $AZN: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:43 [WARNING] advisor.analysis.analyzer: AZN descartado del análisis: No se han recibido datos para el símbolo 'AZN'
+2026-09-14 14:36:44 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:44 [ERROR] yfinance: Failed to get ticker 'R6C0.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:44 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:44 [ERROR] yfinance: $R6C0.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:44 [WARNING] advisor.analysis.analyzer: R6C0.DE descartado del análisis: No se han recibido datos para el símbolo 'R6C0.DE'
+2026-09-14 14:36:45 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:45 [ERROR] yfinance: Failed to get ticker '^N225' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:45 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:45 [ERROR] yfinance: $^N225: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:45 [WARNING] advisor.analysis.analyzer: Sin datos del índice de referencia ^N225: No se han recibido datos para el símbolo '^N225'
+2026-09-14 14:36:46 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:46 [ERROR] yfinance: Failed to get ticker '7203.T' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:46 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:46 [ERROR] yfinance: $7203.T: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:46 [WARNING] advisor.analysis.analyzer: 7203.T descartado del análisis: No se han recibido datos para el símbolo '7203.T'
+2026-09-14 14:36:47 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:47 [ERROR] yfinance: Failed to get ticker '6758.T' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:47 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:47 [ERROR] yfinance: $6758.T: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:47 [WARNING] advisor.analysis.analyzer: 6758.T descartado del análisis: No se han recibido datos para el símbolo '6758.T'
+2026-09-14 14:36:48 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:48 [ERROR] yfinance: Failed to get ticker '7011.T' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:48 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:48 [ERROR] yfinance: $7011.T: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:48 [WARNING] advisor.analysis.analyzer: 7011.T descartado del análisis: No se han recibido datos para el símbolo '7011.T'
+2026-09-14 14:36:49 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:49 [ERROR] yfinance: Failed to get ticker '6501.T' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:49 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:49 [ERROR] yfinance: $6501.T: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:49 [WARNING] advisor.analysis.analyzer: 6501.T descartado del análisis: No se han recibido datos para el símbolo '6501.T'
+2026-09-14 14:36:50 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:50 [ERROR] yfinance: Failed to get ticker '9984.T' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:50 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:50 [ERROR] yfinance: $9984.T: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:50 [WARNING] advisor.analysis.analyzer: 9984.T descartado del análisis: No se han recibido datos para el símbolo '9984.T'
+2026-09-14 14:36:51 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:51 [ERROR] yfinance: Failed to get ticker '6857.T' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:51 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:51 [ERROR] yfinance: $6857.T: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:51 [WARNING] advisor.analysis.analyzer: 6857.T descartado del análisis: No se han recibido datos para el símbolo '6857.T'
+2026-09-14 14:36:52 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:52 [ERROR] yfinance: Failed to get ticker '8035.T' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:52 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:52 [ERROR] yfinance: $8035.T: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:52 [WARNING] advisor.analysis.analyzer: 8035.T descartado del análisis: No se han recibido datos para el símbolo '8035.T'
+2026-09-14 14:36:53 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:53 [ERROR] yfinance: Failed to get ticker '^TWII' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:53 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:53 [ERROR] yfinance: $^TWII: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:53 [WARNING] advisor.analysis.analyzer: Sin datos del índice de referencia ^TWII: No se han recibido datos para el símbolo '^TWII'
+2026-09-14 14:36:54 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:54 [ERROR] yfinance: Failed to get ticker 'TSM' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:54 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:54 [ERROR] yfinance: $TSM: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:54 [WARNING] advisor.analysis.analyzer: TSM descartado del análisis: No se han recibido datos para el símbolo 'TSM'
+2026-09-14 14:36:55 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:55 [ERROR] yfinance: Failed to get ticker '^KS11' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:55 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:55 [ERROR] yfinance: $^KS11: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:55 [WARNING] advisor.analysis.analyzer: Sin datos del índice de referencia ^KS11: No se han recibido datos para el símbolo '^KS11'
+2026-09-14 14:36:56 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:56 [ERROR] yfinance: Failed to get ticker '005930.KS' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:56 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:56 [ERROR] yfinance: $005930.KS: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:56 [WARNING] advisor.analysis.analyzer: 005930.KS descartado del análisis: No se han recibido datos para el símbolo '005930.KS'
+2026-09-14 14:36:57 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:57 [ERROR] yfinance: Failed to get ticker '000660.KS' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:57 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:57 [ERROR] yfinance: $000660.KS: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:57 [WARNING] advisor.analysis.analyzer: 000660.KS descartado del análisis: No se han recibido datos para el símbolo '000660.KS'
+2026-09-14 14:36:58 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:58 [ERROR] yfinance: Failed to get ticker '^HSI' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:58 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:58 [ERROR] yfinance: $^HSI: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:58 [WARNING] advisor.analysis.analyzer: Sin datos del índice de referencia ^HSI: No se han recibido datos para el símbolo '^HSI'
+2026-09-14 14:36:59 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:59 [ERROR] yfinance: Failed to get ticker '0700.HK' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:36:59 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:36:59 [ERROR] yfinance: $0700.HK: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:36:59 [WARNING] advisor.analysis.analyzer: 0700.HK descartado del análisis: No se han recibido datos para el símbolo '0700.HK'
+2026-09-14 14:37:00 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:00 [ERROR] yfinance: Failed to get ticker '9988.HK' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:00 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:00 [ERROR] yfinance: $9988.HK: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:00 [WARNING] advisor.analysis.analyzer: 9988.HK descartado del análisis: No se han recibido datos para el símbolo '9988.HK'
+2026-09-14 14:37:01 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:01 [ERROR] yfinance: Failed to get ticker '1810.HK' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:01 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:01 [ERROR] yfinance: $1810.HK: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:01 [WARNING] advisor.analysis.analyzer: 1810.HK descartado del análisis: No se han recibido datos para el símbolo '1810.HK'
+2026-09-14 14:37:02 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:02 [ERROR] yfinance: Failed to get ticker '1211.HK' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:02 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:02 [ERROR] yfinance: $1211.HK: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:02 [WARNING] advisor.analysis.analyzer: 1211.HK descartado del análisis: No se han recibido datos para el símbolo '1211.HK'
+2026-09-14 14:37:03 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:03 [ERROR] yfinance: Failed to get ticker 'INFY' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:03 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:03 [ERROR] yfinance: $INFY: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:03 [WARNING] advisor.analysis.analyzer: INFY descartado del análisis: No se han recibido datos para el símbolo 'INFY'
+2026-09-14 14:37:04 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:04 [ERROR] yfinance: Failed to get ticker 'EUNL.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:04 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:04 [ERROR] yfinance: $EUNL.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:04 [WARNING] advisor.analysis.analyzer: EUNL.DE descartado del análisis: No se han recibido datos para el símbolo 'EUNL.DE'
+2026-09-14 14:37:05 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:05 [ERROR] yfinance: Failed to get ticker 'SXR8.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:05 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:05 [ERROR] yfinance: $SXR8.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:05 [WARNING] advisor.analysis.analyzer: SXR8.DE descartado del análisis: No se han recibido datos para el símbolo 'SXR8.DE'
+2026-09-14 14:37:06 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:06 [ERROR] yfinance: Failed to get ticker 'EQQQ.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:06 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:06 [ERROR] yfinance: $EQQQ.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:06 [WARNING] advisor.analysis.analyzer: EQQQ.DE descartado del análisis: No se han recibido datos para el símbolo 'EQQQ.DE'
+2026-09-14 14:37:07 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:07 [ERROR] yfinance: Failed to get ticker 'EXSA.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:07 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:07 [ERROR] yfinance: $EXSA.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:07 [WARNING] advisor.analysis.analyzer: EXSA.DE descartado del análisis: No se han recibido datos para el símbolo 'EXSA.DE'
+2026-09-14 14:37:08 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:08 [ERROR] yfinance: Failed to get ticker 'IS3N.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:08 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:08 [ERROR] yfinance: $IS3N.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:08 [WARNING] advisor.analysis.analyzer: IS3N.DE descartado del análisis: No se han recibido datos para el símbolo 'IS3N.DE'
+2026-09-14 14:37:09 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:09 [ERROR] yfinance: Failed to get ticker 'EUNN.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:09 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:09 [ERROR] yfinance: $EUNN.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:09 [WARNING] advisor.analysis.analyzer: EUNN.DE descartado del análisis: No se han recibido datos para el símbolo 'EUNN.DE'
+2026-09-14 14:37:10 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:10 [ERROR] yfinance: Failed to get ticker 'ICGA.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:10 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:10 [ERROR] yfinance: $ICGA.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:10 [WARNING] advisor.analysis.analyzer: ICGA.DE descartado del análisis: No se han recibido datos para el símbolo 'ICGA.DE'
+2026-09-14 14:37:11 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:11 [ERROR] yfinance: Failed to get ticker 'QDV5.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:11 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:11 [ERROR] yfinance: $QDV5.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:11 [WARNING] advisor.analysis.analyzer: QDV5.DE descartado del análisis: No se han recibido datos para el símbolo 'QDV5.DE'
+2026-09-14 14:37:12 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:12 [ERROR] yfinance: Failed to get ticker 'IQQT.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:12 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:12 [ERROR] yfinance: $IQQT.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:12 [WARNING] advisor.analysis.analyzer: IQQT.DE descartado del análisis: No se han recibido datos para el símbolo 'IQQT.DE'
+2026-09-14 14:37:13 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:13 [ERROR] yfinance: Failed to get ticker 'IQQK.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:13 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:13 [ERROR] yfinance: $IQQK.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:13 [WARNING] advisor.analysis.analyzer: IQQK.DE descartado del análisis: No se han recibido datos para el símbolo 'IQQK.DE'
+2026-09-14 14:37:14 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:14 [ERROR] yfinance: Failed to get ticker 'VVSM.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:14 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:14 [ERROR] yfinance: $VVSM.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:14 [WARNING] advisor.analysis.analyzer: VVSM.DE descartado del análisis: No se han recibido datos para el símbolo 'VVSM.DE'
+2026-09-14 14:37:15 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:15 [ERROR] yfinance: Failed to get ticker 'DFEN.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:15 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:15 [ERROR] yfinance: $DFEN.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:15 [WARNING] advisor.analysis.analyzer: DFEN.DE descartado del análisis: No se han recibido datos para el símbolo 'DFEN.DE'
+2026-09-14 14:37:16 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:16 [ERROR] yfinance: Failed to get ticker 'Q8Y0.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:16 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:16 [ERROR] yfinance: $Q8Y0.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:16 [WARNING] advisor.analysis.analyzer: Q8Y0.DE descartado del análisis: No se han recibido datos para el símbolo 'Q8Y0.DE'
+2026-09-14 14:37:17 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:17 [ERROR] yfinance: Failed to get ticker '4GLD.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:17 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:17 [ERROR] yfinance: $4GLD.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:17 [WARNING] advisor.analysis.analyzer: 4GLD.DE descartado del análisis: No se han recibido datos para el símbolo '4GLD.DE'
+2026-09-14 14:37:18 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:18 [ERROR] yfinance: Failed to get ticker 'EUNH.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:18 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:18 [ERROR] yfinance: $EUNH.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:18 [WARNING] advisor.analysis.analyzer: EUNH.DE descartado del análisis: No se han recibido datos para el símbolo 'EUNH.DE'
+2026-09-14 14:37:19 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:19 [ERROR] yfinance: Failed to get ticker 'ZPRR.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:19 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:19 [ERROR] yfinance: $ZPRR.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:19 [WARNING] advisor.analysis.analyzer: ZPRR.DE descartado del análisis: No se han recibido datos para el símbolo 'ZPRR.DE'
+2026-09-14 14:37:20 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:20 [ERROR] yfinance: Failed to get ticker 'EXV1.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:20 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:20 [ERROR] yfinance: $EXV1.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:20 [WARNING] advisor.analysis.analyzer: EXV1.DE descartado del análisis: No se han recibido datos para el símbolo 'EXV1.DE'
+2026-09-14 14:37:21 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:21 [ERROR] yfinance: Failed to get ticker 'EXH1.DE' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:21 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:21 [ERROR] yfinance: $EXH1.DE: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:21 [WARNING] advisor.analysis.analyzer: EXH1.DE descartado del análisis: No se han recibido datos para el símbolo 'EXH1.DE'
+2026-09-14 14:37:22 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:22 [ERROR] yfinance: Failed to get ticker 'BTC-EUR' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:22 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:22 [ERROR] yfinance: $BTC-EUR: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:22 [WARNING] advisor.analysis.analyzer: BTC-EUR descartado del análisis: No se han recibido datos para el símbolo 'BTC-EUR'
+2026-09-14 14:37:23 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:23 [ERROR] yfinance: Failed to get ticker 'ETH-EUR' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:23 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:23 [ERROR] yfinance: $ETH-EUR: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:23 [WARNING] advisor.analysis.analyzer: ETH-EUR descartado del análisis: No se han recibido datos para el símbolo 'ETH-EUR'
+2026-09-14 14:37:24 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:24 [ERROR] yfinance: Failed to get ticker 'SOL-EUR' reason: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-09-14 14:37:24 [WARNING] yfinance: Cookie/crumb fetch failed (DNSError), continuing without crumb
+2026-09-14 14:37:24 [ERROR] yfinance: $SOL-EUR: possibly delisted; no price data found  (period=1y)
+2026-09-14 14:37:24 [WARNING] advisor.analysis.analyzer: SOL-EUR descartado del análisis: No se han recibido datos para el símbolo 'SOL-EUR'
+==========================================================================================
+ASESOR DE INVERSIÓN — 2026-09-14 13:37 UTC  |  horizonte: swing  |  velas: 1d
+==========================================================================================
+
+## 🌍 SITUACIÓN GLOBAL
+
+Asia:
+  - CSI 300 (vía ETF China AMC) (510300.SS): datos no disponibles
+  - Hang Seng (^HSI): datos no disponibles
+  - KOSPI (^KS11): datos no disponibles
+  - Nikkei 225 (^N225): datos no disponibles
+  - Taiwan Weighted (^TWII): datos no disponibles
+Europa:
+  - CAC 40 (^FCHI): datos no disponibles
+  - DAX (^GDAXI): datos no disponibles
+  - STOXX Europe 600 (^STOXX): datos no disponibles
+  - Euro Stoxx 50 (^STOXX50E): datos no disponibles
+EE. UU.:
+  - S&P 500 (^GSPC): datos no disponibles
+  - Nasdaq 100 (^NDX): datos no disponibles
+  - Russell 2000 (^RUT): datos no disponibles
+  - Philadelphia Semiconductor (^SOX): datos no disponibles
+  - Treasury 10 años (^TNX): datos no disponibles
+  - VIX (^VIX): datos no disponibles
+Global:
+  - WTI (CL=F): datos no disponibles
+  - Dollar Index (DX-Y.NYB): datos no disponibles
+  - EUR/USD (EURUSD=X): datos no disponibles
+  - Oro (GC=F): datos no disponibles
+
+Volatilidad: VIX N/D (umbral 25,0)  |  Contexto: INDETERMINADO — sin datos de volatilidad ni de tendencia del índice de referencia
+
+**Frescura de datos:** 0 activos analizados con snapshot; no hay barras que declarar.
+Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre regular local + 20 min. No se modelan festivos ni medias sesiones; cripto no tiene sesión de cierre.
+
+## 🔥 OPORTUNIDADES DETECTADAS
+
+Ninguna oportunidad cumple hoy los criterios de entrada.
+
+## 👀 RADAR
+
+Sin activos en vigilancia.
+
+## 🔴 DESCARTADOS
+
+Ninguno.
+
+No analizados por falta de datos:
+  - AAPL: No se han recibido datos para el símbolo 'AAPL'
+  - MSFT: No se han recibido datos para el símbolo 'MSFT'
+  - GOOGL: No se han recibido datos para el símbolo 'GOOGL'
+  - AMZN: No se han recibido datos para el símbolo 'AMZN'
+  - META: No se han recibido datos para el símbolo 'META'
+  - TSLA: No se han recibido datos para el símbolo 'TSLA'
+  - ORCL: No se han recibido datos para el símbolo 'ORCL'
+  - CRM: No se han recibido datos para el símbolo 'CRM'
+  - NOW: No se han recibido datos para el símbolo 'NOW'
+  - ADBE: No se han recibido datos para el símbolo 'ADBE'
+  - NFLX: No se han recibido datos para el símbolo 'NFLX'
+  - NVDA: No se han recibido datos para el símbolo 'NVDA'
+  - AVGO: No se han recibido datos para el símbolo 'AVGO'
+  - AMD: No se han recibido datos para el símbolo 'AMD'
+  - MU: No se han recibido datos para el símbolo 'MU'
+  - QCOM: No se han recibido datos para el símbolo 'QCOM'
+  - MRVL: No se han recibido datos para el símbolo 'MRVL'
+  - INTC: No se han recibido datos para el símbolo 'INTC'
+  - AMAT: No se han recibido datos para el símbolo 'AMAT'
+  - LRCX: No se han recibido datos para el símbolo 'LRCX'
+  - ARM: No se han recibido datos para el símbolo 'ARM'
+  - PLTR: No se han recibido datos para el símbolo 'PLTR'
+  - PANW: No se han recibido datos para el símbolo 'PANW'
+  - CRWD: No se han recibido datos para el símbolo 'CRWD'
+  - UBER: No se han recibido datos para el símbolo 'UBER'
+  - APP: No se han recibido datos para el símbolo 'APP'
+  - JPM: No se han recibido datos para el símbolo 'JPM'
+  - GS: No se han recibido datos para el símbolo 'GS'
+  - V: No se han recibido datos para el símbolo 'V'
+  - MA: No se han recibido datos para el símbolo 'MA'
+  - BRK-B: No se han recibido datos para el símbolo 'BRK-B'
+  - LLY: No se han recibido datos para el símbolo 'LLY'
+  - ABBV: No se han recibido datos para el símbolo 'ABBV'
+  - VRTX: No se han recibido datos para el símbolo 'VRTX'
+  - GE: No se han recibido datos para el símbolo 'GE'
+  - RTX: No se han recibido datos para el símbolo 'RTX'
+  - LMT: No se han recibido datos para el símbolo 'LMT'
+  - CAT: No se han recibido datos para el símbolo 'CAT'
+  - XOM: No se han recibido datos para el símbolo 'XOM'
+  - CVX: No se han recibido datos para el símbolo 'CVX'
+  - COIN: No se han recibido datos para el símbolo 'COIN'
+  - SAP.DE: No se han recibido datos para el símbolo 'SAP.DE'
+  - SIE.DE: No se han recibido datos para el símbolo 'SIE.DE'
+  - ALV.DE: No se han recibido datos para el símbolo 'ALV.DE'
+  - MBG.DE: No se han recibido datos para el símbolo 'MBG.DE'
+  - RHM.DE: No se han recibido datos para el símbolo 'RHM.DE'
+  - ENR.DE: No se han recibido datos para el símbolo 'ENR.DE'
+  - DTE.DE: No se han recibido datos para el símbolo 'DTE.DE'
+  - DBK.DE: No se han recibido datos para el símbolo 'DBK.DE'
+  - MUV2.DE: No se han recibido datos para el símbolo 'MUV2.DE'
+  - IFX.DE: No se han recibido datos para el símbolo 'IFX.DE'
+  - ASML.AS: No se han recibido datos para el símbolo 'ASML.AS'
+  - ADYEN.AS: No se han recibido datos para el símbolo 'ADYEN.AS'
+  - MC.PA: No se han recibido datos para el símbolo 'MC.PA'
+  - AIR.PA: No se han recibido datos para el símbolo 'AIR.PA'
+  - SU.PA: No se han recibido datos para el símbolo 'SU.PA'
+  - SAF.PA: No se han recibido datos para el símbolo 'SAF.PA'
+  - TTE.PA: No se han recibido datos para el símbolo 'TTE.PA'
+  - OR.PA: No se han recibido datos para el símbolo 'OR.PA'
+  - IBE.MC: No se han recibido datos para el símbolo 'IBE.MC'
+  - ITX.MC: No se han recibido datos para el símbolo 'ITX.MC'
+  - SAN.MC: No se han recibido datos para el símbolo 'SAN.MC'
+  - BBVA.MC: No se han recibido datos para el símbolo 'BBVA.MC'
+  - RACE.MI: No se han recibido datos para el símbolo 'RACE.MI'
+  - UCG.MI: No se han recibido datos para el símbolo 'UCG.MI'
+  - ENI.MI: No se han recibido datos para el símbolo 'ENI.MI'
+  - NOVO-B.CO: No se han recibido datos para el símbolo 'NOVO-B.CO'
+  - RRU.DE: No se han recibido datos para el símbolo 'RRU.DE'
+  - BSP.DE: No se han recibido datos para el símbolo 'BSP.DE'
+  - AZN: No se han recibido datos para el símbolo 'AZN'
+  - R6C0.DE: No se han recibido datos para el símbolo 'R6C0.DE'
+  - 7203.T: No se han recibido datos para el símbolo '7203.T'
+  - 6758.T: No se han recibido datos para el símbolo '6758.T'
+  - 7011.T: No se han recibido datos para el símbolo '7011.T'
+  - 6501.T: No se han recibido datos para el símbolo '6501.T'
+  - 9984.T: No se han recibido datos para el símbolo '9984.T'
+  - 6857.T: No se han recibido datos para el símbolo '6857.T'
+  - 8035.T: No se han recibido datos para el símbolo '8035.T'
+  - TSM: No se han recibido datos para el símbolo 'TSM'
+  - 005930.KS: No se han recibido datos para el símbolo '005930.KS'
+  - 000660.KS: No se han recibido datos para el símbolo '000660.KS'
+  - 0700.HK: No se han recibido datos para el símbolo '0700.HK'
+  - 9988.HK: No se han recibido datos para el símbolo '9988.HK'
+  - 1810.HK: No se han recibido datos para el símbolo '1810.HK'
+  - 1211.HK: No se han recibido datos para el símbolo '1211.HK'
+  - INFY: No se han recibido datos para el símbolo 'INFY'
+  - EUNL.DE: No se han recibido datos para el símbolo 'EUNL.DE'
+  - SXR8.DE: No se han recibido datos para el símbolo 'SXR8.DE'
+  - EQQQ.DE: No se han recibido datos para el símbolo 'EQQQ.DE'
+  - EXSA.DE: No se han recibido datos para el símbolo 'EXSA.DE'
+  - IS3N.DE: No se han recibido datos para el símbolo 'IS3N.DE'
+  - EUNN.DE: No se han recibido datos para el símbolo 'EUNN.DE'
+  - ICGA.DE: No se han recibido datos para el símbolo 'ICGA.DE'
+  - QDV5.DE: No se han recibido datos para el símbolo 'QDV5.DE'
+  - IQQT.DE: No se han recibido datos para el símbolo 'IQQT.DE'
+  - IQQK.DE: No se han recibido datos para el símbolo 'IQQK.DE'
+  - VVSM.DE: No se han recibido datos para el símbolo 'VVSM.DE'
+  - DFEN.DE: No se han recibido datos para el símbolo 'DFEN.DE'
+  - Q8Y0.DE: No se han recibido datos para el símbolo 'Q8Y0.DE'
+  - 4GLD.DE: No se han recibido datos para el símbolo '4GLD.DE'
+  - EUNH.DE: No se han recibido datos para el símbolo 'EUNH.DE'
+  - ZPRR.DE: No se han recibido datos para el símbolo 'ZPRR.DE'
+  - EXV1.DE: No se han recibido datos para el símbolo 'EXV1.DE'
+  - EXH1.DE: No se han recibido datos para el símbolo 'EXH1.DE'
+  - BTC-EUR: No se han recibido datos para el símbolo 'BTC-EUR'
+  - ETH-EUR: No se han recibido datos para el símbolo 'ETH-EUR'
+  - SOL-EUR: No se han recibido datos para el símbolo 'SOL-EUR'
+
+## 🎯 CONCLUSIÓN
+
+**NO OPERAR / MANTENER LIQUIDEZ** — ninguna oportunidad ofrece hoy una relación rentabilidad/riesgo suficiente. Mantener liquidez también es una decisión de inversión.
+
+------------------------------------------------------------------------------------------
+Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
+==========================================================================================
+run 80b2a520-b87e-4ba4-aece-93e105134fb4 · 1c76add47c9e · config d359c8d3 · universo 80d05f21

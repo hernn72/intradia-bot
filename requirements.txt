@@ -8,3 +8,4 @@ PyYAML>=6.0
 requests>=2.31
 anthropic>=0.30
 pytest>=7.4
+exchange_calendars==4.13.2  # calendarios de plaza (festivos, medias sesiones), sin red (D-07, T-003)

@@ -21,8 +21,6 @@ from dataclasses import replace
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
-import pandas as pd
-
 from advisor.analysis.analyzer import AnalysisResult, run_analysis
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.opportunity import RADAR_OPERAR, Opportunity
@@ -36,7 +34,6 @@ from advisor.data.freshness import (
 )
 from advisor.data.fx import FxConverter
 from advisor.data.market_data import MarketDataProvider
-from advisor.data.sessions import market_for_symbol, market_session
 from advisor.deploy.systemd import DEFAULT_CONFIG_ENV, DEFAULT_SYSTEMD_DIR, find_systemd_drift, write_rendered_units
 from advisor.events.calendar import EventCalendar, YahooEarningsSource
 from advisor.events.passes import decide_event_pass, format_event_trigger
@@ -146,7 +143,8 @@ def freshness_row_to_measurement(row: FreshnessRow, measured_at: str) -> Dict[st
         "symbol": row.symbol,
         "data_symbol": row.data_symbol,
         "market": row.market,
-        "benchmark_symbol": freshness.benchmark_symbol if freshness is not None else None,
+        "calendar": freshness.calendar if freshness is not None else None,
+        "benchmark_symbol": freshness.strength_benchmark if freshness is not None else None,
         "last_bar_date": freshness.last_bar_date.isoformat() if freshness is not None else None,
         "natural_days": freshness.natural_days if freshness is not None else None,
         "sessions_approx": freshness.sessions_approx if freshness is not None else None,
@@ -310,26 +308,15 @@ def medir_frescura_datos(
     period: str = "1mo",
     interval: str = "1d",
 ) -> List[FreshnessRow]:
-    """Pide barras de activo y benchmark y devuelve filas agrupables."""
+    """Pide barras del activo y devuelve filas agrupables de frescura."""
 
     rows: List[FreshnessRow] = []
-    benchmark_cache: Dict[str, Optional[pd.Series]] = {}
     for asset in assets:
         data_symbol = asset.data_symbol(reference)
         market = mercado_para_simbolo(asset, data_symbol)
         try:
             history = provider.get_history(data_symbol, period=period, interval=interval)
             benchmark_symbol = resolve_benchmark_symbol(asset, config.report)
-            benchmark_close = None
-            if benchmark_symbol is not None:
-                if benchmark_symbol not in benchmark_cache:
-                    try:
-                        benchmark_history = provider.get_history(benchmark_symbol, period=period, interval=interval)
-                        benchmark_cache[benchmark_symbol] = benchmark_history["Close"]
-                    except Exception as exc:
-                        logger.warning("Sin datos del benchmark %s para frescura: %s", benchmark_symbol, exc)
-                        benchmark_cache[benchmark_symbol] = None
-                benchmark_close = benchmark_cache[benchmark_symbol]
         except Exception as exc:
             rows.append(FreshnessRow(asset.symbol, data_symbol, market, None, str(exc)))
             continue
@@ -341,12 +328,10 @@ def medir_frescura_datos(
                 freshness=calcular_frescura_serie(
                     history,
                     reference,
-                    benchmark_close=benchmark_close,
-                    benchmark_symbol=benchmark_symbol,
+                    market=market,
+                    strength_benchmark=benchmark_symbol,
                     asset_timezone=asset.timezone,
-                    benchmark_timezone=market_session(market_for_symbol(benchmark_symbol)).timezone
-                    if benchmark_symbol
-                    else None,
+                    settlement_minutes=config.data_quality.settlement_minutes,
                 ),
             )
         )
@@ -655,7 +640,7 @@ def format_frescura_datos(rows: List[FreshnessRow], measured_at: Optional[dateti
 
     lines.append("")
     lines.append("Detalle por símbolo:")
-    lines.append("| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad | Referencia | Sesiones ausentes |")
+    lines.append("| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad | Calendario | Sesiones ausentes |")
     lines.append("|---|---|---|---|---|---|---|")
     for row in rows:
         lines.append(_freshness_detail_row(row))
@@ -673,7 +658,7 @@ def format_frescura_historico(rows) -> str:
     """Tabla legible del histórico acumulado de frescura."""
 
     lines = [
-        "| Medición | Símbolo | Datos | Plaza | Última barra | Antigüedad | Referencia | Parcial | Sesiones ausentes | Error |",
+        "| Medición | Símbolo | Datos | Plaza | Última barra | Antigüedad | Calendario | Parcial | Sesiones ausentes | Error |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for row in rows:
@@ -686,7 +671,7 @@ def format_frescura_historico(rows) -> str:
             age = _sesiones_label(row["sessions_approx"])
         lines.append(
             f"| {row['measured_at']} | {row['symbol']} | {row['data_symbol']} | {row['market']} | "
-            f"{row['last_bar_date'] or 'N/D'} | {age} | {row['benchmark_symbol'] or 'sin comparable'} | "
+            f"{row['last_bar_date'] or 'N/D'} | {age} | {row['calendar'] or 'sin calendario'} | "
             f"{'sí' if row['may_be_partial_current_session'] else 'no'} | "
             f"{', '.join(absent) if absent else 'sin sesiones ausentes'} | {row['error'] or ''} |"
         )
@@ -738,18 +723,12 @@ def _freshness_detail_row(row: FreshnessRow) -> str:
     return (
         f"| {row.symbol} | {row.data_symbol} | {row.market} | "
         f"{freshness.last_bar_date.isoformat()} | {freshness.label}{partial} | "
-        f"{_benchmark_label(freshness)} | {_absent_sessions_label(freshness)} |"
+        f"{freshness.calendar} | {_absent_sessions_label(freshness)} |"
     )
 
 
-def _benchmark_label(freshness) -> str:
-    if freshness.benchmark_symbol is None:
-        return "sin comparable"
-    return freshness.benchmark_symbol
-
-
 def _absent_sessions_label(freshness) -> str:
-    if freshness.benchmark_symbol is None:
+    if not freshness.calendar:
         return "sin calendario de referencia"
     if not freshness.absent_reference_sessions:
         return "sin sesiones ausentes recientes"

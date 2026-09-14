@@ -46,8 +46,13 @@ def _migration_v2_runs(conn: sqlite3.Connection) -> None:
         conn.execute(statement)
 
 
+def _migration_v3_freshness_calendar(conn: sqlite3.Connection) -> None:
+    conn.execute("ALTER TABLE data_freshness_measurement ADD COLUMN calendar TEXT")
+
+
 MIGRATIONS: list[Migration] = [
     (2, "analysis_run y run_id en recomendaciones/frescura", _migration_v2_runs),
+    (3, "calendar en mediciones de frescura", _migration_v3_freshness_calendar),
 ]
 
 

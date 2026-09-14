@@ -174,7 +174,7 @@ class TestFormatOpportunity:
         )
 
         assert "**Datos de mercado:** DEGRADADO; última barra 2026-08-26" in ficha
-        assert "hace 4 días naturales; ≈2 sesiones sin festivos" in ficha
+        assert "hace 4 días naturales; 2 sesiones" in ficha
         assert "Dato retrasado" in ficha
 
     def test_avisa_con_una_sesion_cerrada_perdida(
@@ -191,7 +191,7 @@ class TestFormatOpportunity:
             REPORT_REFERENCE,
         )
 
-        assert "≈1 sesión sin festivos" in ficha
+        assert "1 sesión" in ficha
         assert "Dato retrasado" in ficha
 
     def test_isin_no_aplicable_no_se_marca_como_pendiente(self, benign_context, fx: FxConverter) -> None:
@@ -495,7 +495,8 @@ class TestFormatReport:
             sessions_approx=0,
             label="hoy; al día",
             may_be_partial_current_session=True,
-            benchmark_symbol="^STOXX50E",
+            calendar="XETR",
+            strength_benchmark="^STOXX50E",
             absent_reference_sessions=(date(2026, 8, 28),),
             reference_sessions_checked=3,
         )
@@ -509,8 +510,8 @@ class TestFormatReport:
         informe = format_report(self._result([opportunity], hostile_context), config, fx)
 
         assert "0 sesiones cerradas perdidas: 1 activo; última barra 2026-08-31 (XETRA)." in informe
-        assert "Sesiones ausentes frente al benchmark: 1 activo." in informe
-        assert "SAP.DE: faltan 2026-08-28 presentes en ^STOXX50E." in informe
+        assert "Sesiones ausentes frente al calendario de su plaza: 1 activo." in informe
+        assert "SAP.DE: faltan 2026-08-28 en XETR." in informe
         assert "⚠️ Barra potencialmente parcial: última barra fechada hoy, puede no ser cierre de sesión." in informe
         assert "  - SAP.DE" in informe
         assert "⚠️ falta sesión 2026-08-28" in informe

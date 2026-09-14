@@ -5,6 +5,9 @@ Todos los datos vienen de ``FakeProvider``: ningún test toca la red.
 
 from __future__ import annotations
 
+from datetime import date, datetime, timezone
+
+import pandas as pd
 import pytest
 
 from advisor.analysis.analyzer import analyze_asset, run_analysis
@@ -12,6 +15,7 @@ from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.market_context import build_market_context, fetch_market_context
 from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
 from advisor.config import AdvisorConfig, MarketContextConfig
+from advisor.data.calendars import expected_sessions
 from advisor.report.tracking import (
     VERDICT_DEBILITA,
     VERDICT_INVALIDA,
@@ -223,6 +227,32 @@ class TestRunAnalysis:
         run_analysis(config, universe, provider, horizonte="swing")
 
         assert provider.calls.count("^GSPC") == 1
+
+    def test_benchmark_nunca_define_sesiones(self, config, benign_context) -> None:
+        asset = _asset("TSM", "ASIA", "NYSE", benchmark="^TWII", set_benchmark=True)
+        nyse_sessions = expected_sessions("NYSE", date(2026, 3, 2), date(2026, 9, 8))
+        nyse_dates = pd.DatetimeIndex([pd.Timestamp(value, tz="America/New_York") for value in nyse_sessions])
+        history = make_ohlcv(n=len(nyse_dates), start_date="2026-03-02").set_axis(nyse_dates)
+        benchmark_dates = nyse_dates.append(
+            pd.DatetimeIndex([pd.Timestamp("2026-09-07", tz="America/New_York")])
+        ).sort_values()
+        benchmark = make_ohlcv(n=len(benchmark_dates), start=5000.0).set_axis(benchmark_dates)
+        provider = FakeProvider({"TSM": history, "^TWII": benchmark})
+
+        opportunity = analyze_asset(
+            asset,
+            config,
+            provider,
+            benign_context,
+            "swing",
+            benchmark_close=benchmark["Close"],
+            benchmark_symbol="^TWII",
+            now=datetime(2026, 9, 8, 21, 0, tzinfo=timezone.utc),
+        )
+
+        assert opportunity.data_freshness is not None
+        assert opportunity.data_freshness.calendar == "XNYS"
+        assert opportunity.data_freshness.absent_reference_sessions == ()
 
 
 class TestVerdict:

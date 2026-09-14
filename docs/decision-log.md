@@ -66,7 +66,7 @@ Reversible: sí, vía P4.
 Las sesiones esperadas salen de un calendario de plaza real (festivos y
 medias sesiones), no de una tabla manual ni del benchmark. Se añade la
 dependencia `exchange_calendars` (pura Python, sin red, mantenida; códigos
-MIC: XETR, XPAR, XAMS, XMAD, XMIL, XCSE, XNYS, XNAS, XJPX, XHKG, XKRX). Para
+MIC: XETR, XPAR, XAMS, XMAD, XMIL, XCSE, XNYS, XNAS, XTKS, XHKG, XKRX). Para
 cripto se define un calendario propio 24/7 en el repositorio. Motivo: mantener
 festivos de 12 plazas a mano es exactamente la fuente de falsos huecos que se
 quiere eliminar. Riesgo: instalación en la Pi (Python 3.13, ARM); T-002 lo

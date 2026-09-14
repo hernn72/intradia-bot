@@ -253,6 +253,11 @@ riesgo máximo -> nunca superado
 
 **Prioridad:** P0
 
+**Nota 2026-09-14:** implementado en código en `fix/exchange-calendars`
+derivando calendario y zona horaria desde `primary_market`, sin editar
+`universe.yaml`. La aceptación contra datos reales queda bloqueada por fallo
+DNS del proveedor tras un reintento.
+
 ## Problema actual
 
 La comprobación de barras ausentes utiliza en determinados activos sesiones del
@@ -352,6 +357,11 @@ estado ambiguo:
 # FASE 6 — Cripto 24/7
 
 **Prioridad:** P1
+
+**Nota 2026-09-14:** implementado en código en `fix/exchange-calendars`
+con `CRYPTO_24_7` y cierre lógico UTC 00:00 + margen de liquidación. La
+aceptación contra datos reales queda bloqueada por fallo DNS del proveedor tras
+un reintento.
 
 No considerar `BTC-EUR`, `ETH-EUR` ni `SOL-EUR` como `DEGRADADO` simplemente por no
 disponer de calendario bursátil comparable.

@@ -99,11 +99,12 @@ def analyze_asset(
 
     window = config.horizonte(horizonte)
     data_symbol = asset.data_symbol(now)
+    market = mercado_para_simbolo(asset, data_symbol)
     reference = now or datetime.now(timezone.utc)
     raw_history = provider.get_history(data_symbol, period=window.period, interval=window.interval)
     trim = trim_unclosed_bar(
         raw_history,
-        market=mercado_para_simbolo(asset, data_symbol),
+        market=market,
         reference=reference,
         settlement_minutes=config.data_quality.settlement_minutes,
         interval=window.interval,
@@ -121,12 +122,12 @@ def analyze_asset(
     data_freshness = calcular_frescura_serie(
         history,
         reference,
-        benchmark_close=benchmark_close,
-        benchmark_symbol=benchmark_symbol,
+        market=market,
+        strength_benchmark=benchmark_symbol,
         recent_reference_sessions=_indicator_reference_sessions(config),
         veto_window_sessions=config.data_quality.veto_window_sessions,
         asset_timezone=asset.timezone,
-        benchmark_timezone=market_session(market_for_symbol(benchmark_symbol)).timezone if benchmark_symbol else None,
+        settlement_minutes=config.data_quality.settlement_minutes,
     )
     partial = data_freshness.may_be_partial_current_session
     if trim.removed_last_bar or trim.status.startswith("última barra cerrada") or trim.status == "sin sesión de cierre":

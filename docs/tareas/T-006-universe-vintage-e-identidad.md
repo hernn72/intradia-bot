@@ -1,6 +1,6 @@
 # T-006 — `universe_vintage_id` e identidad mínima de instrumentos (A-00)
 
-Estado: PENDIENTE
+Estado: PENDIENTE (intento del 2026-09-14 bloqueado por el entorno; ver handoff)
 Agente: Codex (mecánico, bien especificado) → Opus (revisión breve del hash canónico)
 Línea / fase: A-00 (prerrequisito de GATE P2) y B-01 (identidad para la línea B)
 Gate al que contribuye: GATE P2 (requisito 3), GATE B0
@@ -113,4 +113,42 @@ Rama `feat/universe-vintage`. Mensaje:
 `docs/decision-log.md`: entrada con el primer vintage registrado.
 
 ## Handoff al siguiente agente
-(se rellena al terminar)
+
+### Intento del 2026-09-14 — BLOQUEADA por el entorno, sin trabajo perdido
+
+Se delegó a Codex sobre un git worktree hermano
+(`../intradia-bot-t006`, rama `feat/universe-vintage` desde `1c76add`) para
+ejecutarla en paralelo con T-003. **La sesión de Codex no puede escribir fuera
+del directorio principal del repositorio**: falló antes de la línea base con
+
+```text
+mkdir: evidence/2026-09-14-T-006-universe-vintage: Operation not permitted
+```
+
+No se modificó ni creó ningún fichero, no se calculó el vintage nuevo y el
+worktree quedó limpio. El worktree se retiró; la rama `feat/universe-vintage`
+sigue apuntando a `1c76add`.
+
+### Cómo retomarla
+
+1. Desde el repositorio principal: `git checkout feat/universe-vintage`
+   (o rehacerla desde el HEAD de `fix/exchange-calendars` una vez esa entrega
+   esté aceptada, para no arrastrar un `universe.yaml` desactualizado).
+2. Ejecutarla **después** de T-003, no en paralelo: con Codex las fichas
+   simultáneas se serializan porque no admite worktrees.
+3. Cambios respecto a la ficha original, ya sabidos:
+   - T-002 dejó en `advisor/run/manifest.py` un `universe_vintage_id`
+     provisional (hash de la lista de símbolos analizables) que hay que
+     sustituir por la definición canónica de esta ficha, preferiblemente en
+     `advisor/universe/vintage.py` con un import desde el manifiesto.
+   - El vintage de las pasadas ya persistidas,
+     `80d05f21abad212757d2f06d9f2dd53032b92a342dba90904b3086ea970d0b59`,
+     cambia por definición nueva: hay que anotarlo en el decision log y en la
+     evidencia, y dejar claro que las pasadas anteriores llevan el provisional.
+   - `added_at` sale de `git log --diff-filter=A -S'primary_symbol: <SYM>'
+     --format=%ad --date=short -- universe.yaml`; los 126 instrumentos deben
+     caer entre `93009da` (2026-08-27) y `e952f71` (2026-08-29).
+   - T-003 ya usa `exchange_calendars` y deriva la plaza de `primary_market`;
+     si T-003 no llegó a añadir `exchange_calendar`/`exchange_timezone` al
+     YAML, esta ficha es un buen sitio para hacerlo junto con el resto de
+     campos de identidad.

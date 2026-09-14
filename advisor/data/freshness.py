@@ -1,17 +1,14 @@
-"""Frescura de datos de mercado.
-
-El cálculo de sesiones excluye fines de semana, pero no festivos: es una
-aproximación explícita porque el proyecto no mantiene calendarios bursátiles.
-"""
+"""Frescura de datos de mercado."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Dict, List, Optional
 
 import pandas as pd
 
+from advisor.data.calendars import calendar_mic, closed_sessions_between, expected_sessions, missing_sessions
 from advisor.universe.models import Asset
 
 QUALITY_OK = "OK"
@@ -23,9 +20,8 @@ QUALITY_INCOMPLETE = "INCOMPLETO"
 class DataFreshness:
     """Antigüedad de una última barra.
 
-    ``sessions_approx`` cuenta sesiones laborables cerradas perdidas entre la
-    última barra y la referencia, excluyendo fines de semana pero no festivos
-    de cada plaza.
+    ``sessions_approx`` cuenta sesiones cerradas perdidas del calendario de la
+    plaza entre la última barra y la referencia.
     """
 
     last_bar_date: date
@@ -33,7 +29,8 @@ class DataFreshness:
     sessions_approx: int
     label: str
     may_be_partial_current_session: bool = False
-    benchmark_symbol: Optional[str] = None
+    calendar: str = ""
+    strength_benchmark: Optional[str] = None
     absent_reference_sessions: tuple[date, ...] = field(default_factory=tuple)
     absent_recent_sessions: tuple[date, ...] = field(default_factory=tuple)
     reference_sessions_checked: int = 0
@@ -48,7 +45,7 @@ class DataFreshness:
 
     @property
     def has_reference_calendar(self) -> bool:
-        return self.benchmark_symbol is not None
+        return bool(self.calendar)
 
 
 @dataclass(frozen=True)
@@ -86,41 +83,44 @@ class FreshnessBucket:
         return ", ".join(parts)
 
 
-def calcular_frescura_dato(last_bar_timestamp: object, reference: datetime) -> DataFreshness:
+def calcular_frescura_dato(
+    last_bar_timestamp: object,
+    reference: datetime,
+    market: str = "XETRA",
+) -> DataFreshness:
     """Calcula antigüedad natural y en sesiones aproximadas de una última barra.
 
-    La antigüedad en sesiones cerradas perdidas es aproximada: cuenta
-    lunes-viernes estrictamente anteriores a la fecha de referencia y no resta
-    festivos ni cierres parciales de cada mercado.
+    La antigüedad en sesiones cerradas perdidas usa el calendario de la plaza.
     """
 
     last_bar_date = _fecha(last_bar_timestamp)
     reference_date = reference.date()
     natural_days = max(0, (reference_date - last_bar_date).days)
-    sessions_approx = _sesiones_cerradas_perdidas_entre(last_bar_date, reference_date)
+    sessions_approx = closed_sessions_between(last_bar_date, reference_date, market)
     return DataFreshness(
         last_bar_date=last_bar_date,
         natural_days=natural_days,
         sessions_approx=sessions_approx,
         label=_freshness_label(natural_days, sessions_approx),
-        may_be_partial_current_session=last_bar_date == reference_date,
+        may_be_partial_current_session=_may_be_partial_current_session(last_bar_date, reference, market, 0),
+        calendar=calendar_mic(market),
     )
 
 
 def calcular_frescura_serie(
     history: pd.DataFrame,
     reference: datetime,
-    benchmark_close: Optional[pd.Series] = None,
-    benchmark_symbol: Optional[str] = None,
+    market: str,
+    strength_benchmark: Optional[str] = None,
     recent_reference_sessions: int = 10,
     veto_window_sessions: int = 10,
     asset_timezone: Optional[str] = None,
-    benchmark_timezone: Optional[str] = None,
+    settlement_minutes: int = 0,
 ) -> DataFreshness:
-    """Calcula frescura de cola y sesiones ausentes frente al benchmark.
+    """Calcula frescura de cola y sesiones ausentes frente al calendario de plaza.
 
     Las ausencias se buscan solo en sesiones interiores: fechas que existen
-    en el benchmark hasta la última fecha del activo, y faltan en el activo.
+    en el calendario hasta la última fecha del activo, y faltan en el activo.
     Las sesiones posteriores a la última barra del activo ya están cubiertas
     por ``sessions_approx``.
 
@@ -136,33 +136,33 @@ def calcular_frescura_serie(
     if history.empty:
         raise ValueError("el histórico está vacío")
 
-    freshness = calcular_frescura_dato(history.index[-1], reference)
-    if benchmark_symbol is None:
-        return classify_data_quality(freshness)
-    if benchmark_close is None or benchmark_close.empty:
-        return classify_data_quality(DataFreshness(
-            **_freshness_kwargs(freshness),
-            benchmark_symbol=benchmark_symbol,
-        ))
+    freshness = calcular_frescura_dato(history.index[-1], reference, market)
 
     asset_dates = _fechas_indice(history.index, asset_timezone)
-    benchmark_dates = _fechas_indice(benchmark_close.dropna().index, benchmark_timezone)
-    if not asset_dates or not benchmark_dates:
+    if not asset_dates:
         return classify_data_quality(DataFreshness(
             **_freshness_kwargs(freshness),
-            benchmark_symbol=benchmark_symbol,
+            strength_benchmark=strength_benchmark,
         ))
 
     last_asset_date = asset_dates[-1]
-    reference_dates = [value for value in benchmark_dates if value <= last_asset_date]
+    first_asset_date = asset_dates[0]
+    reference_dates = expected_sessions(market, first_asset_date, last_asset_date)
     checked_dates = reference_dates[-recent_reference_sessions:]
     veto_dates = set(reference_dates[-veto_window_sessions:])
     asset_date_set = set(asset_dates)
-    absent = tuple(value for value in checked_dates if value not in asset_date_set)
+    absent = tuple(value for value in missing_sessions(asset_date_set, market, checked_dates[0], checked_dates[-1])) if checked_dates else ()
     absent_recent = tuple(value for value in absent if value in veto_dates)
+    freshness_values = _freshness_kwargs(freshness)
+    freshness_values["may_be_partial_current_session"] = _may_be_partial_current_session(
+        last_asset_date,
+        reference,
+        market,
+        settlement_minutes,
+    )
     return classify_data_quality(DataFreshness(
-        **_freshness_kwargs(freshness),
-        benchmark_symbol=benchmark_symbol,
+        **freshness_values,
+        strength_benchmark=strength_benchmark,
         absent_reference_sessions=absent,
         absent_recent_sessions=absent_recent,
         reference_sessions_checked=len(checked_dates),
@@ -176,19 +176,19 @@ def classify_data_quality(freshness: DataFreshness) -> DataFreshness:
     reasons: List[str] = []
     if freshness.absent_recent_sessions:
         reasons.append(
-            "INCOMPLETO: faltan sesiones cerradas recientes frente al calendario del benchmark "
+            "INCOMPLETO: faltan sesiones cerradas recientes frente al calendario de la plaza "
             + ", ".join(value.isoformat() for value in freshness.absent_recent_sessions)
             + f" (ventana de veto: {freshness.veto_window_sessions} sesiones)"
         )
         return replace(freshness, quality=QUALITY_INCOMPLETE, quality_reasons=tuple(reasons))
     if freshness.absent_reference_sessions:
         reasons.append(
-            "DEGRADADO: faltan sesiones frente al benchmark fuera de la ventana de veto "
+            "DEGRADADO: faltan sesiones frente al calendario de la plaza fuera de la ventana de veto "
             + ", ".join(value.isoformat() for value in freshness.absent_reference_sessions)
         )
     if freshness.sessions_approx > 0:
         reasons.append(f"DEGRADADO: dato viejo ({freshness.label})")
-    if freshness.benchmark_symbol is None or freshness.reference_sessions_checked == 0:
+    if not freshness.calendar or freshness.reference_sessions_checked == 0:
         reasons.append("DEGRADADO: sin calendario de referencia")
     if reasons:
         return replace(freshness, quality=QUALITY_DEGRADED, quality_reasons=tuple(reasons))
@@ -214,10 +214,10 @@ def mercado_para_simbolo(asset: Asset, data_symbol: str) -> str:
     """Plaza usada para ``data_symbol``, priorizando metadatos del universo."""
 
     if asset.european_symbol is not None and data_symbol == asset.european_symbol:
-        return asset.european_market or _mercado_por_sufijo(data_symbol)
+        return asset.european_market or _market_for_data_symbol(data_symbol, asset.asset_class)
     if data_symbol == asset.primary_symbol:
         return asset.primary_market
-    return _mercado_por_sufijo(data_symbol)
+    return _market_for_data_symbol(data_symbol, asset.asset_class)
 
 
 def _fecha(value: object, timezone_name: Optional[str] = None) -> date:
@@ -256,31 +256,17 @@ def _freshness_kwargs(freshness: DataFreshness) -> dict:
         "sessions_approx": freshness.sessions_approx,
         "label": freshness.label,
         "may_be_partial_current_session": freshness.may_be_partial_current_session,
+        "calendar": freshness.calendar,
         "session_close_status": freshness.session_close_status,
     }
-
-
-def _sesiones_cerradas_perdidas_entre(last_bar_date: date, reference_date: date) -> int:
-    """Cuenta días laborables cerrados perdidos, sin incluir la sesión en curso."""
-
-    if reference_date <= last_bar_date:
-        return 0
-    current = last_bar_date + timedelta(days=1)
-    sessions = 0
-    while current < reference_date:
-        if current.weekday() < 5:
-            sessions += 1
-        current += timedelta(days=1)
-    return sessions
-
 
 def _freshness_label(natural_days: int, sessions_approx: int) -> str:
     if sessions_approx == 0:
         sessions_text = "al día"
     elif sessions_approx == 1:
-        sessions_text = "≈1 sesión sin festivos"
+        sessions_text = "1 sesión"
     else:
-        sessions_text = f"≈{sessions_approx} sesiones sin festivos"
+        sessions_text = f"{sessions_approx} sesiones"
 
     if natural_days == 0:
         days_text = "hoy"
@@ -291,23 +277,24 @@ def _freshness_label(natural_days: int, sessions_approx: int) -> str:
     return f"{days_text}; {sessions_text}"
 
 
-def _mercado_por_sufijo(symbol: str) -> str:
-    suffixes = {
-        ".DE": "XETRA",
-        ".PA": "EURONEXT",
-        ".AS": "EURONEXT",
-        ".MI": "MILAN",
-        ".CO": "COPENHAGEN",
-        ".MC": "BME",
-        ".T": "JPX",
-        ".HK": "HKG",
-        ".KS": "KSC",
-    }
-    for suffix, market in suffixes.items():
-        if symbol.endswith(suffix):
-            return market
-    if symbol.startswith("^"):
-        return "INDICE"
-    if "-" in symbol:
-        return "CRYPTO"
-    return "DESCONOCIDO"
+def _may_be_partial_current_session(
+    last_bar_date: date,
+    reference: datetime,
+    market: str,
+    settlement_minutes: int,
+) -> bool:
+    if market != "CRYPTO":
+        return last_bar_date == reference.date()
+    if reference.tzinfo is None:
+        reference_utc = reference.replace(tzinfo=timezone.utc)
+    else:
+        reference_utc = reference.astimezone(timezone.utc)
+    settled_at = datetime.combine(last_bar_date + timedelta(days=1), time(0, 0), tzinfo=timezone.utc)
+    settled_at = settled_at + timedelta(minutes=settlement_minutes)
+    return reference_utc < settled_at
+
+
+def _market_for_data_symbol(symbol: str, asset_class: str) -> str:
+    from advisor.data.sessions import market_for_symbol
+
+    return market_for_symbol(symbol, asset_class=asset_class)

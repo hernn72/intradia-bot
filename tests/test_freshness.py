@@ -75,14 +75,14 @@ class TestCalcularFrescuraDato:
 
         assert freshness.natural_days == 4
         assert freshness.sessions_approx == 2
-        assert "sin festivos" in freshness.label
+        assert "2 sesiones" in freshness.label
 
 
 class TestMedirFrescuraDatos:
     def test_agrupa_por_fecha_y_plaza_con_proveedor_inyectado(self) -> None:
         assets = [
             _asset("SAP.DE", "XETRA"),
-            _asset("ASML.AS", "EURONEXT"),
+            _asset("ASML.AS", "AMS"),
             _asset("AAPL", "NASDAQ", "USA"),
         ]
         provider = FakeProvider(
@@ -90,8 +90,6 @@ class TestMedirFrescuraDatos:
                 "SAP.DE": make_ohlcv(n=3, start_date="2026-08-24"),
                 "ASML.AS": make_ohlcv(n=3, start_date="2026-08-24"),
                 "AAPL": make_ohlcv(n=5, start_date="2026-08-24"),
-                "^STOXX": make_ohlcv(n=5, start_date="2026-08-24"),
-                "^GSPC": make_ohlcv(n=5, start_date="2026-08-24"),
             }
         )
 
@@ -105,21 +103,21 @@ class TestMedirFrescuraDatos:
         )
         buckets = agrupar_frescura_por_fecha(rows)
 
-        assert provider.calls == ["SAP.DE", "^STOXX", "ASML.AS", "AAPL", "^GSPC"]
+        assert provider.calls == ["SAP.DE", "ASML.AS", "AAPL"]
         assert [(bucket.last_bar_date.isoformat(), bucket.symbols_count) for bucket in buckets] == [
             ("2026-08-28", 1),
             ("2026-08-26", 2),
         ]
         viejo = buckets[1]
         assert viejo.freshness.sessions_approx == 2
-        assert viejo.markets_label == "EURONEXT, XETRA"
+        assert viejo.markets_label == "AMS, XETRA"
 
     def test_salida_declara_hora_de_medicion_y_dispersion_por_plaza(self) -> None:
         assets = [
             _asset("AAA.DE", "XETRA"),
             _asset("BBB.DE", "XETRA"),
             _asset("CCC.DE", "XETRA"),
-            _asset("DDD.PA", "EURONEXT"),
+            _asset("DDD.PA", "PAR"),
         ]
         provider = FakeProvider(
             histories={
@@ -127,7 +125,6 @@ class TestMedirFrescuraDatos:
                 "BBB.DE": make_ohlcv(n=1, start_date="2026-08-28"),
                 "CCC.DE": make_ohlcv(n=1, start_date="2026-08-27"),
                 "DDD.PA": make_ohlcv(n=1, start_date="2026-08-27"),
-                "^STOXX": make_ohlcv(n=1, start_date="2026-08-28"),
             }
         )
         reference = datetime(2026, 8, 30, 17, 20, tzinfo=timezone.utc)
@@ -138,22 +135,18 @@ class TestMedirFrescuraDatos:
         assert "Medición: 2026-08-30 17:20:00 UTC" in salida
         assert "Dispersión por plaza:" in salida
         assert "| XETRA | vie 28 | 1 / 3 |" in salida
-        assert "| EURONEXT | jue 27 | 0 / 1 |" in salida
+        assert "| PAR | jue 27 | 0 / 1 |" in salida
 
-    def test_detecta_sesion_ausente_intermedia_jueves_lunes_frente_a_benchmark(self) -> None:
+    def test_detecta_sesion_ausente_intermedia_jueves_lunes_frente_a_calendario(self) -> None:
         activo = make_ohlcv(n=3, start_date="2026-08-26").drop(pd.Timestamp("2026-08-28", tz="UTC"))
         activo.loc[pd.Timestamp("2026-08-31", tz="UTC")] = activo.iloc[-1]
         activo = activo.sort_index()
-        benchmark = make_ohlcv(n=4, start_date="2026-08-26")
-        benchmark = benchmark.drop(pd.Timestamp("2026-08-29", tz="UTC"))
-        benchmark.loc[pd.Timestamp("2026-08-31", tz="UTC")] = benchmark.iloc[-1]
-        benchmark = benchmark.sort_index()
 
         freshness = calcular_frescura_serie(
             activo,
             datetime(2026, 8, 31, 7, 30, tzinfo=timezone.utc),
-            benchmark_close=benchmark["Close"],
-            benchmark_symbol="^STOXX50E",
+            market="XETRA",
+            strength_benchmark="^STOXX50E",
         )
 
         assert freshness.sessions_approx == 0
@@ -164,32 +157,30 @@ class TestMedirFrescuraDatos:
     def test_frescura_datos_declara_sesiones_ausentes_y_referencia(self) -> None:
         activo = make_ohlcv(n=3, start_date="2026-08-26").drop(pd.Timestamp("2026-08-28", tz="UTC"))
         activo.loc[pd.Timestamp("2026-08-31", tz="UTC")] = activo.iloc[-1]
-        benchmark = make_ohlcv(n=3, start_date="2026-08-27").drop(pd.Timestamp("2026-08-29", tz="UTC"))
-        benchmark.loc[pd.Timestamp("2026-08-31", tz="UTC")] = benchmark.iloc[-1]
-        provider = FakeProvider(histories={"SAP.DE": activo.sort_index(), "^STOXX": benchmark.sort_index()})
+        provider = FakeProvider(histories={"SAP.DE": activo.sort_index()})
         reference = datetime(2026, 8, 31, 7, 30, tzinfo=timezone.utc)
 
         rows = medir_frescura_datos([_asset("SAP.DE", "XETRA")], provider, _config(), reference)
         salida = format_frescura_datos(rows, reference)
 
-        assert "| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad | Referencia | Sesiones ausentes |" in salida
-        assert "| SAP.DE | SAP.DE | XETRA | 2026-08-31 | hoy; al día; barra de hoy posiblemente parcial | ^STOXX | 2026-08-28 |" in salida
+        assert "| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad | Calendario | Sesiones ausentes |" in salida
+        assert "| SAP.DE | SAP.DE | XETRA | 2026-08-31 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-08-28 |" in salida
 
     def test_calidad_incompleto_degradado_ok(self) -> None:
         reference = datetime(2026, 8, 31, 18, 0, tzinfo=timezone.utc)
         activo_incompleto = make_ohlcv(n=4, start_date="2026-08-26").drop(pd.Timestamp("2026-08-28", tz="UTC"))
         activo_incompleto.loc[pd.Timestamp("2026-08-31", tz="UTC")] = activo_incompleto.iloc[-1]
-        benchmark = make_ohlcv(n=4, start_date="2026-08-26")
-        benchmark.loc[pd.Timestamp("2026-08-31", tz="UTC")] = benchmark.iloc[-1]
 
         incompleto = calcular_frescura_serie(
             activo_incompleto.sort_index(),
             reference,
-            benchmark_close=benchmark["Close"],
-            benchmark_symbol="^STOXX",
+            market="XETRA",
+            strength_benchmark="^STOXX",
         )
-        degradado = calcular_frescura_serie(make_ohlcv(n=2, start_date="2026-08-26"), reference)
-        ok = calcular_frescura_serie(make_ohlcv(n=4, start_date="2026-08-26"), reference, benchmark["Close"], "^STOXX")
+        degradado = calcular_frescura_serie(make_ohlcv(n=2, start_date="2026-08-26"), reference, market="XETRA")
+        ok_history = make_ohlcv(n=4, start_date="2026-08-26")
+        ok_history.loc[pd.Timestamp("2026-08-31", tz="UTC")] = ok_history.iloc[-1]
+        ok = calcular_frescura_serie(ok_history.sort_index(), reference, market="XETRA", strength_benchmark="^STOXX")
 
         assert incompleto.quality == QUALITY_INCOMPLETE
         assert "INCOMPLETO" in incompleto.quality_reasons[0]
@@ -206,6 +197,7 @@ class TestMedirFrescuraDatos:
                 "symbol": "SAP.DE",
                 "data_symbol": "SAP.DE",
                 "market": "XETRA",
+                "calendar": "XETR",
                 "benchmark_symbol": "^STOXX",
                 "last_bar_date": "2026-08-31",
                 "natural_days": 0,
@@ -223,7 +215,7 @@ class TestMedirFrescuraDatos:
 
         salida = format_frescura_historico(db.get_recent_freshness_measurements())
 
-        assert "| 2026-09-02T08:30:00+00:00 | SAP.DE | SAP.DE | XETRA | 2026-08-31 | al día | ^STOXX | sí | 2026-08-28 |  |" in salida
+        assert "| 2026-09-02T08:30:00+00:00 | SAP.DE | SAP.DE | XETRA | 2026-08-31 | al día | XETR | sí | 2026-08-28 |  |" in salida
 
     def test_hueco_viejo_declara_pero_no_veta(self) -> None:
         """Un hueco fuera de la ventana de veto se declara, no bloquea abrir.
@@ -241,16 +233,16 @@ class TestMedirFrescuraDatos:
         viejo = calcular_frescura_serie(
             activo,
             reference,
-            benchmark_close=benchmark["Close"],
-            benchmark_symbol="^STOXX",
+            market="XETRA",
+            strength_benchmark="^STOXX",
             recent_reference_sessions=200,
             veto_window_sessions=5,
         )
         reciente = calcular_frescura_serie(
             activo,
             reference,
-            benchmark_close=benchmark["Close"],
-            benchmark_symbol="^STOXX",
+            market="XETRA",
+            strength_benchmark="^STOXX",
             recent_reference_sessions=200,
             veto_window_sessions=200,
         )
@@ -384,7 +376,7 @@ class TestPersistenciaEnLaPasadaReal:
             symbol="SAP.DE",
             data_symbol="SAP.DE",
             market="XETRA",
-            freshness=calcular_frescura_dato(pd.Timestamp("2026-09-01", tz="UTC"), reference),
+            freshness=calcular_frescura_dato(pd.Timestamp("2026-09-01", tz="UTC"), reference, "XETRA"),
         )
         resultado = AnalysisResult(
             generated_at=reference,

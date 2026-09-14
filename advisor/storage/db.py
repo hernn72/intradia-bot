@@ -379,7 +379,7 @@ class AdvisorDB:
                 raise ValueError("run_id es obligatorio para mediciones de frescura nuevas")
 
         columns = [
-            "measured_at", "symbol", "data_symbol", "market", "benchmark_symbol",
+            "measured_at", "symbol", "data_symbol", "market", "benchmark_symbol", "calendar",
             "last_bar_date", "natural_days", "sessions_approx", "may_be_partial_current_session",
             "absent_reference_sessions", "absent_recent_sessions", "reference_sessions_checked",
             "veto_window_sessions", "quality", "error", "run_id",
@@ -399,7 +399,7 @@ class AdvisorDB:
         if not rows:
             return 0
         columns = [
-            "measured_at", "symbol", "data_symbol", "market", "benchmark_symbol",
+            "measured_at", "symbol", "data_symbol", "market", "benchmark_symbol", "calendar",
             "last_bar_date", "natural_days", "sessions_approx", "may_be_partial_current_session",
             "absent_reference_sessions", "absent_recent_sessions", "reference_sessions_checked",
             "veto_window_sessions", "quality", "error", "run_id",
@@ -638,6 +638,7 @@ def freshness_measurement_to_row(row: Dict[str, Any]) -> Dict[str, Any]:
     absent_recent = row.get("absent_recent_sessions") or ()
     return {
         **row,
+        "calendar": row.get("calendar"),
         "may_be_partial_current_session": int(bool(row.get("may_be_partial_current_session"))),
         "absent_reference_sessions": json.dumps(list(absent), ensure_ascii=False),
         "absent_recent_sessions": json.dumps(list(absent_recent), ensure_ascii=False),

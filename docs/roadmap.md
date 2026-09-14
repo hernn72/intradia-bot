@@ -33,7 +33,7 @@ leído en documentos:
 | PR 1 (fases 1–3) | hecho en rama: `advisor/analysis/execution.py`, `entry_max_for_rr`, `reward_risk`, `rr_at_least`, `position_limit_reason`, `classify_setup` separado de `classify`, regresión `EXH1.DE` |
 | CI | `.github/workflows/ci.yml` en rama `ci/github-actions` (`e5ed089`), run verde en 3.12 y 3.13 |
 | Esquema SQLite | v2 con migraciones (`PRAGMA user_version`), backup pre-migración verificado, `analysis_run` + `run_id` (T-002) |
-| Calendarios | sesiones esperadas = fechas del **benchmark** (`advisor/data/freshness.py`); dos taxonomías de plazas distintas en `freshness.py` y `sessions.py` |
+| Calendarios | `advisor/data/calendars.py` con `exchange_calendars==4.13.2` y cripto 24/7; taxonomía única en `MARKET_SESSIONS` con MIC (rama `fix/exchange-calendars`, sin mergear) |
 | Universo | 107 analizables + 19 contexto; 18 ISIN; 107/107 `trade_republic: unknown`; seleccionado el 2026-08-27/29 |
 | Cosecha | `071ddb2b…`, 126 símbolos, 5 años, solo en el portátil (`data/vintages/` ignorado, 18 MB); manifiesto 87 KB |
 | LLM | `claude-sonnet-5` vía `advisor/ai/`; prompt sin versión; narrativa **no** se persiste |
@@ -163,7 +163,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | ID | Fase | Estado | Depende de | Ficha |
 |---|---|---|---|---|
 | PR 1 | Fases 1–3: RR desde precio efectivo, `entry_max` por RR, setup vs ejecución, sizing desde entrada efectiva | HECHO en rama (`e929da4`); merge pendiente (OA-01) | — | — |
-| PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | PENDIENTE | T-002 | T-003 |
+| PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | EN_REVISION (rama `fix/exchange-calendars`, verificada contra datos reales; falta revisión independiente y despliegue) | T-002 | T-003 |
 | PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | PENDIENTE | T-003 | T-004 |
 | PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | PENDIENTE | T-002, T-003, T-004 | T-005 |
 | PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | PENDIENTE | PR 3 | T-007 (por escribir) |
@@ -187,7 +187,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 
 | ID | Fase | Estado | Depende de | Ficha |
 |---|---|---|---|---|
-| A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | PENDIENTE | C-02 | T-006 |
+| A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | PENDIENTE (intento del 2026-09-14 bloqueado: Codex no escribe en worktrees hermanos) | C-02 | T-006 |
 | A-01 | Interpretar el histórico de frescura de la Pi (recurrencia de huecos) → alimenta OD-02 | PENDIENTE | acceso a la Pi | T-012 |
 | A-02 | Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con RS alineada y línea 0; decidir el RR en el score → **GATE P2** | BLOQUEADO(GATE L0, A-00) | GATE L0 | T-013 |
 | A-03 | P3 Score v2: dimensiones, pesos, `score_model_version`, umbrales por horizonte, ¿`convicción` fuera del número? → **GATE P3** | BLOQUEADO(GATE P2) | A-02 | por escribir |

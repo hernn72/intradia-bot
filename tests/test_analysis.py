@@ -627,9 +627,10 @@ class TestClassify:
             natural_days=0,
             sessions_approx=0,
             label="hoy; al día",
-            benchmark_symbol="^STOXX",
+            calendar="XETR",
+            strength_benchmark="^STOXX",
             quality=QUALITY_INCOMPLETE,
-            quality_reasons=("INCOMPLETO: faltan sesiones cerradas frente al calendario del benchmark 2026-08-28",),
+            quality_reasons=("INCOMPLETO: faltan sesiones cerradas frente al calendario de la plaza 2026-08-28",),
         )
 
         radar, accion, motivos = classify(
@@ -646,7 +647,7 @@ class TestClassify:
             last_bar_date=pd.Timestamp("2026-08-29").date(),
             natural_days=2,
             sessions_approx=1,
-            label="hace 2 días naturales; ≈1 sesión sin festivos",
+            label="hace 2 días naturales; 1 sesión",
             quality=QUALITY_DEGRADED,
             quality_reasons=("DEGRADADO: dato viejo",),
         )

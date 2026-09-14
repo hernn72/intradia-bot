@@ -1,0 +1,14 @@
+........................................................................ [ 17%]
+........................................................................ [ 34%]
+........................................................................ [ 51%]
+........................................................................ [ 68%]
+........................................................................ [ 85%]
+.............................................................            [100%]
+=============================== warnings summary ===============================
+tests/test_freshness.py::TestPersistenciaEnLaPasadaReal::test_guarda_frescura_con_la_ia_activada
+  /Users/fer/Desktop/Trading bot/intradia-bot/.venv/lib/python3.12/site-packages/pydantic/main.py:475: UserWarning: Pydantic serializer warnings:
+    PydanticSerializationUnexpectedValue(Expected `str` - serialized value may not be as expected [field_name='db_path', input_value=PosixPath('/private/var/f...a_con_la_ia0/pasada.db'), input_type=PosixPath])
+    return self.__pydantic_serializer__.to_python(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+421 passed, 1 warning in 88.09s (0:01:28)

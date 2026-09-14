@@ -1,9 +1,4 @@
-"""Sesiones regulares de mercado y recorte de barras diarias no cerradas.
-
-La tabla modela solo cierres regulares y zonas horarias IANA. No modela
-festivos, cierres parciales ni subastas especiales; esos casos se declaran en
-el informe como una limitación de precisión, no se infieren.
-"""
+"""Sesiones regulares de mercado y recorte de barras diarias no cerradas."""
 
 from __future__ import annotations
 
@@ -19,6 +14,7 @@ import pandas as pd
 class MarketSession:
     timezone: str
     close_time: Optional[time]
+    mic: str
 
     @property
     def has_close(self) -> bool:
@@ -33,21 +29,21 @@ class TrimResult:
 
 
 MARKET_SESSIONS = {
-    "AMS": MarketSession("Europe/Amsterdam", time(17, 30)),
-    "CPH": MarketSession("Europe/Copenhagen", time(17, 0)),
-    "CRYPTO": MarketSession("UTC", None),
-    "HKG": MarketSession("Asia/Hong_Kong", time(16, 0)),
-    "JPX": MarketSession("Asia/Tokyo", time(15, 30)),
-    "KSC": MarketSession("Asia/Seoul", time(15, 30)),
-    "LSE": MarketSession("Europe/London", time(16, 30)),
-    "MCE": MarketSession("Europe/Madrid", time(17, 30)),
-    "MIL": MarketSession("Europe/Rome", time(17, 30)),
-    "NASDAQ": MarketSession("America/New_York", time(16, 0)),
-    "NYSE": MarketSession("America/New_York", time(16, 0)),
-    "PAR": MarketSession("Europe/Paris", time(17, 30)),
-    "SHH": MarketSession("Asia/Shanghai", time(15, 0)),
-    "TAI": MarketSession("Asia/Taipei", time(13, 30)),
-    "XETRA": MarketSession("Europe/Berlin", time(17, 30)),
+    "AMS": MarketSession("Europe/Amsterdam", time(17, 30), "XAMS"),
+    "CPH": MarketSession("Europe/Copenhagen", time(17, 0), "XCSE"),
+    "CRYPTO": MarketSession("UTC", None, "CRYPTO_24_7"),
+    "HKG": MarketSession("Asia/Hong_Kong", time(16, 0), "XHKG"),
+    "JPX": MarketSession("Asia/Tokyo", time(15, 30), "XTKS"),
+    "KSC": MarketSession("Asia/Seoul", time(15, 30), "XKRX"),
+    "LSE": MarketSession("Europe/London", time(16, 30), "XLON"),
+    "MCE": MarketSession("Europe/Madrid", time(17, 30), "XMAD"),
+    "MIL": MarketSession("Europe/Rome", time(17, 30), "XMIL"),
+    "NASDAQ": MarketSession("America/New_York", time(16, 0), "XNAS"),
+    "NYSE": MarketSession("America/New_York", time(16, 0), "XNYS"),
+    "PAR": MarketSession("Europe/Paris", time(17, 30), "XPAR"),
+    "SHH": MarketSession("Asia/Shanghai", time(15, 0), "XSHG"),
+    "TAI": MarketSession("Asia/Taipei", time(13, 30), "XTAI"),
+    "XETRA": MarketSession("Europe/Berlin", time(17, 30), "XETR"),
 }
 
 SYMBOL_MARKETS = {
@@ -86,7 +82,7 @@ def market_timezone(market: str) -> ZoneInfo:
     return ZoneInfo(market_session(market).timezone)
 
 
-def market_for_symbol(symbol: str) -> str:
+def market_for_symbol(symbol: str, *, asset_class: Optional[str] = None) -> str:
     cleaned = symbol.upper()
     if cleaned in SYMBOL_MARKETS:
         return SYMBOL_MARKETS[cleaned]
@@ -105,7 +101,7 @@ def market_for_symbol(symbol: str) -> str:
     for suffix, market in suffixes.items():
         if cleaned.endswith(suffix):
             return market
-    if "-" in cleaned and not cleaned.startswith("^"):
+    if cleaned.endswith(("-EUR", "-USD")) and asset_class == "crypto":
         return "CRYPTO"
     if cleaned.startswith("^"):
         raise ValueError(f"{symbol}: índice sin plaza declarada en SYMBOL_MARKETS")

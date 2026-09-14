@@ -1,6 +1,6 @@
 # T-003 — Calendarios de plaza separados del benchmark y cripto 24/7 (PR 2, fases 4 y 6)
 
-Estado: PENDIENTE
+Estado: BLOQUEADA (aceptación real por proveedor de datos)
 Agente: Codex (implementa) → Opus (revisión obligatoria: fechado de sesiones)
 Línea / fase: L0 PR 2, fases 4 y 6 de `docs/plan-ejecucion.md`
 Gate al que contribuye: GATE L0 (requisito 2)
@@ -47,7 +47,7 @@ cosecha ni `timestamps.py`), INV-17.
    **Primer paso de la tarea:** instalarla en un venv Python 3.13 (o en la
    Pi) y anotar el resultado en la ficha; si no instala, BLOCKER y reabrir D-07.
 2. `advisor/data/calendars.py`:
-   - `MARKET_TO_MIC = {"XETRA": "XETR", "PAR": "XPAR", "AMS": "XAMS", "MCE": "XMAD", "MIL": "XMIL", "CPH": "XCSE", "NYSE": "XNYS", "NASDAQ": "XNAS", "JPX": "XJPX", "HKG": "XHKG", "KSC": "XKRX", "TAI": "XTAI", "SHH": "XSHG", "LSE": "XLON", "CRYPTO": "CRYPTO_24_7"}`.
+   - `MARKET_TO_MIC = {"XETRA": "XETR", "PAR": "XPAR", "AMS": "XAMS", "MCE": "XMAD", "MIL": "XMIL", "CPH": "XCSE", "NYSE": "XNYS", "NASDAQ": "XNAS", "JPX": "XTKS", "HKG": "XHKG", "KSC": "XKRX", "TAI": "XTAI", "SHH": "XSHG", "LSE": "XLON", "CRYPTO": "CRYPTO_24_7"}`.
    - `class Crypto247Calendar` con `sessions_in_range(start, end)` = todos los
      días naturales; `is_session(d)` siempre `True`.
    - `expected_sessions(market: str, start: date, end: date) -> list[date]`;
@@ -150,4 +150,129 @@ nota de fecha en las fases 4 y 6. `README.md`: limitación «no se modelan
 festivos» se retira.
 
 ## Handoff al siguiente agente
-(se rellena al terminar)
+Resumen de cambios:
+- Añadido `advisor/data/calendars.py` con `exchange_calendars`, MIC por plaza,
+  `CRYPTO_24_7`, `expected_sessions`, `missing_sessions` y conteo de sesiones
+  cerradas por calendario.
+- Unificada la taxonomía en `MARKET_SESSIONS` con `mic`; eliminado el fallback
+  silencioso de `_mercado_por_sufijo` en frescura. `BRK-B` no cae como cripto:
+  se resuelve por `primary_market` del universo.
+- `calcular_frescura_serie` recibe `market` obligatorio y ya no usa el benchmark
+  para ausencias. `DataFreshness` añade `calendar` y `strength_benchmark`.
+- `sessions_approx` cuenta sesiones del calendario de plaza; cripto usa sesión
+  natural 24/7 y cierre lógico UTC 00:00 + `settlement_minutes`.
+- Informe y CLI muestran el MIC/calendario de plaza; el informe principal limita
+  a 5 fechas ausentes por activo y registra el detalle completo en log.
+- Añadida migración v3 `data_freshness_measurement.calendar TEXT` y tests.
+- No se editó `universe.yaml`: `exchange_calendar` y `exchange_timezone` se
+  derivan en código desde `primary_market`. Los campos opcionales de YAML quedan
+  pendientes para una fase posterior.
+- No se tocó `requirements.txt`; la dependencia ya estaba fijada.
+
+Ficheros a commitear:
+- `advisor/data/calendars.py`
+- `advisor/data/sessions.py`
+- `advisor/data/freshness.py`
+- `advisor/analysis/analyzer.py`
+- `advisor/main.py`
+- `advisor/report/formatter.py`
+- `advisor/storage/db.py`
+- `advisor/storage/migrations.py`
+- `tests/test_calendars.py`
+- `tests/test_freshness.py`
+- `tests/test_analyzer.py`
+- `tests/test_analysis.py`
+- `tests/test_report.py`
+- `tests/test_db.py`
+- `tests/test_migrations.py`
+- `docs/tareas/T-003-calendarios-de-plaza.md`
+- `docs/roadmap.md`
+- `docs/plan-ejecucion.md`
+- `evidence/2026-09-14-T-003-calendarios/README.md`
+- `evidence/2026-09-14-T-003-calendarios/antes.txt`
+- `evidence/2026-09-14-T-003-calendarios/baseline-mypy.txt`
+- `evidence/2026-09-14-T-003-calendarios/baseline-pytest.txt`
+- `evidence/2026-09-14-T-003-calendarios/baseline-ruff.txt`
+- `evidence/2026-09-14-T-003-calendarios/despues.txt`
+- `evidence/2026-09-14-T-003-calendarios/pip-install-exchange-calendars.txt`
+
+Mensaje de commit propuesto:
+`fix(data): las sesiones esperadas salen del calendario de plaza, no del benchmark; cripto 24/7`
+
+Verificación:
+- `python -m pytest -q`: 431 passed, 1 warning.
+- `ruff check .`: All checks passed.
+- `mypy advisor`: Success, no issues found in 58 source files.
+- `python -m advisor.main analizar --horizonte swing --sin-ia --sin-guardar`:
+  la sesión de Codex no tiene DNS y quedó bloqueada; **Claude Code la ejecutó
+  el 2026-09-14 a las 14:01 UTC** con `exit=0` sobre los 107 activos. El
+  BLOCKER de aceptación real queda resuelto; `despues.txt` es esa pasada.
+
+Verificado a mano:
+- No verificable contra datos reales por bloqueo del proveedor. No se inventan
+  resultados para `AZN`, `TSM`, `SXR8.DE`, `IQQT.DE`, `SAP.DE` ni `BTC-EUR`.
+- Verificación manual sin red cubierta en tests: XETRA no espera 2026-04-06 y
+  sí espera 2026-09-07; NYSE no espera 2026-09-07 y sí espera 2026-09-08;
+  cripto acepta sábado, domingo y Navidad como sesiones; un benchmark con fecha
+  extra no produce ausencias del activo.
+
+Impacto:
+- No medible contra datos reales por fallo del proveedor. Impacto esperado por
+  contrato: falsos huecos por festivos ajenos desaparecen; la espina de P2.5 no
+  cambia; señales de investigación afectadas: 0 en esta entrega.
+
+Hallazgos:
+- BLOCKER: aceptación real bloqueada por DNS/proveedor de datos tras un
+  reintento.
+- OBSERVATION: el árbol tenía cambios previos no atribuibles a esta ejecución
+  en `docs/decision-log.md`, `docs/tareas/T-006-universe-vintage-e-identidad.md`,
+  `requirements.txt`, `graphify-out/` y evidencia base; no se revirtieron.
+
+Decisiones pendientes:
+- Ninguna para implementar código. Pendiente operativo: repetir verificación
+  real cuando el proveedor/DNS responda.
+
+Siguiente:
+- Reintentar aceptación real y después revisión independiente Opus centrada en
+  fechado de sesiones, zonas horarias, ausencia de benchmark como calendario,
+  migración v3 atómica y cripto 24/7.
+
+
+---
+
+## Cierre de la ficha por Claude Code — 2026-09-14
+
+El único BLOCKER que dejó Codex era su falta de DNS, no un defecto del código.
+Ejecutada la verificación real desde Claude Code, el resultado es el que la
+línea base predijo:
+
+- `AZN` y `TSM` pasan de 6 y 5 ausencias (festivos de EE. UU. que su benchmark
+  extranjero sí cotizaba) a **0**; dejan de estar vetadas por un hueco que no
+  existía.
+- Los ETF de Xetra contra `^GSPC`/`^N225` pasan de 6-7 ausencias a **1**
+  (`2026-03-06`), que es justo el caso que la línea base dejó anotado para
+  T-004.
+- Las tres criptos dejan de aparecer como «sin calendario de referencia».
+- Calidad del dato: `OK` 59 → 63, `INCOMPLETO` 30 → 28, `DEGRADADO` 18 → 16.
+
+Tabla completa y comandos en `evidence/2026-09-14-T-003-calendarios/README.md`.
+
+**Pendiente antes de aceptar** (siguiente sesión):
+
+1. **Revisión independiente obligatoria** (la ficha la exige: toca fechado de
+   sesiones). Puntos que el revisor debe intentar romper, además de los
+   habituales:
+   - `market_for_symbol` ahora exige `asset_class="crypto"` para resolver
+     `-EUR`/`-USD`: comprobar que ningún llamante se queda sin plaza en
+     silencio y que `BRK-B` no cae en `CRYPTO`.
+   - `closed_sessions_between` y el cierre lógico 24/7 de cripto
+     (UTC 00:00 + `settlement_minutes`).
+   - Que la espina de sesiones de `advisor/research/capacity.py` no haya
+     cambiado (la ficha lo prohíbe) y que P2.3/P2.4 no se muevan.
+   - La migración v3 con el patrón atómico y su backup.
+2. **Despliegue en la Pi** tras aceptar, con `exchange_calendars==4.13.2` ya
+   instalada allí (verificada el 2026-09-14 en Python 3.13/ARM: las 14 plazas
+   cargan).
+3. **T-004** hereda el resultado: 28 activos con `2026-09-07`, 14 con
+   `2026-03-06`, 2 con `2026-07-17` y 2 con `2026-06-03` (XKRX), 1 con
+   `2026-03-23` (XCSE). Son la población exacta a clasificar.

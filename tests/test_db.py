@@ -65,6 +65,7 @@ class TestFreshnessMeasurements:
             "symbol": symbol,
             "data_symbol": symbol,
             "market": "XETRA",
+            "calendar": "XETR",
             "benchmark_symbol": "^STOXX",
             "last_bar_date": "2026-08-31",
             "natural_days": 0,
@@ -242,4 +243,3 @@ class TestRunIdObligatorio:
         row["run_id"] = run_id
         with pytest.raises(ValueError, match="run_id"):
             db.insert_freshness_measurements([row])
-
