@@ -38,6 +38,28 @@ def rr_at_least(rr_ratio: float, threshold: float) -> bool:
     return rr_ratio >= threshold or math.isclose(rr_ratio, threshold, rel_tol=_RATIO_REL_TOL)
 
 
+def reward_risk(entry: float, target: float, stop: float) -> Optional[float]:
+    """Ratio beneficio/riesgo de una operación larga a un precio de entrada."""
+
+    if not all(math.isfinite(value) for value in (entry, target, stop)):
+        return None
+    risk = entry - stop
+    reward = target - entry
+    if risk <= 0 or reward <= 0:
+        return None
+    return reward / risk
+
+
+def entry_max_for_rr(target: float, stop: float, min_rr: float) -> Optional[float]:
+    """Precio máximo compatible con ``min_rr`` para una operación larga."""
+
+    if not all(math.isfinite(value) for value in (target, stop, min_rr)):
+        return None
+    if min_rr <= 0 or target <= stop:
+        return None
+    return (target + min_rr * stop) / (1 + min_rr)
+
+
 @dataclass(frozen=True)
 class Levels:
     """Niveles de una operación, en la divisa nativa del activo."""
@@ -69,7 +91,7 @@ class Levels:
         )
 
 
-def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig) -> Optional[Levels]:
+def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig, min_rr_ratio: float) -> Optional[Levels]:
     """Calcula los niveles de una oportunidad alcista sobre ``snapshot``.
 
     Devuelve ``None`` si falta el ATR: sin una medida de volatilidad no se
@@ -86,6 +108,7 @@ def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig) -> Optiona
         ema_slow=snapshot.ema_slow,
         sma_long=snapshot.sma_long,
         config=config,
+        min_rr_ratio=min_rr_ratio,
     )
 
 
@@ -99,6 +122,7 @@ def compute_levels_from_inputs(
     ema_slow: Optional[float] = None,
     sma_long: Optional[float] = None,
     config: LevelsConfig,
+    min_rr_ratio: float,
 ) -> Optional[Levels]:
     """Deriva niveles desde los insumos primitivos, sin recalcular indicadores."""
 
@@ -107,7 +131,7 @@ def compute_levels_from_inputs(
 
     entry_ideal_low = price - config.entry_pullback_atr * atr
     entry_ideal_high = price
-    entry_max = price + config.entry_max_atr * atr
+    entry_max_tecnica = price + config.entry_max_atr * atr
 
     # ¿El precio ya está extendido respecto a su media rápida? Si lo está,
     # entrar ahora es perseguir el movimiento (§14).
@@ -162,7 +186,15 @@ def compute_levels_from_inputs(
 
     risk_pp = (price - stop) / price * 100
     reward_pct = (target2 / price - 1) * 100
-    rr_ratio = reward_pct / risk_pp if risk_pp > 0 else 0.0
+    rr = reward_risk(price, target2, stop)
+    rr_ratio = rr if rr is not None else 0.0
+    entry_max_rr = entry_max_for_rr(target2, stop, min_rr_ratio)
+    if entry_max_rr is None:
+        return None
+    entry_max = min(entry_max_tecnica, entry_max_rr)
+    rr_at_entry_max = reward_risk(entry_max, target2, stop)
+    if rr_at_entry_max is None or not rr_at_least(rr_at_entry_max, min_rr_ratio):
+        return None
 
     # La invalidación de la tesis no es el stop de precio (§16): el stop
     # protege el capital, la invalidación dice que el motivo para estar

@@ -259,6 +259,7 @@ def format_opportunity(
 
     lines.append("### Dimensionamiento sugerido")
     sizing = opportunity.sizing
+    execution = opportunity.execution
     lines.append(
         f"{sizing.label}: {_num(sizing.position_pct)}% de la cartera, arriesgando "
         f"{_num(sizing.risk_pct, 2)}% si salta el stop."
@@ -277,12 +278,12 @@ def format_opportunity(
             )
         else:
             max_position_value = capital_native * sizing.position_pct / 100
-            shares = math.floor(max_position_value / levels.price) if levels.price > 0 else 0
+            shares = math.floor(max_position_value / execution.entry_price) if execution.entry_price > 0 else 0
             if shares == 0:
                 lines.append("Con el capital configurado no alcanza para comprar una acción al precio de referencia.")
             else:
-                position_value = shares * levels.price
-                risk_per_share = levels.price - levels.stop
+                position_value = shares * execution.entry_price
+                risk_per_share = execution.entry_price - levels.stop
                 risk_amount = shares * risk_per_share if risk_per_share > 0 else 0.0
                 risk_pct = fx.to_base(risk_amount, asset.currency)
                 risk_pct = risk_pct / portfolio.capital * 100 if risk_pct is not None else None
@@ -292,7 +293,7 @@ def format_opportunity(
                     f"riesgo si salta el stop {money(risk_amount)}{risk_text}."
                 )
     lines.append(
-        f"Cálculo hecho con entrada de referencia {money(levels.price)}; si introduces otro precio en "
+        f"Cálculo hecho con entrada de referencia {money(execution.entry_price)}; si introduces otro precio en "
         "Trade Republic, recalcula el tamaño."
     )
     lines.append("")

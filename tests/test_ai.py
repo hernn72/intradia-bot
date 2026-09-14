@@ -24,7 +24,7 @@ _RESPUESTA = {
 
 def _opportunity(asset, context):
     snapshot = make_snapshot()
-    levels = compute_levels(snapshot, LevelsConfig())
+    levels = compute_levels(snapshot, LevelsConfig(), RiskConfig().min_rr_ratio)
     score = compute_score(snapshot, levels, context, ScoringConfig(), 250)
     return build_opportunity(
         asset=asset, horizonte="swing", snapshot=snapshot, levels=levels,

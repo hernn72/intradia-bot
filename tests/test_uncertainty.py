@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from advisor.config import LevelsConfig
+from advisor.config import LevelsConfig, RiskConfig
 from advisor.research.bootstrap import (
     HETEROGENEITY_HIGH,
     HETEROGENEITY_NOISE,
@@ -63,7 +63,7 @@ def test_replay_managed_population_reproduce_mismos_niveles() -> None:
         by_symbol={"TEST": VintageViews(raw=df, execution_prices=df, signal_prices=df, gap_for_catalyst=df)},
     )
 
-    replayed = replay_managed_population(result, vintage, levels_config)
+    replayed = replay_managed_population(result, vintage, levels_config, RiskConfig().min_rr_ratio)
 
     assert replayed[signal.observation.signal_id] == signal.managed
 
@@ -73,7 +73,7 @@ def test_replay_managed_population_aborta_con_cosecha_distinta() -> None:
     vintage = VintageLoad(data_vintage_id="b", manifest={}, by_symbol={})
 
     with pytest.raises(ValueError, match="cosecha distinta"):
-        replay_managed_population(result, vintage, LevelsConfig())
+        replay_managed_population(result, vintage, LevelsConfig(), RiskConfig().min_rr_ratio)
 
 
 def test_pareado_aborta_si_signal_ids_no_coinciden() -> None:

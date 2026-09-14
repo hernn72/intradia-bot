@@ -8,7 +8,15 @@ from typing import ClassVar, List
 import pandas as pd
 import pytest
 
-from advisor.analysis.levels import compute_levels, compute_levels_from_inputs, rr_at_least
+from advisor.analysis.execution import ABOVE_MAX_ENTRY, EXECUTABLE, RR_TOO_LOW, evaluate_trade_at_entry
+from advisor.analysis.levels import (
+    Levels,
+    entry_max_for_rr,
+    reward_risk,
+    rr_at_least,
+)
+from advisor.analysis.levels import compute_levels as _compute_levels
+from advisor.analysis.levels import compute_levels_from_inputs as _compute_levels_from_inputs
 from advisor.analysis.opportunity import (
     ACCION_COMPRAR,
     ACCION_DESCARTAR,
@@ -19,11 +27,21 @@ from advisor.analysis.opportunity import (
     classify,
 )
 from advisor.analysis.scoring import Component, Dimension, Score, compute_score
-from advisor.analysis.sizing import calculate_position_sizing
+from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, calculate_position_sizing
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.data.freshness import QUALITY_DEGRADED, QUALITY_INCOMPLETE, DataFreshness
 from tests.conftest import make_ohlcv
+
+MIN_RR = RiskConfig().min_rr_ratio
+
+
+def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig):
+    return _compute_levels(snapshot, config, MIN_RR)
+
+
+def compute_levels_from_inputs(**kwargs):
+    return _compute_levels_from_inputs(**kwargs, min_rr_ratio=MIN_RR)
 
 
 def make_snapshot(**overrides) -> TechnicalSnapshot:
@@ -233,6 +251,29 @@ class TestComputeLevels:
         assert levels.reward_pct == pytest.approx(6.0)
         assert levels.rr_ratio == pytest.approx(1.5)
 
+    def test_reward_risk(self) -> None:
+        assert reward_risk(entry=100.0, target=106.0, stop=96.0) == pytest.approx(1.5)
+        assert reward_risk(entry=96.0, target=106.0, stop=96.0) is None
+        assert reward_risk(entry=107.0, target=106.0, stop=96.0) is None
+        assert reward_risk(entry=float("nan"), target=106.0, stop=96.0) is None
+
+    def test_entry_max_rr(self) -> None:
+        assert entry_max_for_rr(target=58.20, stop=54.71, min_rr=1.5) == pytest.approx(56.106, abs=0.001)
+
+    def test_entry_max_never_violates_min_rr(self) -> None:
+        levels = compute_levels(make_snapshot(price=100.0, atr=2.0, low_lookback=1.0), LevelsConfig())
+        rr = reward_risk(levels.entry_max, levels.target2, levels.stop)
+        assert rr is not None
+        assert rr >= 1.5 - 1e-9
+
+    def test_exh1_regression_2026_09_14(self) -> None:
+        entry_max = entry_max_for_rr(target=58.20, stop=54.71, min_rr=1.5)
+        assert entry_max == pytest.approx(56.11, abs=0.01)
+        rr = reward_risk(56.63, 58.20, 54.71)
+        assert rr == pytest.approx(0.8177, abs=0.001)
+        assert rr is not None
+        assert not rr_at_least(rr, 1.5)
+
     def test_detecta_precio_extendido(self) -> None:
         extendido = make_snapshot(price=100.0, ema_fast=90.0, atr=2.0)
         assert compute_levels(extendido, LevelsConfig(entry_max_atr=0.75)).chase is True
@@ -383,7 +424,7 @@ class TestScoring:
             sma_long=price * 0.9, low_lookback=price * 0.01, high_lookback=price * 10,
         )
         levels = compute_levels(snapshot, LevelsConfig())
-        assert levels.rr_ratio < 1.5  # el cociente crudo está por debajo
+        assert levels.rr_ratio == pytest.approx(1.5)
 
         score = compute_score(snapshot, levels, benign_context, ScoringConfig(), 250)
         ratio_dim = next(d for d in score.dimensions if d.name == "beneficio_riesgo")
@@ -463,15 +504,32 @@ class TestClassify:
         assert (radar, accion) == (RADAR_DESCARTAR, ACCION_DESCARTAR)
         assert "por debajo del mínimo" in motivos[0]
 
-    def test_descarta_por_ratio_insuficiente(self, asset_eur, benign_context) -> None:
+    def test_setup_bueno_con_rr_malo_espera_sin_tocar_score(self, asset_eur, benign_context) -> None:
         # Stop muy lejano y objetivos cortos: ratio por debajo de 1,5.
+        score = self._score_con_valor(85.0)
         snapshot = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0)
         levels = compute_levels(snapshot, LevelsConfig(atr_stop_multiple=4.0, target_atr_multiples=[1.0, 2.0, 3.0]))
         radar, accion, motivos = classify(
+            score, levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+        )
+        assert score.value == 85.0
+        assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
+        assert "NO_CHASE" in motivos[0]
+
+    def test_setup_bueno_con_rr_bueno_opera(self, asset_eur, benign_context) -> None:
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+        radar, accion, _ = classify(
             self._score_con_valor(85.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
         )
+        assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
+
+    def test_setup_malo_con_rr_bueno_no_opera(self, asset_eur, benign_context) -> None:
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+        radar, accion, motivos = classify(
+            self._score_con_valor(40.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+        )
         assert (radar, accion) == (RADAR_DESCARTAR, ACCION_DESCARTAR)
-        assert "beneficio/riesgo" in motivos[0]
+        assert "puntuación" in motivos[0]
 
     def test_el_ratio_justo_en_el_minimo_no_descarta(self, asset_eur, benign_context) -> None:
         """El caso por defecto (stop 2·ATR, objetivo 2 a 3·ATR) da 1,5:1 exacto."""
@@ -482,7 +540,7 @@ class TestClassify:
             sma_long=price * 0.9, low_lookback=price * 0.01, high_lookback=price * 10,
         )
         levels = compute_levels(snapshot, LevelsConfig())
-        assert levels.rr_ratio < 1.5  # el cociente crudo está por debajo
+        assert levels.rr_ratio == pytest.approx(1.5)
 
         radar, accion, _ = classify(
             self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
@@ -537,13 +595,13 @@ class TestClassify:
         assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
         assert "adverso" in motivos[0]
 
-    def test_activo_no_disponible_en_trade_republic_se_descarta(self, asset_eur, benign_context) -> None:
+    def test_activo_no_disponible_en_trade_republic_espera_por_ejecucion(self, asset_eur, benign_context) -> None:
         no_disponible = asset_eur.model_copy(update={"trade_republic": "no"})
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, motivos = classify(
             self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), no_disponible
         )
-        assert (radar, accion) == (RADAR_DESCARTAR, ACCION_DESCARTAR)
+        assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
         assert "Trade Republic" in motivos[0]
 
     def test_disponibilidad_sin_verificar_avisa_pero_no_bloquea(self, asset_usd, benign_context) -> None:
@@ -600,3 +658,111 @@ class TestClassify:
 
         assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
         assert motivos == ["DEGRADADO: dato viejo"]
+
+
+class TestExecutionEvaluation:
+    def test_entry_above_max_is_not_executable(self, asset_eur) -> None:
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+        execution = evaluate_trade_at_entry(
+            levels=levels,
+            entry_price=levels.entry_max + 0.01,
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+            label="test",
+            asset=asset_eur,
+        )
+        assert execution.executable is False
+        assert execution.reason == ABOVE_MAX_ENTRY
+
+    def test_entry_at_or_below_max_can_be_executable(self, asset_eur) -> None:
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+        execution = evaluate_trade_at_entry(
+            levels=levels,
+            entry_price=levels.entry_max,
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+            label="test",
+            asset=asset_eur,
+        )
+        assert execution.executable is True
+        assert execution.reason == EXECUTABLE
+
+    def test_rr_low_is_not_executable_even_with_good_setup(self, asset_eur) -> None:
+        base = compute_levels(make_snapshot(), LevelsConfig())
+        levels = Levels(
+            price=base.price,
+            entry_ideal_low=base.entry_ideal_low,
+            entry_ideal_high=base.entry_ideal_high,
+            entry_max=base.price,
+            stop=90.0,
+            invalidation_level=base.invalidation_level,
+            invalidation_reason=base.invalidation_reason,
+            stop_basis=base.stop_basis,
+            target1=103.0,
+            target2=110.0,
+            target3=115.0,
+            risk_pp=10.0,
+            reward_pct=10.0,
+            rr_ratio=1.0,
+            extension_atr=base.extension_atr,
+            chase=base.chase,
+        )
+        execution = evaluate_trade_at_entry(
+            levels=levels,
+            entry_price=levels.price,
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+            label="test",
+            asset=asset_eur,
+        )
+        assert execution.executable is False
+        assert execution.reason == RR_TOO_LOW
+
+    def test_entry_changes_position_size(self, asset_eur) -> None:
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+        portfolio = PortfolioConfig(risk_per_trade_pct=0.5, max_position_pct=100.0)
+        at_price = evaluate_trade_at_entry(
+            levels=levels, entry_price=100.0, risk=RiskConfig(), portfolio=portfolio, label="test", asset=asset_eur
+        )
+        above = evaluate_trade_at_entry(
+            levels=levels, entry_price=100.5, risk=RiskConfig(), portfolio=portfolio, label="test", asset=asset_eur
+        )
+        assert at_price.position_size.position_pct != pytest.approx(above.position_size.position_pct)
+
+    def test_stop_changes_position_size(self, asset_eur) -> None:
+        tight = compute_levels(make_snapshot(price=100.0, atr=1.0, low_lookback=1.0), LevelsConfig())
+        wide = compute_levels(make_snapshot(price=100.0, atr=2.0, low_lookback=1.0), LevelsConfig())
+        portfolio = PortfolioConfig(risk_per_trade_pct=0.5, max_position_pct=100.0)
+        tight_execution = evaluate_trade_at_entry(
+            levels=tight, entry_price=100.0, risk=RiskConfig(), portfolio=portfolio, label="test", asset=asset_eur
+        )
+        wide_execution = evaluate_trade_at_entry(
+            levels=wide, entry_price=100.0, risk=RiskConfig(), portfolio=portfolio, label="test", asset=asset_eur
+        )
+        assert tight_execution.position_size.position_pct != pytest.approx(wide_execution.position_size.position_pct)
+
+    def test_risk_per_unit_invalidates_trade(self, asset_eur) -> None:
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+        execution = evaluate_trade_at_entry(
+            levels=levels,
+            entry_price=levels.stop,
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+            label="test",
+            asset=asset_eur,
+        )
+        assert execution.executable is False
+
+    def test_position_capped_at_ten_percent_and_risk_budget_not_exceeded(self, asset_eur) -> None:
+        levels = compute_levels(make_snapshot(price=100.0, atr=1.0, low_lookback=1.0), LevelsConfig())
+        execution = evaluate_trade_at_entry(
+            levels=levels,
+            entry_price=100.0,
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(capital=100_000.0, risk_per_trade_pct=0.5, max_position_pct=10.0),
+            label="test",
+            asset=asset_eur,
+        )
+        assert execution.position_size.position_pct == pytest.approx(10.0)
+        assert execution.position_size.position_limit_reason == POSITION_LIMIT_MAX_POSITION_PCT
+        assert execution.position_size.risk_pct <= 0.5

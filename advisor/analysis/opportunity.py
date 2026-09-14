@@ -10,13 +10,26 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from advisor.analysis.levels import Levels, rr_at_least
+from advisor.analysis.execution import (
+    ABOVE_MAX_ENTRY,
+    BROKER_UNAVAILABLE,
+    BROKER_UNVERIFIED,
+    DATA_NOT_EXECUTABLE,
+    EXECUTABLE,
+    INVALID_STOP,
+    INVALID_TARGET,
+    POSITION_TOO_SMALL,
+    RR_TOO_LOW,
+    ExecutionEvaluation,
+    evaluate_trade_at_entry,
+)
+from advisor.analysis.levels import Levels
 from advisor.analysis.market_context import MarketContext
 from advisor.analysis.scoring import Score
-from advisor.analysis.sizing import PositionSizing, calculate_position_sizing, conviction_label
+from advisor.analysis.sizing import PositionSizing, conviction_label
 from advisor.analysis.snapshot import TechnicalSnapshot
 from advisor.config import DataQualityConfig, PortfolioConfig, RiskConfig, ScoringConfig
-from advisor.data.freshness import QUALITY_DEGRADED, QUALITY_INCOMPLETE, DataFreshness
+from advisor.data.freshness import QUALITY_DEGRADED, DataFreshness
 from advisor.universe.models import Asset
 
 RADAR_OPERAR = "OPERAR"
@@ -65,10 +78,14 @@ class Opportunity:
     levels: Levels
     score: Score
     context: MarketContext
+    setup_radar: str
+    setup_accion: str
+    setup_reasons: List[str]
     radar: str
     accion: str
     decision_reasons: List[str]
     sizing: PositionSizing
+    execution: ExecutionEvaluation
     data_freshness: Optional[DataFreshness] = None
     narrative: Optional[Narrative] = None
 
@@ -84,9 +101,9 @@ class Opportunity:
     def signal_label(self) -> str:
         """Calidad de la señal, separada de si el broker permite ejecutarla."""
 
-        if self.radar == RADAR_OPERAR:
+        if self.setup_radar == RADAR_OPERAR:
             return "🟢 OPERAR"
-        if self.radar == RADAR_VIGILAR:
+        if self.setup_radar == RADAR_VIGILAR:
             return "🟡 VIGILAR"
         return "🔴 DESCARTAR"
 
@@ -134,6 +151,7 @@ def classify(
     horizonte: str = "",
     data_freshness: Optional[DataFreshness] = None,
     data_quality: Optional[DataQualityConfig] = None,
+    portfolio: Optional[PortfolioConfig] = None,
 ) -> tuple:
     """Decide radar y acción a partir de criterios objetivos.
 
@@ -142,6 +160,42 @@ def classify(
     auditable y no un veredicto sin justificar.
     """
 
+    setup_radar, setup_accion, reasons = classify_setup(score, levels, context, scoring, risk, horizonte)
+    if setup_accion != ACCION_COMPRAR:
+        return setup_radar, setup_accion, reasons
+
+    if data_freshness is not None and data_freshness.quality == QUALITY_DEGRADED:
+        reasons.extend(data_freshness.quality_reasons)
+
+    execution = evaluate_trade_at_entry(
+        levels=levels,
+        entry_price=levels.price,
+        risk=risk,
+        portfolio=portfolio or PortfolioConfig(),
+        label="clasificación",
+        asset=asset,
+        data_freshness=data_freshness,
+        data_quality=data_quality,
+    )
+    if not execution.executable:
+        reasons.extend(_execution_reasons(execution, risk, data_freshness))
+        return RADAR_VIGILAR, ACCION_ESPERAR, reasons
+    if execution.reason == BROKER_UNVERIFIED:
+        reasons.extend(_execution_reasons(execution, risk, data_freshness))
+
+    return RADAR_OPERAR, ACCION_COMPRAR, reasons
+
+
+def classify_setup(
+    score: Score,
+    levels: Levels,
+    context: MarketContext,
+    scoring: ScoringConfig,
+    risk: RiskConfig,
+    horizonte: str = "",
+) -> tuple:
+    """Clasifica la calidad del setup sin vetos de ejecutabilidad."""
+
     reasons: List[str] = []
     value = score.value
 
@@ -149,27 +203,16 @@ def classify(
         reasons.append(f"puntuación {value:.0f} por debajo del mínimo de vigilancia ({scoring.min_score_vigilar:.0f})")
         return RADAR_DESCARTAR, ACCION_DESCARTAR, reasons
 
-    if not rr_at_least(levels.rr_ratio, risk.min_rr_ratio):
-        reasons.append(
-            f"ratio beneficio/riesgo {levels.rr_ratio:.1f}:1 por debajo del mínimo exigido "
-            f"({risk.min_rr_ratio:.1f}:1)"
-        )
-        return RADAR_DESCARTAR, ACCION_DESCARTAR, reasons
-
     if value < scoring.min_score_operar:
         reasons.append(f"puntuación {value:.0f}, insuficiente para operar ({scoring.min_score_operar:.0f})")
         return RADAR_VIGILAR, ACCION_ESPERAR, reasons
 
-    # A partir de aquí la oportunidad es puntuable como operable; lo que
-    # queda son vetos por contexto o disponibilidad y advertencias de precio.
-    #
     # La extensión sobre la media rápida ADVIERTE pero no veta. Se midió con
     # el backtest (europa, 2y y 5y, 2026-08): como veto dejaba al asesor sin
     # operar (2 señales COMPRAR en 5 años) y las señales que bloqueaba
     # ganaban el 62-67% de las veces con +2,6%/+4,0% de media. La
     # especificación (§14) solo manda ESPERAR cuando el precio subió Y perdió
     # el ratio favorable; la extensión sola no cumple la segunda condición.
-    # El veto de ratio de más abajo sigue cubriendo el caso completo.
     if levels.chase:
         extension = levels.extension_atr
         reasons.append(
@@ -194,22 +237,44 @@ def classify(
             )
             return RADAR_VIGILAR, ACCION_ESPERAR, reasons
 
-    if data_freshness is not None:
-        if data_freshness.quality == QUALITY_INCOMPLETE and (data_quality is None or data_quality.veto_incomplete_open):
-            reasons.extend(data_freshness.quality_reasons)
-            reasons.append("apertura vetada por calidad del dato INCOMPLETO; la puntuación se conserva sin ajustar")
-            return RADAR_VIGILAR, ACCION_ESPERAR, reasons
-        if data_freshness.quality == QUALITY_DEGRADED:
-            reasons.extend(data_freshness.quality_reasons)
-
-    if not asset.is_recommendable:
-        reasons.append("no disponible en Trade Republic: no puede ejecutarse")
-        return RADAR_DESCARTAR, ACCION_DESCARTAR, reasons
-
-    if asset.trade_republic == "unknown":
-        reasons.append("disponibilidad en Trade Republic sin verificar: confírmala antes de ejecutar")
-
     return RADAR_OPERAR, ACCION_COMPRAR, reasons
+
+
+def _execution_reasons(
+    execution: ExecutionEvaluation,
+    risk: RiskConfig,
+    data_freshness: Optional[DataFreshness] = None,
+) -> List[str]:
+    """Traduce el estado de ejecución a motivos legibles."""
+
+    reason = execution.reason
+    if reason == EXECUTABLE:
+        return []
+    if reason == ABOVE_MAX_ENTRY:
+        return [
+            f"precio de entrada {execution.entry_price:.2f} por encima de la entrada máxima "
+            f"{execution.entry_max:.2f}: NO_CHASE"
+        ]
+    if reason == RR_TOO_LOW:
+        rr = 0.0 if execution.rr is None else execution.rr
+        return [
+            f"ratio beneficio/riesgo {rr:.1f}:1 al precio de entrada por debajo del mínimo exigido "
+            f"({risk.min_rr_ratio:.1f}:1)"
+        ]
+    if reason == INVALID_STOP:
+        return ["stop inválido para el precio de entrada: riesgo no calculable"]
+    if reason == INVALID_TARGET:
+        return ["objetivo inválido para el precio de entrada: potencial no positivo"]
+    if reason == POSITION_TOO_SMALL:
+        return ["posición demasiado pequeña para ejecutarse con el riesgo configurado"]
+    if reason == DATA_NOT_EXECUTABLE:
+        quality = list(data_freshness.quality_reasons) if data_freshness is not None else []
+        return [*quality, "apertura vetada por calidad del dato INCOMPLETO; la puntuación se conserva sin ajustar"]
+    if reason == BROKER_UNVERIFIED:
+        return ["disponibilidad en Trade Republic sin verificar: confírmala antes de ejecutar"]
+    if reason == BROKER_UNAVAILABLE:
+        return ["no disponible en Trade Republic: no puede ejecutarse"]
+    return [f"ejecución no válida: {reason}"]
 
 
 def build_opportunity(
@@ -227,6 +292,8 @@ def build_opportunity(
 ) -> Opportunity:
     """Ensambla la oportunidad ya clasificada y dimensionada."""
 
+    label = conviction_label(score)
+    setup_radar, setup_accion, setup_reasons = classify_setup(score, levels, context, scoring, risk, horizonte)
     radar, accion, reasons = classify(
         score,
         levels,
@@ -237,8 +304,19 @@ def build_opportunity(
         horizonte,
         data_freshness,
         data_quality,
+        portfolio,
     )
-    sizing = calculate_position_sizing(levels, portfolio, conviction_label(score))
+    execution = evaluate_trade_at_entry(
+        levels=levels,
+        entry_price=levels.price,
+        risk=risk,
+        portfolio=portfolio,
+        label=label,
+        asset=asset,
+        data_freshness=data_freshness,
+        data_quality=data_quality,
+    )
+    sizing = execution.position_size
 
     return Opportunity(
         asset=asset,
@@ -247,9 +325,13 @@ def build_opportunity(
         levels=levels,
         score=score,
         context=context,
+        setup_radar=setup_radar,
+        setup_accion=setup_accion,
+        setup_reasons=setup_reasons,
         radar=radar,
         accion=accion,
         decision_reasons=reasons,
         sizing=sizing,
+        execution=execution,
         data_freshness=data_freshness,
     )

@@ -12,7 +12,7 @@ import pytest
 
 import advisor.research.ablation as ablation
 from advisor.analysis.levels import compute_levels_from_inputs
-from advisor.config import LevelsConfig
+from advisor.config import LevelsConfig, RiskConfig
 from advisor.research.ablation import build_ablation_record, format_ablation_report, run_ablation
 from advisor.research.event_study import (
     AMBIGUOUS,
@@ -76,7 +76,7 @@ def test_rr_bruto_reconstruido_coincide_con_levels_rr_ratio() -> None:
         dict(price=100.0, atr=2.0, low_lookback=98.0, high_lookback=106.0, ema_fast=99.0),
     ]
     for kwargs in cases:
-        levels = compute_levels_from_inputs(**kwargs, config=LevelsConfig())
+        levels = compute_levels_from_inputs(**kwargs, config=LevelsConfig(), min_rr_ratio=RiskConfig().min_rr_ratio)
         assert levels is not None
         signal = _signal_with_dimensions(score=70.0, levels=levels)
 

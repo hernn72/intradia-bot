@@ -146,7 +146,7 @@ def analyze_asset(
         ),
     )
 
-    levels = compute_levels(snapshot, config.levels)
+    levels = compute_levels(snapshot, config.levels, config.risk.min_rr_ratio)
     if levels is None:
         raise ValueError("no se pueden situar los niveles (ATR no disponible o stop incoherente)")
 

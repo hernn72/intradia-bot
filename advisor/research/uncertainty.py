@@ -157,7 +157,7 @@ def compare_target_geometry(
     capacity = assess_capacity(result_a, universe=universe)
     population_a = {signal.observation.signal_id: signal.managed for signal in result_a.signals}
     if mode == "replica":
-        population_b = replay_managed_population(result_a, vintage, levels_b, cost_pct=cost_pct)
+        population_b = replay_managed_population(result_a, vintage, levels_b, config.risk.min_rr_ratio, cost_pct=cost_pct)
     else:
         config_b = config.model_copy(update={"levels": levels_b})
         result_b = run_event_study_on_vintage(config_b, universe, vintage, horizonte=horizonte, cost_pct=cost_pct)

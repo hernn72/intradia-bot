@@ -331,6 +331,7 @@ def replay_managed_population(
     result: EventStudyResult,
     vintage: VintageLoad,
     levels_config: LevelsConfig,
+    min_rr_ratio: float,
     *,
     cost_pct: Optional[float] = None,
 ) -> Dict[str, ManagedEvent]:
@@ -355,6 +356,7 @@ def replay_managed_population(
             high_lookback=obs.high_lookback,
             ema_fast=obs.ema_fast,
             config=levels_config,
+            min_rr_ratio=min_rr_ratio,
         )
         if levels is None:
             raise ValueError(f"{obs.signal_id}: la configuración no produce niveles comparables")
@@ -611,7 +613,7 @@ def _build_event_signal(
         snapshot = snapshot_from_series(asset.symbol, snapshot_series, j)
     except ValueError:
         return None
-    levels = compute_levels(snapshot, config.levels)
+    levels = compute_levels(snapshot, config.levels, config.risk.min_rr_ratio)
     if levels is None:
         return None
     context = build_market_context(
@@ -629,6 +631,7 @@ def _build_event_signal(
         high_lookback=observation.high_lookback,
         ema_fast=observation.ema_fast,
         config=config.levels,
+        min_rr_ratio=config.risk.min_rr_ratio,
     )
     if primitive_levels is None:
         return None

@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 
+from advisor.analysis.execution import evaluate_trade_at_entry
 from advisor.analysis.levels import compute_levels
 from advisor.analysis.market_context import build_market_context
 from advisor.analysis.opportunity import ACCION_COMPRAR, classify
@@ -116,7 +117,7 @@ def _signal_from_snapshot(
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
 ) -> Optional[Dict[str, Any]]:
-    levels = compute_levels(snapshot, config.levels)
+    levels = compute_levels(snapshot, config.levels, config.risk.min_rr_ratio)
     if levels is None:
         return None
 
@@ -136,6 +137,7 @@ def _signal_from_snapshot(
         "stop": levels.stop,
         "target": levels.target2,
         "entry_max": levels.entry_max,
+        "levels": levels,
         "observation": build_signal_observation(
             asset=asset,
             horizonte=horizonte,
@@ -281,10 +283,16 @@ def simulate_asset(
 
         if position is None and pending is not None:
             bar_open = float(bar["Open"])
-            # Disciplina de entrada del asesor: ni por debajo del stop (la
-            # tesis nació muerta) ni por encima de la entrada máxima (sería
-            # perseguir el precio).
-            if pending["stop"] < bar_open <= pending["entry_max"]:
+            execution = evaluate_trade_at_entry(
+                levels=pending["levels"],
+                entry_price=bar_open,
+                risk=config.risk,
+                portfolio=config.portfolio,
+                label="backtest",
+            )
+            # Disciplina de entrada del asesor: la apertura debe ser ejecutable
+            # con el mismo RR, stop y tamaño que se usarían en producción.
+            if execution.executable:
                 position = dict(pending, entry_index=j, entry_price=bar_open)
                 exit_price, reason = _check_exit(bar, position["stop"], position["target"], entry_bar=True)
                 if exit_price is not None and reason is not None:

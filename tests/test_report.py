@@ -46,7 +46,7 @@ def _opportunity(asset, context, horizonte: str = "swing", portfolio: PortfolioC
     portfolio = portfolio or PortfolioConfig()
     data_freshness = snapshot_kwargs.pop("data_freshness", None)
     snapshot = make_snapshot(**snapshot_kwargs)
-    levels = compute_levels(snapshot, LevelsConfig())
+    levels = compute_levels(snapshot, LevelsConfig(), RiskConfig().min_rr_ratio)
     score = compute_score(snapshot, levels, context, ScoringConfig(), 250)
     return build_opportunity(
         asset=asset, horizonte=horizonte, snapshot=snapshot, levels=levels,
@@ -478,7 +478,8 @@ class TestFormatReport:
         assert "⚠️ 1 sesión cerrada perdida: 1 activo; última barra 2026-08-25 (XETRA)." in informe
         assert "SAP.DE (SAP) — score" in informe
         assert "⚠️ dato 2026-08-25 (1s)" in informe
-        assert "1 activos descartados: AAPL" in informe
+        assert "AAPL (Apple) — score" in informe
+        assert "no disponible en Trade Republic" in informe
         assert "## SAP" not in informe
 
     def test_informe_declara_sesion_ausente_intermedia_y_marca_compacta(
