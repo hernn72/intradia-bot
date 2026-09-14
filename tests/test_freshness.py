@@ -217,6 +217,7 @@ class TestMedirFrescuraDatos:
                 "veto_window_sessions": 20,
                 "quality": "INCOMPLETO",
                 "error": None,
+                "run_id": "test-run",
             }
         ])
 
@@ -276,12 +277,109 @@ class TestPersistenciaEnLaPasadaReal:
         import advisor.ai.narrator as narrator
         import advisor.main as main
         from advisor.analysis.analyzer import AnalysisResult
+        from advisor.analysis.execution import ExecutionEvaluation
+        from advisor.analysis.levels import Levels
+        from advisor.analysis.market_context import MarketContext
+        from advisor.analysis.opportunity import Opportunity
+        from advisor.analysis.scoring import Component, Dimension, Score
+        from advisor.analysis.sizing import PositionSizing
+        from advisor.analysis.snapshot import TechnicalSnapshot
         from advisor.config import load_config
         from advisor.data.freshness import FreshnessRow, calcular_frescura_dato
         from advisor.storage.db import AdvisorDB
         from advisor.universe.loader import load_universe
+        from advisor.universe.models import Asset
 
         reference = datetime(2026, 9, 2, 10, 0, tzinfo=tz.utc)
+        asset = Asset(
+            symbol="SAP.DE",
+            name="SAP",
+            asset_class="stock",
+            region="EUROPA",
+            market="XETRA",
+            currency="EUR",
+            economic_currency="EUR",
+            timezone="Europe/Berlin",
+            primary_symbol="SAP.DE",
+            primary_market="XETRA",
+            primary_currency="EUR",
+            isin=None,
+            trade_republic="unknown",
+        )
+        levels = Levels(
+            price=240.0,
+            entry_ideal_low=238.0,
+            entry_ideal_high=240.0,
+            entry_max=243.0,
+            stop=232.0,
+            invalidation_level=None,
+            invalidation_reason="",
+            stop_basis="2 ATR",
+            target1=246.0,
+            target2=252.0,
+            target3=260.0,
+            risk_pp=3.3,
+            reward_pct=5.0,
+            rr_ratio=1.5,
+            extension_atr=None,
+            chase=False,
+        )
+        score = Score([Dimension("tecnico", 100.0, [Component("manual", 78.0, 100.0)])])
+        sizing = PositionSizing("Convicción media", 0.5, 10.0, 15.0)
+        opportunity = Opportunity(
+            asset=asset,
+            horizonte="swing",
+            snapshot=TechnicalSnapshot(
+                symbol="SAP.DE",
+                timestamp=pd.Timestamp(reference),
+                interval="1d",
+                bars=220,
+                price=240.0,
+                ema_fast=241.0,
+                ema_slow=238.0,
+                sma_long=230.0,
+                rsi=55.0,
+                atr=4.0,
+                macd=1.0,
+                macd_signal=0.5,
+                macd_hist=0.5,
+                volume=1_000_000,
+                volume_avg=900_000,
+                volume_ratio=1.1,
+                gap_pct=None,
+                high_lookback=245.0,
+                low_lookback=225.0,
+                return_short=1.0,
+                return_medium=3.0,
+                return_long=8.0,
+                volatility_pct=2.0,
+                relative_strength=1.2,
+            ),
+            levels=levels,
+            score=score,
+            context=MarketContext(None, 25.0, None, None, "INDETERMINADO", "sin datos"),
+            setup_radar="OPERAR",
+            setup_accion="COMPRAR",
+            setup_reasons=[],
+            radar="OPERAR",
+            accion="COMPRAR",
+            decision_reasons=[],
+            sizing=sizing,
+            execution=ExecutionEvaluation(
+                reference_price=240.0,
+                entry_price=240.0,
+                entry_max=243.0,
+                stop=232.0,
+                targets=(246.0, 252.0, 260.0),
+                rr=1.5,
+                risk_pct=3.3,
+                potential_pct=5.0,
+                position_size=sizing,
+                capital_at_risk=None,
+                executable=True,
+                reason="BROKER_UNVERIFIED",
+            ),
+        )
         fila = FreshnessRow(
             symbol="SAP.DE",
             data_symbol="SAP.DE",
@@ -292,8 +390,8 @@ class TestPersistenciaEnLaPasadaReal:
             generated_at=reference,
             horizonte="swing",
             interval="1d",
-            context=None,
-            opportunities=[],
+            context=opportunity.context,
+            opportunities=[opportunity],
             skipped=[],
             overview=[],
             freshness_rows=[fila],
@@ -306,6 +404,11 @@ class TestPersistenciaEnLaPasadaReal:
         monkeypatch.setattr(main, "format_report", lambda *a, **k: "")
         monkeypatch.setattr(main, "_build_calendar", lambda *a, **k: None)
         monkeypatch.setattr(narrator, "enrich_with_narrative", lambda opportunities, _config: opportunities)
+        # La medición del reloj sale a la red (NTP) cuando no hay timedatectl:
+        # los tests no deben salir a la red ni pagar el timeout.
+        import advisor.run.manifest as manifest
+
+        monkeypatch.setattr(manifest, "measure_clock_drift_seconds", lambda: None)
 
         args = argparse.Namespace(
             grupos=None, horizonte="swing", sin_ia=False, sin_guardar=False, telegram=False
@@ -314,3 +417,10 @@ class TestPersistenciaEnLaPasadaReal:
 
         guardadas = AdvisorDB(config.db_path).get_recent_freshness_measurements()
         assert [row["symbol"] for row in guardadas] == ["SAP.DE"]
+        recomendaciones = AdvisorDB(config.db_path).get_recent_recommendations()
+        assert [row["symbol"] for row in recomendaciones] == ["SAP.DE"]
+        run_ids = {row["run_id"] for row in [*guardadas, *recomendaciones]}
+        assert len(run_ids) == 1
+        run_id = run_ids.pop()
+        assert run_id is not None
+        assert AdvisorDB(config.db_path).get_analysis_run(run_id)["command"] == "analizar"

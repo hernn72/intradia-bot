@@ -54,6 +54,8 @@ python -m advisor.main analizar --horizonte intradia --grupos europa --telegram
 |---|---|
 | `analizar` | Analiza el universo y genera el informe |
 | `backtest` | Simula las señales del asesor sobre el pasado y mide si tienen ventaja |
+| `verificar-backup` | Verifica integridad y conteos de un backup previo a migración |
+| `manifiesto` | Muestra el manifiesto y recomendaciones de una pasada persistida |
 | `seguimiento` | Revisa las posiciones abiertas contra su tesis |
 | `abrir` | Registra una compra ejecutada en Trade Republic |
 | `cerrar` | Cierra una posición registrada |
@@ -65,6 +67,8 @@ python -m advisor.main abrir --symbol SAP.DE --precio 240.50 --cantidad 4 \
     --tesis "Ruptura del máximo anual con volumen" --objetivo 265 --stop 232
 python -m advisor.main seguimiento
 python -m advisor.main cerrar --symbol SAP.DE --precio 262.00 --motivo "objetivo 2 alcanzado"
+python -m advisor.main verificar-backup --ruta intradia.db.bak-20260914-090533-pre-v2
+python -m advisor.main manifiesto --run-id e86c54f6-37b8-4307-adf4-f145f5bf9ca3
 ```
 
 ### Horizontes
@@ -200,7 +204,8 @@ intradia-bot/
 │   ├── analysis/            # foto técnica → niveles → puntuación → decisión
 │   ├── ai/                  # agente narrador (prompt en ai/prompts/)
 │   ├── report/              # formato del informe, euros, seguimiento
-│   ├── storage/             # SQLite: recomendaciones, posiciones, revisiones
+│   ├── run/                 # manifiesto reconstruible de cada pasada
+│   ├── storage/             # SQLite, migraciones, backups, recomendaciones
 │   └── telegram/            # notificaciones
 ├── tests/                   # pytest, sin red
 ├── config.yaml
@@ -232,6 +237,11 @@ backtest **no** se reutilizan: pertenecen a un bot que decide solo, no a un
 asesor que propone.
 
 ## Desarrollo
+
+El método de trabajo es obligatorio para cualquier agente o persona:
+`docs/roadmap.md` (qué y en qué orden), `docs/metodo-trabajo.md` (cómo),
+`docs/agent-workflow.md` (START HERE y prompts), `docs/gates.md`,
+`docs/decision-log.md`, fichas en `docs/tareas/` y evidencia en `evidence/`.
 
 ```bash
 pip install -r requirements-dev.txt

@@ -39,6 +39,7 @@ def _recommendation(symbol: str = "SAP.DE") -> dict:
         "reward_pct": 5.0,
         "rr_ratio": 1.5,
         "reasons": "[]",
+        "run_id": "test-run",
     }
 
 
@@ -75,6 +76,7 @@ class TestFreshnessMeasurements:
             "veto_window_sessions": 20,
             "quality": "INCOMPLETO",
             "error": None,
+            "run_id": "test-run",
         }
 
     def test_guarda_y_recupera_mediciones(self, db: AdvisorDB) -> None:
@@ -216,3 +218,28 @@ class TestReviews:
         AdvisorDB(path).insert_recommendations([_recommendation()])
         # Reabrir no debe borrar ni duplicar nada.
         assert len(AdvisorDB(path).get_recent_recommendations()) == 1
+
+
+class TestRunIdObligatorio:
+    """Criterio de rechazo de T-002: ninguna fila nueva sin `run_id`."""
+
+    @pytest.mark.parametrize("run_id", [None, ""])
+    def test_recomendacion_sin_run_id_se_rechaza(self, db: AdvisorDB, run_id) -> None:
+        row = _recommendation()
+        row["run_id"] = run_id
+        with pytest.raises(ValueError, match="run_id"):
+            db.insert_recommendations([row])
+
+    def test_recomendacion_sin_clave_run_id_se_rechaza(self, db: AdvisorDB) -> None:
+        row = _recommendation()
+        del row["run_id"]
+        with pytest.raises(ValueError, match="run_id"):
+            db.insert_recommendations([row])
+
+    @pytest.mark.parametrize("run_id", [None, ""])
+    def test_medicion_sin_run_id_se_rechaza(self, db: AdvisorDB, run_id) -> None:
+        row = TestFreshnessMeasurements._row(TestFreshnessMeasurements(), "SAP.DE")
+        row["run_id"] = run_id
+        with pytest.raises(ValueError, match="run_id"):
+            db.insert_freshness_measurements([row])
+

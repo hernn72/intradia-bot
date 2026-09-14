@@ -38,6 +38,8 @@ WEIGHTS = {
     "conviccion": 10.0,
 }
 
+SCORE_MODEL_VERSION = "1.0"
+
 
 @dataclass(frozen=True)
 class Component:

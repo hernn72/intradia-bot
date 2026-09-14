@@ -53,7 +53,9 @@ from advisor.research.capacity import (
 from advisor.research.event_study import format_event_study_report, run_event_study
 from advisor.research.uncertainty import compare_target_geometry, format_paired_comparison
 from advisor.research.vintage import freeze_vintage, select_symbols
-from advisor.storage.db import AdvisorDB
+from advisor.run.manifest import RunManifest, build_run_manifest, format_manifest_footer
+from advisor.storage.db import AdvisorDB, verify_backup
+from advisor.storage.migrations import LATEST_VERSION
 from advisor.telegram.notifier import TelegramNotifier
 from advisor.universe.loader import load_universe
 from advisor.universe.models import Asset, Universe
@@ -122,12 +124,14 @@ def opportunity_to_row(opportunity: Opportunity, fx: FxConverter, created_at: st
     }
 
 
-def _persist(result: AnalysisResult, fx: FxConverter, db: AdvisorDB) -> int:
+def _persist(result: AnalysisResult, fx: FxConverter, db: AdvisorDB, manifest: RunManifest) -> int:
     created_at = result.generated_at.isoformat()
     rows = [opportunity_to_row(o, fx, created_at) for o in result.opportunities]
-    saved = db.insert_recommendations(rows)
-    freshness_saved = db.insert_freshness_measurements(
-        freshness_row_to_measurement(row, created_at) for row in result.freshness_rows
+    freshness_rows = [freshness_row_to_measurement(row, created_at) for row in result.freshness_rows]
+    saved, freshness_saved = db.insert_analysis_result(
+        manifest,
+        rows,
+        freshness_rows,
     )
     logger.info("%d mediciones de frescura guardadas en %s", freshness_saved, db.path)
     return saved
@@ -161,6 +165,14 @@ def freshness_row_to_measurement(row: FreshnessRow, measured_at: str) -> Dict[st
 
 
 def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    db = None if args.sin_guardar else AdvisorDB(config.db_path)
+    manifest = build_run_manifest(
+        command="analizar",
+        config=config,
+        universe=universe,
+        schema_version=db.schema_version() if db is not None else LATEST_VERSION,
+        timestamp=datetime.now(timezone.utc),
+    )
     provider = MarketDataProvider(config.request_min_interval_seconds)
     fx = FxConverter(provider, config.base_currency)
 
@@ -187,11 +199,12 @@ def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Univ
         )
 
     report = format_report(result, config, fx, _build_calendar(config))
+    report = f"{report}\n{format_manifest_footer(manifest)}"
     print(report)
 
     if not args.sin_guardar:
-        db = AdvisorDB(config.db_path)
-        saved = _persist(result, fx, db)
+        assert db is not None
+        saved = _persist(result, fx, db, manifest)
         logger.info("%d recomendaciones guardadas en %s", saved, config.db_path)
 
     if args.telegram:
@@ -383,6 +396,13 @@ def cmd_pasada_evento(args: argparse.Namespace, config: AdvisorConfig, universe:
 
     provider = MarketDataProvider(config.request_min_interval_seconds)
     fx = FxConverter(provider, config.base_currency)
+    manifest = build_run_manifest(
+        command="pasada-evento",
+        config=config,
+        universe=universe,
+        schema_version=db.schema_version(),
+        timestamp=datetime.now(timezone.utc),
+    )
     result = run_analysis(config, universe, provider, horizonte=args.horizonte)
 
     if config.ai.enabled and not args.sin_ia:
@@ -403,9 +423,10 @@ def cmd_pasada_evento(args: argparse.Namespace, config: AdvisorConfig, universe:
     if decision.health_alerts:
         prefix += "\nAlarmas de calendario: " + "; ".join(decision.health_alerts)
     report = prefix + "\n\n" + format_report(result, config, fx, calendar)
+    report = f"{report}\n{format_manifest_footer(manifest)}"
     print(report)
 
-    saved = _persist(result, fx, db)
+    saved = _persist(result, fx, db, manifest)
     logger.info("%d recomendaciones guardadas en %s", saved, config.db_path)
 
     notifier = _build_notifier()
@@ -428,6 +449,39 @@ def cmd_event_study(args: argparse.Namespace, config: AdvisorConfig, universe: U
         root_dir=args.data_dir,
     )
     print(format_event_study_report(result, format_preregistered_estimators(preregistered_estimators(result, universe=universe))))
+    return 0
+
+
+def cmd_verificar_backup(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    del universe
+    ok = verify_backup(config.db_path, args.ruta)
+    if ok:
+        print(f"Backup verificado: {args.ruta}")
+        return 0
+    print(f"Backup inválido: {args.ruta}", file=sys.stderr)
+    return 1
+
+
+def cmd_manifiesto(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    del universe
+    try:
+        db = AdvisorDB(config.db_path, readonly=True)
+    except FileNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    run = db.get_analysis_run(args.run_id)
+    if run is None:
+        print(f"No existe run_id: {args.run_id}", file=sys.stderr)
+        return 1
+    payload = dict(run)
+    provider_versions = payload.get("provider_versions")
+    if isinstance(provider_versions, str):
+        payload["provider_versions"] = json.loads(provider_versions)
+    payload["git_dirty"] = bool(payload["git_dirty"])
+    print(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True))
+    print("\nRecomendaciones:")
+    for row in db.get_recommendations_for_run(args.run_id):
+        print(f"- {row['symbol']} · {row['radar']} · {row['accion']} · score {row['score']:.2f}")
     return 0
 
 
@@ -772,6 +826,14 @@ def build_parser() -> argparse.ArgumentParser:
     frescura_hist.add_argument("--symbol", help="filtrar por símbolo")
     frescura_hist.add_argument("--limit", type=int, default=50, help="número máximo de filas")
     frescura_hist.set_defaults(func=cmd_frescura_historico)
+
+    verificar_backup_parser = sub.add_parser("verificar-backup", help="verifica integridad y conteos de un backup SQLite")
+    verificar_backup_parser.add_argument("--ruta", required=True, help="ruta del fichero .bak a verificar")
+    verificar_backup_parser.set_defaults(func=cmd_verificar_backup)
+
+    manifiesto = sub.add_parser("manifiesto", help="muestra el manifiesto y recomendaciones de una pasada")
+    manifiesto.add_argument("--run-id", required=True, dest="run_id")
+    manifiesto.set_defaults(func=cmd_manifiesto)
 
     event_study = sub.add_parser("event-study", help="mide señales potenciales sobre una cosecha congelada")
     event_study.add_argument("data_vintage_id", help="identificador de la cosecha congelada")
