@@ -55,6 +55,22 @@ def test_manifest_git_dirty(tmp_path) -> None:
     assert git_dirty(tmp_path) is True
 
 
+def test_manifest_git_dirty_ignora_ficheros_sin_seguimiento(tmp_path) -> None:
+    """`logs/` en la Pi no convierte cada pasada en `+dirty`."""
+
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True, capture_output=True)
+    tracked = tmp_path / "tracked.txt"
+    tracked.write_text("uno\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True, capture_output=True)
+    (tmp_path / "logs").mkdir()
+    (tmp_path / "logs" / "analizar.log").write_text("x", encoding="utf-8")
+
+    assert git_dirty(tmp_path) is False
+
+
 def test_clock_drift_no_bloquea(monkeypatch) -> None:
     def fail_run(*_args, **_kwargs):
         raise FileNotFoundError("sin herramienta")

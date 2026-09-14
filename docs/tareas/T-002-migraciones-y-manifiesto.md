@@ -169,7 +169,8 @@ hallazgos.
 - Verificación real repetida (`evidence/2026-09-14-T-002-manifest/despues-2.txt`): 107 recomendaciones + 107 mediciones con el mismo `run_id`, backup pre-v2 creado y verificado, `user_version` 2, `manifiesto --run-id` devuelve el SHA de HEAD. El BLOCKER del proveedor era transitorio.
 - FOLLOW_UP registrados en `docs/roadmap.md` (hallazgos abiertos): `git_dirty` falso ante fallo de git; `config_hash` incluye rutas; `backup_log` fuera de migraciones.
 - Decisiones: D-09 y D-13 precisadas en el decision log. Ninguna pendiente del propietario.
-- Siguiente: desplegar en la Pi (migración de la base real con 2.503 recomendaciones y 1.177 mediciones) y verificar allí; después T-003 (calendarios) y T-006 (universe vintage) en paralelo.
+- Desplegado y verificado en la Pi el 2026-09-14 (`7d450ad` + corrección de `git_dirty`): base real migrada a v2 con backup verificado, 417 tests en la Pi, primer `run_id` persistido con `clock_status CLOCK_OK`. Detalle en la evidencia.
+- Siguiente: T-003 (calendarios) y T-006 (universe vintage) en paralelo; OA-01 ahora incluye mergear `feat/run-manifest-migrations`.
 - Trampas para el siguiente: Codex no puede escribir en `.git`; `verificar-backup` con el comando antiguo migraba la base; `timedatectl show -p TimeUSec` no es una referencia externa.
 
 Registro original de Codex (antes de la revisión):

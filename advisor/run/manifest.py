@@ -75,7 +75,13 @@ def git_sha(repo: str | Path = ".") -> str:
 
 
 def git_dirty(repo: str | Path = ".") -> bool:
-    return bool(_git(["status", "--porcelain"], repo))
+    """¿Hay ficheros con seguimiento modificados?
+
+    Los ficheros sin seguimiento no cuentan: en la Pi `logs/` existe siempre y
+    marcaría todas las pasadas como sucias sin que el código difiera del SHA.
+    """
+
+    return bool(_git(["status", "--porcelain", "--untracked-files=no"], repo))
 
 
 def build_run_manifest(

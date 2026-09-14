@@ -114,3 +114,30 @@ FOLLOW_UP / OBSERVATION del revisor no corregidos aquí (en `docs/roadmap.md`, h
 `git_dirty` falso ante fallo de git (exige columna nullable → migración); `config_hash`
 incluye `db_path`/`universe_path`; `backup_log` se crea fuera de `MIGRATIONS`;
 D-09 y D-13 precisadas en el decision log.
+
+## Despliegue y verificación en la Pi — 2026-09-14 09:36–09:39 UTC
+
+`fer@Raspberry4` (192.168.1.113), Python 3.13.5. Antes: `main` `6d32cf2`, base `user_version` 0
+con 2.503 recomendaciones y 1.177 mediciones (11 pasadas desde el 2 de septiembre). Copia manual
+previa: `intradia.db.bak-manual-pre-t002`.
+
+```text
+git checkout feat/run-manifest-migrations   → 7d450ad
+pip install -r requirements.txt             → sin cambios
+verificar-systemd                           → «Unidades systemd alineadas con las plantillas versionadas.»
+pytest -q                                   → 417 passed, 3 skipped (150 s)
+analizar --horizonte swing --sin-ia         → exit 0; 107 recomendaciones + 107 mediciones
+backup automático                           → intradia.db.bak-20260914-093629-pre-v2 (1.093.632 bytes)
+verificar-backup (relativa y absoluta)      → 0 y 0
+PRAGMA user_version = 2 · integrity_check = ok · analysis_run = 1
+recommendation: 2.610 (2.503 sin run_id + 107 con run_id e777e161-…)
+data_freshness_measurement: 1.284 (1.177 sin run_id + 107 con run_id)
+manifiesto: git_sha 7d450ad9…, environment pi, clock_status CLOCK_OK, drift −0,000572 s
+            (coincide con `timedatectl timesync-status` Offset −572us), config_hash d359c8d3…
+            (= hash del config.yaml commiteado)
+```
+
+Hallazgo al desplegar: el manifiesto salió `+dirty` porque `logs/` no tiene seguimiento en la
+Pi. Corregido en el commit siguiente: `git_dirty` ignora ficheros sin seguimiento
+(`--untracked-files=no`), con test. Los timers siguen vivos; la siguiente pasada programada
+(14:30 BST) es la primera de producción con manifiesto.

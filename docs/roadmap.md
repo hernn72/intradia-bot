@@ -37,7 +37,7 @@ leído en documentos:
 | Universo | 107 analizables + 19 contexto; 18 ISIN; 107/107 `trade_republic: unknown`; seleccionado el 2026-08-27/29 |
 | Cosecha | `071ddb2b…`, 126 símbolos, 5 años, solo en el portátil (`data/vintages/` ignorado, 18 MB); manifiesto 87 KB |
 | LLM | `claude-sonnet-5` vía `advisor/ai/`; prompt sin versión; narrativa **no** se persiste |
-| Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): `main` `6d32cf2` sin PR 1; Python 3.13.5; base `user_version` 0 con 2.503 recomendaciones y 1.177 mediciones de frescura (11 pasadas desde el 2 de septiembre); timers vivos; NTP sincronizado. Verificado por SSH el 2026-09-14 |
+| Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): desplegada `feat/run-manifest-migrations` el 2026-09-14 (antes `main` `6d32cf2` sin PR 1); base migrada a v2 con backup verificado; 417 tests + 3 saltados en la Pi. Estado previo: Python 3.13.5; base `user_version` 0 con 2.503 recomendaciones y 1.177 mediciones de frescura (11 pasadas desde el 2 de septiembre); timers vivos; NTP sincronizado. Verificado por SSH el 2026-09-14 |
 | Línea base real | `evidence/2026-09-14-L0-baseline/`: 107 activos; calidad OK 59 / INCOMPLETO 30 / DEGRADADO 18; 43 con «sesiones ausentes»; 1 OPERAR (`EXH1.DE`), 10 RADAR, 90 DESCARTADOS |
 
 ---
