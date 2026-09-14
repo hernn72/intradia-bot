@@ -1,393 +1,335 @@
 # Roadmap de intradia-bot
 
-Estado al **14 de septiembre de 2026**.
+Fuente principal de **qué falta, qué depende de qué, qué está hecho, qué
+está bloqueado, en qué orden y cuándo está terminado**. No contiene el
+detalle operativo de cada tarea: eso vive en `docs/tareas/` y el método en
+`docs/metodo-trabajo.md`.
 
-Unifica el plan de trabajo del asesor con el plan de corrección de la capa de
-ejecución (`docs/plan-ejecucion.md`) y los pendientes acumulados
-(`docs/pendientes.md`). Versión visual publicada como artefacto:
-https://claude.ai/code/artifact/90dfc34d-b1fc-4546-ac03-f81e82f9f358
-
-- Rama `fix/execution-data-quality`, commit `e929da4`.
-- 398 tests, `ruff` y `mypy` limpios.
-- La Pi sigue con `d795127`, del 2 de septiembre: sin el PR 1.
-- Laboratorio P2.0–P2.6 implementado, **no congelado**.
+| Documento | Para qué |
+|---|---|
+| `docs/metodo-trabajo.md` | Cómo se ejecuta cualquier tarea (obligatorio) |
+| `docs/agent-workflow.md` | START HERE, reparto Opus/Codex, prompts, cola |
+| `docs/gates.md` | Puertas entre bloques y paquete de revisión final |
+| `docs/decision-log.md` | Decisiones tomadas; decisiones y acciones del propietario |
+| `docs/tareas/T-nnn-*.md` | Fichas de tarea |
+| `docs/plan-ejecucion.md` | Detalle de las fases 4–15 de la línea 0 |
+| `docs/protocolo-investigacion.md` | Cómo se mide en P2–P7 |
+| `docs/ratio-beneficio-riesgo.md` | Hallazgo medido sobre el ratio (histórico, vigente) |
+| `docs/pendientes.md`, `docs/cobertura-especificacion.md` | **Históricos** (D-16): mediciones y diario hasta el 2 de septiembre; no son estado |
+| `evidence/` | Evidencia reproducible por entrega |
 
 ---
 
-## Revisión del plan de trabajo
+## Estado verificado — 2026-09-14
 
-El plan de trabajo se escribió sobre `main` a 2 de septiembre. Su idea central
-—dos líneas separadas hasta que ambas estén validadas— se conserva entera. Seis
-cosas ya no encajan.
+Comprobado directamente contra el repositorio y ejecutando el sistema, no
+leído en documentos:
 
-### 1. Rehacer P2.3 ahora haría el trabajo dos veces
+| Qué | Valor |
+|---|---|
+| Rama / HEAD | `fix/execution-data-quality` / `e53e385`, 3 commits por delante de `main` (`6d32cf2`) |
+| Árbol | limpio salvo `graphify-out/` (sin seguimiento) |
+| Tests / lint / tipos | 398 pasan (87 s) · `ruff check .` limpio · `mypy advisor` limpio (54 ficheros) · Python 3.12.13 |
+| PR 1 (fases 1–3) | hecho en rama: `advisor/analysis/execution.py`, `entry_max_for_rr`, `reward_risk`, `rr_at_least`, `position_limit_reason`, `classify_setup` separado de `classify`, regresión `EXH1.DE` |
+| CI | `.github/workflows/ci.yml` en rama `ci/github-actions` (`e5ed089`), run verde en 3.12 y 3.13 |
+| Esquema SQLite | v2 con migraciones (`PRAGMA user_version`), backup pre-migración verificado, `analysis_run` + `run_id` (T-002) |
+| Calendarios | sesiones esperadas = fechas del **benchmark** (`advisor/data/freshness.py`); dos taxonomías de plazas distintas en `freshness.py` y `sessions.py` |
+| Universo | 107 analizables + 19 contexto; 18 ISIN; 107/107 `trade_republic: unknown`; seleccionado el 2026-08-27/29 |
+| Cosecha | `071ddb2b…`, 126 símbolos, 5 años, solo en el portátil (`data/vintages/` ignorado, 18 MB); manifiesto 87 KB |
+| LLM | `claude-sonnet-5` vía `advisor/ai/`; prompt sin versión; narrativa **no** se persiste |
+| Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): `main` `6d32cf2` sin PR 1; Python 3.13.5; base `user_version` 0 con 2.503 recomendaciones y 1.177 mediciones de frescura (11 pasadas desde el 2 de septiembre); timers vivos; NTP sincronizado. Verificado por SSH el 2026-09-14 |
+| Línea base real | `evidence/2026-09-14-L0-baseline/`: 107 activos; calidad OK 59 / INCOMPLETO 30 / DEGRADADO 18; 43 con «sesiones ausentes»; 1 OPERAR (`EXH1.DE`), 10 RADAR, 90 DESCARTADOS |
 
-«Rehacer P2.3 con la fortaleza relativa corregida» era la primera prioridad.
-Pero quedan cuatro entregas del plan de ejecución que cambian el dato sobre el
-que P2.3 mide: qué barras existen (calendarios de plaza, el hueco del 07/09,
-cripto 24/7), qué activos quedan vetados (rediseño de la calidad del dato) y qué
-señales llegan a entrar (la lógica de relleno).
+---
 
-El criterio de cierre del propio plan dice que «P2.3 queda congelado con la
-implementación actual y sus hashes de datos». Congelarlo hoy es congelarlo
-contra una implementación que va a cambiar. Lo caro no es repetir la pasada
-—la cosecha no cambia y rehacerla es barato— sino que las conclusiones
-publicadas entre medias alimentarían P3, que es donde no cabe un número mal
-medido.
+## Auditoría del roadmap anterior — qué cambia y por qué
 
-**Cerrar primero la línea de ejecución, rehacer P2.3 y P2.4 una sola vez, y
-congelar entonces.**
+Cada punto: qué cambió · por qué · qué evita.
 
-### 2. Ya no hay un motivo para rehacer P2.3, hay dos
+1. **La línea C (ingeniería) existe y va por delante de PR 3.** CI,
+   migraciones y manifiesto de ejecución (T-001, T-002) se hacen antes de que
+   PR 3 y PR 4 añadan columnas y estados · porque el esquema no tiene versión
+   y las pasadas no tienen identidad · evita migrar dos veces y producir
+   recomendaciones irreproducibles durante la línea 0. (D-19)
+2. **PR 1 cambió la política de entrada y hay que decirlo.** Con la geometría
+   por defecto `entry_max_rr = precio de cierre` exactamente, así que
+   `entry_max_atr: 0.75` no interviene y toda apertura al alza es
+   `ABOVE_MAX_ENTRY` · el protocolo (hallazgo 4) había aplazado justo esto a
+   P4 · la decisión D-06 mantiene la invariante y traslada la tensión a P4
+   («holgura de entrada» como dimensión de la geometría) y a la fase 14
+   (medir la pérdida a la apertura). Evita descubrir en P10 que casi nada es
+   ejecutable a la apertura.
+3. **El sesgo de universo se acota formalmente y P7 deja de ser «validación
+   general».** Sección «Universo» abajo; `universe_vintage_id` (T-006);
+   etiqueta obligatoria en P6/P7; **P10 Forward Validation** como prueba
+   final no condicionada. (D-08)
+4. **Calendarios de plaza reales, una sola taxonomía.** La línea base
+   demuestra falsos huecos por festivos ajenos (`AZN` vetada por Labor Day)
+   · se adopta `exchange_calendars` (D-07) y se elimina `_mercado_por_sufijo`
+   · evita vetos falsos y dos vocabularios para la misma plaza.
+5. **Corrección de una afirmación del roadmap anterior:** «`POLICY_TODAS` es
+   la población de control del estudio y también se mueve». El event study
+   (P2.3) entra al cierre de señal y **no** depende de `entry_max`; lo que se
+   mueve es el backtest (`POLICY_OPERAR`/`TODAS`, entrada a la apertura
+   siguiente). P2.3/P2.4 se rehacen igualmente por la fortaleza relativa y por
+   la línea 0 (D-18), pero por el motivo correcto.
+6. **«Recalibrar con los 107» ya no es una fase.** P2.3 ya midió 121.786
+   señales sobre los 107; lo que salía de 21 activos era el `backtest` antiguo
+   (`europa`, `usa_en_xetra`, `etfs_ucits`). Se retira como fase y se conserva
+   como nota histórica.
+7. **Fases nuevas que faltaban:** versionado y regresiones del LLM (B-06,
+   C-05), reloj/NTP (C-02, C-04), despliegue por tag y rollback (C-03),
+   restauración de backups probada (C-01), riesgo de cartera con gate
+   (R-01), forward validation (V-01), identidad emisor/instrumento (T-006,
+   D-20), ficha de proveedor obligatoria (B-00).
+8. **Observación nueva:** `YahooEarningsSource` consulta «próximos
+   resultados» en vivo; no es point-in-time y no puede usarse en backtests
+   sin el contrato B0. Hoy no puntúa, así que no contamina nada.
+9. **«Un commit por fase» se retira** (D-15). Una entrega coherente, commits
+   compilables.
+10. `docs/pendientes.md` y `docs/cobertura-especificacion.md` pasan a
+    históricos (D-16). Este documento es el único estado.
 
-El plan atribuía la contaminación solo a la fortaleza relativa desalineada.
-Hay un segundo motivo, independiente y medido el 2026-09-14: estrechar
-`entry_max` para que respete el ratio mínimo cambia qué señales entran. Sobre la
-cosecha `071ddb2b`, horizonte swing y coste cero, en operaciones OPERAR/TODAS:
+---
 
-| Símbolo | OPERAR | TODAS |
+## Principios
+
+Reglas de arquitectura; una entrega que las incumpla se devuelve. Las
+invariantes numeradas (INV-xx) están en `docs/metodo-trabajo.md` sección 2.
+
+- **Determinismo.** El LLM no calcula indicadores, score, entrada, stop,
+  objetivos, RR, tamaño, riesgo ni clasificación. Interpreta lo ya calculado.
+- **Point-in-time.** `available_at <= analysis_timestamp` o el dato no entra
+  en un backtest.
+- **Una función, varios llamantes.** Producción e investigación comparten
+  indicadores, fortaleza relativa, niveles, RR, ejecución, score, calendarios.
+- **Verde no es verificado.** Tests → ejecución real → un número a mano →
+  a cuántos activos afecta.
+- **Cuatro conceptos separados:** `setup_quality`, `execution_state`,
+  `data_quality`, `broker_state`. Un fallo en una capa no altera otra.
+- **Lo desconocido sigue desconocido.** Nunca `unknown → no`, `None → 0`,
+  ausencia → estimado, sin regla escrita.
+- **Investigación pre-registrada.** Pregunta, métrica primaria, población,
+  criterio de aceptación y tratamiento de la incertidumbre antes de medir;
+  lo decidido después de ver resultados se etiqueta exploratorio.
+- **Toda señal nueva se mide antes de producción** y NO CONCLUYENTE es un
+  resultado válido.
+
+---
+
+## Universo: sesgo de supervivencia y de selección
+
+**Hecho.** Los 107 analizables se eligieron el 2026-08-27 y 2026-08-29 con
+conocimiento de 2026 (tamaño, liquidez, notoriedad, presencia en Trade
+Republic) y se miden desde 2021. Ninguno ha sido excluido de cotización;
+`ARM`, `DFEN.DE`, `Q8Y0.DE` son jóvenes. No hay fuente gratuita de
+constituyentes históricos ni de exclusiones.
+
+**Sesgos presentes, por orden de gravedad:**
+
+| Sesgo | Efecto sobre la medición |
+|---|---|
+| Supervivencia | Solo activos que llegaron a 2026: la tasa de desplomes y quiebras está subestimada; la expectancy larga, sobreestimada |
+| Selección con información futura | Elegidos por ser grandes/fuertes en 2026: deriva alcista media superior a la del mercado en el periodo |
+| Conocimiento futuro en benchmarks | `benchmark` por activo elegido en 2026 |
+
+**Qué se puede afirmar y qué no** (regla vinculante hasta P10):
+
+| Afirmación | Permitida | Condición |
 |---|---|---|
-| `AAPL` | 7 → 4 | 111 → 104 |
-| `MSFT` | 5 → 3 | 118 → 114 |
-| `SAP.DE` | 6 → 4 | 103 → 97 |
+| «La política B mejora a la A en ΔR por bloque» (P4, P2.6, pareado por `signal_id`) | Sí | Ambas medidas sobre las mismas señales: el sesgo afecta a las dos por igual. Etiqueta: «condicionado al universo 2026» |
+| «El score ordena entre bandas» (P3) | Sí, con cautela | Las dimensiones de momento correlacionan con lo que hizo sobrevivir a estos activos; publicar también la ordenación **dentro** de cada activo (por bloques temporales), que el sesgo de selección no infla |
+| «Expectancy neta X R, CAGR Y %, drawdown Z %» (P6, P7) | Solo con etiqueta | «Fuera de muestra en el tiempo, condicionado al universo seleccionado en 2026; cota optimista». Publicar siempre el exceso sobre el buy-and-hold del propio universo en la misma ventana |
+| «El sistema tiene ventaja» (general) | **No** | Solo tras P10 |
 
-`POLICY_TODAS` es la población de control del estudio y también se mueve.
-
-### 3. «Sacar el beneficio/riesgo del score» no es lo que hizo el PR 1
-
-Suenan igual y no lo son. El PR 1 le quitó al ratio el poder de **vetar** dentro
-de `classify()`. El ratio sigue siendo una **dimensión de la puntuación**, 20 de
-100 puntos, en `advisor/analysis/scoring.py:251`. La decisión de sacarlo del
-score sigue entera pendiente y debe salir de P2.4, no de que el veto ya no
-exista.
-
-### 4. Faltan tres principios que el proyecto ya ha pagado dos veces
-
-Van incorporados abajo, marcados como nuevos. El 2026-09-14 una entrega con 398
-tests en verde, `ruff` y `mypy` limpios habría dejado al asesor sin recomendar
-nada y al backtest en cero operaciones.
-
-### 5. Falta la decisión sobre las plazas europeas
-
-El plan cubría ISIN, Trade Republic y símbolos europeos, pero no la tercera
-decisión que cuesta dinero: si se paga otra fuente de datos para Xetra y
-Euronext. No se decide con una observación, y lo que la desbloquea es el
-histórico de frescura que la Pi acumula desde el 2 de septiembre.
-
-### 6. Dos casillas ya tienen respuesta
-
-«Nunca recomendar con `INCOMPLETO`» está implementado desde el 2 de septiembre,
-con veto configurable y sin tocar `score.value`. «La Raspberry Pi ejecuta
-exactamente la versión registrada en GitHub» es hoy falso.
+**Mecanismo:** `universe_vintage_id` (T-006) en cada manifiesto y resultado;
+cualquier cambio en la lista → vintage nuevo + entrada en el decision log
+(INV-19); campos `added_at`, `valid_to`, `delisted_at`, `ticker_history`
+presentes desde ya, vacíos hasta que haga falta. Si aparece una fuente de
+constituyentes históricos, se abre A-08 y P7 se repite.
 
 ---
 
-## Principios que no se rompen
+## Líneas de trabajo
 
-Reglas de arquitectura, no buenas intenciones: cualquier entrega que las
-incumpla se devuelve.
+Estados: `HECHO` · `EN_CURSO` · `PENDIENTE` · `BLOQUEADO(por)` ·
+`OBSOLETO`. Cada fila con ficha enlaza a `docs/tareas/`.
 
-- **La decisión es determinista.** El LLM no calcula indicadores, niveles,
-  stops, objetivos ni tamaño, y no puede alterar `score.value`.
-- **Todo dato tiene instante.** `available_at <= analysis_timestamp`. Si no
-  puede demostrarse, no sirve para un backtest point-in-time.
-- **Una sola función de cálculo.** Investigación y producción comparten
-  implementación. La fortaleza relativa ya se rompió por aquí una vez.
-- **Toda señal nueva se mide antes de producción,** y `NO CONCLUYENTE` sigue
-  siendo un resultado válido.
-- **Nada se optimiza a posteriori en silencio.** Si una regla se ajusta después
-  de mirar el resultado, queda documentada como exploratoria.
-- **Señal, ejecutabilidad y calidad del dato van separadas.** Tres conceptos,
-  tres estados. El PR 1 estuvo a punto de fusionar los dos primeros.
-- **Lo desconocido se declara desconocido.** Nunca se inventa un dato ni se
-  afirma una disponibilidad no comprobada.
-- **(nuevo) Verde no es verificado.** La pregunta después de una entrega no es
-  «¿pasan los tests?», sino «¿qué número de la salida real puedo comprobar a
-  mano?».
-- **(nuevo) Un cambio que decide cuándo se recomienda se mide por a quién le
-  cae.** No basta con comprobar que la regla se aplica: hay que contar a cuántos
-  activos afecta y por qué motivo.
-- **(nuevo) Un fixture que no reproduce el universo real no prueba nada.** Los
-  107 activos están en `unknown`; el fixture de tests usaba `yes`, y por eso la
-  suite no vio nada.
+### Línea 0 — Correctitud operativa y del dato (delante de todo)
 
----
+Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
+`docs/plan-ejecucion.md`.
 
-## Línea 0 — Cerrar la capa de ejecución y el dato
+| ID | Fase | Estado | Depende de | Ficha |
+|---|---|---|---|---|
+| PR 1 | Fases 1–3: RR desde precio efectivo, `entry_max` por RR, setup vs ejecución, sizing desde entrada efectiva | HECHO en rama (`e929da4`); merge pendiente (OA-01) | — | — |
+| PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | PENDIENTE | T-002 | T-003 |
+| PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | PENDIENTE | T-003 | T-004 |
+| PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | PENDIENTE | T-002, T-003, T-004 | T-005 |
+| PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | PENDIENTE | PR 3 | T-007 (por escribir) |
+| PR 5 | Fases 12–13 informe + siete invariantes de integración | PENDIENTE | PR 4 | T-008 |
+| PR 5 | Fase 14 filtro de ejecución medido aparte del score, incl. pérdida por `ABOVE_MAX_ENTRY` a la apertura (D-06) | PENDIENTE | PR 4 | T-009 |
+| PR 5 | Fase 15 limpieza → **GATE L0** | PENDIENTE | todo lo anterior + C-00..C-02 | T-010 |
 
-Va delante de todo. Mientras el calendario salga del benchmark y la calidad del
-dato mezcle problemas de hace meses con los de ayer, cualquier medición del
-modelo se hace sobre arena. Detalle completo en `docs/plan-ejecucion.md`.
+### Línea C — Ingeniería de producción (transversal; C-00..C-02 antes de PR 3)
 
-| PR | Fases | Qué cierra | Estado |
+| ID | Qué | Estado | Depende de | Ficha |
+|---|---|---|---|---|
+| C-00 | CI: pytest, ruff, mypy en push/PR; branch protection (OA-02) | HECHO (`e5ed089`, rama `ci/github-actions`); OA-02 pendiente del propietario | — | T-001 |
+| C-01 | Migraciones `user_version`, backup pre-migración, `verificar-backup` | HECHO (T-002, revisión independiente aplicada; ver evidencia) | C-00 | T-002 |
+| C-02 | Manifiesto de ejecución (`run_id`, SHA, config hash, vintages, versiones, reloj) | HECHO (T-002; reloj medido vía `timesync-status`/`chronyc`/SNTP UDP; alerta Telegram pendiente en C-04) | C-01 | T-002 |
+| C-03 | Release por tag, `verificar-release` en la Pi, despliegue y rollback documentados y probados | PENDIENTE | C-00 | T-011 |
+| C-04 | Logs rotados, alertas Telegram (pasada fallida, proveedor caído, reloj > 60 s, `events.yaml` caduca), timeouts y reintentos por proveedor, degradación sin red probada | PENDIENTE | C-02 | por escribir |
+| C-05 | Persistir narrativa LLM con provider/model/prompt_version/input_hash (D-12) | PENDIENTE | C-01 | por escribir |
+| C-06 | Backup programado en la Pi + simulacro de restauración trimestral | PENDIENTE | C-01, C-03 | por escribir |
+
+### Línea A — Modelo cuantitativo (arranca al cruzar GATE L0)
+
+| ID | Fase | Estado | Depende de | Ficha |
+|---|---|---|---|---|
+| A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | PENDIENTE | C-02 | T-006 |
+| A-01 | Interpretar el histórico de frescura de la Pi (recurrencia de huecos) → alimenta OD-02 | PENDIENTE | acceso a la Pi | T-012 |
+| A-02 | Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con RS alineada y línea 0; decidir el RR en el score → **GATE P2** | BLOQUEADO(GATE L0, A-00) | GATE L0 | T-013 |
+| A-03 | P3 Score v2: dimensiones, pesos, `score_model_version`, umbrales por horizonte, ¿`convicción` fuera del número? → **GATE P3** | BLOQUEADO(GATE P2) | A-02 | por escribir |
+| A-04 | P4 Geometría: stop/objetivo/entrada **incluida la holgura de entrada** (D-06), pareado + bootstrap por bloques, heterogeneidad → **GATE P4** | BLOQUEADO(GATE P3) | A-03 | por escribir |
+| A-05 | P5 Regiones robustas → **GATE P5** | BLOQUEADO | A-04 | por escribir |
+| A-06 | P6 Sistema completo con exceso sobre buy-and-hold del universo → **GATE P6** | BLOQUEADO | A-05 | por escribir |
+| A-07 | P7 Walk-forward + holdout (ventanas fijadas antes en el decision log) → **GATE P7** | BLOQUEADO | A-06 | por escribir |
+| A-08 | Universo histórico (solo si aparece fuente de constituyentes) | OPCIONAL | — | — |
+
+### Línea B — Contexto externo (captura en paralelo; nada decide hasta GATE CONTEXT)
+
+| ID | Fase | Estado | Depende de | Ficha |
+|---|---|---|---|---|
+| B-00 | Contrato point-in-time `advisor/context/models.py` + ficha de proveedor obligatoria → **GATE B0** | PENDIENTE | A-00 | T-014 |
+| B-01 | Identidad emisor/instrumento/listing (cubierta por A-00, D-20) | PENDIENTE | A-00 | T-006 |
+| B-02 | Collector de noticias (por emisor y macro), dedupe por `content_hash`, sin LLM | BLOQUEADO(B0) | B-00 | por escribir |
+| B-03 | Sentimiento: datos primero (conteos, fuente, timestamps); LLM solo con OD-03 | BLOQUEADO(B0, OD-03) | B-02 | por escribir |
+| B-04 | Fundamentales: magnitudes primarias con fecha de publicación; ratios en Python | BLOQUEADO(B0, OD-01) | B-00 | por escribir |
+| B-05 | Macro: FRED/BCE/Eurostat con vintage y revisión | BLOQUEADO(B0) | B-00 | por escribir |
+| B-06 | Context Analyst (un agente, cinco preguntas, Pydantic) + **regresiones LLM**: no fabrica catalizadores, no usa información no suministrada, no confunde ausencia con neutralidad, no altera números | BLOQUEADO(B0, OD-03) | B-02, C-05 | por escribir |
+| B-07 | Shadow mode: `quant_decision` y `context_shadow_decision` persistidos en paralelo | BLOQUEADO | B-06 | por escribir |
+| B-08 | P8 Fundamentals Study | BLOQUEADO(OD-01) | B-04, GATE P3 | por escribir |
+| B-09 | P9 Context Study (misma disciplina que P2) → **GATE CONTEXT** | BLOQUEADO | B-07, muestra suficiente | por escribir |
+| B-10 | Integración conservadora / Score v3 (solo si P9 demuestra valor; degrada, nunca rescata) | BLOQUEADO(GATE CONTEXT) | B-09 | por escribir |
+
+### Cierre
+
+| ID | Fase | Estado | Depende de |
 |---|---|---|---|
-| 1 | 1–3 | Corrección de la ejecución | hecho (`e929da4`) |
-| 2 | 4–6 | Calendarios de mercado | siguiente |
-| 3 | 7–8 | Calidad del dato | |
-| 4 | 9–11 | Estado real de ejecución | |
-| 5 | 12–15 | Informe y regresión | |
+| R-01 | Riesgo de cartera: límites diario/semanal, concentración, correlación, divisa → **GATE RISK** | BLOQUEADO(GATE P7) | A-06, A-07 |
+| V-01 | **P10 Forward Validation** con tag congelado, duración OD-08 → **GATE P10** | BLOQUEADO(GATE P7, GATE PROD) | R-01, C-03..C-06 |
+| F-01 | Release final + paquete de revisión externa (`docs/gates.md`) | BLOQUEADO(GATE P10) | todo |
 
-**PR 2 — calendarios.** Cada instrumento resuelve `exchange_calendar` y
-`exchange_timezone` aparte de su `benchmark`; investigar el hueco del 07/09/2026
-en las europeas hasta poder decir si el mercado estaba cerrado, si Yahoo no
-entregó la barra o si la perdimos nosotros, sin cuarto estado ambiguo y sin
-excepciones por ticker; calendario nativo 24/7 para las tres criptos.
+### Trabajo manual del propietario (sin atajo)
 
-**PR 3 — calidad del dato.** Separar frescura, completitud reciente,
-completitud histórica y disponibilidad de indicadores, con severidad por
-antigüedad. Códigos estructurados de descarte, distinguiendo aviso de veto.
-
-**PR 4 — estado real de ejecución.** El informe deja de llamar «precio actual»
-al cierre de la víspera; reevaluación tras la apertura sin perseguir precio;
-metadatos de instrumento y estado de broker, con el ISIN `DE000A0H08M3` de
-`EXH1.DE`.
-
-**PR 5 — informe y regresión.** El informe muestra por separado score, estado
-del setup, estado de ejecución y los dos precios máximos de entrada. Siete
-invariantes de integración. La fase 14 valida el filtro de ejecución aparte del
-score y es la puerta a la línea A.
-
-**Pendiente menor del PR 1.** Las fases 1 a 3 fueron a un solo commit en vez de
-tres: son mutuamente dependientes —la capa de ejecución necesita la firma nueva
-del dimensionamiento— y dividirlas dejaría commits intermedios que no compilan.
+OA-01 merge PR 1 · OA-02 branch protection · OA-03 89 ISIN y disponibilidad
+en Trade Republic de los 107 (con fecha y fuente; no cambia la señal) · OA-04
+desplegar tags en la Pi hasta que C-03 lo automatice. Símbolos europeos
+(`european_symbol`): ninguno declarado; se verifica uno a uno cuando se
+necesite elegir plaza por sesión (no bloquea nada hoy).
 
 ---
 
-## Línea A — Modelo cuantitativo
+## Mapa de dependencias
 
-Arranca cuando la línea 0 cierre. Antes, no.
-
-### Cerrar P2 (bloqueada)
-
-Rehacer P2.3 y P2.4 sobre la cosecha congelada, con la misma población y las
-mismas reglas de observación, comparando contra lo antiguo: expectancy neta en
-R, `P(target antes de stop)`, MAE, MFE, distribución por score, por región y por
-activo. De P2.4 sale la decisión formal sobre si el beneficio/riesgo desaparece
-del score: demostrada, no intuida.
-
-### P3 — Score v2
-
-Redefinir dimensiones y recalcular pesos, sin heredar los actuales. Normalizar
-bien cuando falte una dimensión. Pregunta abierta: si `convicción`, que hoy mide
-sobre todo cobertura del dato, debe salir del número y convertirse en
-`score_signal` + `confidence`.
-
-Calibrar umbrales por horizonte —swing y medio por separado, no 70/60 para
-todo— con el estimador pre-registrado: media por bloque de la expectancy neta en
-R, publicando siempre tasa agrupada y `P(objetivo antes de stop)`.
-
-Desde aquí toda señal registra `score_model_version`. Nunca se mezclan
-observaciones de reglas distintas sin etiquetar.
-
-### P4 — Geometría
-
-Stop: ATR, soporte, mixto, volatilidad adaptativa. Objetivos: de 1,5 a 3,5 ATR,
-estructura e híbridos. Entrada: apertura siguiente, zona ideal, pullback,
-entrada máxima. Ninguna variante se elige por su resultado agregado sin estudiar
-heterogeneidad por mercado, región, volatilidad, régimen y score. P2.6 dejó el
-aviso: la opción B mejora en promedio con dispersión alta.
-
-Hereda del PR 1 la separación entre señal válida y precio aceptable, así que la
-usa en vez de inventarla.
-
-### P5 — Regiones robustas
-
-Superficies de parámetros buscando mesetas, no picos. Descartar configuraciones
-frágiles y las que dependen demasiado de un mercado concreto. La salida es un
-conjunto pequeño de políticas candidatas.
-
-### P6 — Sistema completo
-
-Simulación del asesor como sistema: capital, posiciones simultáneas, ocupación,
-riesgo agregado, exposición por región, divisa y sector, costes y slippage,
-dividendos, cash y orden cronológico real de señales.
-
-Métricas: CAGR, volatilidad, Sharpe, Sortino, max drawdown, Calmar, exposición
-media, turnover, profit factor, R total y R por operación.
-
-### P7 — Walk-forward y holdout
-
-Desarrollo, validación y holdout final, con el holdout sin consultar durante la
-calibración. Configuración congelada antes de cada ventana, con versión de
-modelo y vintage de datos registrados. Si la ventaja no sobrevive fuera de
-muestra, no se arregla el holdout: se vuelve a investigación.
-
-### Recalibrar con los 107
-
-Todo lo medido históricamente sale de 21 activos.
-
----
-
-## Línea B — Contexto externo
-
-Puede empezar ya: capturar y almacenar no toca ninguna decisión, así que no
-contamina la validación de la línea A.
-
-### El contrato point-in-time
-
-Antes de descargar una sola noticia. `advisor/context/models.py` define la
-procedencia de toda observación externa: `source`, `source_id`, `symbol`,
-`observed_at`, `published_at`, `available_at`, `content_hash`,
-`raw_payload_hash`, `provider`, y cuando aplique periodo fiscal, divisa y
-revisión. Sin `available_at <= analysis_timestamp` demostrable, el dato no entra
-en un backtest.
-
-Estructura propuesta: `advisor/context/` con `models.py`, `collector.py`,
-`provenance.py`, `news.py`, `sentiment.py`, `fundamentals.py` y `macro.py`. No
-se instala TradingAgents como dependencia.
-
-### Noticias
-
-Collector propio: descarga por activo y macro, normalización de fechas,
-deduplicación, asociación de símbolos y hash del contenido. El LLM no busca
-noticias: recibe las ya obtenidas y devuelve `relevance`, `direction`,
-`event_type`, `materiality` y `confidence`. No se convierten todavía en puntos
-del score.
-
-**Decisión pendiente:** quién filtra y con qué criterio. Los datos son gratis;
-el problema medido es la relevancia.
-
-### Sentimiento
-
-Datos primero, LLM después. Guardar número de mensajes, bullish/bearish cuando
-exista, engagement, fuente, timestamps y hash. La salida lleva banda, score,
-confianza, tamaño de muestra y divergencia entre fuentes. Nunca entra
-directamente en el score cuantitativo.
-
-### Fundamentales y P8
-
-La ampliación más delicada y la única brecha que no se cierra con trabajo.
-Elegir proveedor por cobertura, histórico, point-in-time, Europa y coste —no
-porque encaje con `yfinance`—, guardar magnitudes primarias con su fecha de
-publicación y derivar los ratios en Python, nunca en el LLM.
-
-Los 20 puntos no se activan solos: primero **P8 — Fundamentals Study**
-determina qué métricas aportan información, con qué pesos, en qué horizonte y en
-qué sectores. Mientras tanto la nota se normaliza sobre 80 y el ratio pesa 25 de
-100 en vez de 20.
-
-### Macro
-
-Conservar el calendario Fed/BCE actual y ampliar con datos observables: tipos,
-IPC, PCE subyacente, paro, curva, EUR/USD, petróleo, oro, DXY. FRED cubre parte
-de EE.UU.; para Europa, BCE y Eurostat. Guardar vintage y revisión: muchos datos
-macro cambian después de publicarse.
-
-### Context Analyst
-
-Un solo agente bien restringido, sin comité de agentes. Cinco preguntas
-obligatorias: qué evidencia apoya la operación, qué la contradice, qué riesgo no
-captura el modelo, si hay catalizador y si hay evento próximo. Salida
-estructurada y validada con Pydantic.
-
-### Shadow mode
-
-El contexto no modifica ninguna operación. Se guardan `quant_decision` y
-`context_shadow_decision` en paralelo, y la recomendación real sigue siendo la
-cuantitativa.
-
-Persistencia en SQLite: `context_observation`, `news_item`,
-`sentiment_snapshot`, `fundamental_snapshot`, `macro_snapshot` y
-`context_assessment`, relacionadas con `analysis_run_id`, `signal_id`, `symbol`
-y `analysis_timestamp`.
-
-### P9 — Context Study
-
-Con muestra suficiente: quant solo frente a quant más noticias, sentimiento,
-fundamentales, macro y combinaciones, con la misma disciplina que P2 —ablación,
-block bootstrap, intervalos, regiones, heterogeneidad y holdout—. La pregunta no
-es si parece útil, sino si mejora la expectancy fuera de muestra.
-
-### Integración y Score v3
-
-Solo si P9 demuestra valor, y de forma conservadora: el contexto puede degradar
-una señal (`OPERAR → VIGILAR`) pero no rescatarla (`DESCARTAR → OPERAR`). La IA
-no salva una señal cuantitativamente mala.
-
-Score v3 no tiene por qué ser un único 0–100: puede ser más informativo y menos
-falsamente preciso presentar score cuantitativo, sesgo fundamental, sentimiento,
-riesgo de evento y confianza del dato por separado.
-
----
-
-## En paralelo a todo lo anterior
-
-- **89 ISIN de 107,** uno a uno contra fuente oficial, guardando procedencia y
-  fecha de verificación. `yfinance` devuelve ISIN falsos que superan el dígito de
-  control: un ISIN plausible no es un ISIN verificado.
-- **Disponibilidad real en Trade Republic de los 107.** Hoy todos en `unknown` y
-  no hay API. Guardar fecha de comprobación, instrumento exacto y mercado de
-  ejecución cuando sea verificable. No modifica la señal, solo la
-  ejecutabilidad.
-- **Símbolos europeos.** Ningún activo declara `european_symbol`. Verificar
-  ticker, plaza, divisa, liquidez y correspondencia con el activo.
-- **Interpretar el histórico de frescura de la Pi.** Cuatro pasadas diarias de
-  lunes a viernes desde el 2 de septiembre. Es la evidencia de recurrencia que
-  decide si se paga otra fuente para Xetra y Euronext. **Sin verificar** que las
-  filas estén ahí: la base local solo tiene las 107 de aquel día.
-- **Desplegar el PR 1 en la Pi.** La verificación en la propia Pi es parte del
-  despliegue, no un extra: es donde aparecieron tres de los últimos defectos.
-
----
-
-## Menores, pero reales
-
-- El **calendario macro de `events.yaml` caduca el 2027-12-16**. El bot avisa a
-  60 días, pero conviene refrescarlo antes.
-- **`^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F` y `GC=F` no alimentan el
-  contexto**, que sigue puntuando solo con VIX, tendencia europea y sesión
-  asiática.
-- **`economic_currency` se guarda y no se usa.** Descomponer el ATR en riesgo de
-  activo y de divisa es un cambio de cálculo, y hay que medirlo.
-- **`market_for_symbol` clasifica como cripto cualquier símbolo con guion.** Hoy
-  no rompe nada porque la plaza sale del universo, pero `BRK-B` caería en
-  `CRYPTO` en cuanto alguien la use para un activo.
-- **Los eventos no puntúan,** a propósito, hasta medir que mejoran las señales.
-- **Memoria de resultados:** guardar por recomendación el desenlace, `net_R`,
-  MAE, MFE, retorno del benchmark y alfa. El aprendizaje sale de la estadística;
-  la reflexión del LLM, si existe, es secundaria.
+```mermaid
+flowchart LR
+  OA01[OA-01 merge PR1] --> T001[T-001 CI]
+  T001 --> T002[T-002 migraciones+manifiesto]
+  T002 --> T003[T-003 calendarios]
+  T002 --> T006[T-006 universe vintage]
+  T003 --> T004[T-004 causa huecos]
+  T004 --> T005[T-005 calidad+códigos]
+  T005 --> PR4[PR4 estado real]
+  PR4 --> PR5[PR5 informe, invariantes, fase 14, limpieza]
+  PR5 --> L0{GATE L0}
+  T006 --> B00[B-00 contrato PIT]
+  L0 --> A02[A-02 rehacer P2.3/P2.4/P2.5]
+  T006 --> A02
+  A02 --> P2{GATE P2} --> A03[P3] --> P3{GATE P3} --> A04[P4] --> A05[P5] --> A06[P6] --> A07[P7] --> P7{GATE P7}
+  B00 --> B02[noticias] --> B06[Context Analyst] --> B07[shadow] --> B09[P9] --> CTX{GATE CONTEXT}
+  T001 --> C03[C-03 tag/deploy/rollback] --> PROD{GATE PROD}
+  T002 --> C04[C-04 alertas/timeouts] --> PROD
+  P7 --> R01[R-01 riesgo cartera] --> V01[P10 forward]
+  PROD --> V01
+  CTX -.solo si demuestra valor.-> V01
+  V01 --> F01[release final]
+```
 
 ---
 
 ## Qué hacer ahora, en este orden
 
-1. **PR 2 — calendarios de mercado.** Incluye la investigación del hueco del
-   07/09 hasta tener causa identificada y test, sin excepciones por ticker ni
-   por fecha.
-2. **PR 3 — calidad del dato,** separando frescura de completitud histórica y
-   dando código de motivo a cada descarte.
-3. **PR 4 y PR 5 — estado real de ejecución, informe e invariantes.** Con la
-   fase 14 se cierra la línea 0 y el dato deja de moverse.
-4. **Rehacer P2.3 y P2.4 una sola vez, y congelar P2** con sus hashes.
-5. **P3 y Score v2,** con la decisión sobre el beneficio/riesgo ya tomada en
-   P2.4 y los umbrales calibrados por horizonte.
-6. **En paralelo desde hoy:** `advisor/context/models.py` y el contrato
-   point-in-time, y empezar a almacenar noticias aunque todavía no afecten a
-   ninguna decisión.
-7. **P4 → P5 → P6 → P7,** en ese orden y sin saltarse la heterogeneidad.
-8. **Sentimiento,** y resolver el proveedor de fundamentales para arrancar P8.
-9. **Context Study (P9) antes de integrar nada** de la línea B en producción.
-10. **Riesgo de cartera,** cuando el sistema individual esté validado:
-    correlación entre posiciones, concentración por sector, geografía, factor y
-    divisa, y máximos de riesgo diario y semanal.
+1. **OA-01** (propietario): merge de `fix/execution-data-quality` en `main`.
+2. **T-001** CI — Codex.
+3. **T-002** migraciones + manifiesto — Codex → Opus.
+4. En paralelo: **T-003** calendarios (Codex → Opus) y **T-006** universe
+   vintage (Codex → Opus).
+5. **T-004** causa de los huecos — Opus.
+6. **T-005** calidad + códigos — Opus → Codex → Opus.
+7. **T-007..T-010** PR 4 y PR 5 (Opus escribe las fichas con la plantilla al
+   cerrar T-005; Codex implementa; Opus revisa) → **GATE L0**.
+8. **T-011** C-03 despliegue por tag; OA-04: desplegar `v0.2.0` en la Pi y
+   verificar allí.
+9. **T-012** A-01 histórico de frescura de la Pi → OD-02 con cifra.
+10. **B-00** contrato point-in-time — Opus (puede empezar tras T-006, en
+    paralelo con 5–8).
+11. **T-013** A-02 rehacer P2.3/P2.4/P2.5 → **GATE P2** (revisión
+    independiente obligatoria).
+12. P3 → P4 → P5 → P6 → P7, cada uno con su gate; línea B capturando datos;
+    C-04..C-06 cuando C-03 esté.
+13. R-01, luego V-01 (P10), luego F-01.
 
 ---
 
-## Definición de terminado
+## Hallazgos abiertos (FOLLOW_UP y OBSERVATION que no tienen ficha)
 
-Se cumple cuando todo lo siguiente es cierto a la vez.
+- `events.yaml` caduca el **2027-12-16**; avisa a 60 días (C-04 lo convierte en alerta).
+- `^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F`, `GC=F` no alimentan el contexto de mercado (solo VIX, tendencia europea y Asia). Medir antes de enchufar.
+- `economic_currency` se guarda y no se usa; descomponer el ATR en riesgo de activo y de divisa es cambio de cálculo: medir (P4 o después).
+- Los eventos no puntúan, a propósito; `YahooEarningsSource` no es point-in-time (ver auditoría, punto 8).
+- Dividendo cobrado durante una posición de horizonte medio no entra en el P&L del laboratorio (protocolo P2.0, pendiente antes de interpretar P6 en `medio`).
+- `capital:` vacío en `config.yaml` a propósito; P6 usa capital sintético.
+- `portfolio.risk_per_trade_pct: 0.5` con `max_position_pct: 10` produce riesgos efectivos de 0,25 % cuando el tope manda (visto en `EXH1.DE`); es coherente, pero el informe debería decirlo más claro (fase 12).
+- `git_dirty` devuelve `False` si `git status` falla o expira (`advisor/run/manifest.py`); convertirlo en nullable exige otra migración (FOLLOW_UP del revisor de T-002, INV-16).
+- `config_hash` incluye `db_path` y `universe_path`: la misma configuración lógica en portátil y Pi da hashes distintos. Decidir si se excluyen las rutas (OBSERVATION del revisor de T-002; afecta a la reconstrucción de D-10).
+- `backup_log` se crea fuera de la lista de migraciones (`_ensure_backup_log`); inocuo, pero es esquema no versionado (OBSERVATION).
+- `docs/protocolo-investigacion.md` sigue diciendo «Estado: acordado, sin implementar» en la cabecera; P2.0–P2.6 están implementados. Corregir la cabecera en la próxima entrega que toque `advisor/research/` (OBSERVATION).
 
-- **El modelo.** P2 corregido y congelado; Score v2 definido en P3; geometría
-  validada en P4; parámetros robustos en P5; sistema probado en P6; resultado
-  confirmado con walk-forward y holdout en P7.
-- **El dato.** Calidad protegida en producción; noticias, sentimiento y macro
-  almacenados point-in-time; fundamentales con proveedor fiable; universo
-  operativo verificado.
-- **El contexto.** Context Layer en shadow mode; valor medido en P9; solo entran
-  en producción las variables que demuestren ventaja.
-- **La auditoría.** Cada recomendación es auditable y cada señal reconstruible;
-  ningún LLM altera cálculos en silencio; producción sigue funcionando aunque
-  falle la IA.
-- **La operación.** Riesgo de cartera controlado; tests, `ruff` y `mypy`
-  limpios; sin diferencias entre la Pi y GitHub; backups, migraciones, logs
-  rotados, alertas, timeouts y degradación limpia si cae un proveedor.
+---
+
+## Definición de terminado del proyecto
+
+Se cumple cuando **todo** esto es cierto a la vez y está en el paquete de
+revisión externa (`docs/gates.md`):
+
+**Modelo.** GATE P2, P3, P4, P5, P6 y P7 cruzados, con `score_model_version`
+final y configuración congelada con hash.
+
+**Sesgos.** Universo acotado con `universe_vintage_id` y etiqueta en todo
+resultado; look-ahead controlado por el test de equivalencia y la revisión
+independiente; point-in-time controlado por GATE B0 en toda fuente externa.
+
+**Contexto.** Noticias, sentimiento, fundamentales y macro almacenados
+point-in-time; shadow mode acumulado; P8 y P9 publicados; en producción solo
+lo que GATE CONTEXT haya demostrado, y solo degradando.
+
+**Producción.** GATE PROD: CI obligatoria, release por tag, despliegue y
+rollback probados, migraciones con backup y restauración probada,
+monitorización y alertas, reloj verificado, degradación limpia ante fallos de
+proveedor o de IA, la Pi ejecuta exactamente el tag registrado.
+
+**Auditoría.** Toda recomendación lleva `run_id`; reconstrucción probada a
+≥ 30 días; versionado de código, config, universo, datos, score y LLM; hashes
+en `evidence/`.
+
+**Riesgo.** GATE RISK: riesgo por posición y de cartera, concentración,
+correlaciones y límites agregados, declarados en el informe.
+
+**Validación final.** GATE P10 cruzado con configuración congelada y
+resultado comparado con P7.
+
+**Operación.** `pytest`, `ruff`, `mypy` limpios en `main`; sin diferencias
+entre la Pi y el tag; `events.yaml` vigente; deuda técnica listada en el
+paquete.

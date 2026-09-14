@@ -1,0 +1,131 @@
+# T-005 — Calidad del dato por dimensiones y códigos de descarte (PR 3, fases 7 y 8)
+
+Estado: PENDIENTE
+Agente: Opus (diseña el contrato, 1 sesión) → Codex (implementa) → Opus (revisa)
+Línea / fase: L0 PR 3, fases 7 y 8
+Gate al que contribuye: GATE L0 (requisito 3)
+
+## Objetivo
+`DataQuality` separa frescura, completitud reciente, completitud histórica,
+disponibilidad de indicadores y ejecutabilidad, con severidad por antigüedad;
+todo descarte y toda espera llevan un código estructurado y el informe agrupa
+por él.
+
+## Por qué existe
+`OK/DEGRADADO/INCOMPLETO` mezcla tipos de problema (verificado en
+`advisor/data/freshness.py::classify_data_quality`): un hueco de hace 150
+sesiones y el cierre de ayer ausente caen en vocabularios que no distinguen
+severidad, y el bloque «90 activos descartados: …» no permite saber por qué
+cayó cada uno sin leer texto libre. Fases 7 y 8 de `docs/plan-ejecucion.md`.
+
+## Dependencias previas
+T-002 (migraciones), T-003 (calendarios), T-004 (causa del hueco). Decisiones
+D-05 (la ventana de veto 20 se conserva como valor; su semántica pasa a
+«completitud reciente»), D-16.
+
+## Archivos probables
+No asumir que sean exactos: verificar primero.
+- `advisor/data/freshness.py` → `advisor/data/quality.py` (nuevo; `freshness.py` puede quedar como cálculo de antigüedad)
+- `advisor/analysis/execution.py` (`DATA_NOT_EXECUTABLE` pasa a depender de `execution_readiness`)
+- `advisor/analysis/opportunity.py` (`classify`, `classify_setup`, `_execution_reasons`; nuevo `discard_code`, `warnings`)
+- `advisor/analysis/analyzer.py` (`AnalysisResult.skipped` pasa a llevar código)
+- `advisor/report/formatter.py` (bloques RADAR, DESCARTADOS, calidad)
+- `advisor/main.py` (`opportunity_to_row`, `freshness_row_to_measurement`)
+- `advisor/storage/migrations.py` (v4: columnas `discard_code`, `execution_reason`, `quality_*`)
+- `advisor/config.py` (`DataQualityConfig`: severidades por ventana)
+- `tests/test_freshness.py`, `tests/test_quality.py` (nuevo), `tests/test_analysis.py`, `tests/test_report.py`
+
+## Invariantes que no pueden romperse
+INV-02, INV-03 (ninguna dimensión de calidad toca `score.value`), INV-04,
+INV-05, INV-12, INV-16, INV-17.
+
+## Implementación requerida (contrato que Opus fija antes de que Codex empiece)
+1. `DataQuality` (frozen):
+   `freshness: FreshnessState` (`FRESH | STALE_1 | STALE_2_PLUS | PARTIAL_BAR`),
+   `recent_completeness: Severity`, `historical_completeness: Severity`,
+   `indicator_readiness: bool` con `indicators_missing: tuple[str, ...]`,
+   `execution_readiness: bool`, `reasons: tuple[QualityReason, ...]` donde
+   `QualityReason = (code, severity, detail, sessions_ago)`.
+   `Severity ∈ {OK, WARNING, MEDIUM, HIGH, CRITICAL}`.
+2. Severidad por antigüedad de la sesión ausente más reciente, medida en
+   **sesiones del calendario de la plaza**: última → `CRITICAL`; ≤ 5 → `HIGH`;
+   ≤ 20 → `MEDIUM`; > 20 → `WARNING`. Los cortes van en `DataQualityConfig`
+   con estos valores por defecto.
+3. `execution_readiness = freshness ∈ {FRESH} ∧ recent_completeness ≤ MEDIUM ∧
+   indicator_readiness` — **regla explícita**: `MEDIUM` (hueco entre 6 y 20
+   sesiones) veta; se conserva el comportamiento de D-05 (ventana 20). Un
+   `WARNING` histórico nunca veta salvo que provoque `indicators_missing` o
+   historial insuficiente.
+4. Códigos de descarte del setup (`discard_code`): `LOW_SCORE`,
+   `INVALID_TREND`, `OVEREXTENDED`, `VOLATILITY_TOO_HIGH`, `EVENT_RISK`,
+   `HOSTILE_CONTEXT`, `BELOW_RISK_FREE`, `NO_LEVELS`, `INSUFFICIENT_HISTORY`,
+   `INVALID_INDICATORS`. Códigos de ejecución: los de
+   `advisor/analysis/execution.py` más `STALE_DATA`, `MISSING_RECENT_DATA`.
+   `warning` es una lista aparte y nunca implica descarte.
+5. `Opportunity` gana `discard_code: Optional[str]`, `execution_code: str`,
+   `warnings: tuple[str, ...]`, `data_quality: DataQuality`; `decision_reasons`
+   se conserva para el texto.
+6. Informe: DESCARTADOS agrupados por código con conteo; RADAR muestra
+   código; el detalle de fechas antiguas va al log/JSON, no al informe.
+7. Persistencia (migración v4): `discard_code`, `execution_code`,
+   `quality_freshness`, `quality_recent`, `quality_historical`,
+   `execution_ready`.
+
+## Qué NO debe modificarse
+`compute_score`, `compute_levels*`, umbrales de score, ventana 20, `evaluate_trade_at_entry` salvo el origen de `DATA_NOT_EXECUTABLE`.
+
+## Tests unitarios
+Con calendario XETRA y referencia 2026-09-14 07:00 UTC:
+- ausente 2026-09-11 (última) → `CRITICAL`, `execution_ready False`.
+- ausente hace 3 sesiones → `HIGH`, no ejecutable.
+- ausente hace 15 → `MEDIUM`, no ejecutable (D-05).
+- ausente hace 150 → `WARNING`, `execution_ready True`, `score` intacto.
+- festivo de la plaza → no es ausencia.
+- historial suficiente con `WARNING` → ejecutable.
+- `sma_long` no calculable por el hueco → `indicator_readiness False`.
+- `discard_code` para score 64 con umbral 70 → `LOW_SCORE`, `threshold` en detalle.
+
+## Tests de integración
+- `test_operar_implica_execution_ready` (fase 13, invariante 1 ampliada).
+- `test_warning_historico_no_cambia_radar` con fixture realista (`unknown`, ISIN null).
+- `test_informe_agrupa_descartes_por_codigo`: 90 activos sintéticos → cada uno en exactamente un grupo.
+
+## Verificación contra datos reales
+```bash
+python -m advisor.main analizar --horizonte swing --sin-ia --sin-guardar > evidence/<fecha>-T-005-calidad/despues.txt
+```
+Comprobar a mano: `NOVO-B.CO` (ausencias 2026-03/04/05/06 y 09-07): la más
+reciente decide la severidad; recalcular cuántas sesiones XCSE hay entre esa
+fecha y la referencia y comprobar el tramo. Un activo con solo huecos > 20
+sesiones debe aparecer `WARNING` y ejecutable.
+
+## Medición del impacto
+- Tabla activos por `discard_code` / `execution_code` antes (texto libre) y después.
+- nº activos que pasan de vetado a ejecutable y por qué (esperado: solo los
+  de huecos > 20 sesiones que además estaban vetados por otro motivo → 0 si
+  D-05 ya lo evitaba; comprobar).
+- nº señales de investigación afectadas: 0 (declararlo).
+
+## Criterio de aceptación
+- Cero descartes sin código en la salida real; cada activo en un solo grupo.
+- Tests y CI en verde; migración con backup verificado.
+- Revisión de Opus: INV-03 comprobada leyendo `compute_score` y sus llamantes.
+
+## Criterio de rechazo
+- Cualquier código que altere `score.value`.
+- Un `WARNING` que vete.
+- Texto libre como único motivo.
+
+## Evidencia que debe quedar registrada
+`evidence/<fecha>-T-005-calidad/` con `despues.txt`, tabla por código y README.
+
+## Commit esperado
+Rama `refactor/data-quality-codes`. Mensajes:
+`refactor(data): calidad del dato por dimensiones con severidad por antigüedad` y
+`refactor(signals): códigos estructurados de descarte y de ejecución` (dos commits si compilan por separado; uno si no).
+
+## Actualización documental requerida
+`docs/roadmap.md`: PR 3 → ACEPTADA. `README.md`: vocabulario de calidad y códigos. `docs/plan-ejecucion.md`: fases 7 y 8 con fecha.
+
+## Handoff al siguiente agente
+(se rellena al terminar)

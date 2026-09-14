@@ -1,4 +1,8 @@
-# Cobertura de la especificación
+# Cobertura de la especificación (histórico)
+
+> **Documento histórico desde el 2026-09-14 (decisión D-16).** Contraste
+> verificado el 2026-08-27; no se ha vuelto a actualizar. El estado vive en
+> `docs/roadmap.md`.
 
 Contraste entre las 27 secciones de la especificación del asesor y lo que
 hay construido. Verificado contra el código el 2026-08-27.

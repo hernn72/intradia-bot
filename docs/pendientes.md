@@ -1,4 +1,9 @@
-# Pendientes del asesor
+# Pendientes del asesor (histórico)
+
+> **Documento histórico desde el 2026-09-14 (decisión D-16).** No se actualiza
+> ni es fuente de estado. Conserva mediciones y razonamientos hasta el 2 de
+> septiembre que no se repiten en otro sitio. El estado vive en
+> `docs/roadmap.md`; el método en `docs/metodo-trabajo.md`.
 
 Estado al **2 de septiembre de 2026**.
 

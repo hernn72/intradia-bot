@@ -1,6 +1,22 @@
 # Plan de corrección y cierre de la capa de ejecución
 
-**Estado:** en implementación (rama `fix/execution-data-quality`)
+**Estado:** en implementación (rama `fix/execution-data-quality`). Fases 1–3 hechas
+(`e929da4`); fases 4–15 pendientes con fichas en `docs/tareas/` (T-003, T-004,
+T-005 y siguientes). El orden y las dependencias mandan desde `docs/roadmap.md`;
+el método desde `docs/metodo-trabajo.md`.
+
+**Notas de la auditoría del 2026-09-14** (ver `docs/decision-log.md`):
+
+- D-15 sustituye la regla «un commit por fase» de este documento: una entrega
+  coherente con commits compilables; fases mutuamente dependientes van juntas.
+- D-19: C-00 (CI), C-01 (migraciones) y C-02 (manifiesto) van **antes** de PR 3,
+  porque PR 3 y PR 4 añaden columnas y estados.
+- D-06: con la geometría por defecto, `entry_max_rr` coincide con el cierre de
+  señal; la fase 14 debe medir la pérdida por `ABOVE_MAX_ENTRY` a la apertura y
+  P4 tratar la holgura de entrada como dimensión de la geometría.
+- D-07: las fases 4 y 6 usan `exchange_calendars` (T-003), y unifican las dos
+  taxonomías de plazas que hoy conviven en `freshness.py` y `sessions.py`.
+- Línea base real de partida: `evidence/2026-09-14-L0-baseline/`.
 **Prioridad:** alta
 **Objetivo:** conseguir que una señal técnicamente válida solo se convierta en
 `OPERAR` cuando los datos, el precio real de entrada, el RR, el dimensionamiento
@@ -648,8 +664,9 @@ horizonte y estado de ejecución.
   «operación realmente ejecutable».
 - **PR 5 — Reporting + regression:** fases 12, 13, 14 y 15.
 
-Los commits van en el orden de las fases, uno por fase. No agrupar los 14 puntos en
-un único commit.
+Los commits van en el orden de las fases. **Regla vigente (D-15):** un commit por
+entrega coherente y compilable; fases mutuamente dependientes van juntas; no
+agrupar los 14 puntos en un único commit.
 
 ---
 
