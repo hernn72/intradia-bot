@@ -438,6 +438,15 @@ class AdvisorDB:
                 )
             return cursor.fetchall()
 
+    def latest_freshness_measured_at(self) -> Optional[str]:
+        """Marca temporal de la última pasada de frescura guardada, si hay alguna."""
+
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT measured_at FROM data_freshness_measurement ORDER BY measured_at DESC LIMIT 1"
+            ).fetchone()
+            return None if row is None else row["measured_at"]
+
     def get_latest_freshness_absences(self) -> List[tuple[str, date]]:
         """Pares símbolo-fecha ausente de la última pasada de frescura guardada."""
 

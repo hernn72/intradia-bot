@@ -1,57 +1,57 @@
-2026-09-16 09:46:32 [INFO] advisor.analysis.analyzer: Analizando 107 activos (horizonte swing, velas de 1d)
-2026-09-16 09:48:30 [INFO] advisor.analysis.analyzer: ^STOXX benchmark: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:31 [INFO] advisor.analysis.analyzer: SAP.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:32 [INFO] advisor.analysis.analyzer: SIE.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:33 [INFO] advisor.analysis.analyzer: ALV.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:34 [INFO] advisor.analysis.analyzer: MBG.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:35 [INFO] advisor.analysis.analyzer: RHM.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:36 [INFO] advisor.analysis.analyzer: ENR.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:37 [INFO] advisor.analysis.analyzer: DTE.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:38 [INFO] advisor.analysis.analyzer: DBK.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:39 [INFO] advisor.analysis.analyzer: MUV2.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:40 [INFO] advisor.analysis.analyzer: IFX.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:41 [INFO] advisor.analysis.analyzer: ASML.AS: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Amsterdam + 20 min no alcanzado
-2026-09-16 09:48:42 [INFO] advisor.analysis.analyzer: ADYEN.AS: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Amsterdam + 20 min no alcanzado
-2026-09-16 09:48:43 [INFO] advisor.analysis.analyzer: MC.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
-2026-09-16 09:48:44 [INFO] advisor.analysis.analyzer: AIR.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
-2026-09-16 09:48:45 [INFO] advisor.analysis.analyzer: SU.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
-2026-09-16 09:48:46 [INFO] advisor.analysis.analyzer: SAF.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
-2026-09-16 09:48:47 [INFO] advisor.analysis.analyzer: TTE.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
-2026-09-16 09:48:48 [INFO] advisor.analysis.analyzer: OR.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
-2026-09-16 09:48:49 [INFO] advisor.analysis.analyzer: IBE.MC: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
-2026-09-16 09:48:50 [INFO] advisor.analysis.analyzer: ITX.MC: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
-2026-09-16 09:48:51 [INFO] advisor.analysis.analyzer: SAN.MC: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
-2026-09-16 09:48:52 [INFO] advisor.analysis.analyzer: BBVA.MC: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
-2026-09-16 09:48:53 [INFO] advisor.analysis.analyzer: RACE.MI: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
-2026-09-16 09:48:54 [INFO] advisor.analysis.analyzer: UCG.MI: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
-2026-09-16 09:48:55 [INFO] advisor.analysis.analyzer: ENI.MI: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
-2026-09-16 09:48:56 [INFO] advisor.analysis.analyzer: NOVO-B.CO: barra 2026-09-16 recortada: cierre regular 17:00 Europe/Copenhagen + 20 min no alcanzado
-2026-09-16 09:48:57 [INFO] advisor.analysis.analyzer: RRU.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:48:58 [INFO] advisor.analysis.analyzer: BSP.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:00 [INFO] advisor.analysis.analyzer: R6C0.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:21 [INFO] advisor.analysis.analyzer: EUNL.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:22 [INFO] advisor.analysis.analyzer: SXR8.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:23 [INFO] advisor.analysis.analyzer: EQQQ.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:24 [INFO] advisor.analysis.analyzer: EXSA.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:25 [INFO] advisor.analysis.analyzer: IS3N.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:26 [INFO] advisor.analysis.analyzer: EUNN.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:27 [INFO] advisor.analysis.analyzer: ICGA.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:28 [INFO] advisor.analysis.analyzer: QDV5.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:29 [INFO] advisor.analysis.analyzer: IQQT.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:30 [INFO] advisor.analysis.analyzer: IQQK.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:31 [INFO] advisor.analysis.analyzer: VVSM.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:32 [INFO] advisor.analysis.analyzer: DFEN.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:33 [INFO] advisor.analysis.analyzer: Q8Y0.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:34 [INFO] advisor.analysis.analyzer: 4GLD.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:35 [INFO] advisor.analysis.analyzer: EUNH.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:36 [INFO] advisor.analysis.analyzer: ZPRR.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:37 [INFO] advisor.analysis.analyzer: EXV1.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:38 [INFO] advisor.analysis.analyzer: EXH1.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
-2026-09-16 09:49:43 [ERROR] yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: EUNN.DE"}}}
-2026-09-16 09:49:45 [ERROR] yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: EXH1.DE"}}}
-2026-09-16 09:49:46 [ERROR] yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: EXV1.DE"}}}
+2026-09-16 12:02:32 [INFO] advisor.analysis.analyzer: Analizando 107 activos (horizonte swing, velas de 1d)
+2026-09-16 12:03:35 [INFO] advisor.analysis.analyzer: ^STOXX benchmark: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:36 [INFO] advisor.analysis.analyzer: SAP.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:37 [INFO] advisor.analysis.analyzer: SIE.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:38 [INFO] advisor.analysis.analyzer: ALV.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:39 [INFO] advisor.analysis.analyzer: MBG.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:40 [INFO] advisor.analysis.analyzer: RHM.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:41 [INFO] advisor.analysis.analyzer: ENR.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:42 [INFO] advisor.analysis.analyzer: DTE.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:43 [INFO] advisor.analysis.analyzer: DBK.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:44 [INFO] advisor.analysis.analyzer: MUV2.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:45 [INFO] advisor.analysis.analyzer: IFX.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:03:46 [INFO] advisor.analysis.analyzer: ASML.AS: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-16 12:03:47 [INFO] advisor.analysis.analyzer: ADYEN.AS: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-16 12:03:48 [INFO] advisor.analysis.analyzer: MC.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-16 12:03:49 [INFO] advisor.analysis.analyzer: AIR.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-16 12:03:50 [INFO] advisor.analysis.analyzer: SU.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-16 12:03:51 [INFO] advisor.analysis.analyzer: SAF.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-16 12:03:52 [INFO] advisor.analysis.analyzer: TTE.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-16 12:03:53 [INFO] advisor.analysis.analyzer: OR.PA: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-16 12:03:54 [INFO] advisor.analysis.analyzer: IBE.MC: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-16 12:03:55 [INFO] advisor.analysis.analyzer: ITX.MC: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-16 12:03:56 [INFO] advisor.analysis.analyzer: SAN.MC: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-16 12:03:57 [INFO] advisor.analysis.analyzer: BBVA.MC: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-16 12:03:58 [INFO] advisor.analysis.analyzer: RACE.MI: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-16 12:03:59 [INFO] advisor.analysis.analyzer: UCG.MI: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-16 12:04:00 [INFO] advisor.analysis.analyzer: ENI.MI: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-16 12:04:01 [INFO] advisor.analysis.analyzer: NOVO-B.CO: barra 2026-09-16 recortada: cierre regular 17:00 Europe/Copenhagen + 20 min no alcanzado
+2026-09-16 12:04:02 [INFO] advisor.analysis.analyzer: RRU.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:03 [INFO] advisor.analysis.analyzer: BSP.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:05 [INFO] advisor.analysis.analyzer: R6C0.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:25 [INFO] advisor.analysis.analyzer: EUNL.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:26 [INFO] advisor.analysis.analyzer: SXR8.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:28 [INFO] advisor.analysis.analyzer: EQQQ.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:29 [INFO] advisor.analysis.analyzer: EXSA.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:29 [INFO] advisor.analysis.analyzer: IS3N.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:31 [INFO] advisor.analysis.analyzer: EUNN.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:32 [INFO] advisor.analysis.analyzer: ICGA.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:33 [INFO] advisor.analysis.analyzer: QDV5.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:34 [INFO] advisor.analysis.analyzer: IQQT.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:35 [INFO] advisor.analysis.analyzer: IQQK.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:36 [INFO] advisor.analysis.analyzer: VVSM.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:37 [INFO] advisor.analysis.analyzer: DFEN.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:38 [INFO] advisor.analysis.analyzer: Q8Y0.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:39 [INFO] advisor.analysis.analyzer: 4GLD.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:40 [INFO] advisor.analysis.analyzer: EUNH.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:41 [INFO] advisor.analysis.analyzer: ZPRR.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:42 [INFO] advisor.analysis.analyzer: EXV1.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:43 [INFO] advisor.analysis.analyzer: EXH1.DE: barra 2026-09-16 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-16 12:04:47 [ERROR] yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: EUNN.DE"}}}
+2026-09-16 12:04:48 [ERROR] yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: EXH1.DE"}}}
+2026-09-16 12:04:49 [ERROR] yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: EXV1.DE"}}}
 ==========================================================================================
-ASESOR DE INVERSIÓN — 2026-09-16 08:49 UTC  |  horizonte: swing  |  velas: 1d
+ASESOR DE INVERSIÓN — 2026-09-16 11:04 UTC  |  horizonte: swing  |  velas: 1d
 ==========================================================================================
 
 ## 🌍 SITUACIÓN GLOBAL
@@ -63,69 +63,69 @@ Asia:
   - Nikkei 225 (^N225): 63923,00 JPY +0,7%
   - Taiwan Weighted (^TWII): 45848,90 TWD +0,7%
 Europa:
-  - CAC 40 (^FCHI): 8100,74 EUR +0,1%
-  - DAX (^GDAXI): 25399,90 EUR -0,0%
-  - STOXX Europe 600 (^STOXX): 636,09 EUR +0,3%
-  - Euro Stoxx 50 (^STOXX50E): 6249,47 EUR +0,2%
+  - CAC 40 (^FCHI): 8129,20 EUR +0,5%
+  - DAX (^GDAXI): 25484,60 EUR +0,3%
+  - STOXX Europe 600 (^STOXX): 637,70 EUR +0,6%
+  - Euro Stoxx 50 (^STOXX50E): 6269,08 EUR +0,5%
 EE. UU.:
   - S&P 500 (^GSPC): 7585,73 USD -0,4%
   - Nasdaq 100 (^NDX): 28937,84 USD -0,6%
   - Russell 2000 (^RUT): 2870,29 USD -0,8%
   - Philadelphia Semiconductor (^SOX): 11175,55 USD +0,4%
   - Treasury 10 años (^TNX): 5,00 USD +0,7%
-  - VIX (^VIX): 17,00 USD -1,2%
+  - VIX (^VIX): 16,98 USD -1,3%
 Global:
-  - WTI (CL=F): 104,72 USD -1,0%
-  - Dollar Index (DX-Y.NYB): 99,62 USD -0,0%
-  - EUR/USD (EURUSD=X): 1,15 USD -0,0%
-  - Oro (GC=F): 4367,00 USD +0,8%
+  - WTI (CL=F): 103,69 USD -2,0%
+  - Dollar Index (DX-Y.NYB): 99,69 USD +0,0%
+  - EUR/USD (EURUSD=X): 1,15 USD -0,1%
+  - Oro (GC=F): 4387,90 USD +1,3%
 
 Volatilidad: VIX 17,2 (umbral 25,0)  |  Contexto: RISK_ON — tendencia alcista del índice de referencia y volatilidad contenida
 
 **Frescura de datos:** 107 activos analizados con snapshot.
-  - Calidad: DEGRADADO=19, INCOMPLETO=28, OK=60.
-  - 0 sesiones cerradas perdidas: 60 activos; última barra 2026-09-16 (JPX (7), HKG (4), CRYPTO (3), KSC (2)); 2026-09-15 (NASDAQ (25), NYSE (19)).
-⚠️ 1 sesión cerrada perdida: 47 activos; última barra 2026-09-14 (XETRA (31), PAR (6), MCE (4), MIL (3), AMS (2), CPH).
+  - Calidad: DEGRADADO=18, INCOMPLETO=28, OK=61.
+  - 0 sesiones cerradas perdidas: 89 activos; última barra 2026-09-16 (JPX (7), HKG (4), CRYPTO (3), KSC (2)); 2026-09-15 (NASDAQ (25), NYSE (19), XETRA (13), PAR (6), MCE (4), MIL (3), AMS (2), CPH).
+⚠️ 1 sesión cerrada perdida: 18 activos; última barra 2026-09-14 (XETRA (18)).
   - 2 o más sesiones cerradas perdidas: 0 activos.
 ⚠️ Sesiones ausentes frente al calendario de su plaza: 42 activos.
   - EUNN.DE: faltan 2026-03-06 en XETR.
-  - IQQT.DE: faltan 2026-03-06 en XETR.
   - TTE.PA: faltan 2026-09-07 en XPAR.
-  - R6C0.DE: faltan 2026-09-07 en XETR.
   - ENI.MI: faltan 2026-09-07 en XMIL.
-  - IFX.DE: faltan 2026-09-07 en XETR.
-  - IBE.MC: faltan 2026-09-07 en XMAD.
+  - R6C0.DE: faltan 2026-09-07 en XETR.
+  - IQQT.DE: faltan 2026-03-06 en XETR.
   - EQQQ.DE: faltan 2026-03-06 en XETR.
-  - BBVA.MC: faltan 2026-09-07 en XMAD.
-  - UCG.MI: faltan 2026-09-07 en XMIL.
+  - IFX.DE: faltan 2026-09-07 en XETR.
   - DBK.DE: faltan 2026-09-07 en XETR.
-  - SAP.DE: faltan 2026-09-07 en XETR.
-  - DTE.DE: faltan 2026-09-07 en XETR.
-  - ENR.DE: faltan 2026-09-07 en XETR.
+  - MUV2.DE: faltan 2026-09-07 en XETR.
+  - MBG.DE: faltan 2026-09-07 en XETR.
   - Q8Y0.DE: faltan 2026-03-06 en XETR.
   - IQQK.DE: faltan 2026-03-06 en XETR.
-  - MBG.DE: faltan 2026-09-07 en XETR.
-  - SU.PA: faltan 2026-09-07 en XPAR.
+  - BBVA.MC: faltan 2026-09-07 en XMAD.
+  - UCG.MI: faltan 2026-09-07 en XMIL.
+  - SAP.DE: faltan 2026-09-07 en XETR.
   - SXR8.DE: faltan 2026-03-06 en XETR.
-  - SAF.PA: faltan 2026-09-07 en XPAR.
   - SIE.DE: faltan 2026-09-07 en XETR.
   - ZPRR.DE: faltan 2026-03-06 en XETR.
-  - AIR.PA: faltan 2026-09-07 en XPAR.
-  - ALV.DE: faltan 2026-09-07 en XETR.
+  - SAF.PA: faltan 2026-09-07 en XPAR.
+  - DTE.DE: faltan 2026-09-07 en XETR.
+  - MC.PA: faltan 2026-09-07 en XPAR.
+  - IBE.MC: faltan 2026-09-07 en XMAD.
   - EUNL.DE: faltan 2026-03-06 en XETR.
   - IS3N.DE: faltan 2026-03-06 en XETR.
+  - ALV.DE: faltan 2026-09-07 en XETR.
+  - AIR.PA: faltan 2026-09-07 en XPAR.
+  - VVSM.DE: faltan 2026-03-06 en XETR.
+  - OR.PA: faltan 2026-09-07 en XPAR.
   - ASML.AS: faltan 2026-09-07 en XAMS.
   - RACE.MI: faltan 2026-09-07 en XMIL.
-  - OR.PA: faltan 2026-09-07 en XPAR.
-  - VVSM.DE: faltan 2026-03-06 en XETR.
-  - MUV2.DE: faltan 2026-09-07 en XETR.
   - NOVO-B.CO: faltan 2026-03-23, 2026-09-07 en XCSE.
-  - ITX.MC: faltan 2026-09-07 en XMAD.
+  - ENR.DE: faltan 2026-09-07 en XETR.
+  - BSP.DE: faltan 2026-09-07 en XETR.
+  - SU.PA: faltan 2026-09-07 en XPAR.
   - RRU.DE: faltan 2026-09-07 en XETR.
   - QDV5.DE: faltan 2026-03-06 en XETR.
   - 4GLD.DE: faltan 2026-03-06 en XETR.
-  - MC.PA: faltan 2026-09-07 en XPAR.
-  - BSP.DE: faltan 2026-09-07 en XETR.
+  - ITX.MC: faltan 2026-09-07 en XMAD.
   - ADYEN.AS: faltan 2026-09-07 en XAMS.
   - ICGA.DE: faltan 2026-03-06 en XETR.
   - DFEN.DE: faltan 2026-03-06 en XETR.
@@ -142,7 +142,7 @@ Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre 
 |------------|------------------------|------------------|------------------|------------------|------------------|----------|----------|-------|
 | EUNN.DE    | 🚀 Swing / corto plazo  |          72,91 € |          72,91 € |          75,79 € |          70,99 € |    +4,0% |    -2,6% |    76 |
 | EXH1.DE    | 🚀 Swing / corto plazo  |          55,76 € |          55,76 € |          57,92 € |          54,32 € |    +3,9% |    -2,6% |    72 |
-| CRWD       | 🚀 Swing / corto plazo  |         210,04 € |         210,04 € |         249,50 € |         183,74 € |   +18,8% |   -12,5% |    71 |
+| CRWD       | 🚀 Swing / corto plazo  |         210,14 € |         210,14 € |         249,61 € |         183,83 € |   +18,8% |   -12,5% |    71 |
 | EXV1.DE    | 🚀 Swing / corto plazo  |          42,57 € |          42,57 € |          44,44 € |          41,32 € |    +4,4% |    -2,9% |    71 |
 
 ------------------------------------------------------------------------------------------
@@ -366,7 +366,7 @@ Cálculo hecho con entrada de referencia 55,76 €; si introduces otro precio en
 **Broker / ejecución:** trade_republic / best_price
 **Disponible en Trade Republic:** ⚠️ PENDIENTE DE VERIFICACIÓN
 
-**Precio actual:** 242,49 USD (≈ 210,04 €)
+**Precio actual:** 242,49 USD (≈ 210,14 €)
 **Tipo de operación:** 🚀 Swing / corto plazo
 **Señal:** 🟢 OPERAR
 **Ejecutabilidad en broker:** ❓ pendiente de verificación
@@ -381,19 +381,19 @@ el activo mantiene estructura alcista (EMA rápida sobre la lenta y precio sobre
 Huella en el precio: volumen 1.5× la media; apertura sin hueco relevante (-1.0%); a -0.6% del máximo de la ventana. El bot no consulta noticias ni resultados, así que la causa de fondo no está verificada.
 
 ### Entrada
-Zona de entrada ideal: 234,90 USD (≈ 203,47 €) — 242,49 USD (≈ 210,04 €)
-Entrada máxima aceptable: 242,49 USD (≈ 210,04 €)
+Zona de entrada ideal: 234,90 USD (≈ 203,56 €) — 242,49 USD (≈ 210,14 €)
+Entrada máxima aceptable: 242,49 USD (≈ 210,14 €)
 ⚠️ ESPERAR PULLBACK / NO PERSEGUIR PRECIO — el precio está extendido sobre su media rápida.
 
 ### Stop / invalidación
-Stop de precio: 212,13 USD (≈ 183,74 €) (2·ATR por debajo del precio)
-Invalidación de la tesis: 202,32 USD (≈ 175,25 €) — cierre por debajo de la EMA lenta: la tendencia que sostiene la tesis desaparece
+Stop de precio: 212,13 USD (≈ 183,83 €) (2·ATR por debajo del precio)
+Invalidación de la tesis: 202,32 USD (≈ 175,33 €) — cierre por debajo de la EMA lenta: la tendencia que sostiene la tesis desaparece
 Pérdida máxima estimada desde el precio actual: -12,5%
 
 ### Objetivos
-Objetivo 1: 243,98 USD (≈ 211,34 €)  (+0,6%)
-Objetivo 2: 288,03 USD (≈ 249,50 €)  (+18,8%)
-Objetivo 3: 318,40 USD (≈ 275,80 €)  (+31,3%)
+Objetivo 1: 243,98 USD (≈ 211,43 €)  (+0,6%)
+Objetivo 2: 288,03 USD (≈ 249,61 €)  (+18,8%)
+Objetivo 3: 318,40 USD (≈ 275,92 €)  (+31,3%)
 
 ### Potencial
 +18,8% hasta el objetivo 2 (escenario principal)
@@ -414,9 +414,9 @@ Media
 Ninguno con fecha conocida en la ventana consultada.
 
 ### Escenarios
-Alcista: el precio alcanza el objetivo 3 (318,40 USD (≈ 275,80 €), +31,3%).
-Base: el precio alcanza el objetivo 2 (288,03 USD (≈ 249,50 €), +18,8%).
-Bajista: se activa el stop en 212,13 USD (≈ 183,74 €) (-12,5%).
+Alcista: el precio alcanza el objetivo 3 (318,40 USD (≈ 275,92 €), +31,3%).
+Base: el precio alcanza el objetivo 2 (288,03 USD (≈ 249,61 €), +18,8%).
+Bajista: se activa el stop en 212,13 USD (≈ 183,83 €) (-12,5%).
 Sin datos de probabilidad histórica de cada escenario: el bot no estima probabilidades que no ha medido.
 
 ### Qué podría salir mal
@@ -426,7 +426,7 @@ Sin datos de probabilidad histórica de cada escenario: el bot no estima probabi
 
 ### Dimensionamiento sugerido
 Convicción media: 4,0% de la cartera, arriesgando 0,50% si salta el stop.
-Cálculo hecho con entrada de referencia 242,49 USD (≈ 210,04 €); si introduces otro precio en Trade Republic, recalcula el tamaño.
+Cálculo hecho con entrada de referencia 242,49 USD (≈ 210,14 €); si introduces otro precio en Trade Republic, recalcula el tamaño.
 
 ### Desglose de la puntuación
   - catalizador: 9.0/20
@@ -560,20 +560,20 @@ Cálculo hecho con entrada de referencia 42,57 €; si introduces otro precio en
 
 ## 👀 RADAR
 
+  - TTE.PA (TotalEnergies) — score 70, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07 — puntuación 70, insuficiente para operar (70)
+  - ENI.MI (Eni) — score 70, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07 — puntuación 70, insuficiente para operar (70)
+  - R6C0.DE (Shell) — score 68, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07 — puntuación 68, insuficiente para operar (70)
   - CVX (Chevron) — score 68, ratio 1,5:1 — puntuación 68, insuficiente para operar (70)
   - IQQT.DE (iShares MSCI Taiwan) — score 67, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s) — puntuación 67, insuficiente para operar (70)
   - XOM (Exxon Mobil) — score 66, ratio 1,5:1 — puntuación 66, insuficiente para operar (70)
-  - TTE.PA (TotalEnergies) — score 66, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s) — puntuación 66, insuficiente para operar (70)
-  - R6C0.DE (Shell) — score 65, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s) — puntuación 65, insuficiente para operar (70)
-  - ENI.MI (Eni) — score 65, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s) — puntuación 65, insuficiente para operar (70)
   - 9984.T (SoftBank Group) — score 65, ratio 1,5:1 — puntuación 65, insuficiente para operar (70)
-  - IFX.DE (Infineon) — score 64, ratio 5,8:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s) — puntuación 64, insuficiente para operar (70)
   - AMD (AMD) — score 63, ratio 1,5:1 — puntuación 63, insuficiente para operar (70)
-  - IBE.MC (Iberdrola) — score 62, ratio 3,4:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s) — puntuación 62, insuficiente para operar (70)
+  - EQQQ.DE (Invesco EQQQ Nasdaq-100) — score 62, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s) — puntuación 62, insuficiente para operar (70)
+  - AAPL (Apple) — score 62, ratio 1,5:1 — puntuación 62, insuficiente para operar (70)
 
 ## 🔴 DESCARTADOS
 
-86 activos descartados: CAT, ETH-EUR, EXSA.DE calidad DEGRADADO; ⚠️ dato 2026-09-14 (1s), JPM, DTE.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), ABBV, ENR.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), Q8Y0.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), SAN.MC calidad DEGRADADO; ⚠️ dato 2026-09-14 (1s), IQQK.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), MSFT, MBG.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), BRK-B, BTC-EUR, AMAT, META, SU.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), GE, SXR8.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), 000660.KS, NOW, SAF.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), SIE.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), ZPRR.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), AIR.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), 6501.T, ALV.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), 6758.T, PLTR, INTC, APP, QCOM, ARM, EUNL.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), GOOGL, IS3N.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), ASML.AS calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), CRM, MU, NVDA, SOL-EUR, EUNH.DE calidad DEGRADADO; ⚠️ dato 2026-09-14 (1s), GS, MA, RACE.MI calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), OR.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), VVSM.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), V, VRTX, COIN, TSM, MUV2.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), TSLA, MRVL, NOVO-B.CO calidad INCOMPLETO; ⚠️ falta sesión 2026-03-23, 2026-09-07; ⚠️ dato 2026-09-14 (1s), ITX.MC calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), AVGO, RRU.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), AMZN, 6857.T, QDV5.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), 7203.T, NFLX, ADBE, 4GLD.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), AZN, LLY, LRCX, MC.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), BSP.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), UBER, ADYEN.AS calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), RTX, 8035.T, 005930.KS, ICGA.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), DFEN.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), 7011.T, ORCL, 9988.HK, LMT, 0700.HK, 1211.HK, RHM.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-14 (1s), 1810.HK, INFY
+89 activos descartados: CAT, ETH-EUR, EXSA.DE calidad DEGRADADO; ⚠️ dato 2026-09-14 (1s), JPM, ABBV, MBG.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, Q8Y0.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), IQQK.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), MSFT, BBVA.MC calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, UCG.MI calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, BRK-B, BTC-EUR, AMAT, META, SAP.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, GE, SXR8.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), 000660.KS, NOW, SIE.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, ZPRR.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), SAF.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, DTE.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, 6501.T, SAN.MC, 6758.T, PLTR, INTC, APP, QCOM, MC.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, ARM, IBE.MC calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, EUNL.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), GOOGL, IS3N.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), ALV.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, CRM, MU, NVDA, SOL-EUR, EUNH.DE calidad DEGRADADO; ⚠️ dato 2026-09-14 (1s), GS, AIR.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, MA, VVSM.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), OR.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, V, ASML.AS calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, RACE.MI calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, VRTX, COIN, TSM, TSLA, MRVL, NOVO-B.CO calidad INCOMPLETO; ⚠️ falta sesión 2026-03-23, 2026-09-07, AVGO, ENR.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, BSP.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, AMZN, SU.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, RRU.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, 6857.T, QDV5.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), 7203.T, NFLX, ADBE, 4GLD.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), AZN, LLY, LRCX, ITX.MC calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, UBER, ADYEN.AS calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, RTX, 8035.T, 005930.KS, ICGA.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), DFEN.DE calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-14 (1s), 7011.T, ORCL, 9988.HK, LMT, 0700.HK, 1211.HK, RHM.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, 1810.HK, INFY
 
 ## 🎯 CONCLUSIÓN
 
@@ -582,8 +582,8 @@ Principal riesgo del mercado: tendencia alcista del índice de referencia y vola
 Liquidez recomendada: 76% — suma de las 3 mejores ideas por señal en su dimensionamiento máximo. La disponibilidad del broker se informa aparte.
 
 ------------------------------------------------------------------------------------------
-Conversión a euros aproximada (cierre del 2026-09-16) — 1 JPY ≈ 0,0056 EUR; 1 USD ≈ 0,8662 EUR. El importe que aplicará Trade Republic al ejecutar puede diferir.
+Conversión a euros aproximada (cierre del 2026-09-16) — 1 JPY ≈ 0,0056 EUR; 1 USD ≈ 0,8666 EUR. El importe que aplicará Trade Republic al ejecutar puede diferir.
 ------------------------------------------------------------------------------------------
 Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
 ==========================================================================================
-run 8ef644f6-63c9-4c14-b0a2-69bbff881046 · c581fb1c3542+dirty · config d359c8d3 · universo 80d05f21
+run dd40c4a0-8788-438f-b01a-ea807cdff6cf · 9d5a764afd71+dirty · config d359c8d3 · universo 80d05f21

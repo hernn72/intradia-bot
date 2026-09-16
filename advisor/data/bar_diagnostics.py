@@ -23,13 +23,24 @@ CLASE_MERCADO_CERRADO = "mercado cerrado"
 CLASE_PROVEEDOR_NO_ENTREGA = "proveedor no la entrega"
 CLASE_PIPELINE_LA_PIERDE = "pipeline la pierde"
 CLASE_BARRA_PRESENTE = "barra presente"
+CLASE_DESCARGA_FALLIDA = "descarga fallida"
+CLASE_FUERA_RANGO_CONSULTADO = "fuera del rango consultado"
+CLASE_PLAZA_SIN_CALENDARIO = "plaza sin calendario declarado"
+CLASE_SIMBOLO_FUERA_UNIVERSO = "simbolo fuera del universo"
 
 
 class DiagnosticProvider(Protocol):
     def get_history(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
         ...
 
-    def get_raw_history(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+    def get_raw_history(
+        self,
+        symbol: str,
+        period: str = "1y",
+        interval: str = "1d",
+        *,
+        drop_na: bool = True,
+    ) -> pd.DataFrame:
         ...
 
 
@@ -45,6 +56,8 @@ class PeriodBarDiagnosis:
     present_after_dropna: bool
     present_after_trim: bool
     present_in_snapshot: bool
+    range_start: date | None = None
+    range_end: date | None = None
     error: str | None = None
 
 
@@ -58,9 +71,16 @@ class BarDiagnosis:
     calendar_session: bool
     calendar_override: str | None
     periods: tuple[PeriodBarDiagnosis, ...]
+    status: str | None = None
 
     @property
     def classification(self) -> str:
+        if self.status is not None:
+            return self.status
+        if self.periods and all(item.error is not None for item in self.periods) and not any(
+            item.present_raw for item in self.periods
+        ):
+            return CLASE_DESCARGA_FALLIDA
         if not self.calendar_session and not any(item.present_raw for item in self.periods):
             return CLASE_MERCADO_CERRADO
         if any(item.present_raw and not item.present_after_trim for item in self.periods):
@@ -84,9 +104,22 @@ def diagnose_bar(
     reference_time = reference or datetime.now(timezone.utc)
     data_symbol = asset.data_symbol(reference_time)
     market = mercado_para_simbolo(asset, data_symbol)
-    mic = calendar_mic(market)
-    calendar_session = fecha in set(expected_sessions(market, fecha, fecha))
-    override = session_override_kind(market, fecha)
+    try:
+        mic = calendar_mic(market)
+        calendar_session = fecha in set(expected_sessions(market, fecha, fecha))
+        override = session_override_kind(market, fecha)
+    except ValueError as exc:
+        return BarDiagnosis(
+            symbol=asset.symbol,
+            data_symbol=data_symbol,
+            market=market,
+            mic="N/D",
+            fecha=fecha,
+            calendar_session=False,
+            calendar_override=str(exc),
+            periods=(),
+            status=CLASE_PLAZA_SIN_CALENDARIO,
+        )
     period_results = tuple(
         _diagnose_period(
             data_symbol,
@@ -100,6 +133,7 @@ def diagnose_bar(
         )
         for period in periods
     )
+    status = _range_status(fecha, reference_time, period_results)
     return BarDiagnosis(
         symbol=asset.symbol,
         data_symbol=data_symbol,
@@ -109,6 +143,7 @@ def diagnose_bar(
         calendar_session=calendar_session,
         calendar_override=override,
         periods=period_results,
+        status=status,
     )
 
 
@@ -122,12 +157,14 @@ def diagnose_all_saved_gaps(
 ) -> tuple[BarDiagnosis, ...]:
     gaps = db.get_latest_freshness_absences()
     diagnoses: list[BarDiagnosis] = []
+    cached_provider = _CachedDiagnosticProvider(provider)
     for symbol, missing_date in gaps:
         asset = universe.get(symbol)
         if asset is None:
+            diagnoses.append(_missing_asset_diagnosis(symbol, missing_date))
             continue
         diagnoses.append(
-            diagnose_bar(asset, missing_date, provider=provider, config=config, reference=reference)
+            diagnose_bar(asset, missing_date, provider=cached_provider, config=config, reference=reference)
         )
     return tuple(diagnoses)
 
@@ -144,8 +181,7 @@ def _diagnose_period(
     period: str,
 ) -> PeriodBarDiagnosis:
     try:
-        raw = provider.get_raw_history(symbol, period=period, interval="1d")
-        history = provider.get_history(symbol, period=period, interval="1d")
+        raw = provider.get_raw_history(symbol, period=period, interval="1d", drop_na=False)
     except Exception as exc:
         return PeriodBarDiagnosis(
             period=period,
@@ -163,8 +199,15 @@ def _diagnose_period(
 
     zone = ZoneInfo(asset_timezone)
     raw_match = _first_row_for_session(raw, fecha, zone)
+    range_start, range_end = _session_range(raw, zone)
     dropna = raw.dropna(subset=["Close"]) if "Close" in raw.columns else raw.iloc[0:0]
     dropna_match = _first_row_for_session(dropna, fecha, zone)
+    history_error: str | None = None
+    try:
+        history = provider.get_history(symbol, period=period, interval="1d")
+    except Exception as exc:
+        history = raw.iloc[0:0]
+        history_error = str(exc)
     trim = trim_unclosed_bar(
         history,
         market=market,
@@ -188,7 +231,70 @@ def _diagnose_period(
         present_after_dropna=dropna_match is not None,
         present_after_trim=trim_match is not None,
         present_in_snapshot=snapshot_present,
+        range_start=range_start,
+        range_end=range_end,
+        error=history_error,
     )
+
+
+@dataclass
+class _CachedDiagnosticProvider:
+    provider: DiagnosticProvider
+
+    def __post_init__(self) -> None:
+        self._history_cache: dict[tuple[str, str, str], pd.DataFrame] = {}
+        self._raw_cache: dict[tuple[str, str, str, bool], pd.DataFrame] = {}
+
+    def get_history(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+        key = (symbol, period, interval)
+        if key not in self._history_cache:
+            self._history_cache[key] = self.provider.get_history(symbol, period=period, interval=interval)
+        return self._history_cache[key]
+
+    def get_raw_history(
+        self,
+        symbol: str,
+        period: str = "1y",
+        interval: str = "1d",
+        *,
+        drop_na: bool = True,
+    ) -> pd.DataFrame:
+        key = (symbol, period, interval, drop_na)
+        if key not in self._raw_cache:
+            self._raw_cache[key] = self.provider.get_raw_history(
+                symbol,
+                period=period,
+                interval=interval,
+                drop_na=drop_na,
+            )
+        return self._raw_cache[key]
+
+
+def _missing_asset_diagnosis(symbol: str, fecha: date) -> BarDiagnosis:
+    return BarDiagnosis(
+        symbol=symbol,
+        data_symbol=symbol,
+        market="N/D",
+        mic="N/D",
+        fecha=fecha,
+        calendar_session=False,
+        calendar_override=CLASE_SIMBOLO_FUERA_UNIVERSO,
+        periods=(),
+        status=CLASE_SIMBOLO_FUERA_UNIVERSO,
+    )
+
+
+def _range_status(
+    fecha: date,
+    reference: datetime,
+    periods: tuple[PeriodBarDiagnosis, ...],
+) -> str | None:
+    if fecha > reference.date():
+        return CLASE_FUERA_RANGO_CONSULTADO
+    ranges = [(item.range_start, item.range_end) for item in periods if item.range_start and item.range_end]
+    if ranges and all(start is not None and end is not None and (fecha < start or fecha > end) for start, end in ranges):
+        return CLASE_FUERA_RANGO_CONSULTADO
+    return None
 
 
 def _first_row_for_session(df: pd.DataFrame, fecha: date, zone: ZoneInfo) -> pd.Timestamp | None:
@@ -199,6 +305,13 @@ def _first_row_for_session(df: pd.DataFrame, fecha: date, zone: ZoneInfo) -> pd.
         if _session_date(timestamp, zone) == fecha:
             return timestamp
     return None
+
+
+def _session_range(df: pd.DataFrame, zone: ZoneInfo) -> tuple[date | None, date | None]:
+    if df.empty:
+        return None, None
+    dates = [_session_date(pd.Timestamp(value), zone) for value in df.index]
+    return min(dates), max(dates)
 
 
 def _snapshot_contains_session(df: pd.DataFrame, fecha: date, zone: ZoneInfo, config: AdvisorConfig) -> bool:
@@ -244,16 +357,26 @@ def format_bar_diagnosis(diagnosis: BarDiagnosis) -> str:
     return "\n".join(lines)
 
 
-def format_many_bar_diagnoses(diagnoses: Iterable[BarDiagnosis]) -> str:
-    lines = [
-        "| Simbolo | Fecha | Plaza | MIC | Sesion | Override | Clase |",
-        "|---|---|---|---|---|---|---|",
+def format_many_bar_diagnoses(diagnoses: Iterable[BarDiagnosis], measured_at: str | None = None) -> str:
+    # La poblacion sale de la ultima pasada guardada, que puede ser de hace
+    # semanas y haberse medido con reglas anteriores. Sin decir de cuando es,
+    # la tabla se lee como si fuera de hoy.
+    lines: list[str] = []
+    if measured_at is None:
+        lines.append("Poblacion: sin pasada de frescura guardada")
+    else:
+        lines.append(f"Poblacion: ausencias de la pasada de frescura del {measured_at}")
+    lines.append("")
+    lines += [
+        "| Simbolo | Fecha | Plaza | MIC | Sesion | Override | Clase | Error |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for diagnosis in diagnoses:
+        errors = "; ".join(item.error for item in diagnosis.periods if item.error)
         lines.append(
             f"| {diagnosis.symbol} | {diagnosis.fecha.isoformat()} | {diagnosis.market} | {diagnosis.mic} | "
             f"{_yes_no(diagnosis.calendar_session)} | {diagnosis.calendar_override or ''} | "
-            f"{diagnosis.classification} |"
+            f"{diagnosis.classification} | {errors} |"
         )
     return "\n".join(lines)
 

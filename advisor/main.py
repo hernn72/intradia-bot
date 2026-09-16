@@ -316,7 +316,7 @@ def cmd_diagnosticar_barra(args: argparse.Namespace, config: AdvisorConfig, univ
             print(str(exc), file=sys.stderr)
             return 1
         diagnoses = diagnose_all_saved_gaps(db=db, universe=universe, provider=provider, config=config)
-        print(format_many_bar_diagnoses(diagnoses))
+        print(format_many_bar_diagnoses(diagnoses, measured_at=db.latest_freshness_measured_at()))
         return 0
 
     if not args.symbol or not args.fecha:

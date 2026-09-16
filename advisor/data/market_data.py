@@ -74,7 +74,14 @@ class MarketDataProvider:
 
         return history
 
-    def get_raw_history(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+    def get_raw_history(
+        self,
+        symbol: str,
+        period: str = "1y",
+        interval: str = "1d",
+        *,
+        drop_na: bool = True,
+    ) -> pd.DataFrame:
         """Descarga OHLCV y acciones corporativas sin ajuste por dividendos.
 
         yfinance devuelve el OHLC ya ajustado por splits cuando se pide
@@ -97,9 +104,10 @@ class MarketDataProvider:
         if history is None or history.empty:
             raise ValueError(f"No se han recibido datos para el símbolo '{symbol}'")
 
-        history = history.dropna(subset=["Close"])
-        if history.empty:
-            raise ValueError(f"Datos vacíos tras limpieza para el símbolo '{symbol}'")
+        if drop_na:
+            history = history.dropna(subset=["Close"])
+            if history.empty:
+                raise ValueError(f"Datos vacíos tras limpieza para el símbolo '{symbol}'")
 
         return history
 

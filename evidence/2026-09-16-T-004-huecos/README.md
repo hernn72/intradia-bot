@@ -67,3 +67,63 @@ Y el hallazgo del rango: producción pide `period: 1y` en swing y
 `frescura-datos` pide `1mo`, y el proveedor devuelve series distintas según el
 rango. Dos caminos del mismo sistema pueden ver huecos distintos del mismo
 activo. Hoy no se contradicen; hay que declararlo o unificarlo en T-005.
+
+---
+
+## Revisión independiente y segunda ronda de correcciones
+
+Veredicto **CORREGIR**, con siete defectos, todos reproducidos por el revisor y
+confirmados uno a uno antes de corregirlos. Corregidos por Codex y verificados
+aquí; suite final **469 tests**, `ruff` y `mypy` limpios.
+
+El más grave era **mío, no de Codex**: al corregir su primera entrega validé
+`aperturas_forzadas` y dejé sin validar `cierres_adicionales`, que es
+precisamente la lista que se usa —la de aperturas está vacía—. Un cierre
+declarado en sábado o en 1850 se cargaba sin una queja, de modo que un dedazo
+en una fecha habría dejado la entrada como no-op invisible **y** el hueco falso
+seguiría ahí. La asimetría estaba al revés de lo que interesa.
+
+| # | Defecto | Reproducción (antes → después) |
+|---|---|---|
+| 1 | Clave MIC duplicada descartaba el bloque anterior en silencio | dos bloques `XKRX:` → solo quedaba el segundo · ahora `ValueError: clave duplicada en YAML: XKRX` |
+| 2 | `fecha` numérica se convertía en `1970-01-01` | `fecha: 20260603` → `1970-01-01` · ahora error; solo se acepta ISO o fecha nativa de YAML. También se rechaza `"06/03/2026"`, que pandas leía como 3 de junio |
+| 3 | `cierres_adicionales` sin validar | sábado y 1850 aceptados · ahora error con MIC y fecha; las dos listas comparten validación |
+| 4 | Fichero vacío o solo con comentarios = «sin correcciones» | devolvía `{}` · ahora error |
+| 5 | Fallo de descarga se presentaba como «proveedor no la entrega» | 5 descargas fallidas invisibles en la tabla · ahora clase «descarga fallida» y columna de error |
+| 6 | La etapa `dropna` era ciega | `get_raw_history` ya hacía `dropna`, así que nunca podía diferir de `raw`. Ahora el diagnóstico pide `drop_na=False` |
+| 7 | Fecha futura o fuera del rango consultado acusaba al proveedor | `AAPL 2026-10-01` y `AAPL 2015-01-05` · ahora «fuera del rango consultado» |
+| 8 | Los 19 activos de contexto mataban el comando | `^VIX` → exit 1 · ahora degrada esa fila y nombra la plaza |
+| 9 | `--todos-los-huecos` descargaba 6 veces por par | **>30 min → 121 s** con memoización `(symbol, period)` |
+
+Añadido además, al verificar: la tabla masiva no decía **de qué pasada** era la
+población. La única medición guardada en local es del **2026-09-02**, anterior
+a T-003, y por eso 82 de sus 115 ausencias salen hoy como «mercado cerrado»:
+eran festivos ajenos que el benchmark marcaba y el calendario de plaza no. Es
+una confirmación independiente de que T-003 los eliminó, pero quien leyera la
+tabla habría creído estar viendo la población de hoy. Ahora la declara.
+
+### Verificación contra datos reales tras las correcciones
+
+| Caso | Clase |
+|---|---|
+| `EXSA.DE 2026-09-15` | «pipeline la pierde»: el proveedor entrega la fila con el OHLC en NaN y la capa de datos la descarta. Antes se acusaba al proveedor |
+| `^VIX 2026-09-07` | «plaza sin calendario declarado», sin matar el comando |
+| `AAPL 2026-10-01` y `2015-01-05` | «fuera del rango consultado» |
+| `005930.KS 2026-06-03` | «mercado cerrado», con `no (cierre_adicional)` |
+| `SAP.DE 2026-09-07` | «proveedor no la entrega»: la conclusión del ticket se mantiene |
+
+Las siete reproducciones del revisor fallan ahora ruidosamente y el fichero
+real sigue cargando sus dos fechas. Pasada real `exit=0`, con `2026-06-03` y
+`2026-07-17` apareciendo **cero veces**.
+
+La cosecha de investigación no se mueve: `advisor/research/vintage.py` conserva
+el valor por defecto de `drop_na` y el parámetro nuevo es keyword-only (INV-13).
+
+### Lo que queda como afinado para T-005, decidido con datos
+
+De los 115 pares diagnosticados, **cero** caen en «pipeline la pierde». El caso
+`EXSA.DE` es reciente y no está en esa población. La etiqueta es discutible
+—descartar una fila con el OHLC en NaN es correcto, y llamarlo «el pipeline la
+pierde» puede inducir a arreglar lo que no está roto—, pero el mecanismo ya es
+visible: aparece el `raw timestamp` y la columna `dropna` dice que no. T-005
+decide cómo se declara.

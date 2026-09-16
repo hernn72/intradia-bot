@@ -171,6 +171,91 @@ NOPE:
         load_exchange_overrides(path)
 
 
+def test_override_con_mic_duplicado_falla_ruidosamente(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XKRX:
+  cierres_adicionales:
+    - fecha: 2026-06-03
+      motivo: cierre
+      fuente: https://example.test/cierre
+      verificado_el: 2026-09-16
+  aperturas_forzadas: []
+XKRX:
+  cierres_adicionales:
+    - fecha: 2026-07-17
+      motivo: cierre
+      fuente: https://example.test/cierre-2
+      verificado_el: 2026-09-16
+  aperturas_forzadas: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"clave duplicada.*XKRX"):
+        load_exchange_overrides(path)
+
+
+def test_override_con_clave_duplicada_en_entrada_falla_ruidosamente(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XKRX:
+  cierres_adicionales:
+    - fecha: 2026-06-03
+      fecha: 2026-07-17
+      motivo: cierre
+      fuente: https://example.test/cierre
+      verificado_el: 2026-09-16
+  aperturas_forzadas: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"clave duplicada.*fecha"):
+        load_exchange_overrides(path)
+
+
+@pytest.mark.parametrize("raw_fecha", ["20260603", "06/03/2026"])
+def test_override_fecha_no_iso_falla_ruidosamente(tmp_path, raw_fecha: str) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        f"""
+XKRX:
+  cierres_adicionales:
+    - fecha: {raw_fecha}
+      motivo: cierre
+      fuente: https://example.test/cierre
+      verificado_el: 2026-09-16
+  aperturas_forzadas: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"fecha no es una fecha ISO valida"):
+        load_exchange_overrides(path)
+
+
+def test_override_verificado_el_no_iso_falla_ruidosamente(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XKRX:
+  cierres_adicionales:
+    - fecha: 2026-06-03
+      motivo: cierre
+      fuente: https://example.test/cierre
+      verificado_el: 09/16/2026
+  aperturas_forzadas: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"verificado_el no es una fecha ISO valida"):
+        load_exchange_overrides(path)
+
+
 def test_override_fecha_en_dos_listas_falla_ruidosamente(tmp_path) -> None:
     path = tmp_path / "exchange_overrides.yaml"
     path.write_text(
@@ -231,6 +316,15 @@ def test_fichero_de_correcciones_ausente_falla_ruidosamente(monkeypatch, tmp_pat
         expected_sessions("KSC", date(2026, 6, 1), date(2026, 6, 10))
 
 
+@pytest.mark.parametrize("content", ["", "# conflicto resuelto dejando solo comentarios\n"])
+def test_fichero_de_correcciones_vacio_falla_ruidosamente(tmp_path, content: str) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="fichero de correcciones vacio"):
+        load_exchange_overrides(path)
+
+
 def test_apertura_forzada_de_un_dia_que_ya_es_sesion_falla_ruidosamente(monkeypatch, tmp_path) -> None:
     """Una entrada que no corrige nada es un error de declaración, no un no-op."""
 
@@ -273,3 +367,60 @@ XETR:
 
     with pytest.raises(ValueError, match="fuera del rango del calendario"):
         expected_sessions("XETRA", date(2026, 6, 1), date(2026, 6, 10))
+
+
+def test_cierre_adicional_en_dia_no_sesion_falla_ruidosamente(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XETR:
+  cierres_adicionales:
+    - fecha: 2026-06-06
+      motivo: sabado
+      fuente: https://example.test/sabado
+      verificado_el: 2026-09-16
+  aperturas_forzadas: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="XETR declara un cierre adicional el 2026-06-06"):
+        load_exchange_overrides(path)
+
+
+def test_cierre_adicional_fuera_del_rango_del_calendario_falla_ruidosamente(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XETR:
+  cierres_adicionales:
+    - fecha: 1850-01-02
+      motivo: demasiado antigua
+      fuente: https://example.test/antigua
+      verificado_el: 2026-09-16
+  aperturas_forzadas: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="fuera del rango del calendario"):
+        load_exchange_overrides(path)
+
+
+def test_override_de_crypto_no_revienta_con_invalid_calendar_name(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+CRYPTO_24_7:
+  cierres_adicionales: []
+  aperturas_forzadas:
+    - fecha: 2026-06-03
+      motivo: prueba
+      fuente: https://example.test/crypto
+      verificado_el: 2026-09-16
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"CRYPTO_24_7.*apertura forzada"):
+        load_exchange_overrides(path)

@@ -1,0 +1,116 @@
+| Simbolo | Fecha | Plaza | MIC | Sesion | Override | Clase | Error |
+|---|---|---|---|---|---|---|---|
+| 4GLD.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| 4GLD.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| 4GLD.DE | 2025-12-31 | XETRA | XETR | no |  | mercado cerrado |  |
+| 4GLD.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| 4GLD.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| 4GLD.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| 4GLD.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| AZN | 2025-11-27 | NASDAQ | XNAS | no |  | mercado cerrado |  |
+| AZN | 2026-01-19 | NASDAQ | XNAS | no |  | mercado cerrado |  |
+| AZN | 2026-02-16 | NASDAQ | XNAS | no |  | mercado cerrado |  |
+| AZN | 2026-06-19 | NASDAQ | XNAS | no |  | mercado cerrado |  |
+| AZN | 2026-07-03 | NASDAQ | XNAS | no |  | mercado cerrado |  |
+| DFEN.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| DFEN.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| DFEN.DE | 2025-12-31 | XETRA | XETR | no |  | mercado cerrado |  |
+| DFEN.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| DFEN.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| DFEN.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| DFEN.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| EQQQ.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| EQQQ.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| EQQQ.DE | 2025-12-31 | XETRA | XETR | no |  | mercado cerrado |  |
+| EQQQ.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| EQQQ.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| EQQQ.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| EQQQ.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| EUNH.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| EUNL.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNL.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNL.DE | 2025-12-31 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNL.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| EUNL.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNL.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNL.DE | 2026-08-31 | XETRA | XETR | si |  | barra presente |  |
+| EUNL.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| EUNN.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNN.DE | 2025-12-25 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNN.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNN.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| EUNN.DE | 2026-04-03 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNN.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNN.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| EUNN.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| EXH1.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| EXSA.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| EXV1.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| ICGA.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| ICGA.DE | 2025-12-25 | XETRA | XETR | no |  | mercado cerrado |  |
+| ICGA.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| ICGA.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| ICGA.DE | 2026-04-03 | XETRA | XETR | no |  | mercado cerrado |  |
+| ICGA.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| ICGA.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| ICGA.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| IQQK.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQK.DE | 2025-12-25 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQK.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQK.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| IQQK.DE | 2026-04-03 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQK.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQK.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQK.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| IQQT.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQT.DE | 2025-12-25 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQT.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQT.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| IQQT.DE | 2026-04-03 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQT.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQT.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| IQQT.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| NOVO-B.CO | 2026-03-23 | CPH | XCSE | si |  | proveedor no la entrega |  |
+| NOVO-B.CO | 2026-04-02 | CPH | XCSE | no |  | mercado cerrado |  |
+| NOVO-B.CO | 2026-05-15 | CPH | XCSE | no |  | mercado cerrado |  |
+| NOVO-B.CO | 2026-06-05 | CPH | XCSE | no |  | mercado cerrado |  |
+| Q8Y0.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| Q8Y0.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| Q8Y0.DE | 2025-12-31 | XETRA | XETR | no |  | mercado cerrado |  |
+| Q8Y0.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| Q8Y0.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| Q8Y0.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| Q8Y0.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| QDV5.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| QDV5.DE | 2025-12-25 | XETRA | XETR | no |  | mercado cerrado |  |
+| QDV5.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| QDV5.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| QDV5.DE | 2026-04-03 | XETRA | XETR | no |  | mercado cerrado |  |
+| QDV5.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| QDV5.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| QDV5.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| SXR8.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| SXR8.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| SXR8.DE | 2025-12-31 | XETRA | XETR | no |  | mercado cerrado |  |
+| SXR8.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| SXR8.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| SXR8.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| SXR8.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| TSM | 2025-11-27 | NYSE | XNYS | no |  | mercado cerrado |  |
+| TSM | 2026-01-19 | NYSE | XNYS | no |  | mercado cerrado |  |
+| TSM | 2026-05-25 | NYSE | XNYS | no |  | mercado cerrado |  |
+| TSM | 2026-07-03 | NYSE | XNYS | no |  | mercado cerrado |  |
+| VVSM.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| VVSM.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| VVSM.DE | 2025-12-31 | XETRA | XETR | no |  | mercado cerrado |  |
+| VVSM.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| VVSM.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| VVSM.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| VVSM.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |
+| ZPRR.DE | 2025-12-24 | XETRA | XETR | no |  | mercado cerrado |  |
+| ZPRR.DE | 2025-12-26 | XETRA | XETR | no |  | mercado cerrado |  |
+| ZPRR.DE | 2025-12-31 | XETRA | XETR | no |  | mercado cerrado |  |
+| ZPRR.DE | 2026-03-06 | XETRA | XETR | si |  | proveedor no la entrega |  |
+| ZPRR.DE | 2026-04-06 | XETRA | XETR | no |  | mercado cerrado |  |
+| ZPRR.DE | 2026-05-01 | XETRA | XETR | no |  | mercado cerrado |  |
+| ZPRR.DE | 2026-09-01 | XETRA | XETR | si |  | barra presente |  |

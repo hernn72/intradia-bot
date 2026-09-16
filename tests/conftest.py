@@ -64,11 +64,21 @@ class FakeProvider:
             raise ValueError(f"sin datos para '{symbol}'")
         return self.histories[symbol]
 
-    def get_raw_history(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+    def get_raw_history(
+        self,
+        symbol: str,
+        period: str = "1y",
+        interval: str = "1d",
+        *,
+        drop_na: bool = True,
+    ) -> pd.DataFrame:
         self.calls.append(symbol)
         if symbol not in self.raw_histories:
             raise ValueError(f"sin datos crudos para '{symbol}'")
-        return self.raw_histories[symbol]
+        history = self.raw_histories[symbol]
+        if drop_na and "Close" in history.columns:
+            return history.dropna(subset=["Close"])
+        return history
 
     def get_last_close(self, symbol: str, period: str = "5d", interval: str = "1d"):
         self.calls.append(symbol)

@@ -7,10 +7,10 @@ cripto se usa un calendario natural 24/7, porque no tienen cierre bursátil.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import cache
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 import exchange_calendars as xcals
 import pandas as pd
@@ -21,6 +21,19 @@ from advisor.data.sessions import MARKET_SESSIONS, market_session
 MARKET_TO_MIC = {market: session.mic for market, session in MARKET_SESSIONS.items()}
 EXCHANGE_OVERRIDES_PATH = Path("exchange_overrides.yaml")
 _REQUIRED_OVERRIDE_FIELDS = frozenset({"fecha", "motivo", "fuente", "verificado_el"})
+
+
+class _UniqueKeySafeLoader(yaml.SafeLoader):
+    """SafeLoader que rechaza claves duplicadas en cualquier mapeo."""
+
+    def construct_mapping(self, node: Any, deep: bool = False) -> Any:
+        seen: set[object] = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                raise ValueError(f"clave duplicada en YAML: {key}")
+            seen.add(key)
+        return super().construct_mapping(node, deep=deep)
 
 
 @dataclass(frozen=True)
@@ -97,7 +110,9 @@ def _load_exchange_overrides(override_path: Path) -> dict[str, ExchangeOverride]
             "Sin él no se puede afirmar qué sesiones esperaba cada plaza."
         )
     with override_path.open("r", encoding="utf-8") as handle:
-        raw = yaml.safe_load(handle) or {}
+        raw = yaml.load(handle, Loader=_UniqueKeySafeLoader)
+    if raw in (None, {}):
+        raise ValueError(f"{override_path}: fichero de correcciones vacio")
     if not isinstance(raw, dict):
         raise ValueError(f"{override_path}: debe ser un mapeo por MIC")
 
@@ -116,7 +131,8 @@ def _load_exchange_overrides(override_path: Path) -> dict[str, ExchangeOverride]
         if solapadas:
             labels = ", ".join(value.isoformat() for value in solapadas)
             raise ValueError(f"{override_path}: {mic} tiene fechas en ambas listas: {labels}")
-        _validar_aperturas_forzadas(override_path, mic, aperturas)
+        _validar_entradas_de_calendario(override_path, mic, cierres, expected_session=True)
+        _validar_entradas_de_calendario(override_path, mic, aperturas, expected_session=False)
         overrides[mic] = ExchangeOverride(
             cierres_adicionales=tuple(cierres),
             aperturas_forzadas=tuple(aperturas),
@@ -124,31 +140,46 @@ def _load_exchange_overrides(override_path: Path) -> dict[str, ExchangeOverride]
     return overrides
 
 
-def _validar_aperturas_forzadas(path: Path, mic: str, aperturas: list[CalendarOverrideEntry]) -> None:
-    """Una apertura forzada declara que la librería marcó cerrado un día que sí operó.
+def _validar_entradas_de_calendario(
+    path: Path,
+    mic: str,
+    entries: list[CalendarOverrideEntry],
+    *,
+    expected_session: bool,
+) -> None:
+    """Valida que cada override corrija de verdad el calendario base."""
 
-    Se valida al cargar y no al consultar, para que un error se vea al
-    arrancar y no se traduzca en una fecha descartada en silencio a mitad de
-    una pasada. No se prohíben fines de semana: existen sesiones especiales, y
-    cada entrada viene con fuente y fecha de verificación.
-    """
-
-    if not aperturas:
+    if not entries:
         return
-    calendar = xcals.get_calendar(mic)
-    for entry in aperturas:
+    try:
+        calendar = _exchange_calendar_for_mic(mic)
+    except Exception as exc:
+        raise ValueError(f"{path}: MIC {mic} sin calendario usable para overrides ({exc})") from None
+    for entry in entries:
+        label = "cierre adicional" if expected_session else "apertura forzada"
         try:
-            ya_es_sesion = bool(calendar.is_session(pd.Timestamp(entry.fecha)))
+            is_session = bool(calendar.is_session(pd.Timestamp(entry.fecha)))
         except Exception as exc:
             raise ValueError(
-                f"{path}: {mic} declara una apertura forzada el {entry.fecha.isoformat()} "
+                f"{path}: {mic} declara un {label} el {entry.fecha.isoformat()} "
                 f"fuera del rango del calendario ({exc})"
             ) from None
-        if ya_es_sesion:
+        if expected_session and not is_session:
             raise ValueError(
-                f"{path}: {mic} declara una apertura forzada el {entry.fecha.isoformat()}, "
+                f"{path}: {mic} declara un {label} el {entry.fecha.isoformat()}, "
+                "pero el calendario no la considera sesión: la entrada no corrige nada"
+            )
+        if not expected_session and is_session:
+            raise ValueError(
+                f"{path}: {mic} declara una {label} el {entry.fecha.isoformat()}, "
                 "pero el calendario ya la considera sesión: la entrada no corrige nada"
             )
+
+
+def _exchange_calendar_for_mic(mic: str) -> _Calendar:
+    if mic == "CRYPTO_24_7":
+        return Crypto247Calendar()
+    return xcals.get_calendar(mic)
 
 
 def _parse_override_entries(
@@ -182,10 +213,18 @@ def _parse_override_entries(
 
 
 def _parse_override_date(value: object, path: Path, mic: str, list_name: str, index: int, field: str) -> date:
-    try:
-        return pd.Timestamp(value).date()
-    except Exception:
-        raise ValueError(f"{path}: {mic}.{list_name}[{index}].{field} no es una fecha valida") from None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            pass
+    raise ValueError(
+        f"{path}: {mic}.{list_name}[{index}].{field} no es una fecha ISO valida; recibido {value!r}"
+    )
 
 
 def _parse_non_empty_text(value: object, path: Path, mic: str, list_name: str, index: int, field: str) -> str:
