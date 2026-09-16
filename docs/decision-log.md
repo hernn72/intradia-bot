@@ -245,6 +245,8 @@ broker). Guardar `isin_verified_at`, `isin_source`, `trade_republic_checked_at`
 en `universe.yaml` (campos que añade A-00). No modifica la señal.
 
 ### OA-04 — Desplegar en la Pi cada tag aceptado y ejecutar la verificación en la Pi
+Hecha el 2026-09-16 para `a8a70e2` (evidencia en `evidence/2026-09-16-despliegue-pi/`).
+Queda como acción recurrente para las siguientes entregas.
 Hasta que C-03 automatice el despliegue por tag, el propietario ejecuta en la
 Pi: `git fetch && git checkout <tag> && pip install -r requirements.txt &&
 python -m pytest -q && python -m advisor.main verificar-systemd`.
