@@ -3,7 +3,10 @@
 - Fecha: 2026-09-14
 - Rama: `fix/exchange-calendars`
 - Python local: 3.12 (`.venv`)
-- Línea base reutilizada: `antes.txt`, `baseline-pytest.txt`, `baseline-ruff.txt`, `baseline-mypy.txt`.
+- **Línea base real: `evidence/2026-09-14-L0-baseline/analizar-swing-sin-ia.txt`** (59 `OK` / 30 `INCOMPLETO` / 18 `DEGRADADO`, 43 activos con ausencias). Es la única con la que se compara.
+- `pasada-fallida-por-dns.txt` **no es una línea base**: es la pasada que Codex no pudo completar (138 `Could not resolve host`, los 107 activos sin datos). Se conserva como registro del bloqueo, no como material de comparación.
+- `pip-install-fallido-por-dns.txt` es igualmente el log del intento fallido. La instalación en Python 3.13 quedó verificada en la Pi el 2026-09-16: `evidence/2026-09-16-T-003-correcciones/pi-python313-exchange-calendars.txt`.
+- Estado de lint y tipos de la línea base: `baseline-pytest.txt`, `baseline-ruff.txt`, `baseline-mypy.txt`.
 
 ## Comandos ejecutados
 
@@ -33,9 +36,9 @@ Sí quedó cubierto sin red por tests con fechas cerradas:
 - `CRYPTO`: sábado, domingo y 25 de diciembre son sesiones válidas.
 - `test_benchmark_nunca_define_sesiones`: un benchmark con fecha extra no genera ausencias del activo.
 
-## BLOCKER
+## BLOCKER (resuelto el mismo día)
 
-BLOCKER de aceptación real: proveedor de datos/Yahoo inaccesible por DNS desde esta sesión. Tras el reintento único exigido por la ficha, no hay evidencia real suficiente para medir impacto antes/después ni validar a mano los seis símbolos.
+Durante la sesión de Codex el proveedor de datos/Yahoo fue inaccesible por DNS, y tras el reintento único exigido por la ficha no hubo evidencia real para medir impacto ni validar a mano los seis símbolos. **Claude Code ejecutó la pasada real ese mismo día a las 14:01 UTC**; la sección siguiente es esa verificación y el BLOCKER queda cerrado.
 
 ## Verificación real — 2026-09-14 14:01 UTC (Claude Code)
 
@@ -84,3 +87,18 @@ con la misma herramienta.
 
 El `universe_vintage_id` sigue siendo el provisional `80d05f21…` porque T-006
 no se ha ejecutado.
+
+## Activos que cambian de radar o de acción: 0
+
+Medición que la ficha pedía y que faltaba. Comparadas las dos pasadas:
+RADAR idéntico (mismos 10 símbolos y mismas notas), OPERAR idéntico
+(`EXH1.DE`, nota 74) y 90 descartados antes y después, con el mismo conjunto de
+símbolos. Lo único que cambia es el **motivo**: `AZN` y `TSM` dejan de llevar
+«calidad INCOMPLETO». Es lo esperado, porque la entrega no toca el score ni la
+clasificación (INV-03): solo corrige qué sesiones se esperan.
+
+## Correcciones posteriores a la revisión independiente
+
+La revisión independiente del 2026-09-16 encontró un BLOCKER y tres defectos de
+alcance. Están corregidos y verificados en
+`evidence/2026-09-16-T-003-correcciones/`.

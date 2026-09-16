@@ -9,7 +9,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-14 (fin de la segunda sesión)
+# START HERE — actualizado 2026-09-16 (fin de la tercera sesión)
 
 Estado actual:
 - `main` sigue en `6d32cf2`. **Nada mergeado todavía**: cuatro ramas en cadena,
@@ -17,32 +17,36 @@ Estado actual:
     fix/execution-data-quality   e53e385  PR 1 (fases 1-3) + docs previas
     ci/github-actions            e5ed089  T-001 CI  · ACEPTADA
     feat/run-manifest-migrations 1c76add  T-002 migraciones + manifiesto · ACEPTADA (revisada y desplegada)
-    fix/exchange-calendars       5fb3394  T-003 calendarios de plaza · EN_REVISION
+    fix/exchange-calendars       HEAD     T-003 calendarios de plaza · **ACEPTADA** el 2026-09-16
   `feat/universe-vintage` existe en `1c76add` y está vacía (T-006 no llegó a empezar).
-- La Pi corre `1c76add` (T-002), base migrada a v2, timers vivos, NTP ok.
-  Tiene ya instalada `exchange_calendars==4.13.2` (Python 3.13/ARM, verificada).
-- 431 tests, ruff y mypy limpios en `fix/exchange-calendars`.
+- La Pi corre `1c76add` (T-002), árbol limpio salvo `logs/`, los dos timers
+  activos. Su venv es Python 3.13.5 aarch64 y ya tiene
+  `exchange_calendars==4.13.2`, con las 14 plazas cargando (SSH, 2026-09-16).
+- 435 tests, ruff y mypy limpios en `fix/exchange-calendars`.
+
+Qué pasó con T-003: la revisión independiente dio **CORREGIR**, con un BLOCKER
+(`frescura-datos` sin `--grupos` moría con las once plazas de contexto sin
+calendario) y tres defectos de alcance. Los cuatro están corregidos, con tests
+de regresión comprobados contra el código sin corregir, y verificados contra
+datos reales. Detalle en `evidence/2026-09-16-T-003-correcciones/README.md`.
 
 Primera acción del propietario:
-- OA-01: mergear la cadena en `main` (basta con `fix/exchange-calendars`, es lineal)
-  cuando T-003 esté aceptada. OA-02: branch protection con `checks (3.12)` y `checks (3.13)`.
+- OA-01: mergear la cadena en `main` (basta con `fix/exchange-calendars`, es lineal).
+  OA-02: branch protection con `checks (3.12)` y `checks (3.13)`.
+- OA-04: desplegar en la Pi y verificar allí (la dependencia ya está instalada).
 
 Primera tarea ejecutable:
-- **Revisión independiente de T-003** (obligatoria: toca fechado de sesiones).
-  Los puntos concretos a refutar están al final de
-  `docs/tareas/T-003-calendarios-de-plaza.md`, sección «Cierre de la ficha».
+- **T-004** — causa de los huecos. Ficha: `docs/tareas/T-004-investigar-hueco-2026-09-07.md`,
+  que ya lleva la población exacta (28 activos con 2026-09-07, 14 con
+  2026-03-06, 2+2 en XKRX, 1 en XCSE) y el hallazgo abierto de XKRX: las dos
+  ausencias coreanas pueden ser festivos que la librería no codifica, no huecos
+  de dato. Eso se resuelve **primero**, contra fuente oficial de KRX.
 
 Quién debe hacerla:
-- Opus (subagente `revisor` con PROMPT_REVIEW), no el autor.
-
-Qué debe devolver:
-- Hallazgos clasificados con reproducción y VEREDICTO ACEPTAR/CORREGIR/RECHAZAR.
+- Opus (diagnóstico con red); Codex solo si sale un cambio mecánico grande.
 
 Criterio para continuar:
-- Aceptada T-003 → desplegar en la Pi y verificar allí → **T-004** (Opus: causa
-  de los huecos; la población exacta ya está medida: 28 activos con 2026-09-07,
-  14 con 2026-03-06, 2+2 en XKRX, 1 en XCSE) → **T-006** (universe vintage) →
-  T-005 (calidad y códigos).
+- T-004 aceptada → **T-006** (universe vintage) → T-005 (calidad y códigos).
 
 Cómo delegar en Codex (aprendido a golpes, ver docs/metodo-trabajo.md):
 - No puede escribir en `.git`: crea tú la rama, y el commit y el push los haces tú.

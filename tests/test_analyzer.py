@@ -51,6 +51,21 @@ def _asset(
     )
 
 
+def _cripto() -> Asset:
+    """Cripto tal como está declarada en ``universe.yaml``: zona horaria UTC."""
+
+    return Asset(
+        symbol="BTC-EUR",
+        name="Bitcoin",
+        asset_class="crypto",
+        region="GLOBAL",
+        market="CRYPTO",
+        currency="EUR",
+        timezone="UTC",
+        trade_republic="unknown",
+    )
+
+
 @pytest.fixture
 def histories() -> dict:
     return {
@@ -253,6 +268,46 @@ class TestRunAnalysis:
         assert opportunity.data_freshness is not None
         assert opportunity.data_freshness.calendar == "XNYS"
         assert opportunity.data_freshness.absent_reference_sessions == ()
+
+    def test_cripto_declara_la_barra_del_dia_en_curso_como_parcial(self, config, benign_context) -> None:
+        """Cripto no cierra: la barra de hoy es parcial hasta UTC 00:00 + settlement."""
+
+        asset = _cripto()
+        fechas = pd.date_range(end="2026-09-16", periods=300, freq="D", tz="UTC")
+        history = make_ohlcv(n=len(fechas), start=50_000.0).set_axis(fechas)
+        provider = FakeProvider({"BTC-EUR": history})
+
+        opportunity = analyze_asset(
+            asset,
+            config,
+            provider,
+            benign_context,
+            "swing",
+            now=datetime(2026, 9, 16, 8, 0, tzinfo=timezone.utc),
+        )
+
+        assert opportunity.data_freshness is not None
+        assert opportunity.data_freshness.calendar == "CRYPTO_24_7"
+        assert opportunity.data_freshness.session_close_status == "sin sesión de cierre"
+        assert opportunity.data_freshness.may_be_partial_current_session is True
+
+    def test_cripto_no_declara_parcial_una_barra_ya_liquidada(self, config, benign_context) -> None:
+        asset = _cripto()
+        fechas = pd.date_range(end="2026-09-15", periods=300, freq="D", tz="UTC")
+        history = make_ohlcv(n=len(fechas), start=50_000.0).set_axis(fechas)
+        provider = FakeProvider({"BTC-EUR": history})
+
+        opportunity = analyze_asset(
+            asset,
+            config,
+            provider,
+            benign_context,
+            "swing",
+            now=datetime(2026, 9, 16, 8, 0, tzinfo=timezone.utc),
+        )
+
+        assert opportunity.data_freshness is not None
+        assert opportunity.data_freshness.may_be_partial_current_session is False
 
 
 class TestVerdict:

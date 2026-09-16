@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
 
 from advisor.config import AdvisorConfig
 from advisor.data.freshness import (
+    MERCADO_DESCONOCIDO,
     QUALITY_DEGRADED,
     QUALITY_INCOMPLETE,
     QUALITY_OK,
@@ -16,6 +18,7 @@ from advisor.data.freshness import (
     calcular_frescura_serie,
 )
 from advisor.main import format_frescura_datos, format_frescura_historico, medir_frescura_datos
+from advisor.universe.loader import load_universe
 from advisor.universe.models import Asset
 from tests.conftest import FakeProvider, make_ohlcv
 
@@ -42,6 +45,7 @@ class TestCalcularFrescuraDato:
         freshness = calcular_frescura_dato(
             pd.Timestamp("2026-08-28T18:00:00Z"),
             datetime(2026, 8, 28, 20, 0, tzinfo=timezone.utc),
+            market="XETRA",
         )
 
         assert freshness.last_bar_date.isoformat() == "2026-08-28"
@@ -53,6 +57,7 @@ class TestCalcularFrescuraDato:
         freshness = calcular_frescura_dato(
             pd.Timestamp("2026-08-28", tz="UTC"),
             datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc),
+            market="XETRA",
         )
 
         assert freshness.natural_days == 2
@@ -62,6 +67,7 @@ class TestCalcularFrescuraDato:
         freshness = calcular_frescura_dato(
             pd.Timestamp("2026-08-28", tz="UTC"),
             datetime(2026, 8, 31, 9, 0, tzinfo=timezone.utc),
+            market="XETRA",
         )
 
         assert freshness.natural_days == 3
@@ -71,6 +77,7 @@ class TestCalcularFrescuraDato:
         freshness = calcular_frescura_dato(
             pd.Timestamp("2026-08-26", tz="UTC"),
             datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc),
+            market="XETRA",
         )
 
         assert freshness.natural_days == 4
@@ -416,3 +423,45 @@ class TestPersistenciaEnLaPasadaReal:
         run_id = run_ids.pop()
         assert run_id is not None
         assert AdvisorDB(config.db_path).get_analysis_run(run_id)["command"] == "analizar"
+
+
+class TestUniversoRealCompleto:
+    """El comando por defecto mide los 126 activos, no solo los analizables."""
+
+    def test_activo_de_contexto_sin_calendario_degrada_su_fila_no_la_medicion(self) -> None:
+        universe = load_universe(Path("universe.yaml"))
+        assets = universe.all_assets()
+        reference = datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc)
+        provider = FakeProvider(
+            histories={
+                asset.data_symbol(reference): make_ohlcv(n=3, start_date="2026-08-26") for asset in assets
+            }
+        )
+
+        rows = medir_frescura_datos(assets, provider, _config(), reference)
+
+        assert len(rows) == len(assets)
+        fallidas = {row.symbol: row.error for row in rows if row.error is not None}
+        # Las 11 plazas de los activos de contexto (CBOE, SNP, NYM, CCY...) no
+        # tienen calendario declarado: se declaran una a una y sin calendario.
+        assert "^VIX" in fallidas and "sin calendario declarado" in fallidas["^VIX"]
+        assert all(row.freshness is not None for row in rows if row.symbol not in fallidas)
+        assert {row.market for row in rows if row.error is not None} != {MERCADO_DESCONOCIDO}
+        # Los 107 analizables sí se miden.
+        analizables = {asset.symbol for asset in universe.analizables()}
+        assert analizables.isdisjoint(fallidas)
+
+    def test_la_salida_se_imprime_con_filas_fallidas(self) -> None:
+        universe = load_universe(Path("universe.yaml"))
+        assets = universe.all_assets()
+        reference = datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc)
+        provider = FakeProvider(
+            histories={
+                asset.data_symbol(reference): make_ohlcv(n=3, start_date="2026-08-26") for asset in assets
+            }
+        )
+
+        salida = format_frescura_datos(medir_frescura_datos(assets, provider, _config(), reference), reference)
+
+        assert "Símbolos sin datos:" in salida
+        assert "sin calendario declarado" in salida

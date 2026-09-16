@@ -19,7 +19,38 @@ hueco reciente es dato ausente o dato perdido, y OD-02 (pagar otra fuente) no
 tiene base. `docs/plan-ejecucion.md` fase 5 prohíbe resolverlo con excepciones.
 
 ## Dependencias previas
-T-003 aceptada (para decir «mercado abierto» con calendario real).
+T-003 aceptada (para decir «mercado abierto» con calendario real). Aceptada el
+2026-09-16.
+
+## Población exacta que hereda de T-003
+
+Medida sobre la pasada real del 2026-09-14 (`evidence/2026-09-14-T-003-calendarios/`):
+44 activos con ausencias, 47 pares activo-fecha.
+
+| Fecha | Activos | Plazas |
+|---|---|---|
+| 2026-09-07 | 28 | XETR, XPAR, XMIL, XMAD, XAMS, XCSE |
+| 2026-03-06 | 14 | XETR |
+| 2026-07-17 | 2 | XKRX |
+| 2026-06-03 | 2 | XKRX |
+| 2026-03-23 | 1 | XCSE |
+
+**Las cuatro ausencias coreanas hay que clasificarlas primero, y puede que no
+sean huecos de dato.** `005930.KS` y `000660.KS` son los dos únicos valores
+coreanos del universo y a ambos les faltan exactamente las mismas dos fechas,
+lo que apunta a cierre de plaza. Medido sobre `exchange_calendars==4.13.2`:
+todos los días electorales coreanos pasados son no-sesión (2020-04-15,
+2022-03-09, 2022-06-01, 2024-04-10, 2025-06-03) pero **2026-06-03 figura como
+sesión**, y esa es la fecha de las elecciones locales de 2026. Los calendarios
+públicos de KRX para 2026 listan los mismos 15 cierres que la librería y
+ninguno incluye días electorales, que Corea declara como festivo temporal.
+`2026-07-17` no tiene explicación candidata.
+
+Si son festivos, no son caso de T-004 sino un límite conocido de la
+dependencia, y hay que decidir política de actualización de versión; el efecto
+hoy es que dos activos quedan `DEGRADADO` por un hueco inexistente, que es lo
+que T-003 y la métrica de GATE L0 prohíben. Resolverlo **contra fuente oficial
+de KRX** antes de dar la población por buena.
 
 ## Archivos probables
 No asumir que sean exactos: verificar primero.

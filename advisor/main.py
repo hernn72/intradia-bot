@@ -26,6 +26,7 @@ from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.opportunity import RADAR_OPERAR, Opportunity
 from advisor.config import VALID_HORIZONTES, AdvisorConfig, load_config
 from advisor.data.freshness import (
+    MERCADO_DESCONOCIDO,
     FreshnessBucket,
     FreshnessRow,
     agrupar_frescura_por_fecha,
@@ -313,10 +314,22 @@ def medir_frescura_datos(
     rows: List[FreshnessRow] = []
     for asset in assets:
         data_symbol = asset.data_symbol(reference)
-        market = mercado_para_simbolo(asset, data_symbol)
+        # El universo incluye los 19 activos de contexto, cuyas plazas (CBOE,
+        # SNP, NYM, CCY...) no tienen calendario declarado. Un fallo de plaza
+        # o de proveedor degrada ese activo, nunca la medición entera.
+        market = MERCADO_DESCONOCIDO
         try:
+            market = mercado_para_simbolo(asset, data_symbol)
             history = provider.get_history(data_symbol, period=period, interval=interval)
             benchmark_symbol = resolve_benchmark_symbol(asset, config.report)
+            freshness = calcular_frescura_serie(
+                history,
+                reference,
+                market=market,
+                strength_benchmark=benchmark_symbol,
+                asset_timezone=asset.timezone,
+                settlement_minutes=config.data_quality.settlement_minutes,
+            )
         except Exception as exc:
             rows.append(FreshnessRow(asset.symbol, data_symbol, market, None, str(exc)))
             continue
@@ -325,14 +338,7 @@ def medir_frescura_datos(
                 symbol=asset.symbol,
                 data_symbol=data_symbol,
                 market=market,
-                freshness=calcular_frescura_serie(
-                    history,
-                    reference,
-                    market=market,
-                    strength_benchmark=benchmark_symbol,
-                    asset_timezone=asset.timezone,
-                    settlement_minutes=config.data_quality.settlement_minutes,
-                ),
+                freshness=freshness,
             )
         )
     return rows

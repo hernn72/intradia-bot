@@ -1,0 +1,16 @@
+Python 3.13.5 aarch64
+exchange_calendars 4.13.2
+  XETR: carga OK, sesiones 2026-01-01..2026-09-16 = 181
+  XPAR: carga OK, sesiones 2026-01-01..2026-09-16 = 181
+  XAMS: carga OK, sesiones 2026-01-01..2026-09-16 = 181
+  XMAD: carga OK, sesiones 2026-01-01..2026-09-16 = 181
+  XMIL: carga OK, sesiones 2026-01-01..2026-09-16 = 181
+  XCSE: carga OK, sesiones 2026-01-01..2026-09-16 = 177
+  XNYS: carga OK, sesiones 2026-01-01..2026-09-16 = 177
+  XNAS: carga OK, sesiones 2026-01-01..2026-09-16 = 177
+  XTKS: carga OK, sesiones 2026-01-01..2026-09-16 = 173
+  XHKG: carga OK, sesiones 2026-01-01..2026-09-16 = 174
+  XKRX: carga OK, sesiones 2026-01-01..2026-09-16 = 176
+  XTAI: carga OK, sesiones 2026-01-01..2026-09-16 = 172
+  XSHG: carga OK, sesiones 2026-01-01..2026-09-16 = 172
+  XLON: carga OK, sesiones 2026-01-01..2026-09-16 = 179

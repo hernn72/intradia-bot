@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+import exchange_calendars as xcals
 import pandas as pd
 import yfinance as yf
 
@@ -112,7 +113,12 @@ def build_run_manifest(
         analysis_timestamp=timestamp.astimezone(timezone.utc).isoformat(),
         environment=_environment(),
         python_version=platform.python_version(),
-        provider_versions={"yfinance": yf.__version__, "pandas": pd.__version__},
+        provider_versions={
+            "yfinance": yf.__version__,
+            "pandas": pd.__version__,
+            # Desde T-003 los festivos de esta librería deciden calidad y veto.
+            "exchange_calendars": xcals.__version__,
+        },
         clock_drift_seconds=drift,
         clock_status=status,
     )

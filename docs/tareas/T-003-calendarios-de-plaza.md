@@ -1,6 +1,6 @@
 # T-003 — Calendarios de plaza separados del benchmark y cripto 24/7 (PR 2, fases 4 y 6)
 
-Estado: BLOQUEADA (aceptación real por proveedor de datos)
+Estado: ACEPTADA (2026-09-16, tras revisión independiente y sus correcciones)
 Agente: Codex (implementa) → Opus (revisión obligatoria: fechado de sesiones)
 Línea / fase: L0 PR 2, fases 4 y 6 de `docs/plan-ejecucion.md`
 Gate al que contribuye: GATE L0 (requisito 2)
@@ -276,3 +276,54 @@ Tabla completa y comandos en `evidence/2026-09-14-T-003-calendarios/README.md`.
 3. **T-004** hereda el resultado: 28 activos con `2026-09-07`, 14 con
    `2026-03-06`, 2 con `2026-07-17` y 2 con `2026-06-03` (XKRX), 1 con
    `2026-03-23` (XCSE). Son la población exacta a clasificar.
+
+---
+
+## Revisión independiente y cierre — 2026-09-16
+
+Revisión hecha por el subagente `revisor` con `PROMPT_REVIEW`, sobre el diff
+`1c76add..5fb3394`. **Veredicto: CORREGIR**, con un BLOCKER y tres defectos de
+alcance. Los cuatro están corregidos y verificados; evidencia completa en
+`evidence/2026-09-16-T-003-correcciones/README.md`.
+
+| # | Hallazgo | Corrección |
+|---|---|---|
+| BLOCKER | `frescura-datos` sin `--grupos` mide los 126 activos; las once plazas de contexto sin calendario lanzaban `ValueError` fuera del `try` y tumbaban el comando (exit 1, cero filas) | `advisor/main.py`: plaza y frescura dentro del `try`; la fila se degrada, la medición no |
+| SAME_SCOPE | El requisito 5 (cierre lógico 24/7 de cripto) no llegaba al informe: `analyzer.py` pisaba `may_be_partial_current_session` a `False` cuando `trim.status == "sin sesión de cierre"`, que solo ocurre en `CRYPTO` | Eliminada esa rama de la condición |
+| SAME_SCOPE | El manifiesto no registraba la versión de `exchange_calendars`, que desde esta ficha decide calidad y veto (INV-18) | Añadida a `provider_versions` |
+| SAME_SCOPE | `calcular_frescura_dato(..., market="XETRA")`: fallback silencioso de plaza, prohibido por el criterio de rechazo | `market` obligatorio |
+
+Lo que la revisión intentó romper y no se rompió: INV-05 (el benchmark ya no
+puede definir sesiones y el test lo demuestra fallando con el código antiguo),
+INV-03 (ningún score cambia), INV-06 (la espina de P2.5 no se movió y
+`advisor/research/` no importa `calendars.py`), INV-13, la migración v3 (DDL y
+`PRAGMA user_version` en una sola transacción, con backup previo), ausencia de
+look-ahead, y el fallo ruidoso de plaza desconocida.
+
+Correcciones documentales aplicadas:
+
+- `antes.txt` **no era una línea base**: era la pasada fallida por DNS (138
+  `Could not resolve host`). Renombrada a `pasada-fallida-por-dns.txt`, y el
+  README apunta ahora a la línea base real, `evidence/2026-09-14-L0-baseline/`.
+- `pip-install-exchange-calendars.txt` era el log del intento fallido.
+  Renombrado a `pip-install-fallido-por-dns.txt`; la instalación en Python 3.13
+  queda verificada en la Pi (`pi-python313-exchange-calendars.txt`).
+- Añadida la medición que faltaba: **activos que cambian de radar o de acción,
+  0**, recalculada de forma independiente.
+
+Tests de regresión añadidos (los tres fallan contra el código sin corregir):
+
+- `tests/test_freshness.py::TestUniversoRealCompleto` (dos tests): el universo
+  real completo, con sus 19 activos de contexto, sin fixtures cómodos.
+- `tests/test_analyzer.py::TestRunAnalysis::test_cripto_declara_la_barra_del_dia_en_curso_como_parcial`
+  y su contrario con la barra ya liquidada.
+
+Verificación final: 435 tests, `ruff` y `mypy` limpios, `frescura-datos` y
+`analizar` con código 0 contra datos reales.
+
+**Queda abierto y pasa a T-004:** las dos ausencias coreanas `2026-06-03` y
+`2026-07-17`. Hay indicio fuerte de que son festivos de su propia plaza que la
+librería no codifica —todos los días electorales coreanos pasados son no-sesión
+y el 3 de junio de 2026 son las elecciones locales—, pero no está probado
+contra fuente oficial. Si lo son, dos activos quedan `DEGRADADO` por un hueco
+que no existe, que es lo que el criterio de aceptación prohíbe.

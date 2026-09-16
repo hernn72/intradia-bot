@@ -20,25 +20,26 @@ detalle operativo de cada tarea: eso vive en `docs/tareas/` y el método en
 
 ---
 
-## Estado verificado — 2026-09-14
+## Estado verificado — 2026-09-16
 
 Comprobado directamente contra el repositorio y ejecutando el sistema, no
 leído en documentos:
 
 | Qué | Valor |
 |---|---|
-| Rama / HEAD | `fix/execution-data-quality` / `e53e385`, 3 commits por delante de `main` (`6d32cf2`) |
+| Rama / HEAD | `fix/exchange-calendars`, cuatro ramas en cadena sin mergear; `main` sigue en `6d32cf2` |
 | Árbol | limpio salvo `graphify-out/` (sin seguimiento) |
-| Tests / lint / tipos | 398 pasan (87 s) · `ruff check .` limpio · `mypy advisor` limpio (54 ficheros) · Python 3.12.13 |
+| Tests / lint / tipos | 435 pasan (90 s) · `ruff check .` limpio · `mypy advisor` limpio (58 ficheros) · Python 3.12.13. Verificado el 2026-09-16 |
 | PR 1 (fases 1–3) | hecho en rama: `advisor/analysis/execution.py`, `entry_max_for_rr`, `reward_risk`, `rr_at_least`, `position_limit_reason`, `classify_setup` separado de `classify`, regresión `EXH1.DE` |
 | CI | `.github/workflows/ci.yml` en rama `ci/github-actions` (`e5ed089`), run verde en 3.12 y 3.13 |
 | Esquema SQLite | v2 con migraciones (`PRAGMA user_version`), backup pre-migración verificado, `analysis_run` + `run_id` (T-002) |
-| Calendarios | `advisor/data/calendars.py` con `exchange_calendars==4.13.2` y cripto 24/7; taxonomía única en `MARKET_SESSIONS` con MIC (rama `fix/exchange-calendars`, sin mergear) |
+| Calendarios | `advisor/data/calendars.py` con `exchange_calendars==4.13.2` y cripto 24/7; taxonomía única en `MARKET_SESSIONS` con MIC. T-003 **aceptada** el 2026-09-16 tras revisión independiente; rama sin mergear y sin desplegar |
 | Universo | 107 analizables + 19 contexto; 18 ISIN; 107/107 `trade_republic: unknown`; seleccionado el 2026-08-27/29 |
 | Cosecha | `071ddb2b…`, 126 símbolos, 5 años, solo en el portátil (`data/vintages/` ignorado, 18 MB); manifiesto 87 KB |
 | LLM | `claude-sonnet-5` vía `advisor/ai/`; prompt sin versión; narrativa **no** se persiste |
-| Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): desplegada `feat/run-manifest-migrations` el 2026-09-14 (antes `main` `6d32cf2` sin PR 1); base migrada a v2 con backup verificado; 417 tests + 3 saltados en la Pi. Estado previo: Python 3.13.5; base `user_version` 0 con 2.503 recomendaciones y 1.177 mediciones de frescura (11 pasadas desde el 2 de septiembre); timers vivos; NTP sincronizado. Verificado por SSH el 2026-09-14 |
+| Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): corre `1c76add` (T-002), árbol limpio salvo `logs/`, los dos timers activos, y su venv (Python 3.13.5 aarch64) ya tiene `exchange_calendars==4.13.2` con las 14 plazas cargando — comprobado por SSH el 2026-09-16. Desplegada `feat/run-manifest-migrations` el 2026-09-14 (antes `main` `6d32cf2` sin PR 1); base migrada a v2 con backup verificado; 417 tests + 3 saltados en la Pi. Estado previo: Python 3.13.5; base `user_version` 0 con 2.503 recomendaciones y 1.177 mediciones de frescura (11 pasadas desde el 2 de septiembre); timers vivos; NTP sincronizado. Verificado por SSH el 2026-09-14 |
 | Línea base real | `evidence/2026-09-14-L0-baseline/`: 107 activos; calidad OK 59 / INCOMPLETO 30 / DEGRADADO 18; 43 con «sesiones ausentes»; 1 OPERAR (`EXH1.DE`), 10 RADAR, 90 DESCARTADOS |
+| Efecto de T-003 sobre esa base | OK 63 / INCOMPLETO 28 / DEGRADADO 16; 44 con ausencias, todas reales; **0 activos cambian de radar o de acción** (recalculado el 2026-09-16) |
 
 ---
 
@@ -163,8 +164,8 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | ID | Fase | Estado | Depende de | Ficha |
 |---|---|---|---|---|
 | PR 1 | Fases 1–3: RR desde precio efectivo, `entry_max` por RR, setup vs ejecución, sizing desde entrada efectiva | HECHO en rama (`e929da4`); merge pendiente (OA-01) | — | — |
-| PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | EN_REVISION (rama `fix/exchange-calendars`, verificada contra datos reales; falta revisión independiente y despliegue) | T-002 | T-003 |
-| PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | PENDIENTE | T-003 | T-004 |
+| PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | **ACEPTADA** (2026-09-16: revisión independiente CORREGIR, un BLOCKER y tres defectos corregidos y verificados contra datos reales; falta desplegar en la Pi) | T-002 | T-003 |
+| PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | PENDIENTE (siguiente; población exacta y el hallazgo XKRX abierto están en la ficha) | T-003 | T-004 |
 | PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | PENDIENTE | T-002, T-003, T-004 | T-005 |
 | PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | PENDIENTE | PR 3 | T-007 (por escribir) |
 | PR 5 | Fases 12–13 informe + siete invariantes de integración | PENDIENTE | PR 4 | T-008 |

@@ -15,6 +15,9 @@ QUALITY_OK = "OK"
 QUALITY_DEGRADED = "DEGRADADO"
 QUALITY_INCOMPLETE = "INCOMPLETO"
 
+MERCADO_DESCONOCIDO = "desconocida"
+"""Plaza de una fila que falló antes de poder resolverla. Nunca un calendario."""
+
 
 @dataclass(frozen=True)
 class DataFreshness:
@@ -86,7 +89,7 @@ class FreshnessBucket:
 def calcular_frescura_dato(
     last_bar_timestamp: object,
     reference: datetime,
-    market: str = "XETRA",
+    market: str,
 ) -> DataFreshness:
     """Calcula antigüedad natural y en sesiones aproximadas de una última barra.
 

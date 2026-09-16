@@ -130,7 +130,9 @@ def analyze_asset(
         settlement_minutes=config.data_quality.settlement_minutes,
     )
     partial = data_freshness.may_be_partial_current_session
-    if trim.removed_last_bar or trim.status.startswith("última barra cerrada") or trim.status == "sin sesión de cierre":
+    # Cripto no tiene cierre bursátil: su barra parcial la decide el cierre
+    # lógico UTC 00:00 + settlement_minutes, que ya calculó la frescura.
+    if trim.removed_last_bar or trim.status.startswith("última barra cerrada"):
         partial = False
     data_freshness = replace(data_freshness, session_close_status=trim.status, may_be_partial_current_session=partial)
 
