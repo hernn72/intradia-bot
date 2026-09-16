@@ -9,50 +9,66 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-16 (fin de la tercera sesión)
+# START HERE — actualizado 2026-09-16 (pausa a mitad de T-005)
 
-Estado actual:
-- **`main` en `a8a70e2`.** La cadena de cuatro ramas se fusionó en fast-forward
-  el 2026-09-16 (PR 1, T-001, T-002 y T-003 con sus correcciones), pusheada y
-  con CI verde. `feat/universe-vintage` sigue en `1c76add` y está vacía.
-- **La Pi corre `a8a70e2`**, desplegada y verificada el 2026-09-16: base
-  migrada a v3 con backup previo, 432 tests + 3 saltados, `frescura-datos` y
-  una pasada real con código 0, 107/107 mediciones con calendario, timers
-  vivos. Producción tiene ya PR 1 y los calendarios de plaza.
-- La Pi corre `1c76add` (T-002), árbol limpio salvo `logs/`, los dos timers
-  activos. Su venv es Python 3.13.5 aarch64 y ya tiene
-  `exchange_calendars==4.13.2`, con las 14 plazas cargando (SSH, 2026-09-16).
-- 435 tests, ruff y mypy limpios en `fix/exchange-calendars`.
+## Dónde está todo
 
-Qué pasó con T-003: la revisión independiente dio **CORREGIR**, con un BLOCKER
-(`frescura-datos` sin `--grupos` moría con las once plazas de contexto sin
-calendario) y tres defectos de alcance. Los cuatro están corregidos, con tests
-de regresión comprobados contra el código sin corregir, y verificados contra
-datos reales. Detalle en `evidence/2026-09-16-T-003-correcciones/README.md`.
+    main                        c255e0c   PR 1, T-001, T-002, T-003, T-004   · pusheado
+    refactor/data-quality-codes 98039b4   T-005, EN_REVISION                 · pusheado, SIN mergear
+    La Pi                       c581fb1   = main sin T-004 ni T-005
 
-Primera acción del propietario:
-- OA-02: branch protection en GitHub con `checks (3.12)` y `checks (3.13)`.
-  Ahora importa más, porque `main` ya es la rama buena. OA-01 y OA-04 hechas.
+`main` tiene PR 2 cerrado entero (fases 4, 5 y 6). **La Pi va dos entregas por
+detrás**: le faltan T-004 (calendario corregido y `diagnosticar-barra`) y T-005.
 
-Primera tarea ejecutable:
-- **T-004** — causa de los huecos. Ficha: `docs/tareas/T-004-investigar-hueco-2026-09-07.md`,
-  que ya lleva la población exacta (28 activos con 2026-09-07, 14 con
-  2026-03-06, 2+2 en XKRX, 1 en XCSE) y el hallazgo abierto de XKRX: las dos
-  ausencias coreanas pueden ser festivos que la librería no codifica, no huecos
-  de dato. Eso se resuelve **primero**, contra fuente oficial de KRX.
+## Lo que queda de T-005, en orden
 
-Quién debe hacerla:
-- Opus (diagnóstico con red); Codex solo si sale un cambio mecánico grande.
+La revisión independiente dio CORREGIR con 3 defectos y 4 avisos. **Los siete
+están corregidos y commiteados** en `98039b4`, con 484 tests, `ruff` y `mypy`
+limpios, y cada test nuevo comprobado reintroduciendo su defecto. Falta:
 
-Criterio para continuar:
-- T-004 aceptada → **T-006** (universe vintage) → T-005 (calidad y códigos).
+1. **Test del aviso de precio extendido en el formatter.** El aviso ya se
+   imprime (`formatter.py`, tras `decision_reasons`), pero no hay test que lo
+   fije. Sin él vuelve a desaparecer sin que nadie se entere: ya pasó una vez.
+2. **Pasada real y rehacer la tabla de impacto.** El README de
+   `evidence/2026-09-16-T-005-calidad/` dice «LOW_SCORE 51 · MISSING_RECENT_DATA
+   22 · STALE_DATA 13 · PARTIAL_BAR 3» y **eso ya no es cierto ni lo era**:
+   todos los descartes son `LOW_SCORE` de origen. Ejecutar
+   `python -m advisor.main analizar --horizonte swing --sin-ia --sin-guardar` y
+   reescribir la tabla con lo que salga, separando `discard_code` de
+   `execution_code`.
+3. **Segunda revisión independiente** de las correcciones, o al menos de los
+   dos cambios de semántica: la separación de códigos y la deduplicación de la
+   frescura en `analyzer.py`.
+4. Mergear en `main` y **desplegar en la Pi T-004 y T-005 juntas**, con copia
+   previa de `intradia.db` y vigilando la migración v4 (probada ya sobre una
+   copia real: v3→v4, backup previo, 6 columnas, 214 recomendaciones intactas).
 
-Cómo delegar en Codex (aprendido a golpes, ver docs/metodo-trabajo.md):
-- No puede escribir en `.git`: crea tú la rama, y el commit y el push los haces tú.
-- No tiene DNS: instala tú las dependencias y ejecuta tú las verificaciones
-  contra datos reales.
-- No escribe fuera del directorio principal del repositorio: **nada de
-  worktrees hermanos**; las fichas en paralelo se serializan.
+## Después de T-005
+
+**T-006** (`universe_vintage_id`, ficha escrita) → **T-007..T-010**, que son
+PR 4 y PR 5 y **cuyas fichas hay que escribir** con la plantilla → GATE L0.
+Luego la línea C (C-03 a C-06). El orden completo está en `docs/roadmap.md`.
+
+## Decisiones del propietario que quedaron abiertas hoy
+
+- **OD-09** — horario de las pasadas. Con D-21, las dos pasadas de la mañana no
+  podrán recomendar ningún activo europeo. Medido sobre las 21 pasadas de la
+  Pi: el retraso europeo es del 96-100 % a las 06:02 y 07:32 UTC y del 0 % a
+  las 20:02, y no afecta a ningún activo no europeo.
+- **OD-10** — cripto. Su barra 24/7 es parcial hasta las 00:00 UTC más el
+  margen, así que con D-21 no es recomendable en ninguna pasada.
+- **OA-02** — branch protection, sin hacer. `main` sigue sin protección.
+
+## Cómo se ha trabajado hoy, y por qué seguir igual
+
+Tres capas, y **cada una encontró cosas que las otras no**: Codex entrega con la
+suite verde; la verificación contra datos reales encuentra lo que los tests no
+ven (siete defectos hoy); y la revisión independiente encuentra lo que se le
+escapa al supervisor (diez más). Ninguna es prescindible.
+
+**Codex agotó su cuota de uso** a media tarde, a mitad de las correcciones de
+T-005. Si vuelve a pasar, las correcciones bien especificadas se pueden hacer a
+mano; las tareas grandes conviene esperar a que recupere.
 ```
 
 ---
