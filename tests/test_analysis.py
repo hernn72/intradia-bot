@@ -24,6 +24,7 @@ from advisor.analysis.opportunity import (
     RADAR_DESCARTAR,
     RADAR_OPERAR,
     RADAR_VIGILAR,
+    build_opportunity,
     classify,
 )
 from advisor.analysis.scoring import Component, Dimension, Score, compute_score
@@ -31,6 +32,7 @@ from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, calculate_p
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.data.freshness import QUALITY_DEGRADED, QUALITY_INCOMPLETE, DataFreshness
+from advisor.data.quality import INVALID_INDICATORS, DataQuality, FreshnessState, Severity
 from tests.conftest import make_ohlcv
 
 MIN_RR = RiskConfig().min_rr_ratio
@@ -584,8 +586,19 @@ class TestClassify:
             self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
         )
         assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
-        assert any("extendido" in m for m in motivos)
-        assert any("no persigas" in m for m in motivos)
+        assert motivos == []
+        opportunity = build_opportunity(
+            asset=asset_eur,
+            horizonte="swing",
+            snapshot=snapshot,
+            levels=levels,
+            score=self._score_con_valor(90.0),
+            context=benign_context,
+            scoring=ScoringConfig(),
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+        )
+        assert any("extendido" in warning for warning in opportunity.warnings)
 
     def test_contexto_hostil_frena_la_compra(self, asset_eur, hostile_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
@@ -631,6 +644,13 @@ class TestClassify:
             strength_benchmark="^STOXX",
             quality=QUALITY_INCOMPLETE,
             quality_reasons=("INCOMPLETO: faltan sesiones cerradas frente al calendario de la plaza 2026-08-28",),
+            data_quality=DataQuality(
+                freshness=FreshnessState.FRESH,
+                recent_completeness=Severity.CRITICAL,
+                historical_completeness=Severity.OK,
+                indicator_readiness=True,
+                execution_readiness=False,
+            ),
         )
 
         radar, accion, motivos = classify(
@@ -641,6 +661,74 @@ class TestClassify:
         assert score.value == 90.0
         assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
         assert any("apertura vetada" in motivo for motivo in motivos)
+
+    def test_score_64_genera_codigo_low_score_con_umbral_70(self, asset_eur, benign_context) -> None:
+        opportunity = build_opportunity(
+            asset=asset_eur,
+            horizonte="swing",
+            snapshot=make_snapshot(),
+            levels=compute_levels(make_snapshot(), LevelsConfig()),
+            score=self._score_con_valor(64.0),
+            context=benign_context,
+            scoring=ScoringConfig(min_score_operar=70, min_score_vigilar=60),
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+            data_freshness=DataFreshness(
+                last_bar_date=pd.Timestamp("2026-09-11").date(),
+                natural_days=3,
+                sessions_approx=0,
+                label="hace 3 días naturales; al día",
+                data_quality=DataQuality(
+                    freshness=FreshnessState.FRESH,
+                    recent_completeness=Severity.OK,
+                    historical_completeness=Severity.OK,
+                    indicator_readiness=True,
+                    execution_readiness=True,
+                    measurement_period="1y",
+                    measurement_interval="1d",
+                ),
+            ),
+        )
+
+        assert opportunity.discard_code == "LOW_SCORE"
+        assert any("threshold=70" in reason for reason in opportunity.decision_reasons)
+
+    def test_codigo_de_descarte_prioriza_causa_bloqueante_sobre_low_score(
+        self,
+        asset_eur,
+        benign_context,
+    ) -> None:
+        opportunity = build_opportunity(
+            asset=asset_eur,
+            horizonte="swing",
+            snapshot=make_snapshot(),
+            levels=compute_levels(make_snapshot(), LevelsConfig()),
+            score=self._score_con_valor(40.0),
+            context=benign_context,
+            scoring=ScoringConfig(min_score_operar=70, min_score_vigilar=60),
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+            data_freshness=DataFreshness(
+                last_bar_date=pd.Timestamp("2026-09-11").date(),
+                natural_days=3,
+                sessions_approx=0,
+                label="hace 3 días naturales; al día",
+                data_quality=DataQuality(
+                    freshness=FreshnessState.FRESH,
+                    recent_completeness=Severity.OK,
+                    historical_completeness=Severity.OK,
+                    indicator_readiness=False,
+                    execution_readiness=False,
+                    reasons=(),
+                    indicators_missing=("sma_long",),
+                    measurement_period="1y",
+                    measurement_interval="1d",
+                ),
+            ),
+        )
+
+        assert opportunity.radar == RADAR_DESCARTAR
+        assert opportunity.discard_code == INVALID_INDICATORS
 
     def test_degradado_declara_pero_no_veta(self, asset_eur, benign_context) -> None:
         freshness = DataFreshness(

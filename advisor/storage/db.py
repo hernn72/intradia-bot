@@ -277,12 +277,15 @@ class AdvisorDB:
         for row in rows:
             if not row.get("run_id"):
                 raise ValueError("run_id es obligatorio para recomendaciones nuevas")
+            _add_recommendation_quality_defaults(row)
 
         columns = [
             "created_at", "symbol", "name", "isin", "trade_republic", "currency", "horizonte",
             "radar", "accion", "score", "evaluable_max", "price", "price_eur", "entry_max",
             "entry_max_eur", "stop", "stop_eur", "target2", "target2_eur", "risk_pct",
             "reward_pct", "rr_ratio", "reasons", "run_id",
+            "discard_code", "execution_code", "quality_freshness", "quality_recent",
+            "quality_historical", "execution_ready", "quality_period", "quality_interval",
         ]
         placeholders = ", ".join(f":{c}" for c in columns)
         sql = f"INSERT INTO recommendation ({', '.join(columns)}) VALUES ({placeholders})"
@@ -340,11 +343,15 @@ class AdvisorDB:
     ) -> int:
         if not rows:
             return 0
+        for row in rows:
+            _add_recommendation_quality_defaults(row)
         columns = [
             "created_at", "symbol", "name", "isin", "trade_republic", "currency", "horizonte",
             "radar", "accion", "score", "evaluable_max", "price", "price_eur", "entry_max",
             "entry_max_eur", "stop", "stop_eur", "target2", "target2_eur", "risk_pct",
             "reward_pct", "rr_ratio", "reasons", "run_id",
+            "discard_code", "execution_code", "quality_freshness", "quality_recent",
+            "quality_historical", "execution_ready", "quality_period", "quality_interval",
         ]
         placeholders = ", ".join(f":{c}" for c in columns)
         sql = f"INSERT INTO recommendation ({', '.join(columns)}) VALUES ({placeholders})"
@@ -383,6 +390,8 @@ class AdvisorDB:
             "last_bar_date", "natural_days", "sessions_approx", "may_be_partial_current_session",
             "absent_reference_sessions", "absent_recent_sessions", "reference_sessions_checked",
             "veto_window_sessions", "quality", "error", "run_id",
+            "quality_freshness", "quality_recent", "quality_historical", "execution_ready",
+            "quality_period", "quality_interval",
         ]
         placeholders = ", ".join(f":{column}" for column in columns)
         sql = f"INSERT INTO data_freshness_measurement ({', '.join(columns)}) VALUES ({placeholders})"
@@ -403,6 +412,8 @@ class AdvisorDB:
             "last_bar_date", "natural_days", "sessions_approx", "may_be_partial_current_session",
             "absent_reference_sessions", "absent_recent_sessions", "reference_sessions_checked",
             "veto_window_sessions", "quality", "error", "run_id",
+            "quality_freshness", "quality_recent", "quality_historical", "execution_ready",
+            "quality_period", "quality_interval",
         ]
         placeholders = ", ".join(f":{column}" for column in columns)
         sql = f"INSERT INTO data_freshness_measurement ({', '.join(columns)}) VALUES ({placeholders})"
@@ -669,13 +680,31 @@ def freshness_measurement_to_row(row: Dict[str, Any]) -> Dict[str, Any]:
 
     absent = row.get("absent_reference_sessions") or ()
     absent_recent = row.get("absent_recent_sessions") or ()
+    for column in (
+        "quality_freshness", "quality_recent", "quality_historical",
+        "quality_period", "quality_interval",
+    ):
+        row.setdefault(column, None)
     return {
         **row,
         "calendar": row.get("calendar"),
         "may_be_partial_current_session": int(bool(row.get("may_be_partial_current_session"))),
+        "execution_ready": None if row.get("execution_ready") is None else int(bool(row.get("execution_ready"))),
         "absent_reference_sessions": json.dumps(list(absent), ensure_ascii=False),
         "absent_recent_sessions": json.dumps(list(absent_recent), ensure_ascii=False),
     }
+
+
+def _add_recommendation_quality_defaults(row: Dict[str, Any]) -> None:
+    for column in (
+        "discard_code", "execution_code", "quality_freshness", "quality_recent",
+        "quality_historical", "quality_period", "quality_interval",
+    ):
+        row.setdefault(column, None)
+    if "execution_ready" not in row or row["execution_ready"] is None:
+        row["execution_ready"] = None
+    else:
+        row["execution_ready"] = int(bool(row["execution_ready"]))
 
 
 def _decode_date_list(raw: str) -> tuple[date, ...]:

@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
 
-from advisor.analysis.analyzer import AnalysisResult
+from advisor.analysis.analyzer import AnalysisResult, SkippedAnalysis
 from advisor.analysis.levels import Levels, compute_levels
-from advisor.analysis.opportunity import build_opportunity
+from advisor.analysis.opportunity import RADAR_DESCARTAR, build_opportunity
 from advisor.analysis.overview import IndexQuote
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.sizing import calculate_position_sizing
@@ -556,10 +557,47 @@ class TestFormatReport:
         result = AnalysisResult(
             generated_at=datetime(2026, 8, 27, tzinfo=timezone.utc),
             horizonte="swing", interval="1d", context=benign_context,
-            skipped=[("XYZ.DE", "histórico insuficiente: 30 velas")],
+            skipped=[SkippedAnalysis("XYZ.DE", "histórico insuficiente: 30 velas", "INSUFFICIENT_HISTORY")],
         )
         informe = format_report(result, config, fx)
-        assert "XYZ.DE" in informe and "histórico insuficiente" in informe
+        assert "XYZ.DE [INSUFFICIENT_HISTORY]" in informe and "histórico insuficiente" in informe
+
+    def test_descartados_agrupados_por_codigo_no_incluyen_detalle_de_fechas(
+        self,
+        asset_eur,
+        asset_usd,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        freshness = DataFreshness(
+            last_bar_date=date(2026, 9, 14),
+            natural_days=2,
+            sessions_approx=1,
+            label="hace 2 días naturales; 1 sesión",
+            calendar="XETR",
+            absent_reference_sessions=(date(2026, 3, 6),),
+            quality="DEGRADADO",
+            quality_reasons=("DEGRADADO: faltan sesiones frente al calendario de la plaza fuera de la ventana de veto 2026-03-06",),
+        )
+        sap = replace(
+            _opportunity(asset_eur, benign_context, data_freshness=freshness),
+            radar=RADAR_DESCARTAR,
+            discard_code="LOW_SCORE",
+        )
+        apple = replace(
+            _opportunity(asset_usd, benign_context, data_freshness=freshness),
+            radar=RADAR_DESCARTAR,
+            discard_code="LOW_SCORE",
+        )
+
+        informe = format_report(self._result([sap, apple], benign_context), config, fx)
+        bloque_descartados = informe.split("## 🔴 DESCARTADOS", maxsplit=1)[1].split("## 🎯 CONCLUSIÓN", maxsplit=1)[0]
+
+        assert "2 activos descartados por código:" in bloque_descartados
+        assert "  - LOW_SCORE: 2 activos — SAP.DE, AAPL" in bloque_descartados
+        assert "2026-03-06" not in bloque_descartados
+        assert "⚠️ falta sesión" not in bloque_descartados
 
 
 class TestEventosEnLaFicha:

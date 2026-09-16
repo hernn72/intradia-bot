@@ -389,6 +389,12 @@ sábado -> sesión válida · domingo -> sesión válida
 
 **Prioridad:** P1
 
+**Estado 2026-09-16:** implementada por Codex en T-005 y pendiente de
+verificación real/revisión independiente. El contrato final vive en
+`docs/tareas/T-005-calidad-del-dato-y-motivos.md`: `DataQuality` es la clase
+normativa, `MEDIUM` veta y `WARNING` histórico no veta salvo indicadores o
+historial insuficiente.
+
 `OK` / `INCOMPLETO` / `DEGRADADO` mezcla hoy distintos tipos de problema. Una barra
 antigua ausente puede ensuciar una señal actual perfectamente utilizable.
 
@@ -436,6 +442,10 @@ historial suficiente pese al warning · indicador que sí depende del hueco.
 # FASE 8 — Motivos estructurados de descarte
 
 **Prioridad:** P1
+
+**Estado 2026-09-16:** implementada por Codex en T-005 y pendiente de
+verificación real/revisión independiente. La lista normativa de códigos de
+setup/ejecución es la de la ficha T-005; `warning` queda como lista separada.
 
 No volver a generar bloques como «91 activos descartados: TSM…, SAN.MC…, GS…,
 XOM…» sin poder saber inmediatamente por qué se descartó cada uno.

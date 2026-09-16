@@ -142,6 +142,10 @@ class DataQualityConfig(BaseModel):
     settlement_minutes: int = Field(20, ge=0)
     veto_incomplete_open: bool = True
     veto_window_sessions: int = Field(20, gt=0)
+    critical_latest_sessions: int = Field(0, ge=0)
+    high_after_sessions: int = Field(5, ge=0)
+    medium_after_sessions: int = Field(20, ge=0)
+    warning_after_sessions: int = Field(20, ge=0)
 
 
 class ReportConfig(BaseModel):

@@ -151,6 +151,26 @@ su media rápida **advierte pero no veta**: el backtest midió (europa, 2y y
 eran las más rentables; la advertencia pide priorizar la zona de entrada
 ideal.
 
+## Calidad del dato y códigos
+
+La calidad de mercado se guarda separada de la puntuación (`score.value` no
+depende de ella): frescura de la última barra, completitud reciente,
+completitud histórica, disponibilidad de indicadores y ejecutabilidad. La
+severidad de una sesión ausente usa sesiones del calendario de su plaza:
+última sesión `CRITICAL`, hasta 5 `HIGH`, hasta 20 `MEDIUM`, más antiguas
+`WARNING`.
+
+Solo `FRESH` con completitud reciente `OK` o `WARNING` e indicadores
+disponibles queda `execution_ready=true`. Un `WARNING` histórico se declara
+pero no veta; `MEDIUM` conserva la ventana D-05 y sí veta. La ventana de
+medición (`period` e `interval`) queda persistida junto con la calidad para
+interpretar cada pasada sin depender del `config.yaml` de aquel día.
+
+Los descartes/esperas llevan código estructurado (`LOW_SCORE`,
+`HOSTILE_CONTEXT`, `BELOW_RISK_FREE`, `STALE_DATA`,
+`MISSING_RECENT_DATA`, `DATA_NOT_EXECUTABLE`, etc.). Las advertencias, como
+precio extendido, van en una lista aparte y no implican descarte.
+
 ## El backtest
 
 ```bash

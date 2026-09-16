@@ -50,9 +50,31 @@ def _migration_v3_freshness_calendar(conn: sqlite3.Connection) -> None:
     conn.execute("ALTER TABLE data_freshness_measurement ADD COLUMN calendar TEXT")
 
 
+def _migration_v4_data_quality_codes(conn: sqlite3.Connection) -> None:
+    statements = (
+        "ALTER TABLE recommendation ADD COLUMN discard_code TEXT",
+        "ALTER TABLE recommendation ADD COLUMN execution_code TEXT",
+        "ALTER TABLE recommendation ADD COLUMN quality_freshness TEXT",
+        "ALTER TABLE recommendation ADD COLUMN quality_recent TEXT",
+        "ALTER TABLE recommendation ADD COLUMN quality_historical TEXT",
+        "ALTER TABLE recommendation ADD COLUMN execution_ready INTEGER",
+        "ALTER TABLE recommendation ADD COLUMN quality_period TEXT",
+        "ALTER TABLE recommendation ADD COLUMN quality_interval TEXT",
+        "ALTER TABLE data_freshness_measurement ADD COLUMN quality_freshness TEXT",
+        "ALTER TABLE data_freshness_measurement ADD COLUMN quality_recent TEXT",
+        "ALTER TABLE data_freshness_measurement ADD COLUMN quality_historical TEXT",
+        "ALTER TABLE data_freshness_measurement ADD COLUMN execution_ready INTEGER",
+        "ALTER TABLE data_freshness_measurement ADD COLUMN quality_period TEXT",
+        "ALTER TABLE data_freshness_measurement ADD COLUMN quality_interval TEXT",
+    )
+    for statement in statements:
+        conn.execute(statement)
+
+
 MIGRATIONS: list[Migration] = [
     (2, "analysis_run y run_id en recomendaciones/frescura", _migration_v2_runs),
     (3, "calendar en mediciones de frescura", _migration_v3_freshness_calendar),
+    (4, "calidad del dato por dimensiones y códigos estructurados", _migration_v4_data_quality_codes),
 ]
 
 

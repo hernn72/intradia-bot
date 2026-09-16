@@ -170,6 +170,24 @@ un universo dinámico.
 
 ---
 
+### D-21 — 2026-09-16 — Un dato con una sesión de retraso veta la apertura
+Decidido por el propietario, preguntado con la consecuencia medida delante.
+Solo `freshness == FRESH` permite recomendar abrir; `STALE_1`, `STALE_2_PLUS` y
+`PARTIAL_BAR` vetan. No toca el score (INV-03): el activo se analiza y se
+puntúa igual, solo deja de ser ejecutable.
+
+Consecuencia medida sobre las 21 pasadas guardadas en la Pi: el retraso europeo
+depende de la hora. A las 06:02 y 07:32 UTC lo tienen 45-47 de 47 europeos; a
+las 13:32, 18 de 47; a las 20:02, ninguno. Los activos no europeos no lo tienen
+nunca (1.197 mediciones, cero). Es decir, con las cuatro pasadas actuales las
+dos de la mañana no podrán recomendar europeos. Ver OD-09.
+
+Consecuencia sobre cripto: su barra 24/7 es parcial hasta las 00:00 UTC más el
+margen de liquidación, así que cripto no es recomendable en ninguna de las
+cuatro pasadas. Se deduce de la regla y nadie lo decidió aparte. Ver OD-10.
+
+---
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
@@ -224,6 +242,23 @@ demás**.
 - **Recomendación técnica:** 6 meses; si no hay respuesta al llegar a GATE P7,
   se usa 6 meses.
 - **Bloquea:** solo la fecha de fin de P10.
+
+---
+
+### OD-09 — Horario de las pasadas, ahora que el dato retrasado veta
+- **Pregunta:** ¿se aceptan mañanas solo con valores de EE. UU., o se mueven las pasadas?
+- **Alternativas:** dejarlo como está (07:00, 08:30, 14:30, 21:00 local) / mover
+  las dos de la mañana a después de que el proveedor publique el cierre europeo /
+  declarar explícitamente que las de la mañana son para EE. UU. y Asia.
+- **Consecuencia:** con D-21, las dos pasadas de la mañana no podrán recomendar
+  ningún activo europeo. Medido, no supuesto.
+- **Bloquea:** nada técnico; cambia qué recomienda el bot y cuándo.
+
+### OD-10 — Cripto con la regla de D-21
+- **Pregunta:** ¿cripto deja de ser recomendable, o su barra parcial no veta?
+- **Consecuencia:** tal como queda D-21, las tres criptos no son recomendables
+  en ninguna pasada, porque su sesión 24/7 solo cierra a las 00:00 UTC.
+- **Bloquea:** nada; hoy cripto no ha generado ninguna señal OPERAR.
 
 ---
 

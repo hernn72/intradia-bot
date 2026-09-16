@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from advisor.data.calendars import calendar_mic, closed_sessions_between, expected_sessions, missing_sessions
+from advisor.data.quality import DataQuality, Severity, build_data_quality
 from advisor.universe.models import Asset
 
 QUALITY_OK = "OK"
@@ -41,6 +42,10 @@ class DataFreshness:
     session_close_status: str = ""
     quality: str = QUALITY_OK
     quality_reasons: tuple[str, ...] = field(default_factory=tuple)
+    data_quality: DataQuality | None = None
+    indicators_missing: tuple[str, ...] = field(default_factory=tuple)
+    measurement_period: str = ""
+    measurement_interval: str = ""
 
     @property
     def has_absent_reference_sessions(self) -> bool:
@@ -119,6 +124,14 @@ def calcular_frescura_serie(
     veto_window_sessions: int = 10,
     asset_timezone: Optional[str] = None,
     settlement_minutes: int = 0,
+    barra_actual_cerrada: bool = False,
+    indicators_missing: tuple[str, ...] = (),
+    measurement_period: str = "",
+    measurement_interval: str = "",
+    critical_latest_sessions: int = 0,
+    high_after_sessions: int = 5,
+    medium_after_sessions: int = 20,
+    warning_after_sessions: int = 20,
 ) -> DataFreshness:
     """Calcula frescura de cola y sesiones ausentes frente al calendario de plaza.
 
@@ -146,6 +159,9 @@ def calcular_frescura_serie(
         return classify_data_quality(DataFreshness(
             **_freshness_kwargs(freshness),
             strength_benchmark=strength_benchmark,
+            indicators_missing=indicators_missing,
+            measurement_period=measurement_period,
+            measurement_interval=measurement_interval,
         ))
 
     last_asset_date = asset_dates[-1]
@@ -157,7 +173,12 @@ def calcular_frescura_serie(
     absent = tuple(value for value in missing_sessions(asset_date_set, market, checked_dates[0], checked_dates[-1])) if checked_dates else ()
     absent_recent = tuple(value for value in absent if value in veto_dates)
     freshness_values = _freshness_kwargs(freshness)
-    freshness_values["may_be_partial_current_session"] = _may_be_partial_current_session(
+    # ``barra_actual_cerrada`` lo decide quien recorta la barra no cerrada, que
+    # es el único que conoce el cierre regular de la plaza. Entra aquí y no
+    # después, porque la calidad se construye en esta misma función: corregir
+    # el campo a posteriori dejaba una DataQuality calculada con el valor viejo
+    # y vetaba a los asiáticos por una sesión que llevaba horas cerrada.
+    freshness_values["may_be_partial_current_session"] = False if barra_actual_cerrada else _may_be_partial_current_session(
         last_asset_date,
         reference,
         market,
@@ -170,20 +191,63 @@ def calcular_frescura_serie(
         absent_recent_sessions=absent_recent,
         reference_sessions_checked=len(checked_dates),
         veto_window_sessions=veto_window_sessions,
+        indicators_missing=indicators_missing,
+        measurement_period=measurement_period,
+        measurement_interval=measurement_interval,
+        data_quality=build_data_quality(
+            market=market,
+            reference_date=reference.date(),
+            sessions_approx=freshness_values["sessions_approx"],
+            may_be_partial_current_session=freshness_values["may_be_partial_current_session"],
+            absent_reference_sessions=absent,
+            absent_recent_sessions=absent_recent,
+            indicators_missing=indicators_missing,
+            measurement_period=measurement_period,
+            measurement_interval=measurement_interval,
+            critical_latest_sessions=critical_latest_sessions,
+            high_after_sessions=high_after_sessions,
+            medium_after_sessions=medium_after_sessions,
+            warning_after_sessions=warning_after_sessions,
+        ),
     ))
 
 
 def classify_data_quality(freshness: DataFreshness) -> DataFreshness:
     """Asigna OK/DEGRADADO/INCOMPLETO sin cambiar ningún cálculo técnico."""
 
+    data_quality = freshness.data_quality or build_data_quality(
+        market=freshness.calendar or "XETRA",
+        reference_date=freshness.last_bar_date,
+        sessions_approx=freshness.sessions_approx,
+        may_be_partial_current_session=freshness.may_be_partial_current_session,
+        absent_reference_sessions=freshness.absent_reference_sessions,
+        absent_recent_sessions=freshness.absent_recent_sessions,
+        indicators_missing=freshness.indicators_missing,
+        measurement_period=freshness.measurement_period,
+        measurement_interval=freshness.measurement_interval,
+        critical_latest_sessions=0,
+        high_after_sessions=5,
+        medium_after_sessions=20,
+        warning_after_sessions=20,
+    )
     reasons: List[str] = []
-    if freshness.absent_recent_sessions:
+    if freshness.absent_recent_sessions and data_quality.recent_completeness in {
+        Severity.CRITICAL,
+        Severity.HIGH,
+        Severity.MEDIUM,
+    }:
         reasons.append(
             "INCOMPLETO: faltan sesiones cerradas recientes frente al calendario de la plaza "
             + ", ".join(value.isoformat() for value in freshness.absent_recent_sessions)
             + f" (ventana de veto: {freshness.veto_window_sessions} sesiones)"
         )
-        return replace(freshness, quality=QUALITY_INCOMPLETE, quality_reasons=tuple(reasons))
+        return replace(freshness, data_quality=data_quality, quality=QUALITY_INCOMPLETE, quality_reasons=tuple(reasons))
+    if not data_quality.indicator_readiness:
+        reasons.append(
+            "INCOMPLETO: indicadores no calculables "
+            + ", ".join(data_quality.indicators_missing)
+        )
+        return replace(freshness, data_quality=data_quality, quality=QUALITY_INCOMPLETE, quality_reasons=tuple(reasons))
     if freshness.absent_reference_sessions:
         reasons.append(
             "DEGRADADO: faltan sesiones frente al calendario de la plaza fuera de la ventana de veto "
@@ -194,8 +258,8 @@ def classify_data_quality(freshness: DataFreshness) -> DataFreshness:
     if not freshness.calendar or freshness.reference_sessions_checked == 0:
         reasons.append("DEGRADADO: sin calendario de referencia")
     if reasons:
-        return replace(freshness, quality=QUALITY_DEGRADED, quality_reasons=tuple(reasons))
-    return replace(freshness, quality=QUALITY_OK, quality_reasons=())
+        return replace(freshness, data_quality=data_quality, quality=QUALITY_DEGRADED, quality_reasons=tuple(reasons))
+    return replace(freshness, data_quality=data_quality, quality=QUALITY_OK, quality_reasons=())
 
 
 def agrupar_frescura_por_fecha(rows: List[FreshnessRow]) -> List[FreshnessBucket]:

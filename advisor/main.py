@@ -100,6 +100,7 @@ def opportunity_to_row(opportunity: Opportunity, fx: FxConverter, created_at: st
     money = MoneyFormatter(fx, opportunity.asset.currency)
     levels = opportunity.levels
     asset = opportunity.asset
+    quality = opportunity.data_quality
 
     return {
         "created_at": created_at,
@@ -125,6 +126,14 @@ def opportunity_to_row(opportunity: Opportunity, fx: FxConverter, created_at: st
         "reward_pct": levels.reward_pct,
         "rr_ratio": levels.rr_ratio,
         "reasons": json.dumps(opportunity.decision_reasons, ensure_ascii=False),
+        "discard_code": opportunity.discard_code,
+        "execution_code": opportunity.execution_code,
+        "quality_freshness": quality.freshness.value if quality is not None else None,
+        "quality_recent": quality.recent_completeness.value if quality is not None else None,
+        "quality_historical": quality.historical_completeness.value if quality is not None else None,
+        "execution_ready": quality.execution_readiness if quality is not None else None,
+        "quality_period": quality.measurement_period if quality is not None else None,
+        "quality_interval": quality.measurement_interval if quality is not None else None,
     }
 
 
@@ -145,6 +154,7 @@ def freshness_row_to_measurement(row: FreshnessRow, measured_at: str) -> Dict[st
     """Convierte una fila de frescura a la forma persistida."""
 
     freshness = row.freshness
+    quality = freshness.data_quality if freshness is not None else None
     return {
         "measured_at": measured_at,
         "symbol": row.symbol,
@@ -165,6 +175,12 @@ def freshness_row_to_measurement(row: FreshnessRow, measured_at: str) -> Dict[st
         "reference_sessions_checked": freshness.reference_sessions_checked if freshness is not None else 0,
         "veto_window_sessions": freshness.veto_window_sessions if freshness is not None else 0,
         "quality": freshness.quality if freshness is not None else "SIN_DATO",
+        "quality_freshness": quality.freshness.value if quality is not None else None,
+        "quality_recent": quality.recent_completeness.value if quality is not None else None,
+        "quality_historical": quality.historical_completeness.value if quality is not None else None,
+        "execution_ready": quality.execution_readiness if quality is not None else None,
+        "quality_period": quality.measurement_period if quality is not None else None,
+        "quality_interval": quality.measurement_interval if quality is not None else None,
         "error": row.error,
     }
 
@@ -357,6 +373,12 @@ def medir_frescura_datos(
                 strength_benchmark=benchmark_symbol,
                 asset_timezone=asset.timezone,
                 settlement_minutes=config.data_quality.settlement_minutes,
+                measurement_period=period,
+                measurement_interval=interval,
+                critical_latest_sessions=config.data_quality.critical_latest_sessions,
+                high_after_sessions=config.data_quality.high_after_sessions,
+                medium_after_sessions=config.data_quality.medium_after_sessions,
+                warning_after_sessions=config.data_quality.warning_after_sessions,
             )
         except Exception as exc:
             rows.append(FreshnessRow(asset.symbol, data_symbol, market, None, str(exc)))

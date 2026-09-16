@@ -13,9 +13,11 @@ import pytest
 from advisor.analysis.analyzer import analyze_asset, run_analysis
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.market_context import build_market_context, fetch_market_context
+from advisor.analysis.opportunity import INSUFFICIENT_HISTORY
 from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
 from advisor.config import AdvisorConfig, MarketContextConfig
 from advisor.data.calendars import expected_sessions
+from advisor.data.quality import FreshnessState
 from advisor.report.tracking import (
     VERDICT_DEBILITA,
     VERDICT_INVALIDA,
@@ -219,6 +221,7 @@ class TestRunAnalysis:
 
         assert [o.asset.symbol for o in result.opportunities] == ["SAP.DE"]
         assert result.skipped[0][0] == "AAPL"
+        assert result.skipped[0].code == INSUFFICIENT_HISTORY
 
     def test_los_indices_de_contexto_no_generan_oportunidades(self, config, universe, histories) -> None:
         provider = FakeProvider(histories, closes={"^VIX": 14.0})
@@ -380,3 +383,52 @@ class TestReviewPositions:
         assert len(reviews) == 1
         assert reviews[0].symbol == "ZZZ.DE"
         assert reviews[0].score is None  # no se puede repuntuar, pero no desaparece
+
+
+class TestBarraParcialYCalidad:
+    """La calidad debe usar el cierre real de la plaza, no la fecha de la barra."""
+
+    def _asset_jpx(self) -> Asset:
+        return Asset(
+            symbol="7203.T",
+            name="Toyota",
+            asset_class="stock",
+            region="ASIA",
+            market="JPX",
+            currency="JPY",
+            timezone="Asia/Tokyo",
+            trade_republic="unknown",
+        )
+
+    def test_sesion_asiatica_ya_cerrada_no_es_barra_parcial(self, config, benign_context) -> None:
+        """Tokio cierra a las 06:00 UTC: a las 11:00 su barra de hoy está cerrada.
+
+        Antes, `DataQuality` se construía dentro de la frescura con el valor sin
+        corregir y el analizador lo arreglaba después, así que los doce activos
+        asiáticos del universo quedaban PARTIAL_BAR y vetados cada día por una
+        sesión que llevaba horas cerrada.
+        """
+
+        asset = self._asset_jpx()
+        sesiones = expected_sessions("JPX", date(2025, 1, 2), date(2026, 9, 16))
+        fechas = pd.DatetimeIndex([pd.Timestamp(v, tz="Asia/Tokyo") for v in sesiones])
+        history = make_ohlcv(n=len(fechas), start=3000.0).set_axis(fechas)
+        provider = FakeProvider({"7203.T": history})
+
+        opportunity = analyze_asset(
+            asset,
+            config,
+            provider,
+            benign_context,
+            "swing",
+            now=datetime(2026, 9, 16, 11, 0, tzinfo=timezone.utc),
+        )
+
+        freshness = opportunity.data_freshness
+        assert freshness is not None
+        assert freshness.last_bar_date == date(2026, 9, 16)
+        assert freshness.session_close_status.startswith("última barra cerrada")
+        assert freshness.may_be_partial_current_session is False
+        assert opportunity.data_quality is not None
+        assert opportunity.data_quality.freshness is FreshnessState.FRESH
+        assert opportunity.data_quality.execution_readiness is True

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
 from advisor.config import AdvisorConfig
+from advisor.data.calendars import expected_sessions
 from advisor.data.freshness import (
     MERCADO_DESCONOCIDO,
     QUALITY_DEGRADED,
@@ -174,7 +175,7 @@ class TestMedirFrescuraDatos:
         assert "| SAP.DE | SAP.DE | XETRA | 2026-08-31 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-08-28 |" in salida
 
     def test_calidad_incompleto_degradado_ok(self) -> None:
-        reference = datetime(2026, 8, 31, 18, 0, tzinfo=timezone.utc)
+        reference = datetime(2026, 9, 1, 7, 0, tzinfo=timezone.utc)
         activo_incompleto = make_ohlcv(n=4, start_date="2026-08-26").drop(pd.Timestamp("2026-08-28", tz="UTC"))
         activo_incompleto.loc[pd.Timestamp("2026-08-31", tz="UTC")] = activo_incompleto.iloc[-1]
 
@@ -232,9 +233,11 @@ class TestMedirFrescuraDatos:
         hace meses, y ese veto no habría caducado nunca.
         """
 
-        reference = datetime(2026, 8, 31, 18, 0, tzinfo=timezone.utc)
-        benchmark = make_ohlcv(n=30, start_date="2026-07-20")
-        hueco = pd.Timestamp(benchmark.index[2])
+        reference = datetime(2026, 9, 1, 7, 0, tzinfo=timezone.utc)
+        sessions = expected_sessions("XETRA", date(2026, 1, 2), date(2026, 8, 31))
+        benchmark = make_ohlcv(n=len(sessions), start_date="2026-01-02")
+        benchmark.index = pd.DatetimeIndex([pd.Timestamp(value, tz="UTC") for value in sessions])
+        hueco = pd.Timestamp("2026-02-10", tz="UTC")
         activo = benchmark.drop(hueco)
 
         viejo = calcular_frescura_serie(
@@ -257,7 +260,11 @@ class TestMedirFrescuraDatos:
         assert viejo.absent_reference_sessions == (hueco.date(),)
         assert viejo.absent_recent_sessions == ()
         assert viejo.quality == QUALITY_DEGRADED
-        assert reciente.quality == QUALITY_INCOMPLETE
+        assert viejo.data_quality is not None
+        assert viejo.data_quality.execution_readiness is True
+        assert reciente.quality == QUALITY_DEGRADED
+        assert reciente.data_quality is not None
+        assert reciente.data_quality.execution_readiness is True
 
 
 class TestPersistenciaEnLaPasadaReal:

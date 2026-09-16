@@ -1,6 +1,6 @@
 # T-005 — Calidad del dato por dimensiones y códigos de descarte (PR 3, fases 7 y 8)
 
-Estado: PENDIENTE
+Estado: EN_REVISION
 Agente: Opus (diseña el contrato, 1 sesión) → Codex (implementa) → Opus (revisa)
 Línea / fase: L0 PR 3, fases 7 y 8
 Gate al que contribuye: GATE L0 (requisito 3)
@@ -51,11 +51,17 @@ INV-05, INV-12, INV-16, INV-17.
    **sesiones del calendario de la plaza**: última → `CRITICAL`; ≤ 5 → `HIGH`;
    ≤ 20 → `MEDIUM`; > 20 → `WARNING`. Los cortes van en `DataQualityConfig`
    con estos valores por defecto.
-3. `execution_readiness = freshness ∈ {FRESH} ∧ recent_completeness ≤ MEDIUM ∧
-   indicator_readiness` — **regla explícita**: `MEDIUM` (hueco entre 6 y 20
-   sesiones) veta; se conserva el comportamiento de D-05 (ventana 20). Un
-   `WARNING` histórico nunca veta salvo que provoque `indicators_missing` o
-   historial insuficiente.
+3. `execution_readiness = freshness == FRESH ∧ recent_completeness ∈ {OK,
+   WARNING} ∧ indicator_readiness`. **`MEDIUM` veta**: un hueco entre 6 y 20
+   sesiones cae dentro de la ventana de veto de D-05, y `CRITICAL` y `HIGH`
+   vetan con más razón. Un `WARNING` histórico nunca veta salvo que provoque
+   `indicators_missing` o historial insuficiente.
+
+   > Corregido el 2026-09-16: la versión anterior escribía la fórmula como
+   > `recent_completeness ≤ MEDIUM`, que **permitía** operar con `MEDIUM` y
+   > contradecía su propia frase siguiente y a D-05. Codex detectó la
+   > ambigüedad al implementar y eligió la lectura correcta; la fórmula queda
+   > reescrita para que no dependa de elegir bien.
 4. Códigos de descarte del setup (`discard_code`): `LOW_SCORE`,
    `INVALID_TREND`, `OVEREXTENDED`, `VOLATILITY_TOO_HIGH`, `EVENT_RISK`,
    `HOSTILE_CONTEXT`, `BELOW_RISK_FREE`, `NO_LEVELS`, `INSUFFICIENT_HISTORY`,
@@ -128,4 +134,55 @@ Rama `refactor/data-quality-codes`. Mensajes:
 `docs/roadmap.md`: PR 3 → ACEPTADA. `README.md`: vocabulario de calidad y códigos. `docs/plan-ejecucion.md`: fases 7 y 8 con fecha.
 
 ## Handoff al siguiente agente
-(se rellena al terminar)
+Codex implementó la capa estructurada el 2026-09-16 en la rama
+`refactor/data-quality-codes`, sin commit ni push por límite de sesión.
+
+Hecho:
+- `DataQuality`/`Severity`/`FreshnessState`/`QualityReason` en
+  `advisor/data/quality.py`, con severidad por sesiones de plaza y
+  `execution_readiness` que veta `MEDIUM`, `HIGH`, `CRITICAL`, stale/partial
+  e indicadores ausentes.
+- La causa de huecos vivos reutiliza el vocabulario de
+  `advisor/data/bar_diagnostics.py` (`proveedor no la entrega`) y declara en
+  código el hallazgo de T-004.
+- `DataFreshness` lleva `data_quality`, indicadores ausentes y ventana medida
+  (`measurement_period`, `measurement_interval`).
+- `Opportunity` añade `discard_code`, `execution_code`, `warnings` y
+  `data_quality`; la extensión de precio pasa a `warnings` y no descarta.
+- `DATA_NOT_EXECUTABLE` nace de `data_quality.execution_readiness`.
+- Informe: RADAR muestra código; DESCARTADOS agrupa por código.
+- Persistencia v4: códigos/calidad/ejecutabilidad y ventana persistida en
+  recomendaciones y mediciones de frescura.
+
+Verificado localmente:
+- Antes de tocar: `python -m pytest -q` → 469 passed; `ruff check .` limpio;
+  `mypy advisor` limpio.
+- Después: `python -m pytest -q` → 478 passed, 3 warnings conocidas;
+  `ruff check .` limpio; `mypy advisor` limpio.
+- No se ejecutó verificación real contra proveedor por el límite explícito de
+  esta sesión: sin DNS/no red.
+
+Invariantes revisadas:
+- INV-03: no se modificó `compute_score`; calidad/ejecución se calculan fuera
+  y solo afectan `execution_readiness`, `discard_code`, `execution_code` y
+  salida.
+- INV-04: se conserva `trade_republic="unknown"` como `BROKER_UNVERIFIED`.
+- INV-06: la causa de hueco reutiliza `bar_diagnostics`; no se creó
+  taxonomía paralela.
+- INV-17: v4 usa `run_migration` con DDL y `PRAGMA user_version` en la misma
+  transacción; `AdvisorDB` mantiene backup previo verificado.
+
+Pendiente para Claude Code/Opus:
+- Ejecutar contra datos reales:
+  `python -m advisor.main analizar --horizonte swing --sin-ia --sin-guardar > evidence/2026-09-16-T-005-calidad/despues.txt`
+- Medir tabla por `discard_code`/`execution_code`, revisar NOVO-B.CO a mano y
+  completar impacto real.
+- Revisión independiente obligatoria por cambios en `classify()` y migración.
+
+Ambigüedad registrada:
+- El contrato dice `recent_completeness ≤ MEDIUM`, pero también dice
+  explícitamente que `MEDIUM` veta y que se conserva D-05. La implementación
+  eligió la segunda lectura: solo `OK` y `WARNING` pasan completitud reciente.
+- `discard_code` nombra códigos de setup, pero la ficha exige código para toda
+  espera; por eso `LOW_SCORE` se guarda también cuando el setup queda en
+  `VIGILAR/ESPERAR` por estar bajo `min_score_operar`.

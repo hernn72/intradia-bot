@@ -535,7 +535,8 @@ def format_report(
             lines.append(
                 f"  - {opportunity.asset.symbol} ({opportunity.asset.name}) — "
                 f"score {opportunity.score.value:.0f}, ratio {_num(opportunity.levels.rr_ratio)}:1"
-                f"{_compact_freshness_marker(opportunity, result.generated_at)} — {reason}"
+                f"{_compact_freshness_marker(opportunity, result.generated_at)}"
+                f"{_code_marker(opportunity.discard_code or opportunity.execution_code)} — {reason}"
             )
     else:
         lines.append("Sin activos en vigilancia.")
@@ -544,20 +545,17 @@ def format_report(
     lines.append("## 🔴 DESCARTADOS")
     lines.append("")
     if descartar:
-        lines.append(
-            f"{len(descartar)} activos descartados: "
-            + ", ".join(
-                f"{opportunity.asset.symbol}{_compact_freshness_marker(opportunity, result.generated_at)}"
-                for opportunity in descartar
-            )
-        )
+        lines.append(f"{len(descartar)} activos descartados por código:")
+        for code, grouped in _group_discarded_by_code(descartar).items():
+            symbols = ", ".join(opportunity.asset.symbol for opportunity in grouped)
+            lines.append(f"  - {code}: {len(grouped)} activos — {symbols}")
     else:
         lines.append("Ninguno.")
     if result.skipped:
         lines.append("")
         lines.append("No analizados por falta de datos:")
-        for symbol, reason in result.skipped:
-            lines.append(f"  - {symbol}: {reason}")
+        for skipped in result.skipped:
+            lines.append(f"  - {skipped.symbol} [{skipped.code}]: {skipped.reason}")
     lines.append("")
 
     lines.append("## 🎯 CONCLUSIÓN")
@@ -761,6 +759,20 @@ def _compact_freshness_marker(opportunity: Opportunity, reference: datetime) -> 
     if not markers:
         return ""
     return " " + "; ".join(markers)
+
+
+def _code_marker(code: str | None) -> str:
+    if not code:
+        return ""
+    return f" [{code}]"
+
+
+def _group_discarded_by_code(opportunities: List[Opportunity]) -> dict[str, List[Opportunity]]:
+    grouped: dict[str, List[Opportunity]] = {}
+    for opportunity in opportunities:
+        code = opportunity.discard_code or opportunity.execution_code or "SIN_CODIGO"
+        grouped.setdefault(code, []).append(opportunity)
+    return dict(sorted(grouped.items()))
 
 
 def _dates_label(values: tuple[date, ...]) -> str:

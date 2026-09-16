@@ -11,17 +11,23 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import pandas as pd
 
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.levels import compute_levels
 from advisor.analysis.market_context import MarketContext, fetch_market_context
-from advisor.analysis.opportunity import Opportunity, build_opportunity
+from advisor.analysis.opportunity import (
+    INSUFFICIENT_HISTORY,
+    INVALID_INDICATORS,
+    NO_LEVELS,
+    Opportunity,
+    build_opportunity,
+)
 from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
 from advisor.analysis.scoring import compute_score
-from advisor.analysis.snapshot import build_snapshot
+from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import AdvisorConfig
 from advisor.data.freshness import FreshnessRow, calcular_frescura_serie, mercado_para_simbolo
 from advisor.data.market_data import MarketDataProvider
@@ -29,6 +35,20 @@ from advisor.data.sessions import market_for_symbol, market_session, trim_unclos
 from advisor.universe.models import Asset, Universe
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SkippedAnalysis:
+    symbol: str
+    reason: str
+    code: str
+
+    def __iter__(self):
+        yield self.symbol
+        yield self.reason
+
+    def __getitem__(self, index: int) -> str:
+        return (self.symbol, self.reason)[index]
 
 
 @dataclass(frozen=True)
@@ -40,7 +60,7 @@ class AnalysisResult:
     interval: str
     context: MarketContext
     opportunities: List[Opportunity] = field(default_factory=list)
-    skipped: List[Tuple[str, str]] = field(default_factory=list)
+    skipped: List[SkippedAnalysis] = field(default_factory=list)
     overview: List[IndexQuote] = field(default_factory=list)
     freshness_rows: List[FreshnessRow] = field(default_factory=list)
 
@@ -119,22 +139,25 @@ def analyze_asset(
             f"se requieren {window.min_bars}; {trim.status}"
         )
 
+    barra_actual_cerrada = trim.removed_last_bar or trim.status.startswith("última barra cerrada")
     data_freshness = calcular_frescura_serie(
         history,
         reference,
         market=market,
+        barra_actual_cerrada=barra_actual_cerrada,
         strength_benchmark=benchmark_symbol,
         recent_reference_sessions=_indicator_reference_sessions(config),
         veto_window_sessions=config.data_quality.veto_window_sessions,
         asset_timezone=asset.timezone,
         settlement_minutes=config.data_quality.settlement_minutes,
+        measurement_period=window.period,
+        measurement_interval=window.interval,
+        critical_latest_sessions=config.data_quality.critical_latest_sessions,
+        high_after_sessions=config.data_quality.high_after_sessions,
+        medium_after_sessions=config.data_quality.medium_after_sessions,
+        warning_after_sessions=config.data_quality.warning_after_sessions,
     )
-    partial = data_freshness.may_be_partial_current_session
-    # Cripto no tiene cierre bursátil: su barra parcial la decide el cierre
-    # lógico UTC 00:00 + settlement_minutes, que ya calculó la frescura.
-    if trim.removed_last_bar or trim.status.startswith("última barra cerrada"):
-        partial = False
-    data_freshness = replace(data_freshness, session_close_status=trim.status, may_be_partial_current_session=partial)
+    data_freshness = replace(data_freshness, session_close_status=trim.status)
 
     snapshot = build_snapshot(
         symbol=asset.symbol,
@@ -148,6 +171,25 @@ def analyze_asset(
             market_session(market_for_symbol(benchmark_symbol)).timezone if benchmark_symbol else None
         ),
     )
+    indicators_missing = _missing_indicators(snapshot)
+    if indicators_missing:
+        data_freshness = calcular_frescura_serie(
+            history,
+            reference,
+            market=market,
+            strength_benchmark=benchmark_symbol,
+            recent_reference_sessions=_indicator_reference_sessions(config),
+            veto_window_sessions=config.data_quality.veto_window_sessions,
+            asset_timezone=asset.timezone,
+            settlement_minutes=config.data_quality.settlement_minutes,
+            indicators_missing=indicators_missing,
+            measurement_period=window.period,
+            measurement_interval=window.interval,
+            critical_latest_sessions=config.data_quality.critical_latest_sessions,
+            high_after_sessions=config.data_quality.high_after_sessions,
+            medium_after_sessions=config.data_quality.medium_after_sessions,
+            warning_after_sessions=config.data_quality.warning_after_sessions,
+        )
 
     levels = compute_levels(snapshot, config.levels, config.risk.min_rr_ratio)
     if levels is None:
@@ -205,7 +247,7 @@ def run_analysis(
     benchmark_cache: Dict[str, Optional[pd.Series]] = {}
 
     opportunities: List[Opportunity] = []
-    skipped: List[Tuple[str, str]] = []
+    skipped: List[SkippedAnalysis] = []
     freshness_rows: List[FreshnessRow] = []
 
     for asset in assets:
@@ -236,7 +278,7 @@ def run_analysis(
             )
         except Exception as exc:
             logger.warning("%s descartado del análisis: %s", asset.symbol, exc)
-            skipped.append((asset.symbol, str(exc)))
+            skipped.append(SkippedAnalysis(asset.symbol, str(exc), _skip_code(exc)))
             data_symbol = asset.data_symbol(now)
             freshness_rows.append(
                 FreshnessRow(
@@ -273,3 +315,20 @@ def _indicator_reference_sessions(config: AdvisorConfig) -> int:
         config.levels.lookback_bars,
         120,
     )
+
+
+def _missing_indicators(snapshot: TechnicalSnapshot) -> tuple[str, ...]:
+    missing: list[str] = []
+    for name in ("sma_long", "rsi", "atr", "macd", "macd_signal"):
+        if getattr(snapshot, name) is None:
+            missing.append(name)
+    return tuple(missing)
+
+
+def _skip_code(exc: Exception) -> str:
+    reason = str(exc).lower()
+    if "histórico insuficiente" in reason or "histórico está vacío" in reason or "sin datos" in reason:
+        return INSUFFICIENT_HISTORY
+    if "no se pueden situar los niveles" in reason:
+        return NO_LEVELS
+    return INVALID_INDICATORS

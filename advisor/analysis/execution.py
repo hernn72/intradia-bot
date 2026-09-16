@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 from advisor.analysis.levels import Levels, reward_risk, rr_at_least
 from advisor.analysis.sizing import PositionSizing, calculate_position_sizing
 from advisor.config import DataQualityConfig, PortfolioConfig, RiskConfig
-from advisor.data.freshness import QUALITY_INCOMPLETE, DataFreshness
+from advisor.data.freshness import DataFreshness
 from advisor.universe.models import Asset
 
 EXECUTABLE = "EXECUTABLE"
@@ -74,7 +74,9 @@ def evaluate_trade_at_entry(
         reason, executable = RR_TOO_LOW, False
     elif sizing.position_pct <= 0:
         reason, executable = POSITION_TOO_SMALL, False
-    elif data_freshness is not None and data_freshness.quality == QUALITY_INCOMPLETE and (
+    elif data_freshness is not None and data_freshness.data_quality is not None and (
+        not data_freshness.data_quality.execution_readiness
+    ) and (
         data_quality is None or data_quality.veto_incomplete_open
     ):
         reason, executable = DATA_NOT_EXECUTABLE, False
