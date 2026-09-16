@@ -27,7 +27,7 @@ leído en documentos:
 
 | Qué | Valor |
 |---|---|
-| Rama / HEAD | `fix/exchange-calendars`, cuatro ramas en cadena sin mergear; `main` sigue en `6d32cf2` |
+| Rama / HEAD | **`main` en `74c4ce4`**: la cadena de cuatro ramas se fusionó en fast-forward el 2026-09-16 (10 commits) y está pusheada. `fix/exchange-calendars` apunta al mismo commit |
 | Árbol | limpio salvo `graphify-out/` (sin seguimiento) |
 | Tests / lint / tipos | 435 pasan (90 s) · `ruff check .` limpio · `mypy advisor` limpio (58 ficheros) · Python 3.12.13. Verificado el 2026-09-16 |
 | PR 1 (fases 1–3) | hecho en rama: `advisor/analysis/execution.py`, `entry_max_for_rr`, `reward_risk`, `rr_at_least`, `position_limit_reason`, `classify_setup` separado de `classify`, regresión `EXH1.DE` |
@@ -163,8 +163,8 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 
 | ID | Fase | Estado | Depende de | Ficha |
 |---|---|---|---|---|
-| PR 1 | Fases 1–3: RR desde precio efectivo, `entry_max` por RR, setup vs ejecución, sizing desde entrada efectiva | HECHO en rama (`e929da4`); merge pendiente (OA-01) | — | — |
-| PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | **ACEPTADA** (2026-09-16: revisión independiente CORREGIR, un BLOCKER y tres defectos corregidos y verificados contra datos reales; falta desplegar en la Pi) | T-002 | T-003 |
+| PR 1 | Fases 1–3: RR desde precio efectivo, `entry_max` por RR, setup vs ejecución, sizing desde entrada efectiva | HECHO y en `main` (`e929da4`, fusionado el 2026-09-16) | — | — |
+| PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | **ACEPTADA y en `main`** (2026-09-16: revisión independiente CORREGIR, un BLOCKER y tres defectos corregidos y verificados contra datos reales; falta desplegar en la Pi) | T-002 | T-003 |
 | PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | PENDIENTE (siguiente; población exacta y el hallazgo XKRX abierto están en la ficha) | T-003 | T-004 |
 | PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | PENDIENTE | T-002, T-003, T-004 | T-005 |
 | PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | PENDIENTE | PR 3 | T-007 (por escribir) |
@@ -176,7 +176,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 
 | ID | Qué | Estado | Depende de | Ficha |
 |---|---|---|---|---|
-| C-00 | CI: pytest, ruff, mypy en push/PR; branch protection (OA-02) | HECHO (`e5ed089`, rama `ci/github-actions`); OA-02 pendiente del propietario | — | T-001 |
+| C-00 | CI: pytest, ruff, mypy en push/PR; branch protection (OA-02) | HECHO y en `main` (`e5ed089`); OA-02 pendiente del propietario | — | T-001 |
 | C-01 | Migraciones `user_version`, backup pre-migración, `verificar-backup` | HECHO (T-002, revisión independiente aplicada; ver evidencia) | C-00 | T-002 |
 | C-02 | Manifiesto de ejecución (`run_id`, SHA, config hash, vintages, versiones, reloj) | HECHO (T-002; reloj medido vía `timesync-status`/`chronyc`/SNTP UDP; alerta Telegram pendiente en C-04) | C-01 | T-002 |
 | C-03 | Release por tag, `verificar-release` en la Pi, despliegue y rollback documentados y probados | PENDIENTE | C-00 | T-011 |

@@ -229,9 +229,11 @@ demás**.
 
 ## OWNER_ACTION_REQUIRED
 
-### OA-01 — Mergear `fix/execution-data-quality` en `main`
-PR 1 está en rama (`e929da4`, docs en `e53e385`). Fast-forward posible. Sin
-esto, las siguientes ramas parten de un `main` sin la capa de ejecución.
+### OA-01 — Mergear la cadena en `main` · HECHA el 2026-09-16
+Las cuatro ramas encadenadas (PR 1, T-001, T-002, T-003 con sus correcciones)
+se fusionaron en fast-forward: `main` pasa de `6d32cf2` a `74c4ce4`, 10
+commits, pusheado. Verificado sobre `main` antes de subir: 435 tests, `ruff` y
+`mypy` limpios.
 
 ### OA-02 — Activar branch protection en GitHub para `main`
 Required checks: el workflow de C-00. Prohibir push directo y force-push.

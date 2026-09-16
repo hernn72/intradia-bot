@@ -12,13 +12,10 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 # START HERE — actualizado 2026-09-16 (fin de la tercera sesión)
 
 Estado actual:
-- `main` sigue en `6d32cf2`. **Nada mergeado todavía**: cuatro ramas en cadena,
-  cada una desde la anterior, todas pusheadas y con CI verde:
-    fix/execution-data-quality   e53e385  PR 1 (fases 1-3) + docs previas
-    ci/github-actions            e5ed089  T-001 CI  · ACEPTADA
-    feat/run-manifest-migrations 1c76add  T-002 migraciones + manifiesto · ACEPTADA (revisada y desplegada)
-    fix/exchange-calendars       HEAD     T-003 calendarios de plaza · **ACEPTADA** el 2026-09-16
-  `feat/universe-vintage` existe en `1c76add` y está vacía (T-006 no llegó a empezar).
+- **`main` en `74c4ce4`.** La cadena de cuatro ramas se fusionó en fast-forward
+  el 2026-09-16 (PR 1, T-001, T-002 y T-003 con sus correcciones), 10 commits,
+  pusheada y con CI verde. `fix/exchange-calendars` apunta al mismo commit.
+  `feat/universe-vintage` sigue en `1c76add` y está vacía (T-006 no empezó).
 - La Pi corre `1c76add` (T-002), árbol limpio salvo `logs/`, los dos timers
   activos. Su venv es Python 3.13.5 aarch64 y ya tiene
   `exchange_calendars==4.13.2`, con las 14 plazas cargando (SSH, 2026-09-16).
@@ -31,9 +28,9 @@ de regresión comprobados contra el código sin corregir, y verificados contra
 datos reales. Detalle en `evidence/2026-09-16-T-003-correcciones/README.md`.
 
 Primera acción del propietario:
-- OA-01: mergear la cadena en `main` (basta con `fix/exchange-calendars`, es lineal).
-  OA-02: branch protection con `checks (3.12)` y `checks (3.13)`.
-- OA-04: desplegar en la Pi y verificar allí (la dependencia ya está instalada).
+- OA-04: desplegar `main` en la Pi y verificar allí (la dependencia ya está
+  instalada). OA-01 hecha. OA-02 pendiente: branch protection con
+  `checks (3.12)` y `checks (3.13)`.
 
 Primera tarea ejecutable:
 - **T-004** — causa de los huecos. Ficha: `docs/tareas/T-004-investigar-hueco-2026-09-07.md`,
