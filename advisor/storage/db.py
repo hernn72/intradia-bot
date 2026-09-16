@@ -23,7 +23,7 @@ import json
 import logging
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
@@ -438,6 +438,30 @@ class AdvisorDB:
                 )
             return cursor.fetchall()
 
+    def get_latest_freshness_absences(self) -> List[tuple[str, date]]:
+        """Pares símbolo-fecha ausente de la última pasada de frescura guardada."""
+
+        with self._connect() as connection:
+            latest = connection.execute(
+                "SELECT measured_at FROM data_freshness_measurement ORDER BY measured_at DESC LIMIT 1"
+            ).fetchone()
+            if latest is None:
+                return []
+            cursor = connection.execute(
+                """
+                SELECT symbol, absent_reference_sessions
+                FROM data_freshness_measurement
+                WHERE measured_at = ?
+                ORDER BY symbol
+                """,
+                (latest["measured_at"],),
+            )
+            pairs: list[tuple[str, date]] = []
+            for row in cursor.fetchall():
+                for value in _decode_date_list(row["absent_reference_sessions"]):
+                    pairs.append((row["symbol"], value))
+            return pairs
+
     def get_analysis_run(self, run_id: str) -> Optional[sqlite3.Row]:
         with self._connect() as connection:
             cursor = connection.execute("SELECT * FROM analysis_run WHERE run_id = ?", (run_id,))
@@ -643,6 +667,30 @@ def freshness_measurement_to_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "absent_reference_sessions": json.dumps(list(absent), ensure_ascii=False),
         "absent_recent_sessions": json.dumps(list(absent_recent), ensure_ascii=False),
     }
+
+
+def _decode_date_list(raw: str) -> tuple[date, ...]:
+    """Fechas ausentes persistidas. Un valor corrupto se declara, no se ignora.
+
+    Esta lista define la población que hay que clasificar; descartar en
+    silencio una fecha ilegible la haría más pequeña de lo que es.
+    """
+
+    if raw is None or raw == "":
+        return ()
+    try:
+        values = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"lista de sesiones ausentes ilegible en la base: {raw!r}") from exc
+    if not isinstance(values, list):
+        raise ValueError(f"lista de sesiones ausentes no es una lista: {values!r}")
+    dates: list[date] = []
+    for value in values:
+        try:
+            dates.append(date.fromisoformat(str(value)))
+        except ValueError as exc:
+            raise ValueError(f"fecha ausente ilegible en la base: {value!r}") from exc
+    return tuple(dates)
 
 
 def verify_backup(db_path: str | Path, backup_path: str | Path) -> bool:

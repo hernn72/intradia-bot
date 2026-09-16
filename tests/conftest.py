@@ -47,8 +47,14 @@ def make_ohlcv(
 class FakeProvider:
     """Sustituto de ``MarketDataProvider`` que sirve datos de un diccionario."""
 
-    def __init__(self, histories: Optional[dict] = None, closes: Optional[dict] = None) -> None:
+    def __init__(
+        self,
+        histories: Optional[dict] = None,
+        closes: Optional[dict] = None,
+        raw_histories: Optional[dict] = None,
+    ) -> None:
         self.histories = histories or {}
+        self.raw_histories = raw_histories or self.histories
         self.closes = closes or {}
         self.calls: List[str] = []
 
@@ -57,6 +63,12 @@ class FakeProvider:
         if symbol not in self.histories:
             raise ValueError(f"sin datos para '{symbol}'")
         return self.histories[symbol]
+
+    def get_raw_history(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+        self.calls.append(symbol)
+        if symbol not in self.raw_histories:
+            raise ValueError(f"sin datos crudos para '{symbol}'")
+        return self.raw_histories[symbol]
 
     def get_last_close(self, symbol: str, period: str = "5d", interval: str = "1d"):
         self.calls.append(symbol)

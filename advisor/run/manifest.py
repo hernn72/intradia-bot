@@ -22,6 +22,7 @@ import yfinance as yf
 
 from advisor.analysis.scoring import SCORE_MODEL_VERSION
 from advisor.config import AdvisorConfig
+from advisor.data.calendars import EXCHANGE_OVERRIDES_PATH
 from advisor.universe.models import Universe
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,11 @@ def canonical_hash(value: Any) -> str:
 
 def config_hash(config: AdvisorConfig) -> str:
     return canonical_hash(config.model_dump(mode="json"))
+
+
+def file_content_hash(path: str | Path) -> str:
+    data = Path(path).read_bytes()
+    return hashlib.sha256(data).hexdigest()
 
 
 def universe_vintage_id(universe: Universe) -> str:
@@ -118,6 +124,10 @@ def build_run_manifest(
             "pandas": pd.__version__,
             # Desde T-003 los festivos de esta librería deciden calidad y veto.
             "exchange_calendars": xcals.__version__,
+            # Una corrección de calendario cambia la calidad de la pasada: se
+            # traza siempre. Si el fichero falta, la pasada debe morir, no
+            # anotar "missing" y seguir.
+            "exchange_overrides_hash": file_content_hash(EXCHANGE_OVERRIDES_PATH),
         },
         clock_drift_seconds=drift,
         clock_status=status,

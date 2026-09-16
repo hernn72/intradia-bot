@@ -145,3 +145,73 @@ la cifra de recurrencia. `docs/plan-ejecucion.md`: fase 5 con la causa.
 
 ## Handoff al siguiente agente
 (se rellena al terminar)
+
+---
+
+## Diagnóstico — 2026-09-16 (Claude Code, contra el proveedor en vivo)
+
+Las tres respuestas que la ficha exigía, con evidencia. **Ninguna de las 47
+ausencias es culpa del pipeline**, y las causas son tres, no una.
+
+### Caso 3 (el pipeline pierde la barra) queda descartado
+
+`SAP.DE` con `period=1y`: 252 barras en la respuesta cruda de yfinance y 252
+en `MarketDataProvider.get_history`. Cero barras perdidas, cero añadidas, y
+`2026-09-07` falta **ya en la respuesta cruda**. El pipeline no pierde nada.
+
+### Caso 1 (mercado cerrado) — las cuatro ausencias coreanas
+
+KRX cerró el **2026-06-03** (elecciones locales) y el **2026-07-17** (Día de la
+Constitución). Anunciado por el propio Korea Exchange en mayo de 2026. El
+proveedor es coherente: no hay barra ni para `005930.KS`, ni para `000660.KS`,
+ni para el índice `^KS11` en ninguna de las dos fechas.
+
+`exchange_calendars==4.13.2` —que es la última versión publicada, no hay
+actualización que lo arregle— marca esos dos días como sesión. Codifica todos
+los días electorales coreanos anteriores (2020-04-15, 2022-03-09, 2022-06-01,
+2024-04-10, 2025-06-03) pero no los de 2026.
+
+**Consecuencia:** dos activos están `DEGRADADO` por un hueco que no existe,
+que es exactamente lo que el criterio de aceptación de T-003 prohíbe («cero
+activos con ausencias que coincidan con un festivo de su propia plaza»).
+
+### Caso 2 (el mercado abrió y el proveedor no entrega la barra) — las otras 43
+
+Los índices son el testigo: cotizan cuando la plaza abre.
+
+| Fecha | Activos | Quién sí tiene la barra | Quién no |
+|---|---|---|---|
+| 2026-09-07 | 28, en XETR/XPAR/XMIL/XMAD/XAMS/XCSE | `^GDAXI`, `^STOXX50E`, y **los ETF de Xetra** | todas las **acciones** europeas |
+| 2026-03-06 | 14, todos en XETR | `^GDAXI`, y las **acciones** de Xetra (`SAP.DE`, `SIE.DE`) | los **ETF** de Xetra |
+| 2026-03-23 | 1, `NOVO-B.CO` en XCSE | `^OMXC25` | `NOVO-B.CO` |
+
+El patrón se invierte entre las dos fechas grandes: el 09-07 faltan las
+acciones y están los ETF; el 03-06 faltan los ETF y están las acciones. Eso
+descarta un cierre de plaza y apunta a huecos del proveedor por familia de
+instrumento.
+
+### Hallazgo nuevo, no previsto en la ficha: el rango pedido cambia qué barras existen
+
+El mismo símbolo devuelve series distintas según `period`:
+
+| Símbolo | 1mo | 6mo | 1y | 2y | 5y |
+|---|---|---|---|---|---|
+| `SAP.DE`, `ASML.AS`, `TTE.PA` — ¿está 2026-03-06? | no | no | **sí** | sí | sí |
+| `SXR8.DE`, `EUNL.DE`, `IQQT.DE`, `4GLD.DE` — ¿está 2026-03-06? | no | no | no | no | no |
+
+Producción pide `period: 1y` en el horizonte swing, así que ve el 2026-03-06 de
+las acciones; `frescura-datos` pide `1mo` por defecto. **Dos caminos del mismo
+sistema piden ventanas distintas al proveedor y por tanto pueden ver huecos
+distintos del mismo activo.** No produce hoy una contradicción visible —una
+ventana de un mes no alcanza a marzo— pero es una trampa a declarar, y es
+material para T-005.
+
+## Qué implementa T-004 a partir del diagnóstico
+
+1. **Corrección declarada de calendario por plaza** (no por ticker, no por
+   fecha suelta): fichero `exchange_overrides.yaml` con cierres adicionales y
+   aperturas forzadas por MIC, cada entrada con `fuente` y `verificado_el`.
+   `expected_sessions` lo aplica encima de `exchange_calendars`. Entradas
+   iniciales: `XKRX` cierra 2026-06-03 y 2026-07-17.
+2. **Subcomando `diagnosticar-barra`**, para responder lo mismo sobre
+   cualquier fecha futura sin volver a improvisar scripts.

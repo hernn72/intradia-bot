@@ -25,6 +25,12 @@ from advisor.analysis.analyzer import AnalysisResult, run_analysis
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.opportunity import RADAR_OPERAR, Opportunity
 from advisor.config import VALID_HORIZONTES, AdvisorConfig, load_config
+from advisor.data.bar_diagnostics import (
+    diagnose_all_saved_gaps,
+    diagnose_bar,
+    format_bar_diagnosis,
+    format_many_bar_diagnoses,
+)
 from advisor.data.freshness import (
     MERCADO_DESCONOCIDO,
     FreshnessBucket,
@@ -298,6 +304,28 @@ def cmd_frescura_historico(args: argparse.Namespace, config: AdvisorConfig, univ
     db = AdvisorDB(config.db_path)
     rows = db.get_recent_freshness_measurements(symbol=args.symbol, limit=args.limit)
     print(format_frescura_historico(rows))
+    return 0
+
+
+def cmd_diagnosticar_barra(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    provider = MarketDataProvider(config.request_min_interval_seconds)
+    if args.todos_los_huecos:
+        try:
+            db = AdvisorDB(config.db_path, readonly=True)
+        except FileNotFoundError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        diagnoses = diagnose_all_saved_gaps(db=db, universe=universe, provider=provider, config=config)
+        print(format_many_bar_diagnoses(diagnoses))
+        return 0
+
+    if not args.symbol or not args.fecha:
+        raise ValueError("diagnosticar-barra requiere --symbol y --fecha, o --todos-los-huecos")
+    asset = universe.get(args.symbol)
+    if asset is None:
+        raise ValueError(f"'{args.symbol}' no esta en el universo")
+    diagnosis = diagnose_bar(asset, _parse_date(args.fecha), provider=provider, config=config)
+    print(format_bar_diagnosis(diagnosis))
     return 0
 
 
@@ -811,6 +839,16 @@ def build_parser() -> argparse.ArgumentParser:
     frescura_hist.add_argument("--symbol", help="filtrar por símbolo")
     frescura_hist.add_argument("--limit", type=int, default=50, help="número máximo de filas")
     frescura_hist.set_defaults(func=cmd_frescura_historico)
+
+    diagnosticar = sub.add_parser("diagnosticar-barra", help="diagnostica una barra ausente sin persistir nada")
+    diagnosticar.add_argument("--symbol", help="símbolo del universo")
+    diagnosticar.add_argument("--fecha", help="fecha de sesión YYYY-MM-DD")
+    diagnosticar.add_argument(
+        "--todos-los-huecos",
+        action="store_true",
+        help="diagnostica los huecos de la última pasada guardada",
+    )
+    diagnosticar.set_defaults(func=cmd_diagnosticar_barra)
 
     verificar_backup_parser = sub.add_parser("verificar-backup", help="verifica integridad y conteos de un backup SQLite")
     verificar_backup_parser.add_argument("--ruta", required=True, help="ruta del fichero .bak a verificar")

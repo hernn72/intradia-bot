@@ -7,7 +7,8 @@ from datetime import date, datetime, timezone
 import pandas as pd
 import pytest
 
-from advisor.data.calendars import expected_sessions, missing_sessions
+import advisor.data.calendars as calendars
+from advisor.data.calendars import closed_sessions_between, expected_sessions, load_exchange_overrides, missing_sessions
 from advisor.data.freshness import calcular_frescura_serie, mercado_para_simbolo
 from advisor.universe.models import Asset
 
@@ -105,3 +106,170 @@ def test_sessions_approx_usa_calendario() -> None:
 
     assert nyse.sessions_approx == 0
     assert xetra.sessions_approx == 1
+
+
+def test_xkrx_aplica_cierres_adicionales_declarados() -> None:
+    sessions = set(expected_sessions("KSC", date(2026, 6, 1), date(2026, 7, 20)))
+
+    assert date(2026, 6, 3) not in sessions
+    assert date(2026, 7, 17) not in sessions
+    assert date(2026, 6, 4) in sessions
+
+
+def test_override_no_afecta_otras_plazas() -> None:
+    assert date(2026, 6, 3) in set(expected_sessions("XETRA", date(2026, 6, 1), date(2026, 6, 5)))
+
+
+def test_override_falta_fuente_falla_ruidosamente(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XKRX:
+  cierres_adicionales:
+    - fecha: 2026-06-03
+      motivo: elecciones
+      verificado_el: 2026-09-16
+  aperturas_forzadas: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"falta fuente en XKRX.cierres_adicionales\[1\]"):
+        load_exchange_overrides(path)
+
+
+def test_override_falta_verificado_el_falla_ruidosamente(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XKRX:
+  cierres_adicionales:
+    - fecha: 2026-06-03
+      motivo: elecciones
+      fuente: https://example.test
+  aperturas_forzadas: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"falta verificado_el en XKRX.cierres_adicionales\[1\]"):
+        load_exchange_overrides(path)
+
+
+def test_override_mic_desconocido_falla_ruidosamente(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+NOPE:
+  cierres_adicionales: []
+  aperturas_forzadas: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="MIC desconocido en overrides: NOPE"):
+        load_exchange_overrides(path)
+
+
+def test_override_fecha_en_dos_listas_falla_ruidosamente(tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XKRX:
+  cierres_adicionales:
+    - fecha: 2026-06-03
+      motivo: cierre
+      fuente: https://example.test/cierre
+      verificado_el: 2026-09-16
+  aperturas_forzadas:
+    - fecha: 2026-06-03
+      motivo: apertura
+      fuente: https://example.test/apertura
+      verificado_el: 2026-09-16
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="XKRX tiene fechas en ambas listas: 2026-06-03"):
+        load_exchange_overrides(path)
+
+
+def test_aperturas_forzadas_aniade_sesion(monkeypatch, tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XETR:
+  cierres_adicionales: []
+  aperturas_forzadas:
+    - fecha: 2026-04-04
+      motivo: prueba de apertura extraordinaria
+      fuente: https://example.test/apertura
+      verificado_el: 2026-09-16
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(calendars, "EXCHANGE_OVERRIDES_PATH", path)
+    calendars._load_exchange_overrides.cache_clear()
+
+    assert date(2026, 4, 4) in set(expected_sessions("XETRA", date(2026, 4, 3), date(2026, 4, 6)))
+
+
+def test_missing_sessions_y_closed_sessions_respetan_override() -> None:
+    actual = {date(2026, 6, 2), date(2026, 6, 4)}
+
+    assert missing_sessions(actual, "KSC", date(2026, 6, 2), date(2026, 6, 4)) == ()
+    assert closed_sessions_between(date(2026, 6, 2), date(2026, 6, 4), "KSC") == 0
+
+
+def test_fichero_de_correcciones_ausente_falla_ruidosamente(monkeypatch, tmp_path) -> None:
+    """Su ausencia no puede significar «sin correcciones»: devolvería los huecos falsos."""
+
+    monkeypatch.setattr(calendars, "EXCHANGE_OVERRIDES_PATH", tmp_path / "no-existe.yaml")
+    calendars._load_exchange_overrides.cache_clear()
+
+    with pytest.raises(FileNotFoundError, match="correcciones de calendario"):
+        expected_sessions("KSC", date(2026, 6, 1), date(2026, 6, 10))
+
+
+def test_apertura_forzada_de_un_dia_que_ya_es_sesion_falla_ruidosamente(monkeypatch, tmp_path) -> None:
+    """Una entrada que no corrige nada es un error de declaración, no un no-op."""
+
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XETR:
+  cierres_adicionales: []
+  aperturas_forzadas:
+    - fecha: 2026-06-04
+      motivo: jueves normal, el calendario ya lo da por sesión
+      fuente: https://example.test/error
+      verificado_el: 2026-09-16
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(calendars, "EXCHANGE_OVERRIDES_PATH", path)
+    calendars._load_exchange_overrides.cache_clear()
+
+    with pytest.raises(ValueError, match="ya la considera sesión"):
+        expected_sessions("XETRA", date(2026, 6, 1), date(2026, 6, 10))
+
+
+def test_apertura_forzada_fuera_del_rango_del_calendario_falla_ruidosamente(monkeypatch, tmp_path) -> None:
+    path = tmp_path / "exchange_overrides.yaml"
+    path.write_text(
+        """
+XETR:
+  cierres_adicionales: []
+  aperturas_forzadas:
+    - fecha: 1985-01-02
+      motivo: anterior a la primera sesión del calendario
+      fuente: https://example.test/fuera-de-rango
+      verificado_el: 2026-09-16
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(calendars, "EXCHANGE_OVERRIDES_PATH", path)
+    calendars._load_exchange_overrides.cache_clear()
+
+    with pytest.raises(ValueError, match="fuera del rango del calendario"):
+        expected_sessions("XETRA", date(2026, 6, 1), date(2026, 6, 10))

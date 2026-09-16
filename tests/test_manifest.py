@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 import subprocess
+from datetime import datetime, timezone
 
 import pytest
 
 from advisor.config import load_config
 from advisor.run import manifest
-from advisor.run.manifest import config_hash, git_dirty, measure_clock_drift_seconds
+from advisor.run.manifest import (
+    build_run_manifest,
+    config_hash,
+    file_content_hash,
+    git_dirty,
+    measure_clock_drift_seconds,
+)
+from advisor.universe.loader import load_universe
 
 
 def test_manifest_config_hash_es_canonico(tmp_path) -> None:
@@ -43,6 +51,24 @@ base_currency: EUR
 
     assert config_hash(load_config(first)) == config_hash(load_config(second))
     assert config_hash(load_config(first)) != config_hash(load_config(changed))
+
+
+def test_manifest_registra_hash_de_exchange_overrides(monkeypatch, tmp_path) -> None:
+    overrides = tmp_path / "exchange_overrides.yaml"
+    overrides.write_text("XKRX:\n  cierres_adicionales: []\n  aperturas_forzadas: []\n", encoding="utf-8")
+    monkeypatch.setattr(manifest, "EXCHANGE_OVERRIDES_PATH", overrides)
+    monkeypatch.setattr(manifest, "measure_clock_drift_seconds", lambda: None)
+    config = load_config("config.yaml")
+
+    run = build_run_manifest(
+        command="analizar",
+        config=config,
+        universe=load_universe("universe.yaml"),
+        schema_version=1,
+        timestamp=datetime(2026, 9, 16, tzinfo=timezone.utc),
+    )
+
+    assert run.provider_versions["exchange_overrides_hash"] == file_content_hash(overrides)
 
 
 def test_manifest_git_dirty(tmp_path) -> None:

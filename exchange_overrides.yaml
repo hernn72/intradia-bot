@@ -1,0 +1,11 @@
+XKRX:
+  cierres_adicionales:
+    - fecha: 2026-06-03
+      motivo: "Elecciones locales; KRX cerró mercados de valores, derivados y materias primas"
+      fuente: "https://www.koreatimes.co.kr/business/banking-finance/20260520/korean-stock-markets-to-close-on-june-3-for-local-elections"
+      verificado_el: 2026-09-16
+    - fecha: 2026-07-17
+      motivo: "Día de la Constitución"
+      fuente: "https://en.sedaily.com/finance/2026/05/20/korea-exchange-to-close-on-local-election-day-constitution"
+      verificado_el: 2026-09-16
+  aperturas_forzadas: []
