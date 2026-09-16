@@ -166,7 +166,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | PR 1 | Fases 1–3: RR desde precio efectivo, `entry_max` por RR, setup vs ejecución, sizing desde entrada efectiva | HECHO y en `main` (`e929da4`, fusionado el 2026-09-16) | — | — |
 | PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | **HECHA: aceptada, en `main` y desplegada** (2026-09-16) | T-002 | T-003 |
 | PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | **HECHA** (2026-09-16, revisión independiente CORREGIR con 7 defectos, corregidos y verificados). Tres causas: 4 pares eran cierre real de KRX que la librería no codifica, 43 son huecos del proveedor con la plaza abierta, 0 del pipeline | T-003 | T-004 |
-| PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | EN_REVISION (2026-09-16; Codex implementó en árbol local, falta verificación real sin DNS y revisión independiente) | T-002, T-003, T-004 | T-005 |
+| PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | EN_REVISION (2026-09-16: implementada y **verificada contra datos reales**; 4 defectos encontrados al verificar y corregidos; descartes repartidos en 4 códigos. Falta revisión independiente) | T-002, T-003, T-004 | T-005 |
 | PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | PENDIENTE | PR 3 | T-007 (por escribir) |
 | PR 5 | Fases 12–13 informe + siete invariantes de integración | PENDIENTE | PR 4 | T-008 |
 | PR 5 | Fase 14 filtro de ejecución medido aparte del score, incl. pérdida por `ABOVE_MAX_ENTRY` a la apertura (D-06) | PENDIENTE | PR 4 | T-009 |
