@@ -145,7 +145,25 @@ class DataQualityConfig(BaseModel):
     critical_latest_sessions: int = Field(0, ge=0)
     high_after_sessions: int = Field(5, ge=0)
     medium_after_sessions: int = Field(20, ge=0)
-    warning_after_sessions: int = Field(20, ge=0)
+
+    @model_validator(mode="after")
+    def _validate_severity_cuts(self) -> DataQualityConfig:
+        if not self.critical_latest_sessions <= self.high_after_sessions <= self.medium_after_sessions:
+            raise ValueError(
+                "los cortes de severidad deben ir en orden: critical_latest_sessions "
+                f"({self.critical_latest_sessions}) <= high_after_sessions ({self.high_after_sessions}) "
+                f"<= medium_after_sessions ({self.medium_after_sessions})"
+            )
+        # El corte MEDIUM y la ventana de veto son el mismo concepto visto dos
+        # veces. Si divergen, las ausencias entre ambos valores entran en la
+        # ventana pero reciben WARNING y dejan de vetar, es decir, parte de la
+        # ventana de veto deja de vetar sin que nadie lo diga.
+        if self.medium_after_sessions != self.veto_window_sessions:
+            raise ValueError(
+                "medium_after_sessions y veto_window_sessions deben coincidir: son la misma ventana. "
+                f"Recibidos {self.medium_after_sessions} y {self.veto_window_sessions}"
+            )
+        return self
 
 
 class ReportConfig(BaseModel):

@@ -317,6 +317,11 @@ def format_opportunity(
     lines.append(f"**Disponibilidad:** {opportunity.broker_execution_label}")
     for reason in opportunity.decision_reasons:
         lines.append(f"  - {reason}")
+    # Las advertencias no descartan, pero tienen que verse: el aviso de precio
+    # extendido salió de los motivos de descarte y se quedó sin imprimir en
+    # ninguna parte, que es como borrarlo.
+    for warning in opportunity.warnings:
+        lines.append(f"  ⚠️ {warning}")
 
     return "\n".join(lines)
 
@@ -615,7 +620,7 @@ def _conclusion(result: AnalysisResult, operar: List[Opportunity]) -> str:
 
 
 def _freshness_for_snapshot(timestamp: pd.Timestamp, reference: datetime, market: str) -> DataFreshness:
-    return classify_data_quality(calcular_frescura_dato(timestamp, reference, market))
+    return classify_data_quality(calcular_frescura_dato(timestamp, reference, market), market)
 
 
 def _freshness_for_opportunity(opportunity: Opportunity, reference: datetime) -> DataFreshness:

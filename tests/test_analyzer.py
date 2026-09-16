@@ -432,3 +432,33 @@ class TestBarraParcialYCalidad:
         assert opportunity.data_quality is not None
         assert opportunity.data_quality.freshness is FreshnessState.FRESH
         assert opportunity.data_quality.execution_readiness is True
+
+    def test_sesion_cerrada_sigue_siendo_fresca_aunque_falte_un_indicador(self, config, benign_context) -> None:
+        """La frescura se rehace cuando falta un indicador, y ahí se perdía el cierre.
+
+        Con menos de 200 barras no hay `sma_long`, el analizador recalcula la
+        frescura y esa segunda llamada se había quedado sin el dato del cierre
+        de plaza: el activo volvía a registrarse como barra parcial y perdía
+        `session_close_status`, aunque Tokio llevara horas cerrado.
+        """
+
+        asset = self._asset_jpx()
+        sesiones = expected_sessions("JPX", date(2026, 2, 2), date(2026, 9, 16))
+        fechas = pd.DatetimeIndex([pd.Timestamp(v, tz="Asia/Tokyo") for v in sesiones])
+        history = make_ohlcv(n=len(fechas), start=3000.0).set_axis(fechas)
+        provider = FakeProvider({"7203.T": history})
+
+        opportunity = analyze_asset(
+            asset,
+            config,
+            provider,
+            benign_context,
+            "swing",
+            now=datetime(2026, 9, 16, 11, 0, tzinfo=timezone.utc),
+        )
+
+        assert opportunity.data_quality is not None
+        assert opportunity.data_quality.indicators_missing == ("sma_long",)
+        assert opportunity.data_freshness.session_close_status.startswith("última barra cerrada")
+        assert opportunity.data_quality.freshness is FreshnessState.FRESH
+        assert not any(reason.code == "PARTIAL_BAR" for reason in opportunity.data_quality.reasons)

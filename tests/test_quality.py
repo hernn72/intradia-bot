@@ -147,4 +147,4 @@ def test_ventana_medida_queda_en_data_quality() -> None:
 
     assert quality.measurement_period == "1y"
     assert quality.measurement_interval == "1d"
-    assert DataQualityConfig().warning_after_sessions == 20
+    assert DataQualityConfig().medium_after_sessions == DataQualityConfig().veto_window_sessions

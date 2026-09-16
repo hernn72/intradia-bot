@@ -29,7 +29,7 @@ from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_ove
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import AdvisorConfig
-from advisor.data.freshness import FreshnessRow, calcular_frescura_serie, mercado_para_simbolo
+from advisor.data.freshness import DataFreshness, FreshnessRow, calcular_frescura_serie, mercado_para_simbolo
 from advisor.data.market_data import MarketDataProvider
 from advisor.data.sessions import market_for_symbol, market_session, trim_unclosed_bar
 from advisor.universe.models import Asset, Universe
@@ -140,24 +140,38 @@ def analyze_asset(
         )
 
     barra_actual_cerrada = trim.removed_last_bar or trim.status.startswith("última barra cerrada")
-    data_freshness = calcular_frescura_serie(
-        history,
-        reference,
-        market=market,
-        barra_actual_cerrada=barra_actual_cerrada,
-        strength_benchmark=benchmark_symbol,
-        recent_reference_sessions=_indicator_reference_sessions(config),
-        veto_window_sessions=config.data_quality.veto_window_sessions,
-        asset_timezone=asset.timezone,
-        settlement_minutes=config.data_quality.settlement_minutes,
-        measurement_period=window.period,
-        measurement_interval=window.interval,
-        critical_latest_sessions=config.data_quality.critical_latest_sessions,
-        high_after_sessions=config.data_quality.high_after_sessions,
-        medium_after_sessions=config.data_quality.medium_after_sessions,
-        warning_after_sessions=config.data_quality.warning_after_sessions,
-    )
-    data_freshness = replace(data_freshness, session_close_status=trim.status)
+
+    def _frescura(indicators_missing: tuple[str, ...] = ()) -> DataFreshness:
+        """Un único sitio con los argumentos de la frescura.
+
+        Estaban duplicados en dos llamadas y la segunda —la que se rehace
+        cuando falta un indicador— se quedó sin ``barra_actual_cerrada`` y sin
+        ``session_close_status``, de modo que un activo asiático con histórico
+        corto volvía a registrarse como barra parcial con la sesión cerrada.
+        """
+
+        return replace(
+            calcular_frescura_serie(
+                history,
+                reference,
+                market=market,
+                barra_actual_cerrada=barra_actual_cerrada,
+                strength_benchmark=benchmark_symbol,
+                recent_reference_sessions=_indicator_reference_sessions(config),
+                veto_window_sessions=config.data_quality.veto_window_sessions,
+                asset_timezone=asset.timezone,
+                settlement_minutes=config.data_quality.settlement_minutes,
+                indicators_missing=indicators_missing,
+                measurement_period=window.period,
+                measurement_interval=window.interval,
+                critical_latest_sessions=config.data_quality.critical_latest_sessions,
+                high_after_sessions=config.data_quality.high_after_sessions,
+                medium_after_sessions=config.data_quality.medium_after_sessions,
+            ),
+            session_close_status=trim.status,
+        )
+
+    data_freshness = _frescura()
 
     snapshot = build_snapshot(
         symbol=asset.symbol,
@@ -173,23 +187,7 @@ def analyze_asset(
     )
     indicators_missing = _missing_indicators(snapshot)
     if indicators_missing:
-        data_freshness = calcular_frescura_serie(
-            history,
-            reference,
-            market=market,
-            strength_benchmark=benchmark_symbol,
-            recent_reference_sessions=_indicator_reference_sessions(config),
-            veto_window_sessions=config.data_quality.veto_window_sessions,
-            asset_timezone=asset.timezone,
-            settlement_minutes=config.data_quality.settlement_minutes,
-            indicators_missing=indicators_missing,
-            measurement_period=window.period,
-            measurement_interval=window.interval,
-            critical_latest_sessions=config.data_quality.critical_latest_sessions,
-            high_after_sessions=config.data_quality.high_after_sessions,
-            medium_after_sessions=config.data_quality.medium_after_sessions,
-            warning_after_sessions=config.data_quality.warning_after_sessions,
-        )
+        data_freshness = _frescura(indicators_missing)
 
     levels = compute_levels(snapshot, config.levels, config.risk.min_rr_ratio)
     if levels is None:

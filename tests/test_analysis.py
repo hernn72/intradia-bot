@@ -693,11 +693,19 @@ class TestClassify:
         assert opportunity.discard_code == "LOW_SCORE"
         assert any("threshold=70" in reason for reason in opportunity.decision_reasons)
 
-    def test_codigo_de_descarte_prioriza_causa_bloqueante_sobre_low_score(
+    def test_el_codigo_de_descarte_es_del_setup_y_el_del_dato_va_en_ejecucion(
         self,
         asset_eur,
         benign_context,
     ) -> None:
+        """Son dos preguntas distintas y antes se mezclaban.
+
+        Este activo cae por nota (40 < 60) y además no tiene indicadores. El
+        bloque DESCARTADOS agrupa por `discard_code`, así que atribuirle
+        `INVALID_INDICATORS` hacía que el informe culpara al dato de un
+        descarte que causó la nota; la misma línea llegaba a imprimir un código
+        en el marcador y otro en el texto.
+        """
         opportunity = build_opportunity(
             asset=asset_eur,
             horizonte="swing",
@@ -728,7 +736,8 @@ class TestClassify:
         )
 
         assert opportunity.radar == RADAR_DESCARTAR
-        assert opportunity.discard_code == INVALID_INDICATORS
+        assert opportunity.discard_code == "LOW_SCORE"
+        assert opportunity.execution_code == INVALID_INDICATORS
 
     def test_degradado_declara_pero_no_veta(self, asset_eur, benign_context) -> None:
         freshness = DataFreshness(

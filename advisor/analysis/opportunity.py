@@ -391,25 +391,36 @@ def build_opportunity(
         execution=execution,
         data_freshness=data_freshness,
         data_quality=data_freshness.data_quality if data_freshness is not None else None,
-        discard_code=_decision_code(setup, execution, data_freshness),
-        execution_code=execution.reason,
+        discard_code=_discard_code(setup),
+        execution_code=_execution_code(execution, data_freshness),
         warnings=setup.warnings,
     )
 
 
-def _decision_code(
-    setup: SetupClassification,
+def _discard_code(setup: SetupClassification) -> Optional[str]:
+    """Por qué cayó el **setup**, que es lo que agrupa el bloque DESCARTADOS.
+
+    Son dos preguntas distintas y antes se mezclaban: el código de calidad se
+    devolvía por delante del del setup, así que un activo descartado por nota
+    baja aparecía etiquetado `STALE_DATA`, y la misma línea del informe llegaba
+    a imprimir `[MISSING_RECENT_DATA]` en el marcador y `code=LOW_SCORE` en el
+    texto. El estado del dato no descarta un setup: impide ejecutarlo, y eso
+    vive en ``execution_code``.
+    """
+
+    return setup.discard_code
+
+
+def _execution_code(
     execution: ExecutionEvaluation,
     data_freshness: Optional[DataFreshness],
-) -> Optional[str]:
-    """Código más específico que explica por qué la oportunidad no se compra."""
+) -> str:
+    """Por qué no se puede ejecutar, con el motivo del dato si es el que manda."""
 
     quality_code = _data_quality_blocking_code(data_freshness)
     if quality_code is not None:
         return quality_code
-    if execution.reason not in {EXECUTABLE, BROKER_UNVERIFIED}:
-        return execution.reason
-    return setup.discard_code
+    return execution.reason
 
 
 def _data_quality_blocking_code(data_freshness: Optional[DataFreshness]) -> Optional[str]:

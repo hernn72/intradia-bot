@@ -131,7 +131,6 @@ def calcular_frescura_serie(
     critical_latest_sessions: int = 0,
     high_after_sessions: int = 5,
     medium_after_sessions: int = 20,
-    warning_after_sessions: int = 20,
 ) -> DataFreshness:
     """Calcula frescura de cola y sesiones ausentes frente al calendario de plaza.
 
@@ -207,16 +206,26 @@ def calcular_frescura_serie(
             critical_latest_sessions=critical_latest_sessions,
             high_after_sessions=high_after_sessions,
             medium_after_sessions=medium_after_sessions,
-            warning_after_sessions=warning_after_sessions,
         ),
     ))
 
 
-def classify_data_quality(freshness: DataFreshness) -> DataFreshness:
-    """Asigna OK/DEGRADADO/INCOMPLETO sin cambiar ningún cálculo técnico."""
+def classify_data_quality(freshness: DataFreshness, market: Optional[str] = None) -> DataFreshness:
+    """Asigna OK/DEGRADADO/INCOMPLETO sin cambiar ningún cálculo técnico.
 
+    ``market`` es obligatorio si hay que construir la calidad aquí. Antes caía
+    a ``"XETRA"`` en silencio, que es un fallback de plaza de los que el
+    proyecto prohíbe: con ``calendar`` vacío —justo el caso en que no se sabe
+    la plaza— calculaba la severidad con el calendario alemán sin decir nada.
+    """
+
+    if freshness.data_quality is None and market is None:
+        raise ValueError(
+            "classify_data_quality necesita la plaza para construir la calidad: "
+            "no se puede suponer ninguna"
+        )
     data_quality = freshness.data_quality or build_data_quality(
-        market=freshness.calendar or "XETRA",
+        market=market or "",
         reference_date=freshness.last_bar_date,
         sessions_approx=freshness.sessions_approx,
         may_be_partial_current_session=freshness.may_be_partial_current_session,
@@ -228,7 +237,6 @@ def classify_data_quality(freshness: DataFreshness) -> DataFreshness:
         critical_latest_sessions=0,
         high_after_sessions=5,
         medium_after_sessions=20,
-        warning_after_sessions=20,
     )
     reasons: List[str] = []
     if freshness.absent_recent_sessions and data_quality.recent_completeness in {

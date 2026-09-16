@@ -378,7 +378,6 @@ def medir_frescura_datos(
                 critical_latest_sessions=config.data_quality.critical_latest_sessions,
                 high_after_sessions=config.data_quality.high_after_sessions,
                 medium_after_sessions=config.data_quality.medium_after_sessions,
-                warning_after_sessions=config.data_quality.warning_after_sessions,
             )
         except Exception as exc:
             rows.append(FreshnessRow(asset.symbol, data_symbol, market, None, str(exc)))

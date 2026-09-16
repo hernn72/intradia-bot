@@ -66,7 +66,6 @@ def build_data_quality(
     critical_latest_sessions: int,
     high_after_sessions: int,
     medium_after_sessions: int,
-    warning_after_sessions: int,
 ) -> DataQuality:
     """Construye calidad estructurada sin tocar indicadores ni puntuación."""
 
@@ -87,7 +86,6 @@ def build_data_quality(
             critical_latest_sessions=critical_latest_sessions,
             high_after_sessions=high_after_sessions,
             medium_after_sessions=medium_after_sessions,
-            warning_after_sessions=warning_after_sessions,
         )
         sessions_ago = recent_sessions_ago
         reasons.append(
@@ -106,7 +104,6 @@ def build_data_quality(
             critical_latest_sessions=critical_latest_sessions,
             high_after_sessions=high_after_sessions,
             medium_after_sessions=medium_after_sessions,
-            warning_after_sessions=warning_after_sessions,
         )
         if not absent_recent_sessions:
             sessions_ago = historical_sessions_ago
@@ -165,16 +162,20 @@ def severity_for_sessions_ago(
     critical_latest_sessions: int,
     high_after_sessions: int,
     medium_after_sessions: int,
-    warning_after_sessions: int,
 ) -> Severity:
+    """Severidad por antigüedad, en sesiones del calendario de la plaza.
+
+    Hubo un cuarto corte, ``warning_after_sessions``, que no hacía nada: las
+    dos ramas finales devolvían ``WARNING`` igual. Se retiró en vez de dejar
+    configuración que aparenta ser ajustable y no lo es.
+    """
+
     if sessions_ago <= critical_latest_sessions:
         return Severity.CRITICAL
     if sessions_ago <= high_after_sessions:
         return Severity.HIGH
     if sessions_ago <= medium_after_sessions:
         return Severity.MEDIUM
-    if sessions_ago > warning_after_sessions:
-        return Severity.WARNING
     return Severity.WARNING
 
 
