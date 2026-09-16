@@ -1,6 +1,6 @@
 # T-004 — Investigar los huecos 2026-09-07 y 2026-03-06 hasta la causa (PR 2, fase 5)
 
-Estado: PENDIENTE
+Estado: ACEPTADA (2026-09-16, tras revisión independiente y sus siete correcciones)
 Agente: Opus (diagnóstico con red) → Codex solo si la causa exige un cambio de código mecánico
 Línea / fase: L0 PR 2, fase 5
 Gate al que contribuye: GATE L0 (requisito 2)

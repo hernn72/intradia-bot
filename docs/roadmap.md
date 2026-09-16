@@ -27,9 +27,9 @@ leído en documentos:
 
 | Qué | Valor |
 |---|---|
-| Rama / HEAD | **`main` en `74c4ce4`**: la cadena de cuatro ramas se fusionó en fast-forward el 2026-09-16 (10 commits) y está pusheada. `fix/exchange-calendars` apunta al mismo commit |
+| Rama / HEAD | **`main` en `d7acff7`**: T-003 y T-004 dentro; la cadena se fusionó en fast-forward el 2026-09-16 |
 | Árbol | limpio salvo `graphify-out/` (sin seguimiento) |
-| Tests / lint / tipos | 435 pasan (90 s) · `ruff check .` limpio · `mypy advisor` limpio (58 ficheros) · Python 3.12.13. Verificado el 2026-09-16 |
+| Tests / lint / tipos | 469 pasan (90 s) · `ruff check .` limpio · `mypy advisor` limpio (59 ficheros) · Python 3.12.13. Verificado el 2026-09-16 |
 | PR 1 (fases 1–3) | hecho en rama: `advisor/analysis/execution.py`, `entry_max_for_rr`, `reward_risk`, `rr_at_least`, `position_limit_reason`, `classify_setup` separado de `classify`, regresión `EXH1.DE` |
 | CI | `.github/workflows/ci.yml` en rama `ci/github-actions` (`e5ed089`), run verde en 3.12 y 3.13 |
 | Esquema SQLite | v2 con migraciones (`PRAGMA user_version`), backup pre-migración verificado, `analysis_run` + `run_id` (T-002) |
@@ -165,8 +165,8 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 |---|---|---|---|---|
 | PR 1 | Fases 1–3: RR desde precio efectivo, `entry_max` por RR, setup vs ejecución, sizing desde entrada efectiva | HECHO y en `main` (`e929da4`, fusionado el 2026-09-16) | — | — |
 | PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | **HECHA: aceptada, en `main` y desplegada** (2026-09-16) | T-002 | T-003 |
-| PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | PENDIENTE (siguiente; población exacta y el hallazgo XKRX abierto están en la ficha) | T-003 | T-004 |
-| PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | PENDIENTE | T-002, T-003, T-004 | T-005 |
+| PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | **HECHA** (2026-09-16, revisión independiente CORREGIR con 7 defectos, corregidos y verificados). Tres causas: 4 pares eran cierre real de KRX que la librería no codifica, 43 son huecos del proveedor con la plaza abierta, 0 del pipeline | T-003 | T-004 |
+| PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | EN_CURSO (2026-09-16; contrato ya cerrado en la ficha) | T-002, T-003, T-004 | T-005 |
 | PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | PENDIENTE | PR 3 | T-007 (por escribir) |
 | PR 5 | Fases 12–13 informe + siete invariantes de integración | PENDIENTE | PR 4 | T-008 |
 | PR 5 | Fase 14 filtro de ejecución medido aparte del score, incl. pérdida por `ABOVE_MAX_ENTRY` a la apertura (D-06) | PENDIENTE | PR 4 | T-009 |
