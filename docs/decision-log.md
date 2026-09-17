@@ -209,6 +209,27 @@ recorta la barra no cerrada con `trim_unclosed_bar` antes de juzgar, y
 prefiere (a), hay que rehacer las conclusiones de retraso de D-21 y OD-10 con
 la serie recortada, no solo cambiar el código.
 
+**Validada por revisión independiente (Codex, 2026-09-17).** Coincide en la
+clasificación como metodológica —«cambia qué mide `frescura-datos`»— y en
+mantener (b), con dos añadidos que se recogen aquí:
+
+- **Formularlo como contrato, no como omisión.** `frescura-datos` mide *dato
+  bruto del proveedor*, no ejecutabilidad del asesor, y eso debe leerse en la
+  salida del comando, no solo en este registro. El riesgo real no es el código:
+  es que alguien vuelva a interpretar la lectura cruda como «lo que el bot
+  puede operar».
+- **La tercera vía no sustituye a (b), la extiende.** En vez de elegir una de
+  las dos lecturas, publicar ambas con nombres distintos —`raw_freshness` para
+  la barra servida por el proveedor y `advisor_effective_freshness` para la que
+  ve `analizar` tras `trim_unclosed_bar`—. Queda como trabajo futuro, no como
+  requisito para cerrar esta.
+
+**Criterio de cierre acordado:** ningún campo con el mismo nombre puede
+significar cosas distintas en dos comandos. Para llegar ahí hay que medir las
+divergencias `raw` contra `effective` por plaza y pasada, con cripto contado
+aparte, el impacto sobre los vetos de D-21, y los casos frontera: Tokio ya
+cerrado, Europa antes y después de la publicación de la barra, y cripto 24/7.
+
 ---
 
 ## OWNER_DECISION_REQUIRED

@@ -211,10 +211,22 @@ Si `AAPL` es la continuación de `APC.DE`, su `added_at` es 2026-08-27 y
 —que es lo que dice el propio diseño de la ficha, donde `instrument_id` es
 `primary_symbol@primary_market` y solo `issuer_id` los une—, su `added_at` es
 2026-08-29 y `ticker_history` queda vacío. La elección cambia qué universo
-declara cada resultado y cuánta antigüedad se le puede reclamar, así que es
-del propietario o del metodólogo. Codex implementa **la segunda** lectura, que
-es la coherente con `instrument_id`, y lo deja anotado como `D-nn (propuesta)`
-para que se confirme en revisión.
+declara cada resultado y cuánta antigüedad se le puede reclamar.
+
+**Resuelta el 2026-09-17 con revisión independiente (Codex): son listings
+distintos.** `added_at: 2026-08-29` para el símbolo primario, `ticker_history`
+vacío, y la única unión con el alemán es `issuer_id`. El argumento que la cierra
+no es de estilo: pasar de `APC.DE` a `AAPL` cambia mercado, calendario, divisa,
+fuente de barras, huecos y ejecutabilidad, así que para el backtest y para la
+frescura **no es un renombrado**. `ticker_history` queda reservado para la
+continuidad del mismo listing bajo otro ticker.
+
+**Consecuencia que hay que respetar al publicar resultados:** se puede afirmar
+que el emisor Apple estaba considerado desde el 2026-08-27, pero la serie
+`AAPL` sobre su mercado primario entra en el universo medido el 2026-08-29, y
+ningún resultado sobre `AAPL` puede reclamar la antigüedad del 27. El sesgo que
+esto introduce es conservador, que es el lado correcto para un campo cuyo
+propósito es acotar el sesgo de selección.
 
 **Corrección 2 — no añadir `exchange_calendar` ni `exchange_timezone` al
 YAML.** La sugerencia del apartado anterior ya no aplica: T-003 y T-004
