@@ -9,11 +9,11 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-17 (cierre real, tras dos tandas de OA-03)
+# START HERE — actualizado 2026-09-17 (cierre del día; OA-03 casi cerrada)
 
 ## Dónde está todo
 
-    main / origin/main / la Pi    54ac004    las tres alineadas, CI verde
+    main / origin/main / la Pi    894fa75    las tres alineadas, CI verde
     graphify-out/                 sin seguimiento, ignorar
 
 Nada pendiente de commitear. La Pi corre lo mismo que `main`, con esquema v4 y
@@ -30,8 +30,10 @@ los timers vivos.
     3ece8f1  punto de retomada
     5125e90  OA-03 segunda tanda: 52 ISIN y 48 disponibilidades
     54ac004  BTC-EUR sí está disponible (corrección del propietario)
+    ae39c6c  punto de retomada
+    894fa75  OA-03 tercera tanda: 92 ISIN, 95 disponibles, el universo cubierto
 
-Vintage actual del universo: `9d0a4c6f…`. Cambia con cada tanda de OA-03,
+Vintage actual del universo: `894ce776…`. Cambia con cada tanda de OA-03,
 y el test `test_universe_real_tiene_107_analizables_y_vintage_conocido` se
 actualiza a propósito con cada una.
 
@@ -49,24 +51,20 @@ actualiza a propósito con cada una.
    `MARKET_SESSIONS`: `exchange_calendars` ya da apertura y cierre, y sus 14
    cierres coinciden exactamente con los hardcodeados. Copiarlos sería una
    segunda fuente de verdad (INV-06).
-2. **OA-03, el resto.** Estado al cierre: **52 con ISIN verificado, 52
-   pendientes, 3 no aplicable**; 46 disponibles, 2 no (`9984.T` y `4GLD.DE`),
-   59 sin comprobar. **Los 19 de prioridad 1 están cerrados**: todos los que el
-   bot ha llegado a recomendar comprar. De los 52 pendientes, ninguno se ha
-   recomendado nunca. Falta `ETH-EUR` por comprobar.
+2. **OA-03 está prácticamente cerrada.** 92 con ISIN verificado, 95
+   disponibles, 10 no disponibles, 3 no aplicable. Solo faltan:
+   - `UCG.MI` y `1211.HK`, sin comprobar en la app.
+   - `SAN.MC` y `005930.KS`, en **`PENDIENTE_ADR`**: el propietario aportó el
+     ISIN del ADR/GDR estadounidense, pero el bot analiza la acción local en
+     Madrid y en Seúl. Hay que decidir si se registra el ADR anotando la
+     diferencia o se cambia el símbolo analizado. Mismo problema que `TSM` e
+     `INFY`. **Decisión pendiente del propietario, no la tome un agente.**
+   - Nueve sin ISIN por estar marcados no disponibles, que es coherente.
 
-   **El propietario va a seguir completando la tabla.** La entrega como
-   `evidence/2026-09-17-OA-03-isin/inventario.numbers`, que se lee con
-   `numbers-parser` (hay un venv con él y con `pypdf` en el scratchpad; si no
-   existe, `python3 -m venv` y `pip install numbers-parser pypdf`).
+   Efecto en producción: `EXECUTABLE` pasó de 0 a **51** y `BROKER_UNVERIFIED`
+   de 57 a **1**. Lo que frena ahora al asesor es la calidad del dato —28
+   `MISSING_RECENT_DATA`, 18 `STALE_DATA`, 3 `PARTIAL_BAR`—, nunca el broker.
 
-   **Validar SIEMPRE antes de aplicar, y no solo el dígito de control.** En la
-   segunda tanda, 4 de las filas venían mal y ninguna la habría cazado el
-   checksum: un ISIN japonés válido para una empresa italiana (`ENI.MI`), una
-   fecha en la columna del ISIN (`PLTR`), un símbolo sin su sufijo (`BBVA` por
-   `BBVA.MC`) y un producto cotizado sobre Solana en vez de la moneda
-   (`SOL-EUR`). Cruzar el país del ISIN con la plaza del activo caza dos de
-   ellas; el resto sale de comparar contra el universo real.
 3. **T-008..T-010** (PR 5) siguen **sin ficha**; las escribe Opus.
 
 ## Decisiones del propietario pendientes
@@ -103,7 +101,8 @@ Tres trampas concretas que volverán:
 - Una suite verde en el portátil no dice nada del CI: comprobar con
   `git archive HEAD | tar -x` en un directorio aparte.
 
-**Codex**: agotó la cuota a mediodía (vuelve a las 13:48 del día siguiente).
+**Codex**: disponible otra vez, comprobado al cierre del 2026-09-17. Agota la
+cuota con facilidad y la recupera a las ~13:48.
 Su sandbox **no puede escribir refs de git**, así que hay que crearle la rama
 antes y commitear por él. Y `codex exec` se cuelga esperando stdin si no se
 cierra con `< /dev/null`; `--full-auto` no existe en la 0.150.1, se usa
