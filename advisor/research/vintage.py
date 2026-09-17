@@ -80,8 +80,15 @@ def freeze_vintage(
     interval: str,
     root_dir: str | Path = "data/vintages",
     downloaded_at: Optional[datetime] = None,
+    universe_vintage: Optional[str] = None,
 ) -> VintageRunResult:
-    """Descarga símbolos, persiste CSV deterministas y escribe el manifiesto."""
+    """Descarga símbolos, persiste CSV deterministas y escribe el manifiesto.
+
+    ``universe_vintage`` queda dentro del manifiesto para que una cosecha sepa
+    con qué universo se congeló. Sin él, la guarda de INV-08 ampliada que
+    compara universos en `replay_managed_population` no se dispara nunca,
+    porque el campo que consulta no lo escribía nadie.
+    """
 
     timestamp = _downloaded_at(downloaded_at)
     root = Path(root_dir)
@@ -125,6 +132,14 @@ def freeze_vintage(
         "assets": [entry for _, _, _, entry in prepared],
         "failed": [{"symbol": symbol, "error": failed[symbol]} for symbol in sorted(failed)],
     }
+    # Va dentro del cuerpo que se hashea a propósito: el universo forma parte
+    # de la identidad de la cosecha, no es un adorno. Consecuencia asumida: las
+    # cosechas congeladas a partir de aquí tienen un `data_vintage_id` distinto
+    # del que tendrían con el esquema anterior. La cosecha `071ddb2b…` ya
+    # existente no lo lleva y se sigue leyendo igual, porque `load_vintage`
+    # recalcula el hash sobre el cuerpo que encuentra.
+    if universe_vintage is not None:
+        manifest_body["universe_vintage_id"] = universe_vintage
     manifest_hash = hash_manifest(manifest_body)
     data_vintage_id = manifest_hash
     vintage_dir = root / data_vintage_id

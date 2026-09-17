@@ -289,6 +289,7 @@ def cmd_congelar_datos(args: argparse.Namespace, config: AdvisorConfig, universe
         period=args.period,
         interval=args.interval,
         root_dir=args.data_dir,
+        universe_vintage=universe_vintage_id(universe),
     )
 
     print(f"Cosecha congelada: {result.data_vintage_id}")

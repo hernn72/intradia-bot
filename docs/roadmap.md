@@ -188,7 +188,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 
 | ID | Fase | Estado | Depende de | Ficha |
 |---|---|---|---|---|
-| A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | EN_REVISION (`2ba5b3f3…`; evidencia 2026-09-17) | C-02 | T-006 |
+| A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | EN_REVISION (`b160c4c2…`; evidencia 2026-09-17) | C-02 | T-006 |
 | A-01 | Interpretar el histórico de frescura de la Pi (recurrencia de huecos) → alimenta OD-02 | PENDIENTE | acceso a la Pi | T-012 |
 | A-02 | Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con RS alineada y línea 0; decidir el RR en el score → **GATE P2** | BLOQUEADO(GATE L0, A-00) | GATE L0 | T-013 |
 | A-03 | P3 Score v2: dimensiones, pesos, `score_model_version`, umbrales por horizonte, ¿`convicción` fuera del número? → **GATE P3** | BLOQUEADO(GATE P2) | A-02 | por escribir |

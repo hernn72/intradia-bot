@@ -21,7 +21,10 @@ VINTAGE_ID = "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841"
 
 def test_bloques_de_sesion_reales_no_desplazan_europa_ni_incluyen_fines_de_semana() -> None:
     vintage_dir = Path("data/vintages") / VINTAGE_ID
-    if not vintage_dir.is_dir():
+    # Los CSV de la cosecha están en .gitignore y solo viven en el portátil; el
+    # `manifest.json` sí se commitea desde T-006, así que el directorio existe
+    # en un clon limpio y comprobarlo no basta: la guarda mira una barra real.
+    if not (vintage_dir / "AAPL.csv").is_file():
         pytest.skip("data/vintages no está disponible")
 
     config = load_config("config.yaml")

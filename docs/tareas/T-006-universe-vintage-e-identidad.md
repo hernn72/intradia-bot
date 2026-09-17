@@ -269,9 +269,9 @@ Validación:
 - `ruff check .`: ok.
 - `mypy advisor`: ok.
 - `python -m advisor.main universo --vintage`: id
-  `2ba5b3f370badc77c10457f71c21f445425366d524905b85a5c4f39a1ea49a5c`.
+  `b160c4c2b4c9827f63876bb876b9c66a0cc1db564b877c021ecb93a5fa64089c`.
 - `python -m advisor.main analizar --horizonte swing --sin-ia --sin-guardar |
-  tail -3`: el pie imprime `universo 2ba5b3f3`, que coincide con los 8
+  tail -3`: el pie imprime `universo b160c4c2`, que coincide con los 8
   primeros caracteres del id canónico.
 
 Invariantes:
@@ -287,7 +287,7 @@ Impacto:
 - Señales afectadas: 0 por decisión; no se tocaron score, niveles, frescura,
   ejecución, pesos ni benchmarks.
 - Resultado relevante: las pasadas futuras llevan el vintage canónico
-  `2ba5b3f3…`; las pasadas ya persistidas conservan el provisional
+  `b160c4c2…`; las pasadas ya persistidas conservan el provisional
   `80d05f21…`.
 
 Hallazgos:

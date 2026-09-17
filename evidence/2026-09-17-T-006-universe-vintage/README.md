@@ -180,14 +180,99 @@ señal**, y la sostiene además el diff: no aparecen `analyzer.py`, `scoring.py`
    significa que el trabajo manual de los 89 ISIN **irá invalidando la
    comparabilidad** de los resultados anteriores, y eso hay que planificarlo,
    no descubrirlo.
-2. **La guarda de INV-08 ampliada todavía no protege nada.** El aborto por
-   «universo distinto» solo actúa si el manifiesto de la cosecha trae
-   `universe_vintage_id`, y el de `071ddb2b…` —la única cosecha que existe— no
-   lo tiene, así que la comprobación se salta. Está bien resuelto (falla hacia
-   «no puedo comprobar» en vez de abortar), pero la protección real empieza con
-   la primera cosecha congelada después de T-006.
+2. **La guarda de INV-08 ampliada no protegía nada** (corregido después, ver
+   abajo). El aborto por «universo distinto» solo actúa si el manifiesto de la
+   cosecha trae `universe_vintage_id`, y el de `071ddb2b…` no lo tiene.
 
 Además, `issuer_id` se exige a los **126**, no solo a los 107 analizables como
 decía la ficha. Es más estricto de lo pedido, funciona —los 19 de contexto lo
 tienen— y deja el universo entero con identidad; se anota porque es un contrato
 más fuerte que el especificado.
+
+
+---
+
+## Revisión independiente y correcciones (2026-09-17, tarde)
+
+Veredicto **CORREGIR**: un BLOCKER y dos defectos de alcance, los tres
+reproducidos antes de tocar nada y corregidos. Lo que sigue incluye **un error
+del supervisor**, no solo de la implementación.
+
+### BLOCKER — commitear el `manifest.json` ponía el CI en rojo
+
+Tres tests deciden saltarse comprobando que exista el **directorio** de la
+cosecha. Mientras `data/vintages/` entero estaba ignorado, en un clon limpio no
+existía y los tests se saltaban. Al commitear el `manifest.json`, el directorio
+**sí existe** en el clon —con un único fichero dentro—, la guarda deja de
+saltar y `load_vintage` muere al abrir el primer CSV, que sigue ignorado.
+
+Reproducido sin tocar el repo, exportando el commit como lo haría
+`actions/checkout`:
+
+```
+git archive e0bff6b | tar -x -C <tmp> && pytest -q   → 3 failed, 497 passed
+```
+
+En el portátil la suite pasaba (500 ✓) porque ahí los 126 CSV existen. Es
+exactamente el patrón «una suite verde no basta» del propio proyecto, y habría
+salido en el primer push.
+
+Corregido: la guarda mira `AAPL.csv`, que es lo que el test necesita de verdad.
+Verificado del mismo modo: **499 pasan, 3 saltados** en el árbol exportado.
+
+### Un error del supervisor, no de Codex
+
+La versión anterior de este documento decía que la guarda de INV-08 ampliada
+«empieza a proteger con la primera cosecha congelada después de T-006». **Era
+falso.** `freeze_vintage` construye el manifiesto con cuatro claves y
+`universe_vintage_id` no es ninguna de ellas, así que ninguna cosecha futura lo
+habría llevado tampoco: el `.get()` devolvía `None` siempre y el aborto no
+saltaba jamás. El único test que lo cubría fabricaba a mano un manifiesto con
+una clave que el pipeline real no produce nunca, de modo que pasaba en verde
+con la guarda muerta.
+
+Corregido de raíz: `freeze_vintage` recibe el universo y lo escribe **dentro
+del cuerpo que se hashea**, porque el universo forma parte de la identidad de
+la cosecha. Consecuencia asumida y anotada: las cosechas congeladas a partir de
+ahora tendrán un `data_vintage_id` distinto del que tendrían con el esquema
+anterior; la cosecha `071ddb2b…` se sigue leyendo igual, porque `load_vintage`
+recalcula el hash sobre el cuerpo que encuentra. El test nuevo congela de
+verdad, recarga y comprueba que el aborto salta.
+
+### El punto ciego del benchmark, que mi comprobación manual no vio
+
+El payload hasheaba `asset.benchmark`, su **valor**. Pero
+`resolve_benchmark_symbol` decide por **presencia** del campo, no por valor, y
+solo 2 de los 107 analizables lo declaran. Consecuencia medida:
+
+```
+SAP.DE benchmark efectivo antes de declarar nada : ^STOXX
+SAP.DE tras añadirle `benchmark: null`           : None
+vintage antes y después                          : idéntico
+```
+
+Cambiar el índice comparable de un activo le cambia la fortaleza relativa y con
+ella la puntuación, y el identificador que existe para pinear el universo no se
+enteraba. Mi comprobación manual de esta mañana (`^TWII` → `^N225`) tocó
+justamente uno de los dos activos que sí declaran benchmark, el único caso que
+ya funcionaba; y el test del fixture ponía `^GDAXI` en todos, un valor que
+ningún analizable real declara. Dos comprobaciones que se apoyaban en el mismo
+punto ciego.
+
+Corregido añadiendo `benchmark_declared` al payload, con un test del caso real
+—activo sin override al que se le añade `benchmark: null`—. **El vintage
+canónico cambia** a `b160c4c2b4c9827f63876bb876b9c66a0cc1db564b877c021ecb93a5fa64089c`;
+D-23, la constante `REAL_UNIVERSE_VINTAGE` y este documento quedan actualizados.
+
+### Estado tras las correcciones
+
+502 tests en el árbol de trabajo, 499 y 3 saltados en un clon limpio, `ruff` y
+`mypy` limpios.
+
+### Queda abierto, sin corregir a propósito
+
+Dos observaciones del revisor que no son de esta ficha y se anotan para después:
+`analizar --grupos X` declara el vintage del universo **entero** y no el del
+subconjunto analizado, y el informe de `capacidad-estadistica` no publica
+ningún vintage, así que un veredicto de GATE no es atribuible a ninguna
+cosecha. Ninguna de las dos las introduce T-006.

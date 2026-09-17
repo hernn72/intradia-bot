@@ -138,7 +138,10 @@ def test_fortaleza_relativa_alinea_por_zona_en_la_cosecha_real() -> None:
 
     VINTAGE_ID = "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841"
     vintage_dir = Path("data/vintages") / VINTAGE_ID
-    if not vintage_dir.is_dir():
+    # Los CSV de la cosecha están en .gitignore y solo viven en el portátil; el
+    # `manifest.json` sí se commitea desde T-006, así que el directorio existe
+    # en un clon limpio y comprobarlo no basta: la guarda mira una barra real.
+    if not (vintage_dir / "AAPL.csv").is_file():
         pytest.skip(f"cosecha real no disponible: {vintage_dir}")
 
     activo = pd.read_csv(vintage_dir / "SXR8.DE.csv", index_col=0)

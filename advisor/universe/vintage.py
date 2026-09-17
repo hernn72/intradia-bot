@@ -29,6 +29,13 @@ def universe_vintage_payload(universe: Universe) -> list[dict[str, object]]:
             "added_at": asset.added_at,
             "valid_to": asset.valid_to,
             "benchmark": asset.benchmark,
+            # `benchmark: null` declarado y benchmark no declarado son cosas
+            # distintas: `resolve_benchmark_symbol` decide por presencia en
+            # `model_fields_set`, no por valor. Solo 2 de los 107 analizables
+            # declaran benchmark, así que sin esta clave añadir `benchmark: null`
+            # a cualquiera de los otros 105 le cambia el índice comparable —y con
+            # él su fortaleza relativa y su puntuación— sin mover el vintage.
+            "benchmark_declared": "benchmark" in asset.model_fields_set,
         }
         for asset in sorted(universe.analizables(), key=lambda item: item.instrument_id or "")
     ]

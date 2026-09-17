@@ -232,7 +232,7 @@ cerrado, Europa antes y después de la publicación de la barra, y cripto 24/7.
 
 ### D-23 — 2026-09-17 — Primer `universe_vintage_id` canónico
 Se registra como primer vintage canónico del universo analizable:
-`2ba5b3f370badc77c10457f71c21f445425366d524905b85a5c4f39a1ea49a5c`.
+`b160c4c2b4c9827f63876bb876b9c66a0cc1db564b877c021ecb93a5fa64089c`.
 Sustituye al identificador provisional de T-002
 `80d05f21abad212757d2f06d9f2dd53032b92a342dba90904b3086ea970d0b59`,
 que era solo `canonical_hash({"analizables": [symbol…]})`.
@@ -240,9 +240,23 @@ que era solo `canonical_hash({"analizables": [symbol…]})`.
 La definición canónica vive en `advisor/universe/vintage.py`: SHA-256 del JSON
 canónico de los 107 analizables ordenados por `instrument_id`, con
 `instrument_id`, `issuer_id`, `primary_symbol`, `primary_market`,
-`primary_currency`, `asset_class`, `region`, `added_at`, `valid_to` y
-`benchmark`. Las pasadas ya persistidas conservan el id provisional; las
-pasadas nuevas usan el id canónico.
+`primary_currency`, `asset_class`, `region`, `added_at`, `valid_to`,
+`benchmark` y `benchmark_declared`. Las pasadas ya persistidas conservan el id
+provisional; las pasadas nuevas usan el id canónico.
+
+`benchmark_declared` no sobra. `resolve_benchmark_symbol` decide por presencia
+del campo, no por su valor, y solo 2 de los 107 analizables lo declaran: sin
+esa clave, añadir `benchmark: null` a cualquiera de los otros 105 le cambiaba
+el índice comparable —y con él su fortaleza relativa y su puntuación— dejando
+el vintage idéntico. Medido sobre `SAP.DE`, cuyo benchmark efectivo pasa de
+`^STOXX` a `None` sin mover el hash. Lo encontró la revisión independiente.
+
+Una cosecha congelada registra desde ahora el universo con el que se congeló,
+dentro del cuerpo que se hashea. Antes la comprobación existía en
+`replay_managed_population` pero `freeze_vintage` no escribía el campo, así que
+no saltaba nunca. Consecuencia asumida: las cosechas nuevas tienen un
+`data_vintage_id` distinto del que tendrían con el esquema anterior; la cosecha
+`071ddb2b…` se sigue leyendo igual.
 
 `added_at` se obtuvo comparando los conjuntos de símbolos de
 `git show 93009da:universe.yaml`, `git show e952f71:universe.yaml` y `HEAD`:

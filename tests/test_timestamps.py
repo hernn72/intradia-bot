@@ -28,7 +28,10 @@ def test_iso_equivalentes_no_sustituyen_el_texto_canonico() -> None:
 
 def test_cosecha_real_mantiene_hashes_y_bytes_tras_parsear_y_serializar_salidas() -> None:
     vintage_dir = Path("data/vintages") / VINTAGE_ID
-    if not vintage_dir.is_dir():
+    # Los CSV de la cosecha están en .gitignore y solo viven en el portátil; el
+    # `manifest.json` sí se commitea desde T-006, así que el directorio existe
+    # en un clon limpio y comprobarlo no basta: la guarda mira una barra real.
+    if not (vintage_dir / "AAPL.csv").is_file():
         pytest.skip(f"cosecha real no disponible: {vintage_dir}")
 
     before = {path.relative_to(vintage_dir): path.read_bytes() for path in vintage_dir.iterdir() if path.is_file()}

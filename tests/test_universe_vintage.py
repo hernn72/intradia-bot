@@ -10,10 +10,13 @@ from advisor.universe.loader import load_universe
 from advisor.universe.models import Asset, Universe
 from advisor.universe.vintage import universe_vintage_id
 
-BASE_VINTAGE = "0540561016a23e34c316c736cb0822e7a99c23cbe542e9778fd851682014582d"
-WITH_THIRD_ASSET = "06a424cf9e2d7f4052145da6a460c0b6a062fdedab7425b9457d90519066faca"
-WITH_OTHER_BENCHMARK = "00c5d0a715f95a9e5b123e780e7a6eabb3daf3d4d987ce483b7cd501880d9da3"
-REAL_UNIVERSE_VINTAGE = "2ba5b3f370badc77c10457f71c21f445425366d524905b85a5c4f39a1ea49a5c"
+BASE_VINTAGE = "b11204ead2a392b2832764b234b584dd3f070b9a11a884bd3994d39364e30709"
+WITH_THIRD_ASSET = "28534156227fa947f5cb788f360c91d0038834dc82835fc8fef3646ed33d0eed"
+WITH_OTHER_BENCHMARK = "717e561a9a2b0cb736c4101c76c9a3ab65ac72d849bcd1a3d5d648b01c13a024"
+REAL_UNIVERSE_VINTAGE = "b160c4c2b4c9827f63876bb876b9c66a0cc1db564b877c021ecb93a5fa64089c"
+
+
+SIN_DECLARAR = object()
 
 
 def _asset(
@@ -21,9 +24,16 @@ def _asset(
     issuer_id: str,
     *,
     name: str | None = None,
-    benchmark: str | None = "^GDAXI",
+    benchmark: object = "^GDAXI",
     notes: str | None = None,
 ) -> Asset:
+    """Construye un activo; con ``benchmark=SIN_DECLARAR`` omite la clave.
+
+    Declarar ``benchmark: null`` y no declarar el campo no son lo mismo:
+    `resolve_benchmark_symbol` decide por presencia, no por valor.
+    """
+
+    extra = {} if benchmark is SIN_DECLARAR else {"benchmark": benchmark}
     return Asset(
         primary_symbol=symbol,
         primary_market="XETRA",
@@ -39,8 +49,8 @@ def _asset(
         instrument_id=f"{symbol}@XETRA",
         added_at="2026-08-27",
         valid_to=None,
-        benchmark=benchmark,
         notes=notes,
+        **extra,
     )
 
 
@@ -74,6 +84,28 @@ def test_vintage_cambia_si_cambia_el_benchmark() -> None:
 
     assert universe_vintage_id(changed) == WITH_OTHER_BENCHMARK
     assert WITH_OTHER_BENCHMARK != BASE_VINTAGE
+
+
+def test_vintage_distingue_benchmark_declarado_nulo_de_no_declarado() -> None:
+    """El caso que de verdad ocurre en `universe.yaml`.
+
+    Solo 2 de los 107 analizables declaran benchmark. Para los otros 105,
+    añadir `benchmark: null` cambia su índice comparable efectivo —y con él su
+    fortaleza relativa y su puntuación— así que tiene que mover el vintage.
+    Sin `benchmark_declared` en el payload, los dos casos colapsaban al mismo
+    hash y el cambio quedaba invisible en todos los identificadores.
+    """
+
+    no_declarado = _universe(
+        _asset("SAP.DE", "sap", benchmark=SIN_DECLARAR),
+        _asset("ALV.DE", "allianz", benchmark=SIN_DECLARAR),
+    )
+    declarado_nulo = _universe(
+        _asset("SAP.DE", "sap", benchmark=None),
+        _asset("ALV.DE", "allianz", benchmark=SIN_DECLARAR),
+    )
+
+    assert universe_vintage_id(no_declarado) != universe_vintage_id(declarado_nulo)
 
 
 def test_isin_sin_fuente_falla_al_cargar(tmp_path) -> None:

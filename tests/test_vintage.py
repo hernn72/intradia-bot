@@ -8,6 +8,8 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
+from advisor.config import LevelsConfig
+from advisor.research.event_study import EventStudyResult, replay_managed_population
 from advisor.research.vintage import build_views, freeze_vintage, hash_series, load_vintage
 
 
@@ -128,6 +130,42 @@ def test_campaign_no_aborta_por_un_simbolo_fallido(tmp_path) -> None:
     loaded = load_vintage(result.data_vintage_id, root_dir=tmp_path)
     assert set(loaded.by_symbol) == {"AAPL"}
     assert loaded.manifest["failed"][0]["symbol"] == "MSFT"
+
+
+def test_cosecha_congelada_registra_el_universo_y_el_aborto_salta(tmp_path) -> None:
+    """La guarda de INV-08 ampliada estaba muerta: nadie escribía el campo.
+
+    `replay_managed_population` comparaba `manifest["universe_vintage_id"]`
+    contra el del resultado, pero `freeze_vintage` nunca lo incluía en el
+    manifiesto, así que el `.get()` devolvía `None` y el aborto no saltaba
+    jamás. Este test congela de verdad, recarga y comprueba las dos cosas.
+    """
+
+    provider = RawProvider({"NVDA": _raw_history_mantisa_completa()})
+
+    result = freeze_vintage(
+        ["NVDA"],
+        provider,
+        period="1mo",
+        interval="1d",
+        root_dir=tmp_path,
+        downloaded_at=datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc),
+        universe_vintage="universo-de-la-cosecha",
+    )
+    loaded = load_vintage(result.data_vintage_id, root_dir=tmp_path)
+
+    assert loaded.manifest["universe_vintage_id"] == "universo-de-la-cosecha"
+
+    estudio = EventStudyResult(
+        data_vintage_id=result.data_vintage_id,
+        universe_vintage_id="otro-universo",
+        horizonte="swing",
+        cost_pct=0.2,
+        warmup_bars=120,
+        max_hold_bars=40,
+    )
+    with pytest.raises(ValueError, match="universo distinto"):
+        replay_managed_population(estudio, loaded, LevelsConfig(), min_rr_ratio=1.5)
 
 
 def test_load_vintage_rechaza_series_editadas_a_mano(tmp_path) -> None:
