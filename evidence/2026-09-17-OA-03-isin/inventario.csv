@@ -14,7 +14,7 @@ prioridad,veces_operar,veces_vigilar,symbol,nombre,plaza,tipo,isin,estado_isin,f
 1-HA_SIDO_OPERAR,2,21,CVX,Chevron,NYSE,stock,US1667641005,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
 1-HA_SIDO_OPERAR,2,14,6758.T,Sony,JPX,stock,JP3435000009,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
 1-HA_SIDO_OPERAR,2,9,EXV1.DE,iShares STOXX Europe 600 Banks,XETRA,equity_etf,DE000A0F5UJ7,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
-1-HA_SIDO_OPERAR,2,1,BTC-EUR,Bitcoin,CRYPTO,crypto,,NO_APLICABLE,,,no,2026-09-17
+1-HA_SIDO_OPERAR,2,1,BTC-EUR,Bitcoin,CRYPTO,crypto,,NO_APLICABLE,,,yes,2026-09-17
 1-HA_SIDO_OPERAR,1,18,ADBE,Adobe,NASDAQ,stock,US00724F1012,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
 1-HA_SIDO_OPERAR,1,9,CRM,Salesforce,NYSE,stock,US79466L3024,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
 1-HA_SIDO_OPERAR,1,9,NVDA,Nvidia,NASDAQ,stock,US67066G1040,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17

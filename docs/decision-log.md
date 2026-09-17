@@ -319,9 +319,18 @@ control:
 de otra cosa. Hay que cruzar además el país del ISIN con la plaza del activo,
 que es lo que cazó `ENI.MI` y `SOL-EUR`.
 
-Queda abierta una incoherencia por confirmar: `BTC-EUR` figura como no
-disponible y `SOL-EUR` como disponible, lo que es raro si el broker ofrece
-cripto. `ETH-EUR` sigue sin comprobar.
+La incoherencia de las criptos se preguntó y se resolvió el mismo día:
+`BTC-EUR` **sí está disponible**, y lo que traía la tabla era un desliz. Queda
+en `yes` junto con `SOL-EUR`; `ETH-EUR` sigue sin comprobar. Los dos únicos no
+disponibles confirmados son `9984.T` (SoftBank Group) y `4GLD.DE` (Xetra-Gold).
+
+Consecuencia: `BTC-EUR` vuelve a ser ejecutable por broker, pero **sigue
+vetado por `PARTIAL_BAR`**, porque su sesión 24/7 no cierra hasta las 00:00
+UTC. Eso es OD-10, no el broker.
+
+Nota de diseño confirmada de paso: cambiar `trade_republic` **no mueve el
+vintage**, y es correcto. El vintage identifica el universo que se analiza, no
+lo que el broker vende.
 
 Estado tras la tanda: **52 con ISIN verificado, 52 pendientes, 3 no aplicable**;
 45 disponibles, 3 no disponibles, 59 sin comprobar. Los 19 de prioridad 1 —los
