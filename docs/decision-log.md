@@ -448,3 +448,30 @@ Queda como acción recurrente para las siguientes entregas.
 Hasta que C-03 automatice el despliegue por tag, el propietario ejecuta en la
 Pi: `git fetch && git checkout <tag> && pip install -r requirements.txt &&
 python -m pytest -q && python -m advisor.main verificar-systemd`.
+
+### D-26 — 2026-09-17 — OA-03, tercera tanda: el universo queda cubierto
+El propietario completó la tabla. Se aplican **40 ISIN más y 57 cambios de
+disponibilidad**: quedan **92 activos con ISIN**, 95 disponibles, 10 no
+disponibles y solo 2 sin comprobar (`UCG.MI` y `1211.HK`). Ninguno de los 92
+discrepa de los ya registrados y ningún ISIN se repite en dos activos.
+
+**Dos filas quedan PENDIENTES a propósito, y no son erratas:**
+`SAN.MC` traía `US05964H1059` y `005930.KS` traía `US7960508882`. Los dos son
+ISIN estadounidenses válidos, pero corresponden al **ADR/GDR**, no a la acción
+local que el bot analiza en Madrid y en Seúl. Es el mismo caso que `TSM` e
+`INFY`, invertido: aquí el bot mide la acción original y el broker ofrece el
+recibo de depósito, que es **otro instrumento** —otra plaza, otra divisa, otro
+horario y otra liquidez—. Decisión del propietario: dejarlos pendientes hasta
+resolver si se registra el ADR anotando la diferencia o se cambia el símbolo
+analizado. Estado `PENDIENTE_ADR` en el inventario.
+
+De los 12 activos sin ISIN, **10 es porque están marcados no disponibles**
+(`LRCX`, `JPM`, `GE`, `RTX`, `RHM.DE`, `NOVO-B.CO`, `9984.T`, `000660.KS`,
+`DFEN.DE`, `4GLD.DE`), lo cual es coherente: no tiene sentido registrar el
+identificador de algo que no se puede comprar.
+
+Caso que ilustra que ISIN y disponibilidad son preguntas distintas: `DFEN.DE`
+tenía su ISIN verificado contra el KID de VanEck por la mañana y resultó **no
+disponible** en el broker. El identificador era correcto y aun así no sirve.
+
+Vintage: `894ce776ff8572b3a9dfc97a724f96789122e0dd2c46eef55045d4968e0b5fb0`.
