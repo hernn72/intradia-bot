@@ -126,13 +126,29 @@ Republic) y se miden desde 2021. Ninguno ha sido excluido de cotización;
 `ARM`, `DFEN.DE`, `Q8Y0.DE` son jóvenes. No hay fuente gratuita de
 constituyentes históricos ni de exclusiones.
 
+**Identidad del universo (A-00, D-23).** El vintage vigente es
+`894ce776ff8572b3a9dfc97a724f96789122e0dd2c46eef55045d4968e0b5fb0`, y **se
+mueve con cada tanda de OA-03**, porque el `instrument_id` de un activo pasa de
+`SYMBOL@MARKET` a su ISIN en cuanto se verifica. Todo resultado publicado debe
+llevar el vintage con el que se calculó; las pasadas anteriores al 2026-09-17
+llevan el id provisional `80d05f21…`, que era solo la lista de símbolos.
+
+`added_at` se derivó comparando las tres versiones de `universe.yaml`: **20
+activos del 2026-08-27 y 106 del 2026-08-29**. Los ocho listados alemanes del
+universo inicial que pasaron a su símbolo primario (`APC.DE` → `AAPL` y
+compañía) son **instrumentos distintos**, no renombrados, porque cambian plaza,
+calendario, divisa y fuente de barras. Consecuencia vinculante: **ningún
+resultado sobre `AAPL` y los otros siete puede reclamar antigüedad del 27 de
+agosto**, aunque su emisor ya estuviera considerado.
+
 **Sesgos presentes, por orden de gravedad:**
 
 | Sesgo | Efecto sobre la medición |
 |---|---|
 | Supervivencia | Solo activos que llegaron a 2026: la tasa de desplomes y quiebras está subestimada; la expectancy larga, sobreestimada |
 | Selección con información futura | Elegidos por ser grandes/fuertes en 2026: deriva alcista media superior a la del mercado en el periodo |
-| Conocimiento futuro en benchmarks | `benchmark` por activo elegido en 2026 |
+| Conocimiento futuro en benchmarks | `benchmark` por activo elegido en 2026. Solo 2 de los 107 lo declaran; los otros 105 lo heredan de `config.yaml`, que el vintage **no** hashea: ese lado lo pinea `config_hash` en el manifiesto |
+| Selección por disponibilidad en el broker | Desde el 2026-09-17, 10 activos están marcados no disponibles y quedan vetados. El universo **analizado** no cambia, pero el **ejecutable** sí, y no es el mismo con el que se midió el pasado |
 
 **Qué se puede afirmar y qué no** (regla vinculante hasta P10):
 
@@ -166,8 +182,8 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | PR 1 | Fases 1–3: RR desde precio efectivo, `entry_max` por RR, setup vs ejecución, sizing desde entrada efectiva | HECHO y en `main` (`e929da4`, fusionado el 2026-09-16) | — | — |
 | PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | **HECHA: aceptada, en `main` y desplegada** (2026-09-16) | T-002 | T-003 |
 | PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | **HECHA** (2026-09-16, revisión independiente CORREGIR con 7 defectos, corregidos y verificados). Tres causas: 4 pares eran cierre real de KRX que la librería no codifica, 43 son huecos del proveedor con la plaza abierta, 0 del pipeline | T-003 | T-004 |
-| PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | EN_REVISION (2026-09-16: implementada y **verificada contra datos reales**; 4 defectos encontrados al verificar y corregidos; descartes repartidos en 4 códigos. Falta revisión independiente) | T-002, T-003, T-004 | T-005 |
-| PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | PENDIENTE | PR 3 | T-007 (por escribir) |
+| PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | **HECHA: aceptada, en `main` y desplegada** (2026-09-17). Dos revisiones independientes, las dos CORREGIR: la 1.ª con 3 defectos y 4 avisos, la 2.ª con 4 de alcance (el segundo camino de `DataQuality`, el aviso de precio extendido perdido y sin persistir, `_skip_code` atribuyendo causas y tests que faltaban). Todo corregido y verificado; evidencia rehecha en `evidence/2026-09-17-T-005-correcciones/` | T-002, T-003, T-004 | T-005 |
+| PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | PENDIENTE, **ficha escrita** (2026-09-17). Incorpora un defecto medido que no estaba en el plan: `trim_unclosed_bar` usa el cierre **regular** y descarta barras ya cerradas en días de media sesión; muerde por primera vez el 2026-11-27. Releer su fase 11 antes de encargarla: se escribió con los 107 activos en `unknown` y hoy solo quedan 2 | PR 3 | **T-007** |
 | PR 5 | Fases 12–13 informe + siete invariantes de integración | PENDIENTE | PR 4 | T-008 |
 | PR 5 | Fase 14 filtro de ejecución medido aparte del score, incl. pérdida por `ABOVE_MAX_ENTRY` a la apertura (D-06) | PENDIENTE | PR 4 | T-009 |
 | PR 5 | Fase 15 limpieza → **GATE L0** | PENDIENTE | todo lo anterior + C-00..C-02 | T-010 |
@@ -188,7 +204,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 
 | ID | Fase | Estado | Depende de | Ficha |
 |---|---|---|---|---|
-| A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | EN_REVISION (`b160c4c2…`; evidencia 2026-09-17) | C-02 | T-006 |
+| A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | **ACEPTADA y en `main`** (2026-09-17). Revisión independiente CORREGIR: un BLOCKER de CI, la guarda de INV-08 que no escribía nadie y el vintage ciego al benchmark declarado; los tres corregidos. Vintage vigente `894ce776…`, que se mueve con cada tanda de OA-03 | C-02 | T-006 |
 | A-01 | Interpretar el histórico de frescura de la Pi (recurrencia de huecos) → alimenta OD-02 | PENDIENTE | acceso a la Pi | T-012 |
 | A-02 | Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con RS alineada y línea 0; decidir el RR en el score → **GATE P2** | BLOQUEADO(GATE L0, A-00) | GATE L0 | T-013 |
 | A-03 | P3 Score v2: dimensiones, pesos, `score_model_version`, umbrales por horizonte, ¿`convicción` fuera del número? → **GATE P3** | BLOQUEADO(GATE P2) | A-02 | por escribir |
@@ -203,7 +219,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | ID | Fase | Estado | Depende de | Ficha |
 |---|---|---|---|---|
 | B-00 | Contrato point-in-time `advisor/context/models.py` + ficha de proveedor obligatoria → **GATE B0** | PENDIENTE | A-00 | T-014 |
-| B-01 | Identidad emisor/instrumento/listing (cubierta por A-00, D-20) | PENDIENTE | A-00 | T-006 |
+| B-01 | Identidad emisor/instrumento/listing (cubierta por A-00, D-20) | **HECHA con A-00** (2026-09-17). Aviso para la línea B: `issuer_id: ishares` se repite en 13 ETF, así que una noticia de BlackRock mapearía a trece productos cuyo precio lo mueve su índice, no el emisor | A-00 | T-006 |
 | B-02 | Collector de noticias (por emisor y macro), dedupe por `content_hash`, sin LLM | BLOQUEADO(B0) | B-00 | por escribir |
 | B-03 | Sentimiento: datos primero (conteos, fuente, timestamps); LLM solo con OD-03 | BLOQUEADO(B0, OD-03) | B-02 | por escribir |
 | B-04 | Fundamentales: magnitudes primarias con fecha de publicación; ratios en Python | BLOQUEADO(B0, OD-01) | B-00 | por escribir |
