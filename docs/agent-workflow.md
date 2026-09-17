@@ -9,11 +9,11 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-17 (fin de jornada)
+# START HERE — actualizado 2026-09-17 (cierre real, tras dos tandas de OA-03)
 
 ## Dónde está todo
 
-    main / origin/main / la Pi    4f07829    las tres alineadas, CI verde
+    main / origin/main / la Pi    54ac004    las tres alineadas, CI verde
     graphify-out/                 sin seguimiento, ignorar
 
 Nada pendiente de commitear. La Pi corre lo mismo que `main`, con esquema v4 y
@@ -27,8 +27,11 @@ los timers vivos.
     e0bff6b  T-006: identidad de instrumentos y universe_vintage_id canónico
     cc9341f  T-006: las 3 correcciones de su revisión (una era un BLOCKER de CI)
     4f07829  OA-03 primera tanda: 19 ISIN verificados en la app del broker
+    3ece8f1  punto de retomada
+    5125e90  OA-03 segunda tanda: 52 ISIN y 48 disponibilidades
+    54ac004  BTC-EUR sí está disponible (corrección del propietario)
 
-Vintage actual del universo: `23afb7bb…`. Cambia con cada tanda de OA-03,
+Vintage actual del universo: `9d0a4c6f…`. Cambia con cada tanda de OA-03,
 y el test `test_universe_real_tiene_107_analizables_y_vintage_conocido` se
 actualiza a propósito con cada una.
 
@@ -46,10 +49,24 @@ actualiza a propósito con cada una.
    `MARKET_SESSIONS`: `exchange_calendars` ya da apertura y cierre, y sus 14
    cierres coinciden exactamente con los hardcodeados. Copiarlos sería una
    segunda fuente de verdad (INV-06).
-2. **OA-03, el resto**: 70 sin ISIN y 15 heredados sin fuente primaria; 87
-   activos en `unknown` para Trade Republic. Inventario priorizado en
-   `evidence/2026-09-17-OA-03-isin/inventario.csv`, ordenado por si el activo
-   ha llegado a OPERAR alguna vez. Los 19 de prioridad 1 están cerrados.
+2. **OA-03, el resto.** Estado al cierre: **52 con ISIN verificado, 52
+   pendientes, 3 no aplicable**; 46 disponibles, 2 no (`9984.T` y `4GLD.DE`),
+   59 sin comprobar. **Los 19 de prioridad 1 están cerrados**: todos los que el
+   bot ha llegado a recomendar comprar. De los 52 pendientes, ninguno se ha
+   recomendado nunca. Falta `ETH-EUR` por comprobar.
+
+   **El propietario va a seguir completando la tabla.** La entrega como
+   `evidence/2026-09-17-OA-03-isin/inventario.numbers`, que se lee con
+   `numbers-parser` (hay un venv con él y con `pypdf` en el scratchpad; si no
+   existe, `python3 -m venv` y `pip install numbers-parser pypdf`).
+
+   **Validar SIEMPRE antes de aplicar, y no solo el dígito de control.** En la
+   segunda tanda, 4 de las filas venían mal y ninguna la habría cazado el
+   checksum: un ISIN japonés válido para una empresa italiana (`ENI.MI`), una
+   fecha en la columna del ISIN (`PLTR`), un símbolo sin su sufijo (`BBVA` por
+   `BBVA.MC`) y un producto cotizado sobre Solana en vez de la moneda
+   (`SOL-EUR`). Cruzar el país del ISIN con la plaza del activo caza dos de
+   ellas; el resto sale de comparar contra el universo real.
 3. **T-008..T-010** (PR 5) siguen **sin ficha**; las escribe Opus.
 
 ## Decisiones del propietario pendientes
@@ -57,8 +74,11 @@ actualiza a propósito con cada una.
 - **OA-02** — branch protection en GitHub, sin hacer. `main` recibió seis
   commits hoy y sigue admitiendo push directo y force-push.
 - **OD-09** (horario de las pasadas) y **OD-10** (cripto), abiertas desde ayer.
-  Hoy se ven mejor: con 11 activos ya `EXECUTABLE`, los que frenan a los
-  europeos son `STALE_DATA` y `MISSING_RECENT_DATA`, no el broker.
+  Ahora se deciden con datos: con **24 activos ya `EXECUTABLE`**, lo que frena a
+  los europeos es `STALE_DATA` y `MISSING_RECENT_DATA`, y a las criptos
+  `PARTIAL_BAR`. Ninguna de las dos cosas es el broker. `BTC-EUR` está
+  disponible y aun así no es recomendable por su barra 24/7: eso es OD-10 en
+  estado puro.
 
 ## Dos hallazgos abiertos que no son de ninguna ficha
 
