@@ -63,6 +63,7 @@ from advisor.storage.migrations import LATEST_VERSION
 from advisor.telegram.notifier import TelegramNotifier
 from advisor.universe.loader import load_universe
 from advisor.universe.models import Asset, Universe
+from advisor.universe.vintage import universe_vintage_id, universe_vintage_payload
 
 logger = logging.getLogger(__name__)
 
@@ -538,6 +539,27 @@ def cmd_manifiesto(args: argparse.Namespace, config: AdvisorConfig, universe: Un
     return 0
 
 
+def cmd_universo(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    if args.vintage:
+        print(format_universe_vintage(universe))
+        return 0
+    print(f"Activos: {len(universe.all_assets())}; analizables: {len(universe.analizables())}")
+    return 0
+
+
+def format_universe_vintage(universe: Universe) -> str:
+    lines = [
+        f"universe_vintage_id={universe_vintage_id(universe)}",
+        "instrument_id | issuer_id | primary_symbol | primary_market | added_at | benchmark",
+    ]
+    for item in universe_vintage_payload(universe):
+        lines.append(
+            f"{item['instrument_id']} | {item['issuer_id']} | {item['primary_symbol']} | "
+            f"{item['primary_market']} | {item['added_at']} | {item['benchmark'] or 'null'}"
+        )
+    return "\n".join(lines)
+
+
 def cmd_capacidad_estadistica(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     result = run_event_study(
         config,
@@ -891,6 +913,10 @@ def build_parser() -> argparse.ArgumentParser:
     manifiesto = sub.add_parser("manifiesto", help="muestra el manifiesto y recomendaciones de una pasada")
     manifiesto.add_argument("--run-id", required=True, dest="run_id")
     manifiesto.set_defaults(func=cmd_manifiesto)
+
+    universo_parser = sub.add_parser("universo", help="muestra metadatos del universo")
+    universo_parser.add_argument("--vintage", action="store_true", help="imprime el universe_vintage_id y su lista")
+    universo_parser.set_defaults(func=cmd_universo)
 
     event_study = sub.add_parser("event-study", help="mide señales potenciales sobre una cosecha congelada")
     event_study.add_argument("data_vintage_id", help="identificador de la cosecha congelada")

@@ -24,6 +24,7 @@ from advisor.analysis.scoring import SCORE_MODEL_VERSION
 from advisor.config import AdvisorConfig
 from advisor.data.calendars import EXCHANGE_OVERRIDES_PATH
 from advisor.universe.models import Universe
+from advisor.universe.vintage import canonical_hash, universe_vintage_id
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +59,6 @@ class RunManifest:
         return row
 
 
-def canonical_hash(value: Any) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
 def config_hash(config: AdvisorConfig) -> str:
     return canonical_hash(config.model_dump(mode="json"))
 
@@ -70,11 +66,6 @@ def config_hash(config: AdvisorConfig) -> str:
 def file_content_hash(path: str | Path) -> str:
     data = Path(path).read_bytes()
     return hashlib.sha256(data).hexdigest()
-
-
-def universe_vintage_id(universe: Universe) -> str:
-    symbols = sorted(asset.symbol for asset in universe.analizables())
-    return canonical_hash({"analizables": symbols})
 
 
 def git_sha(repo: str | Path = ".") -> str:

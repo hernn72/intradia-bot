@@ -100,6 +100,7 @@ class AblationResult:
     n_without_net_r: int
     evaluable_max_counts: Dict[float, int]
     evaluable_max_without_rr_counts: Dict[float, int]
+    universe_vintage_id: str = ""
 
 
 def build_ablation_record(signal: EventStudySignal, cost_pct: float) -> Tuple[Optional[AblationRecord], Optional[str]]:
@@ -202,6 +203,7 @@ def run_ablation(
     rr_dimension_max = _first_rr_dimension(records, valid_signals)
     return AblationResult(
         data_vintage_id=result.data_vintage_id,
+        universe_vintage_id=result.universe_vintage_id,
         horizonte=result.horizonte,
         cost_pct=result.cost_pct,
         warmup_bars=result.warmup_bars,
@@ -228,6 +230,7 @@ def format_ablation_report(result: AblationResult) -> str:
         "# Ablación P2.4 del score",
         "",
         f"Cosecha: {result.data_vintage_id}",
+        f"Universo: {result.universe_vintage_id}",
         f"Horizonte: {result.horizonte} | coste {result.cost_pct:.2f}% | warmup {result.warmup_bars} velas | "
         f"horizonte máximo {result.max_hold_bars} velas",
         f"Activos evaluados: {result.evaluated_assets} | señales evaluadas: {len(result.records)}",

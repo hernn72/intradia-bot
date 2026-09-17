@@ -24,6 +24,9 @@ def _asset(**overrides) -> dict:
         timezone="Europe/Berlin",
     )
     base.update(overrides)
+    if base.get("isin") and "isin_verified_at" not in base:
+        base["isin_verified_at"] = "2026-08-27"
+        base["isin_source"] = "universe inicial 2026-08-27"
     return base
 
 

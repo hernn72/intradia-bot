@@ -1,0 +1,76 @@
+2026-09-17T08:50:09Z
+5de38c2
+........................................................................ [ 14%]
+........................................................................ [ 29%]
+........................................................................ [ 43%]
+........................................................................ [ 58%]
+........................................................................ [ 72%]
+........................................................................ [ 87%]
+..............................................................           [100%]
+=============================== warnings summary ===============================
+tests/test_freshness.py::TestPersistenciaEnLaPasadaReal::test_guarda_frescura_con_la_ia_activada
+  /Users/fer/Desktop/Trading bot/intradia-bot/.venv/lib/python3.12/site-packages/pydantic/main.py:475: UserWarning: Pydantic serializer warnings:
+    PydanticSerializationUnexpectedValue(Expected `str` - serialized value may not be as expected [field_name='db_path', input_value=PosixPath('/private/var/f...a_con_la_ia0/pasada.db'), input_type=PosixPath])
+    return self.__pydantic_serializer__.to_python(
+
+tests/test_freshness.py::TestUniversoRealCompleto::test_activo_de_contexto_sin_calendario_degrada_su_fila_no_la_medicion
+tests/test_freshness.py::TestUniversoRealCompleto::test_activo_de_contexto_sin_calendario_degrada_su_fila_no_la_medicion
+  /Users/fer/Desktop/Trading bot/intradia-bot/.venv/lib/python3.12/site-packages/exchange_calendars/exchange_calendar_xhkg.py:363: DeprecationWarning: The 'generic' unit for NumPy timedelta is deprecated, and will raise an error in the future. This includes implicit conversion of bare integers (e.g. `+ 1`).Please use a specific unit instead.
+    easter_monday = EasterMonday.dates(years[0], years[-1] + 1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+494 passed, 3 warnings in 88.41s (0:01:28)
+All checks passed!
+Success: no issues found in 60 source files
+2026-09-17 09:51:38 [INFO] advisor.analysis.analyzer: Analizando 107 activos (horizonte swing, velas de 1d)
+2026-09-17 09:52:44 [INFO] advisor.analysis.analyzer: ^STOXX benchmark: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:45 [INFO] advisor.analysis.analyzer: SAP.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:46 [INFO] advisor.analysis.analyzer: SIE.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:47 [INFO] advisor.analysis.analyzer: ALV.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:48 [INFO] advisor.analysis.analyzer: MBG.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:49 [INFO] advisor.analysis.analyzer: RHM.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:50 [INFO] advisor.analysis.analyzer: ENR.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:51 [INFO] advisor.analysis.analyzer: DTE.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:52 [INFO] advisor.analysis.analyzer: DBK.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:53 [INFO] advisor.analysis.analyzer: MUV2.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:54 [INFO] advisor.analysis.analyzer: IFX.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:52:55 [INFO] advisor.analysis.analyzer: ASML.AS: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-17 09:52:56 [INFO] advisor.analysis.analyzer: ADYEN.AS: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-17 09:52:57 [INFO] advisor.analysis.analyzer: MC.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 09:52:58 [INFO] advisor.analysis.analyzer: AIR.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 09:52:59 [INFO] advisor.analysis.analyzer: SU.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 09:53:00 [INFO] advisor.analysis.analyzer: SAF.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 09:53:01 [INFO] advisor.analysis.analyzer: TTE.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 09:53:02 [INFO] advisor.analysis.analyzer: OR.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 09:53:03 [INFO] advisor.analysis.analyzer: IBE.MC: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-17 09:53:04 [INFO] advisor.analysis.analyzer: ITX.MC: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-17 09:53:05 [INFO] advisor.analysis.analyzer: SAN.MC: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-17 09:53:06 [INFO] advisor.analysis.analyzer: BBVA.MC: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-17 09:53:07 [INFO] advisor.analysis.analyzer: RACE.MI: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-17 09:53:08 [INFO] advisor.analysis.analyzer: UCG.MI: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-17 09:53:09 [INFO] advisor.analysis.analyzer: ENI.MI: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-17 09:53:10 [INFO] advisor.analysis.analyzer: NOVO-B.CO: barra 2026-09-17 recortada: cierre regular 17:00 Europe/Copenhagen + 20 min no alcanzado
+2026-09-17 09:53:11 [INFO] advisor.analysis.analyzer: RRU.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:53:12 [INFO] advisor.analysis.analyzer: BSP.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:53:14 [INFO] advisor.analysis.analyzer: R6C0.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:00 [INFO] advisor.analysis.analyzer: EUNL.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:01 [INFO] advisor.analysis.analyzer: SXR8.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:02 [INFO] advisor.analysis.analyzer: EQQQ.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:03 [INFO] advisor.analysis.analyzer: EXSA.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:04 [INFO] advisor.analysis.analyzer: IS3N.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:05 [INFO] advisor.analysis.analyzer: EUNN.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:06 [INFO] advisor.analysis.analyzer: ICGA.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:07 [INFO] advisor.analysis.analyzer: QDV5.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:08 [INFO] advisor.analysis.analyzer: IQQT.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:09 [INFO] advisor.analysis.analyzer: IQQK.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:10 [INFO] advisor.analysis.analyzer: VVSM.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:11 [INFO] advisor.analysis.analyzer: DFEN.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:12 [INFO] advisor.analysis.analyzer: Q8Y0.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:13 [INFO] advisor.analysis.analyzer: 4GLD.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:14 [INFO] advisor.analysis.analyzer: EUNH.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:15 [INFO] advisor.analysis.analyzer: ZPRR.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:16 [INFO] advisor.analysis.analyzer: EXV1.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 09:57:17 [INFO] advisor.analysis.analyzer: EXH1.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
+==========================================================================================
+run b1d50d47-63e3-447f-ac43-9fd9c2a2a127 · 5de38c2f6c13 · config 271d46b2 · universo 80d05f21

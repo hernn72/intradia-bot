@@ -1,6 +1,6 @@
 # T-006 — `universe_vintage_id` e identidad mínima de instrumentos (A-00)
 
-Estado: PENDIENTE (intento del 2026-09-14 bloqueado por el entorno; ver handoff)
+Estado: EN_REVISION
 Agente: Codex (mecánico, bien especificado) → Opus (revisión breve del hash canónico)
 Línea / fase: A-00 (prerrequisito de GATE P2) y B-01 (identidad para la línea B)
 Gate al que contribuye: GATE P2 (requisito 3), GATE B0
@@ -236,3 +236,72 @@ dejaron la plaza resuelta en código, en `MARKET_SESSIONS` de
 `exchange_overrides.yaml` para los cierres que `exchange_calendars` no
 codifica. Duplicar eso en `universe.yaml` crearía una segunda fuente de verdad
 para el mismo dato y rompería INV-06. Queda fuera de alcance.
+
+## Entrega del 2026-09-17 — EN_REVISION
+
+Implementado:
+- `advisor/universe/vintage.py` define el hash canónico único y el manifiesto
+  importa esa función; se retira el hash provisional por símbolos.
+- `universe.yaml` conserva 126 instrumentos y 107 analizables; añade identidad
+  mínima, 18 ISIN con `isin_source: "universe inicial 2026-08-27"` y
+  `isin_verified_at: 2026-08-27`; `trade_republic` sigue por defecto en
+  `unknown`.
+- `added_at` se derivó comparando símbolos de `git show
+  93009da:universe.yaml`, `git show e952f71:universe.yaml` y `HEAD`: 20
+  activos con `2026-08-27` y 106 con `2026-08-29`.
+- Los ocho listings alemanes ausentes se trataron como instrumentos distintos:
+  los primarios actuales tienen `added_at: 2026-08-29`, `ticker_history: []` y
+  solo comparten `issuer_id`.
+- `advisor.main universo --vintage` imprime el id completo y la lista
+  canónica; el pie del informe usa el nuevo id.
+- Los resultados de investigación llevan `universe_vintage_id`; la población
+  pareada aborta si una cosecha declara un universo distinto.
+- `.gitignore` deja visible solo `data/vintages/*/manifest.json`; los CSV
+  siguen ignorados. El manifiesto de `071ddb2b…` queda visible para añadirlo.
+
+Evidencia:
+- `evidence/2026-09-17-T-006-universe-vintage/antes.txt`
+- `evidence/2026-09-17-T-006-universe-vintage/despues.txt`
+- `evidence/2026-09-17-T-006-universe-vintage/README.md`
+
+Validación:
+- `python -m pytest -q`: 500 pasan.
+- `ruff check .`: ok.
+- `mypy advisor`: ok.
+- `python -m advisor.main universo --vintage`: id
+  `2ba5b3f370badc77c10457f71c21f445425366d524905b85a5c4f39a1ea49a5c`.
+- `python -m advisor.main analizar --horizonte swing --sin-ia --sin-guardar |
+  tail -3`: el pie imprime `universo 2ba5b3f3`, que coincide con los 8
+  primeros caracteres del id canónico.
+
+Invariantes:
+- INV-06: una sola implementación (`advisor/universe/vintage.py`) compartida
+  por manifiesto, CLI y tests; no se duplican calendarios en YAML.
+- INV-16: `unknown` permanece desconocido; ISIN sin fuente falla; ausencia de
+  ISIN sigue siendo `null`, no `0` ni `no`.
+- INV-19: el cambio de contrato de universo produce nuevo
+  `universe_vintage_id` y queda registrado en `docs/decision-log.md`.
+
+Impacto:
+- Activos afectados: 0 en la lista analizable; 126 en metadatos.
+- Señales afectadas: 0 por decisión; no se tocaron score, niveles, frescura,
+  ejecución, pesos ni benchmarks.
+- Resultado relevante: las pasadas futuras llevan el vintage canónico
+  `2ba5b3f3…`; las pasadas ya persistidas conservan el provisional
+  `80d05f21…`.
+
+Hallazgos:
+- SAME_SCOPE: un test sintético de diagnóstico creaba SAP con ISIN sin fuente;
+  se actualizó el fixture para reflejar el nuevo contrato.
+- FOLLOW_UP: `graphify-out/` ya estaba sin seguimiento al empezar y no se tocó.
+- OBSERVATION: pytest mantiene 3 warnings preexistentes (serialización de
+  `db_path` como `Path` en un test de frescura y deprecación de
+  `exchange_calendars`/NumPy en XHKG).
+
+Handoff:
+- Árbol listo para revisión, sin commit. Añadir solo el manifiesto
+  `data/vintages/071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841/manifest.json`;
+  los CSV siguen ignorados.
+- Revisar especialmente el `issuer_id` de ETFs/ETC como modelo mínimo; no
+  afecta al hash salvo cambio deliberado del campo.
+- No hay decisiones pendientes.

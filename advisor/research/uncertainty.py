@@ -69,6 +69,7 @@ class PairedComparison:
     verdict: str
     reasons: Tuple[str, ...]
     comparaciones_publicadas: int
+    universe_vintage_id: str = ""
 
 
 def pair_populations(
@@ -184,6 +185,7 @@ def compare_target_geometry(
     verdict, reasons = _comparison_verdict(capacity, paired, results, conclusion_estable)
     return PairedComparison(
         data_vintage_id=data_vintage_id,
+        universe_vintage_id=result_a.universe_vintage_id,
         horizonte=horizonte,
         cost_pct=cost_pct,
         label_a="A producción",
@@ -214,6 +216,7 @@ def format_paired_comparison(comparison: PairedComparison) -> str:
         "P2.6 mide incertidumbre; no decide ni adopta geometría. config.yaml no se modifica.",
         "Convención: ΔR > 0 significa que B obtuvo más R neto que A sobre las mismas señales.",
         f"data_vintage_id={comparison.data_vintage_id}",
+        f"universe_vintage_id={comparison.universe_vintage_id}",
         f"horizonte={comparison.horizonte}; cost_pct={comparison.cost_pct:g}",
         f"A target_atr_multiples={comparison.levels_a['target_atr_multiples']}; atr_stop_multiple={comparison.levels_a['atr_stop_multiple']}",
         f"B target_atr_multiples={comparison.levels_b['target_atr_multiples']}; atr_stop_multiple={comparison.levels_b['atr_stop_multiple']}",

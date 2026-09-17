@@ -230,6 +230,26 @@ divergencias `raw` contra `effective` por plaza y pasada, con cripto contado
 aparte, el impacto sobre los vetos de D-21, y los casos frontera: Tokio ya
 cerrado, Europa antes y después de la publicación de la barra, y cripto 24/7.
 
+### D-23 — 2026-09-17 — Primer `universe_vintage_id` canónico
+Se registra como primer vintage canónico del universo analizable:
+`2ba5b3f370badc77c10457f71c21f445425366d524905b85a5c4f39a1ea49a5c`.
+Sustituye al identificador provisional de T-002
+`80d05f21abad212757d2f06d9f2dd53032b92a342dba90904b3086ea970d0b59`,
+que era solo `canonical_hash({"analizables": [symbol…]})`.
+
+La definición canónica vive en `advisor/universe/vintage.py`: SHA-256 del JSON
+canónico de los 107 analizables ordenados por `instrument_id`, con
+`instrument_id`, `issuer_id`, `primary_symbol`, `primary_market`,
+`primary_currency`, `asset_class`, `region`, `added_at`, `valid_to` y
+`benchmark`. Las pasadas ya persistidas conservan el id provisional; las
+pasadas nuevas usan el id canónico.
+
+`added_at` se obtuvo comparando los conjuntos de símbolos de
+`git show 93009da:universe.yaml`, `git show e952f71:universe.yaml` y `HEAD`:
+20 instrumentos con `2026-08-27` y 106 con `2026-08-29`. Los ocho listings
+alemanes del universo inicial que pasaron a primarios actuales son
+instrumentos distintos del mismo emisor; no son `ticker_history`.
+
 ---
 
 ## OWNER_DECISION_REQUIRED

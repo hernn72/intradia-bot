@@ -14,11 +14,11 @@ verificado por una fuente fiable.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, PrivateAttr, field_validator, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
 
 VALID_ASSET_CLASSES = frozenset({
     "stock", "equity_etf", "bond_etf", "commodity_etf", "commodity_etc", "leveraged_etf",
@@ -117,6 +117,15 @@ class Asset(BaseModel):
     broker: str = "trade_republic"
     execution_mode: str = "best_price"
     isin: Optional[str] = None
+    issuer_id: Optional[str] = None
+    instrument_id: Optional[str] = None
+    added_at: Optional[date] = None
+    valid_to: Optional[date] = None
+    delisted_at: Optional[date] = None
+    ticker_history: List[str] = Field(default_factory=list)
+    isin_verified_at: Optional[date] = None
+    isin_source: Optional[str] = None
+    trade_republic_checked_at: Optional[date] = None
     requires_isin: Optional[bool] = None
     trade_republic: str = "unknown"
     # Un activo con ``analizable: false`` se carga pero no se analiza: útil
@@ -249,6 +258,34 @@ class Asset(BaseModel):
             return None
         return validate_isin(value)
 
+    @field_validator("issuer_id")
+    @classmethod
+    def _validate_issuer_id(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip().lower()
+        if not cleaned:
+            return None
+        allowed = set("abcdefghijklmnopqrstuvwxyz0123456789-_")
+        if any(char not in allowed for char in cleaned):
+            raise ValueError("issuer_id debe ser un slug en minúsculas")
+        return cleaned
+
+    @field_validator("instrument_id")
+    @classmethod
+    def _validate_instrument_id(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip().upper()
+        if not cleaned:
+            return None
+        return cleaned
+
+    @field_validator("ticker_history")
+    @classmethod
+    def _validate_ticker_history(cls, value: List[str]) -> List[str]:
+        return [symbol.strip().upper() for symbol in value if symbol.strip()]
+
     @field_validator("trade_republic")
     @classmethod
     def _validate_trade_republic(cls, value: str) -> str:
@@ -313,6 +350,12 @@ class Asset(BaseModel):
                     f"{self.symbol}: un {self.asset_class} solo sirve de contexto, "
                     f"debe llevar analizable: false"
                 )
+        if self.isin is not None and (
+            self.isin_verified_at is None or self.isin_source is None or not self.isin_source.strip()
+        ):
+            raise ValueError(f"{self.symbol}: un ISIN sin fuente no es verificado")
+        if self.instrument_id is None:
+            self.instrument_id = self.isin if self.isin is not None else f"{self.primary_symbol}@{self.primary_market}"
         return self
 
     def data_symbol(self, now: Optional[datetime] = None) -> str:
@@ -413,6 +456,20 @@ class Universe(BaseModel):
     def all_assets(self) -> List[Asset]:
         """Todos los activos del universo, en orden de declaración."""
         return [asset for assets in self.groups.values() for asset in assets]
+
+    def validate_identity_metadata(self) -> None:
+        """Exige identidad point-in-time en el universo cargado desde YAML."""
+
+        missing: List[str] = []
+        for asset in self.all_assets():
+            if asset.issuer_id is None:
+                missing.append(f"{asset.symbol}: issuer_id")
+            if asset.added_at is None:
+                missing.append(f"{asset.symbol}: added_at")
+            if asset.instrument_id is None:
+                missing.append(f"{asset.symbol}: instrument_id")
+        if missing:
+            raise ValueError("identidad de universo incompleta: " + ", ".join(missing))
 
     def analizables(self, groups: Optional[List[str]] = None) -> List[Asset]:
         """Activos que deben analizarse, opcionalmente filtrados por grupo.

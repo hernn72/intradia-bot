@@ -29,6 +29,7 @@ from advisor.research.observations import SignalObservation, build_signal_observ
 from advisor.research.timestamps import parse_timestamp, timestamp_raw
 from advisor.research.vintage import VintageLoad, load_vintage
 from advisor.universe.models import Asset, Universe
+from advisor.universe.vintage import universe_vintage_id
 
 MAX_HOLD_BARS = {"swing": 40, "medio": 250}
 
@@ -144,6 +145,7 @@ class EventStudyResult:
     cost_pct: float
     warmup_bars: int
     max_hold_bars: int
+    universe_vintage_id: str = ""
     signals: List[EventStudySignal] = field(default_factory=list)
     evaluated_assets: List[str] = field(default_factory=list)
     asset_bar_counts: Dict[str, int] = field(default_factory=dict)
@@ -241,6 +243,7 @@ def run_event_study_on_vintage(
     max_hold = MAX_HOLD_BARS[horizonte]
     result = EventStudyResult(
         data_vintage_id=vintage.data_vintage_id,
+        universe_vintage_id=universe_vintage_id(universe),
         horizonte=horizonte,
         cost_pct=cost_pct,
         warmup_bars=warmup,
@@ -340,6 +343,11 @@ def replay_managed_population(
     if result.data_vintage_id != vintage.data_vintage_id:
         raise ValueError(
             f"cosecha distinta: result={result.data_vintage_id} vintage={vintage.data_vintage_id}"
+        )
+    vintage_universe = vintage.manifest.get("universe_vintage_id")
+    if vintage_universe is not None and result.universe_vintage_id != vintage_universe:
+        raise ValueError(
+            f"universo distinto: result={result.universe_vintage_id} vintage={vintage_universe}"
         )
     replayed: Dict[str, ManagedEvent] = {}
     effective_cost = result.cost_pct if cost_pct is None else cost_pct
@@ -562,6 +570,7 @@ def format_event_study_report(result: EventStudyResult, estimator_summary: Optio
         "# Event study P2.3",
         "",
         f"Cosecha: {result.data_vintage_id}",
+        f"Universo: {result.universe_vintage_id}",
         f"Horizonte: {result.horizonte} | coste {result.cost_pct:.2f}% | "
         f"warmup {result.warmup_bars} velas | horizonte máximo {result.max_hold_bars} velas",
         f"Activos evaluados: {len(result.evaluated_assets)} | señales evaluadas: {len(result.signals)}",

@@ -270,6 +270,8 @@ def test_diagnose_all_saved_gaps_emite_fila_para_simbolo_fuera_del_universo(conf
         primary_market="XETRA",
         primary_currency="EUR",
         isin="DE0007164600",
+        isin_verified_at="2026-08-27",
+        isin_source="universe inicial 2026-08-27",
         requires_isin=True,
     )
     universe = Universe(groups={"main": [sap]})

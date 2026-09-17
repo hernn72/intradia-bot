@@ -10,4 +10,7 @@ __pycache__/
 .env
 *.db
 *.db.bak-*
-data/vintages/
+data/vintages/*
+!data/vintages/*/
+data/vintages/*/*
+!data/vintages/*/manifest.json

@@ -1,0 +1,163 @@
+2026-09-17T09:47:45Z
+5de38c2
+universe_vintage_id=2ba5b3f370badc77c10457f71c21f445425366d524905b85a5c4f39a1ea49a5c
+instrument_id | issuer_id | primary_symbol | primary_market | added_at | benchmark
+000660.KS@KSC | sk-hynix | 000660.KS | KSC | 2026-08-29 | null
+005930.KS@KSC | samsung-electronics | 005930.KS | KSC | 2026-08-29 | null
+0700.HK@HKG | tencent | 0700.HK | HKG | 2026-08-29 | null
+1211.HK@HKG | byd | 1211.HK | HKG | 2026-08-29 | null
+1810.HK@HKG | xiaomi | 1810.HK | HKG | 2026-08-29 | null
+6501.T@JPX | hitachi | 6501.T | JPX | 2026-08-29 | null
+6758.T@JPX | sony | 6758.T | JPX | 2026-08-29 | null
+6857.T@JPX | advantest | 6857.T | JPX | 2026-08-29 | null
+7011.T@JPX | mitsubishi-heavy | 7011.T | JPX | 2026-08-29 | null
+7203.T@JPX | toyota | 7203.T | JPX | 2026-08-29 | null
+8035.T@JPX | tokyo-electron | 8035.T | JPX | 2026-08-29 | null
+9984.T@JPX | softbank | 9984.T | JPX | 2026-08-29 | null
+9988.HK@HKG | alibaba | 9988.HK | HKG | 2026-08-29 | null
+ABBV@NYSE | abbvie | ABBV | NYSE | 2026-08-29 | null
+ADBE@NASDAQ | adobe | ADBE | NASDAQ | 2026-08-29 | null
+ADYEN.AS@AMS | adyen | ADYEN.AS | AMS | 2026-08-29 | null
+AIR.PA@PAR | airbus | AIR.PA | PAR | 2026-08-29 | null
+AMAT@NASDAQ | applied-materials | AMAT | NASDAQ | 2026-08-29 | null
+AMD@NASDAQ | amd | AMD | NASDAQ | 2026-08-29 | null
+APP@NASDAQ | applovin | APP | NASDAQ | 2026-08-29 | null
+ARM@NASDAQ | arm | ARM | NASDAQ | 2026-08-29 | null
+AVGO@NASDAQ | broadcom | AVGO | NASDAQ | 2026-08-29 | null
+AZN@NASDAQ | astrazeneca | AZN | NASDAQ | 2026-08-29 | null
+BBVA.MC@MCE | bbva | BBVA.MC | MCE | 2026-08-29 | null
+BRK-B@NYSE | berkshire-hathaway | BRK-B | NYSE | 2026-08-29 | null
+BSP.DE@XETRA | bae-systems | BSP.DE | XETRA | 2026-08-29 | null
+BTC-EUR@CRYPTO | bitcoin | BTC-EUR | CRYPTO | 2026-08-27 | null
+CAT@NYSE | caterpillar | CAT | NYSE | 2026-08-29 | null
+COIN@NASDAQ | coinbase | COIN | NASDAQ | 2026-08-29 | null
+CRM@NYSE | salesforce | CRM | NYSE | 2026-08-29 | null
+CRWD@NASDAQ | crowdstrike | CRWD | NASDAQ | 2026-08-29 | null
+CVX@NYSE | chevron | CVX | NYSE | 2026-08-29 | null
+DBK.DE@XETRA | deutsche-bank | DBK.DE | XETRA | 2026-08-29 | null
+DE0007100000 | mercedes-benz | MBG.DE | XETRA | 2026-08-27 | null
+DE0007164600 | sap | SAP.DE | XETRA | 2026-08-27 | null
+DE0007236101 | siemens | SIE.DE | XETRA | 2026-08-27 | null
+DE0008404005 | allianz | ALV.DE | XETRA | 2026-08-27 | null
+DE000A0S9GB0 | xetra-gold | 4GLD.DE | XETRA | 2026-08-27 | null
+DFEN.DE@XETRA | vaneck | DFEN.DE | XETRA | 2026-08-29 | null
+DTE.DE@XETRA | deutsche-telekom | DTE.DE | XETRA | 2026-08-29 | null
+ENI.MI@MIL | eni | ENI.MI | MIL | 2026-08-29 | null
+ENR.DE@XETRA | siemens-energy | ENR.DE | XETRA | 2026-08-29 | null
+ETH-EUR@CRYPTO | ethereum | ETH-EUR | CRYPTO | 2026-08-27 | null
+EUNN.DE@XETRA | ishares | EUNN.DE | XETRA | 2026-08-29 | null
+EXH1.DE@XETRA | ishares | EXH1.DE | XETRA | 2026-08-29 | null
+EXSA.DE@XETRA | ishares | EXSA.DE | XETRA | 2026-08-29 | null
+EXV1.DE@XETRA | ishares | EXV1.DE | XETRA | 2026-08-29 | null
+FR0000121014 | lvmh | MC.PA | PAR | 2026-08-27 | null
+GE@NYSE | ge-aerospace | GE | NYSE | 2026-08-29 | null
+GS@NYSE | goldman-sachs | GS | NYSE | 2026-08-29 | null
+IBE.MC@MCE | iberdrola | IBE.MC | MCE | 2026-08-29 | null
+ICGA.DE@XETRA | ishares | ICGA.DE | XETRA | 2026-08-29 | null
+IE0032077012 | invesco | EQQQ.DE | XETRA | 2026-08-27 | null
+IE00B4L5Y983 | ishares | EUNL.DE | XETRA | 2026-08-27 | null
+IE00B4WXJJ64 | ishares | EUNH.DE | XETRA | 2026-08-27 | null
+IE00BKM4GZ66 | ishares | IS3N.DE | XETRA | 2026-08-27 | null
+IFX.DE@XETRA | infineon | IFX.DE | XETRA | 2026-08-29 | null
+INFY@NYSE | infosys | INFY | NYSE | 2026-08-29 | null
+INTC@NASDAQ | intel | INTC | NASDAQ | 2026-08-29 | null
+IQQK.DE@XETRA | ishares | IQQK.DE | XETRA | 2026-08-29 | null
+IQQT.DE@XETRA | ishares | IQQT.DE | XETRA | 2026-08-29 | null
+ITX.MC@MCE | inditex | ITX.MC | MCE | 2026-08-29 | null
+JPM@NYSE | jpmorgan | JPM | NYSE | 2026-08-29 | null
+LLY@NYSE | eli-lilly | LLY | NYSE | 2026-08-29 | null
+LMT@NYSE | lockheed-martin | LMT | NYSE | 2026-08-29 | null
+LRCX@NASDAQ | lam-research | LRCX | NASDAQ | 2026-08-29 | null
+MA@NYSE | mastercard | MA | NYSE | 2026-08-29 | null
+MRVL@NASDAQ | marvell | MRVL | NASDAQ | 2026-08-29 | null
+MU@NASDAQ | micron | MU | NASDAQ | 2026-08-29 | null
+MUV2.DE@XETRA | munich-re | MUV2.DE | XETRA | 2026-08-29 | null
+NFLX@NASDAQ | netflix | NFLX | NASDAQ | 2026-08-29 | null
+NL0010273215 | asml | ASML.AS | AMS | 2026-08-27 | null
+NOVO-B.CO@CPH | novo-nordisk | NOVO-B.CO | CPH | 2026-08-29 | null
+NOW@NYSE | servicenow | NOW | NYSE | 2026-08-29 | null
+OR.PA@PAR | loreal | OR.PA | PAR | 2026-08-29 | null
+ORCL@NYSE | oracle | ORCL | NYSE | 2026-08-29 | null
+PANW@NASDAQ | palo-alto-networks | PANW | NASDAQ | 2026-08-29 | null
+PLTR@NASDAQ | palantir | PLTR | NASDAQ | 2026-08-29 | null
+Q8Y0.DE@XETRA | ishares | Q8Y0.DE | XETRA | 2026-08-29 | null
+QCOM@NASDAQ | qualcomm | QCOM | NASDAQ | 2026-08-29 | null
+QDV5.DE@XETRA | ishares | QDV5.DE | XETRA | 2026-08-29 | null
+R6C0.DE@XETRA | shell | R6C0.DE | XETRA | 2026-08-29 | null
+RACE.MI@MIL | ferrari | RACE.MI | MIL | 2026-08-29 | null
+RHM.DE@XETRA | rheinmetall | RHM.DE | XETRA | 2026-08-29 | null
+RRU.DE@XETRA | rolls-royce | RRU.DE | XETRA | 2026-08-29 | null
+RTX@NYSE | rtx | RTX | NYSE | 2026-08-29 | null
+SAF.PA@PAR | safran | SAF.PA | PAR | 2026-08-29 | null
+SAN.MC@MCE | santander | SAN.MC | MCE | 2026-08-29 | null
+SOL-EUR@CRYPTO | solana | SOL-EUR | CRYPTO | 2026-08-29 | null
+SU.PA@PAR | schneider-electric | SU.PA | PAR | 2026-08-29 | null
+SXR8.DE@XETRA | ishares | SXR8.DE | XETRA | 2026-08-29 | null
+TSM@NYSE | tsmc | TSM | NYSE | 2026-08-29 | ^TWII
+TTE.PA@PAR | totalenergies | TTE.PA | PAR | 2026-08-29 | null
+UBER@NYSE | uber | UBER | NYSE | 2026-08-29 | null
+UCG.MI@MIL | unicredit | UCG.MI | MIL | 2026-08-29 | null
+US02079K3059 | alphabet | GOOGL | NASDAQ | 2026-08-29 | null
+US0231351067 | amazon | AMZN | NASDAQ | 2026-08-29 | null
+US0378331005 | apple | AAPL | NASDAQ | 2026-08-29 | null
+US30303M1027 | meta | META | NASDAQ | 2026-08-29 | null
+US5949181045 | microsoft | MSFT | NASDAQ | 2026-08-29 | null
+US67066G1040 | nvidia | NVDA | NASDAQ | 2026-08-29 | null
+US88160R1014 | tesla | TSLA | NASDAQ | 2026-08-29 | null
+V@NYSE | visa | V | NYSE | 2026-08-29 | null
+VRTX@NASDAQ | vertex | VRTX | NASDAQ | 2026-08-29 | null
+VVSM.DE@XETRA | vaneck | VVSM.DE | XETRA | 2026-08-29 | null
+XOM@NYSE | exxon-mobil | XOM | NYSE | 2026-08-29 | null
+ZPRR.DE@XETRA | spdr | ZPRR.DE | XETRA | 2026-08-29 | null
+2026-09-17 10:47:46 [INFO] advisor.analysis.analyzer: Analizando 107 activos (horizonte swing, velas de 1d)
+2026-09-17 10:48:57 [INFO] advisor.analysis.analyzer: ^STOXX benchmark: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:48:58 [INFO] advisor.analysis.analyzer: SAP.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:48:59 [INFO] advisor.analysis.analyzer: SIE.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:00 [INFO] advisor.analysis.analyzer: ALV.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:01 [INFO] advisor.analysis.analyzer: MBG.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:02 [INFO] advisor.analysis.analyzer: RHM.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:03 [INFO] advisor.analysis.analyzer: ENR.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:04 [INFO] advisor.analysis.analyzer: DTE.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:05 [INFO] advisor.analysis.analyzer: DBK.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:06 [INFO] advisor.analysis.analyzer: MUV2.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:07 [INFO] advisor.analysis.analyzer: IFX.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:08 [INFO] advisor.analysis.analyzer: ASML.AS: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-17 10:49:09 [INFO] advisor.analysis.analyzer: ADYEN.AS: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-17 10:49:10 [INFO] advisor.analysis.analyzer: MC.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 10:49:11 [INFO] advisor.analysis.analyzer: AIR.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 10:49:12 [INFO] advisor.analysis.analyzer: SU.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 10:49:13 [INFO] advisor.analysis.analyzer: SAF.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 10:49:14 [INFO] advisor.analysis.analyzer: TTE.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 10:49:15 [INFO] advisor.analysis.analyzer: OR.PA: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-17 10:49:16 [INFO] advisor.analysis.analyzer: IBE.MC: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-17 10:49:17 [INFO] advisor.analysis.analyzer: ITX.MC: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-17 10:49:18 [INFO] advisor.analysis.analyzer: SAN.MC: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-17 10:49:19 [INFO] advisor.analysis.analyzer: BBVA.MC: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-17 10:49:20 [INFO] advisor.analysis.analyzer: RACE.MI: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-17 10:49:21 [INFO] advisor.analysis.analyzer: UCG.MI: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-17 10:49:22 [INFO] advisor.analysis.analyzer: ENI.MI: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-17 10:49:23 [INFO] advisor.analysis.analyzer: NOVO-B.CO: barra 2026-09-17 recortada: cierre regular 17:00 Europe/Copenhagen + 20 min no alcanzado
+2026-09-17 10:49:24 [INFO] advisor.analysis.analyzer: RRU.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:25 [INFO] advisor.analysis.analyzer: BSP.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:27 [INFO] advisor.analysis.analyzer: R6C0.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:47 [INFO] advisor.analysis.analyzer: EUNL.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:48 [INFO] advisor.analysis.analyzer: SXR8.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:49 [INFO] advisor.analysis.analyzer: EQQQ.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:50 [INFO] advisor.analysis.analyzer: EXSA.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:51 [INFO] advisor.analysis.analyzer: IS3N.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:52 [INFO] advisor.analysis.analyzer: EUNN.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:53 [INFO] advisor.analysis.analyzer: ICGA.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:54 [INFO] advisor.analysis.analyzer: QDV5.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:55 [INFO] advisor.analysis.analyzer: IQQT.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:56 [INFO] advisor.analysis.analyzer: IQQK.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:57 [INFO] advisor.analysis.analyzer: VVSM.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:58 [INFO] advisor.analysis.analyzer: DFEN.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:49:59 [INFO] advisor.analysis.analyzer: Q8Y0.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:50:00 [INFO] advisor.analysis.analyzer: 4GLD.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:50:01 [INFO] advisor.analysis.analyzer: EUNH.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:50:02 [INFO] advisor.analysis.analyzer: ZPRR.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:50:03 [INFO] advisor.analysis.analyzer: EXV1.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-17 10:50:04 [INFO] advisor.analysis.analyzer: EXH1.DE: barra 2026-09-17 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
+==========================================================================================
+run 2c8dfdaa-a8a7-465b-8d3f-1b0fcbb009c8 · 5de38c2f6c13+dirty · config 271d46b2 · universo 2ba5b3f3

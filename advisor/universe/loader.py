@@ -29,4 +29,6 @@ def load_universe(path: str | Path = "universe.yaml") -> Universe:
     if "groups" not in raw:
         raise ValueError(f"{universe_path} debe contener una clave 'groups' en la raíz")
 
-    return Universe(**raw)
+    universe = Universe(**raw)
+    universe.validate_identity_metadata()
+    return universe
