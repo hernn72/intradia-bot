@@ -258,6 +258,52 @@ no saltaba nunca. Consecuencia asumida: las cosechas nuevas tienen un
 `data_vintage_id` distinto del que tendrían con el esquema anterior; la cosecha
 `071ddb2b…` se sigue leyendo igual.
 
+### D-24 — 2026-09-17 — Primera tanda de OA-03: 18 ISIN desde la app del broker
+El propietario comprobó en la app de Trade Republic los 18 activos que el bot
+ha llegado a recomendar COMPRAR alguna vez —medido sobre las 15 pasadas
+guardadas en la Pi, no elegidos a ojo— y aportó el ISIN que muestra la ficha de
+cada instrumento. Quedan registrados con
+`isin_source: "app de Trade Republic, ficha del instrumento, comprobado por el
+propietario"` e `isin_verified_at: 2026-09-17`.
+
+**Por qué esa fuente vale, y por qué es mejor que la web del emisor para este
+uso concreto:** identifica el instrumento que el propietario va a comprar de
+verdad. La web del emisor dice qué ISIN tiene un fondo; la app dice cuál de
+ellos vende el broker, que es la pregunta que importa para ejecutar. Los 18
+pasan el dígito de control y su prefijo de país concuerda con la plaza.
+
+Tres de ellos —`IS3N.DE`, `ALV.DE` y `NVDA`— ya tenían ISIN declarado del
+universo inicial y **coinciden exactamente**, lo que sube la confianza en los
+otros 15 heredados aunque sigan sin fuente primaria. `EXH1.DE` coincide además
+con el ISIN que aparece en la ruta del KIID publicado por iShares, obtenido de
+forma independiente: doble verificación.
+
+`MRVL` queda pendiente a propósito, porque el propietario no pudo confirmarlo.
+`BTC-EUR` se marca `trade_republic: "no"` tras comprobarlo, con la consecuencia
+asumida de que deja de ser recomendable (`BROKER_UNAVAILABLE`) pese a haber
+llegado a OPERAR dos veces. Las tres criptos pasan a `requires_isin: false`,
+que es como el modelo expresa que el ISIN no aplica.
+
+`MRVL` se resolvió después, en la misma sesión: el propietario confirmó que
+corresponde a Marvell Technology, Inc. y que está disponible, con ISIN
+`US5738741041`. Con él, **los 19 activos de prioridad 1 quedan cerrados**.
+El aviso que lo desbloqueó: la empresa cambió de domicilio en 2021, de
+*Marvell Technology Group Ltd.* (Bermudas, ISIN `BM…`) a *Marvell Technology,
+Inc.* (Delaware, ISIN `US…`), y por eso convivían dos identificadores.
+
+El vintage del universo pasa a
+`23afb7bb49c1c7ae8d33207227d1ece459e45417792c5eb6c5c730324903051b`, porque 19
+activos cambian de `instrument_id` (de `SYMBOL@MARKET` al ISIN). Está previsto:
+cada tanda de OA-03 lo moverá otra vez, y el test
+`test_universe_real_tiene_107_analizables_y_vintage_conocido` se actualiza a
+propósito con cada una, que es para lo que existe.
+
+**Trampa de formato, anotada porque volverá a aparecer:** escribir
+`trade_republic: yes` sin comillas hace que YAML lo lea como el booleano `True`
+y la carga falla. Los valores `yes` y `no` van siempre entrecomillados.
+
+---
+
 `added_at` se obtuvo comparando los conjuntos de símbolos de
 `git show 93009da:universe.yaml`, `git show e952f71:universe.yaml` y `HEAD`:
 20 instrumentos con `2026-08-27` y 106 con `2026-08-29`. Los ocho listings

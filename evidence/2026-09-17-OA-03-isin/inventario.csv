@@ -1,0 +1,108 @@
+prioridad,veces_operar,veces_vigilar,symbol,nombre,plaza,tipo,isin,estado_isin,fuente_isin,verificado_el,trade_republic,tr_comprobado_el
+1-HA_SIDO_OPERAR,14,18,EXH1.DE,iShares STOXX Europe 600 Oil & Gas,XETRA,equity_etf,DE000A0H08M3,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,14,12,CRWD,CrowdStrike,NASDAQ,stock,US22788C1053,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,8,16,DBK.DE,Deutsche Bank,XETRA,stock,DE0005140008,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,5,15,NOW,ServiceNow,NYSE,stock,US81762P1021,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,5,13,EUNN.DE,iShares Core MSCI Japan IMI,XETRA,equity_etf,IE00B4L5YX21,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,4,25,IS3N.DE,iShares Core MSCI EM IMI,XETRA,equity_etf,IE00BKM4GZ66,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,4,9,MRVL,Marvell,NASDAQ,stock,US5738741041,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,3,29,IQQT.DE,iShares MSCI Taiwan,XETRA,equity_etf,IE00B0M63623,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,3,21,ALV.DE,Allianz,XETRA,stock,DE0008404005,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,3,15,VRTX,Vertex,NASDAQ,stock,US92538J1060,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,3,10,AMD,AMD,NASDAQ,stock,US0079031078,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,3,5,COIN,Coinbase,NASDAQ,stock,US19260Q1076,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,2,21,CVX,Chevron,NYSE,stock,US1667641005,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,2,14,6758.T,Sony,JPX,stock,JP3435000009,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,2,9,EXV1.DE,iShares STOXX Europe 600 Banks,XETRA,equity_etf,DE000A0F5UJ7,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,2,1,BTC-EUR,Bitcoin,CRYPTO,crypto,,NO_APLICABLE,,,no,2026-09-17
+1-HA_SIDO_OPERAR,1,18,ADBE,Adobe,NASDAQ,stock,US00724F1012,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,1,9,CRM,Salesforce,NYSE,stock,US79466L3024,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+1-HA_SIDO_OPERAR,1,9,NVDA,Nvidia,NASDAQ,stock,US67066G1040,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+2-SOLO_VIGILAR,0,31,TTE.PA,TotalEnergies,PAR,stock,FR0000120271,VERIFICADO_TR,"app de Trade Republic, ficha del instrumento, comprobado por el propietario",2026-09-17,yes,2026-09-17
+2-SOLO_VIGILAR,0,30,R6C0.DE,Shell,XETRA,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,23,AAPL,Apple,NASDAQ,stock,US0378331005,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,21,MU,Micron,NASDAQ,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,18,9984.T,SoftBank Group,JPX,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,18,BBVA.MC,BBVA,MCE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,17,EQQQ.DE,Invesco EQQQ Nasdaq-100,XETRA,equity_etf,IE0032077012,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,17,IQQK.DE,iShares MSCI Korea,XETRA,equity_etf,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,16,V,Visa,NYSE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,14,ENI.MI,Eni,MIL,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,14,MUV2.DE,Munich Re,XETRA,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,12,PLTR,Palantir,NASDAQ,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,11,IFX.DE,Infineon,XETRA,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,10,SAP.DE,SAP,XETRA,stock,DE0007164600,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,10,SIE.DE,Siemens,XETRA,stock,DE0007236101,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,9,PANW,Palo Alto Networks,NASDAQ,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,8,7203.T,Toyota,JPX,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,8,MA,Mastercard,NYSE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,8,XOM,Exxon Mobil,NYSE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,7,4GLD.DE,Xetra-Gold,XETRA,commodity_etc,DE000A0S9GB0,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,7,MSFT,Microsoft,NASDAQ,stock,US5949181045,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,6,IBE.MC,Iberdrola,MCE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,6,SOL-EUR,Solana,CRYPTO,crypto,,NO_APLICABLE,,,unknown,
+2-SOLO_VIGILAR,0,6,TSM,TSMC ADR,NYSE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,5,ADYEN.AS,Adyen,AMS,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,5,ORCL,Oracle,NYSE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,5,UBER,Uber,NYSE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,5,UCG.MI,UniCredit,MIL,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,4,EXSA.DE,iShares STOXX Europe 600,XETRA,equity_etf,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,4,GOOGL,Alphabet,NASDAQ,stock,US02079K3059,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,3,ABBV,AbbVie,NYSE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,3,ASML.AS,ASML,AMS,stock,NL0010273215,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,3,CAT,Caterpillar,NYSE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,3,ETH-EUR,Ethereum,CRYPTO,crypto,,NO_APLICABLE,,,unknown,
+2-SOLO_VIGILAR,0,3,EUNH.DE,iShares Core Euro Government Bond,XETRA,bond_etf,IE00B4WXJJ64,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,3,INTC,Intel,NASDAQ,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,3,META,Meta Platforms,NASDAQ,stock,US30303M1027,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,3,NFLX,Netflix,NASDAQ,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,3,SAN.MC,Santander,MCE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,3,TSLA,Tesla,NASDAQ,stock,US88160R1014,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+2-SOLO_VIGILAR,0,2,OR.PA,L'Oréal,PAR,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,2,QCOM,Qualcomm,NASDAQ,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,1,1810.HK,Xiaomi,HKG,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,1,6501.T,Hitachi,JPX,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,1,DTE.DE,Deutsche Telekom,XETRA,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,1,GS,Goldman Sachs,NYSE,stock,,PENDIENTE,,,unknown,
+2-SOLO_VIGILAR,0,1,RACE.MI,Ferrari,MIL,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,000660.KS,SK Hynix,KSC,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,005930.KS,Samsung Electronics,KSC,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,0700.HK,Tencent,HKG,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,1211.HK,BYD,HKG,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,6857.T,Advantest,JPX,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,7011.T,Mitsubishi Heavy,JPX,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,8035.T,Tokyo Electron,JPX,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,9988.HK,Alibaba,HKG,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,AIR.PA,Airbus,PAR,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,AMAT,Applied Materials,NASDAQ,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,AMZN,Amazon,NASDAQ,stock,US0231351067,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+3-NUNCA_RECOMENDADO,0,0,APP,AppLovin,NASDAQ,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,ARM,Arm Holdings,NASDAQ,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,AVGO,Broadcom,NASDAQ,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,AZN,AstraZeneca,NASDAQ,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,BRK-B,Berkshire Hathaway,NYSE,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,BSP.DE,BAE Systems,XETRA,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,DFEN.DE,VanEck Defense,XETRA,equity_etf,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,ENR.DE,Siemens Energy,XETRA,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,EUNL.DE,iShares Core MSCI World,XETRA,equity_etf,IE00B4L5Y983,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+3-NUNCA_RECOMENDADO,0,0,GE,GE Aerospace,NYSE,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,ICGA.DE,iShares MSCI China,XETRA,equity_etf,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,INFY,Infosys ADR,NYSE,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,ITX.MC,Inditex,MCE,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,JPM,JPMorgan,NYSE,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,LLY,Eli Lilly,NYSE,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,LMT,Lockheed Martin,NYSE,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,LRCX,Lam Research,NASDAQ,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,MBG.DE,Mercedes-Benz,XETRA,stock,DE0007100000,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+3-NUNCA_RECOMENDADO,0,0,MC.PA,LVMH,PAR,stock,FR0000121014,REVISAR,universe inicial 2026-08-27,2026-08-27,unknown,
+3-NUNCA_RECOMENDADO,0,0,NOVO-B.CO,Novo Nordisk,CPH,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,Q8Y0.DE,iShares Global Clean Energy Transition,XETRA,equity_etf,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,QDV5.DE,iShares MSCI India,XETRA,equity_etf,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,RHM.DE,Rheinmetall,XETRA,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,RRU.DE,Rolls-Royce,XETRA,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,RTX,RTX,NYSE,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,SAF.PA,Safran,PAR,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,SU.PA,Schneider Electric,PAR,stock,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,SXR8.DE,iShares Core S&P 500,XETRA,equity_etf,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,VVSM.DE,VanEck Semiconductor,XETRA,equity_etf,,PENDIENTE,,,unknown,
+3-NUNCA_RECOMENDADO,0,0,ZPRR.DE,SPDR Russell 2000,XETRA,equity_etf,,PENDIENTE,,,unknown,
