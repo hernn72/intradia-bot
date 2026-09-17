@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 import pytest
@@ -47,6 +48,20 @@ class TestRecommendations:
     def test_guarda_y_recupera(self, db: AdvisorDB) -> None:
         assert db.insert_recommendations([_recommendation(), _recommendation("SIE.DE")]) == 2
         assert len(db.get_recent_recommendations()) == 2
+
+    def test_persiste_las_advertencias_aparte_de_los_motivos(self, db: AdvisorDB) -> None:
+        """El aviso de precio extendido viajaba dentro de `reasons` y se
+        guardaba. Al separarlo en `warnings` dejó de persistirse en silencio:
+        `reasons` era lo único que la fila llevaba."""
+
+        aviso = "precio extendido 5.0·ATR sobre su media rápida"
+        fila = _recommendation()
+        fila["warnings"] = json.dumps([aviso], ensure_ascii=False)
+
+        assert db.insert_recommendations([fila]) == 1
+        guardada = db.get_recent_recommendations()[0]
+        assert json.loads(guardada["warnings"]) == [aviso]
+        assert json.loads(guardada["reasons"]) == []
 
     def test_lista_vacia_no_hace_nada(self, db: AdvisorDB) -> None:
         assert db.insert_recommendations([]) == 0

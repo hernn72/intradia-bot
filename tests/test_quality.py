@@ -74,6 +74,30 @@ def test_exh1_retraso_sin_ausencias_no_fabrica_missing_recent_data() -> None:
     assert [(reason.code, reason.severity) for reason in quality.reasons] == [(STALE_DATA, Severity.HIGH)]
 
 
+def test_falta_la_ultima_sesion_cerrada_es_critical_y_no_ejecutable() -> None:
+    """La severidad máxima, que la ficha pide y no tenía ningún test.
+
+    `CRITICAL` se alcanza cuando entre la sesión ausente y la referencia no
+    queda ninguna sesión cerrada, es decir cuando lo que falta es la última:
+    con `critical_latest_sessions = 0`, `sessions_ago` vale 0. Comprobado con
+    el calendario, no de memoria: entre el viernes 2026-09-11 y el lunes
+    2026-09-14 XETRA no cierra ninguna sesión intermedia.
+    """
+
+    assert closed_sessions_between(date(2026, 9, 11), REFERENCE.date(), "XETRA") == 0
+
+    freshness = _freshness_for({date(2026, 9, 11)}, end=date(2026, 9, 14))
+    quality = freshness.data_quality
+
+    assert freshness.absent_recent_sessions == (date(2026, 9, 11),)
+    assert quality.recent_completeness is Severity.CRITICAL
+    assert quality.historical_completeness is Severity.OK
+    assert quality.execution_readiness is False
+    reciente = next(reason for reason in quality.reasons if reason.code == MISSING_RECENT_DATA)
+    assert reciente.severity is Severity.CRITICAL
+    assert reciente.sessions_ago == 0
+
+
 def test_ausente_reciente_usa_absent_recent_sessions() -> None:
     quality = _quality_for(date(2026, 9, 8))
 

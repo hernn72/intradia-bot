@@ -21,7 +21,7 @@ from dataclasses import replace
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from advisor.analysis.analyzer import AnalysisResult, run_analysis
+from advisor.analysis.analyzer import AnalysisResult, indicator_reference_sessions, run_analysis
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.opportunity import RADAR_OPERAR, Opportunity
 from advisor.config import VALID_HORIZONTES, AdvisorConfig, load_config
@@ -126,6 +126,7 @@ def opportunity_to_row(opportunity: Opportunity, fx: FxConverter, created_at: st
         "reward_pct": levels.reward_pct,
         "rr_ratio": levels.rr_ratio,
         "reasons": json.dumps(opportunity.decision_reasons, ensure_ascii=False),
+        "warnings": json.dumps(list(opportunity.warnings), ensure_ascii=False),
         "discard_code": opportunity.discard_code,
         "execution_code": opportunity.execution_code,
         "quality_freshness": quality.freshness.value if quality is not None else None,
@@ -371,6 +372,8 @@ def medir_frescura_datos(
                 reference,
                 market=market,
                 strength_benchmark=benchmark_symbol,
+                recent_reference_sessions=indicator_reference_sessions(config),
+                veto_window_sessions=config.data_quality.veto_window_sessions,
                 asset_timezone=asset.timezone,
                 settlement_minutes=config.data_quality.settlement_minutes,
                 measurement_period=period,
@@ -379,6 +382,16 @@ def medir_frescura_datos(
                 high_after_sessions=config.data_quality.high_after_sessions,
                 medium_after_sessions=config.data_quality.medium_after_sessions,
             )
+            # Este camino mide el dato **crudo** del proveedor y no recorta la
+            # barra no cerrada, que es justo lo que el comando existe para ver.
+            # El analizador sí la recorta, así que su `DataQuality` y el que
+            # saldría de aquí responden a preguntas distintas: publicarlo desde
+            # este camino afirmaba un veredicto de ejecución que esta medición
+            # no puede sostener, y para el mismo activo e instante decía
+            # PARTIAL_BAR / no ejecutable donde el asesor decía FRESH /
+            # ejecutable. Si `frescura-datos` debe recortar es una decisión
+            # metodológica, no de implementación: queda como D-22 (propuesta).
+            freshness = replace(freshness, data_quality=None)
         except Exception as exc:
             rows.append(FreshnessRow(asset.symbol, data_symbol, market, None, str(exc)))
             continue

@@ -152,3 +152,75 @@ sigue apuntando a `1c76add`.
      si T-003 no llegó a añadir `exchange_calendar`/`exchange_timezone` al
      YAML, esta ficha es un buen sitio para hacerlo junto con el resto de
      campos de identidad.
+
+### Comprobación del entorno del 2026-09-17, antes de encargarla
+
+Lo que sigue está **medido hoy sobre `refactor/data-quality-codes`**, no
+supuesto. Sustituye a lo que dice el punto 3 del apartado anterior donde se
+contradigan.
+
+**Sigue siendo cierto:** no existe `advisor/universe/vintage.py`; el
+provisional vive en `advisor/run/manifest.py:75` y es
+`canonical_hash({"analizables": [symbol…]})`; el universo tiene 126
+instrumentos y 107 analizables; los 18 ISIN siguen sin fuente; los 126 están
+en `trade_republic: unknown`; el vintage provisional sigue valiendo
+`80d05f21…` y es el que imprime el pie del informe; `data/vintages/` entero
+está ignorado y el `manifest.json` de la cosecha `071ddb2b…` ocupa 88 KB; no
+existe subcomando `universo`.
+
+**Corrección 1 — el método de `added_at` de la ficha no funciona.** Falla de
+tres maneras distintas, las tres reproducidas:
+
+1. `--diff-filter=A` combinado con `-S` no devuelve **nada** para ningún
+   símbolo: el filtro se aplica a si el fichero se añadió en ese commit, no a
+   la cadena buscada, así que solo sobrevive el commit inicial y en él la
+   cadena no existe todavía.
+2. Sin ese filtro, `-S'primary_symbol: <SYM>,'` atribuye 122 de 126 activos a
+   `e952f71` y no encuentra los otros 4 (`IS3N.DE`, `VVSM.DE`, `4GLD.DE`,
+   `510300.SS`), que están escritos en formato de bloque y no llevan la coma.
+3. Buscando el símbolo suelto aparecen falsos positivos por subcadena: `GS`
+   dentro de `^GSPC`, `^STOXX` dentro de `^STOXX50E`, y `V` dentro de
+   cualquier cosa.
+
+La causa de fondo: **`universe.yaml` solo lo tocan tres commits**, y el del
+27/08 usaba otro esquema. `93009da` (2026-08-27) tiene **28 entradas con la
+clave `symbol:`**; `e952f71` (2026-08-29) reescribe el fichero entero a 126
+entradas con `primary_symbol:`. Por eso cualquier `git log -S` sobre
+`primary_symbol:` fecha el 29/08 incluso a los activos que ya existían el 27.
+
+**Método que sí vale, y su resultado ya calculado:** cargar el YAML de cada
+una de las tres versiones (`git show <commit>:universe.yaml`), extraer el
+conjunto de símbolos de cada una y comparar conjuntos. Da:
+
+    added_at = 2026-08-27 -> 20 activos
+    added_at = 2026-08-29 -> 106 activos
+
+Los 20 del 27/08 son: `4GLD.DE ALV.DE ASML.AS BTC-EUR EQQQ.DE ETH-EUR
+EUNH.DE EUNL.DE IS3N.DE MBG.DE MC.PA SAP.DE SIE.DE ^GDAXI ^GSPC ^HSI ^N225
+^NDX ^STOXX50E ^VIX`. Codex debe **reproducir** este reparto con su propio
+script y contrastarlo contra estos números, no copiarlos.
+
+**DECISIÓN PENDIENTE (metodológica, no la resuelve Codex): los ocho
+renombrados.** Ocho símbolos del 27/08 no están hoy, porque el universo
+inicial usaba el listado alemán y `e952f71` pasó al primario:
+
+    4AB.DE  ABEA.DE  AMZ.DE  APC.DE  FB2A.DE  MSF.DE  NVD.DE  TL0.DE
+
+Si `AAPL` es la continuación de `APC.DE`, su `added_at` es 2026-08-27 y
+`ticker_history` debe recogerlo; si es un listing distinto del mismo emisor
+—que es lo que dice el propio diseño de la ficha, donde `instrument_id` es
+`primary_symbol@primary_market` y solo `issuer_id` los une—, su `added_at` es
+2026-08-29 y `ticker_history` queda vacío. La elección cambia qué universo
+declara cada resultado y cuánta antigüedad se le puede reclamar, así que es
+del propietario o del metodólogo. Codex implementa **la segunda** lectura, que
+es la coherente con `instrument_id`, y lo deja anotado como `D-nn (propuesta)`
+para que se confirme en revisión.
+
+**Corrección 2 — no añadir `exchange_calendar` ni `exchange_timezone` al
+YAML.** La sugerencia del apartado anterior ya no aplica: T-003 y T-004
+dejaron la plaza resuelta en código, en `MARKET_SESSIONS` de
+`advisor/data/sessions.py` (zona horaria, hora de cierre y MIC por mercado) y
+`MARKET_TO_MIC` en `advisor/data/calendars.py`, más
+`exchange_overrides.yaml` para los cierres que `exchange_calendars` no
+codifica. Duplicar eso en `universe.yaml` crearía una segunda fuente de verdad
+para el mismo dato y rompería INV-06. Queda fuera de alcance.

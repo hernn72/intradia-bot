@@ -60,6 +60,10 @@ def _migration_v4_data_quality_codes(conn: sqlite3.Connection) -> None:
         "ALTER TABLE recommendation ADD COLUMN execution_ready INTEGER",
         "ALTER TABLE recommendation ADD COLUMN quality_period TEXT",
         "ALTER TABLE recommendation ADD COLUMN quality_interval TEXT",
+        # Las advertencias no descartan, así que no viajan en `reasons`. Al
+        # sacarlas de ahí dejaron de persistirse: el aviso de precio extendido
+        # se guardaba antes dentro de los motivos y desapareció de la base.
+        "ALTER TABLE recommendation ADD COLUMN warnings TEXT",
         "ALTER TABLE data_freshness_measurement ADD COLUMN quality_freshness TEXT",
         "ALTER TABLE data_freshness_measurement ADD COLUMN quality_recent TEXT",
         "ALTER TABLE data_freshness_measurement ADD COLUMN quality_historical TEXT",

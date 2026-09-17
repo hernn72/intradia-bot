@@ -13,7 +13,7 @@ import pytest
 from advisor.analysis.analyzer import analyze_asset, run_analysis
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.market_context import build_market_context, fetch_market_context
-from advisor.analysis.opportunity import INSUFFICIENT_HISTORY
+from advisor.analysis.opportunity import ANALYSIS_ERROR, INSUFFICIENT_HISTORY, INVALID_INDICATORS
 from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
 from advisor.config import AdvisorConfig, MarketContextConfig
 from advisor.data.calendars import expected_sessions
@@ -222,6 +222,30 @@ class TestRunAnalysis:
         assert [o.asset.symbol for o in result.opportunities] == ["SAP.DE"]
         assert result.skipped[0][0] == "AAPL"
         assert result.skipped[0].code == INSUFFICIENT_HISTORY
+
+    def test_un_fallo_no_reconocido_no_se_publica_como_indicadores_invalidos(
+        self, config, universe, histories
+    ) -> None:
+        """INV-16: lo desconocido se declara desconocido.
+
+        El caso por defecto era `INVALID_INDICATORS`, así que un 404 del
+        proveedor, un timeout o una plaza sin calendario se publicaban en el
+        informe afirmando una causa técnica que nadie había comprobado.
+        """
+
+        class ProveedorQueFalla(FakeProvider):
+            def get_history(self, symbol, period="1y", interval="1d"):
+                if symbol == "AAPL":
+                    raise RuntimeError("HTTP Error 404: Not Found")
+                return super().get_history(symbol, period=period, interval=interval)
+
+        provider = ProveedorQueFalla(histories, closes={"^VIX": 14.0})
+        result = run_analysis(config, universe, provider, horizonte="swing")
+
+        fallido = next(skipped for skipped in result.skipped if skipped.symbol == "AAPL")
+        assert fallido.code == ANALYSIS_ERROR
+        assert fallido.code != INVALID_INDICATORS
+        assert "404" in fallido.reason
 
     def test_los_indices_de_contexto_no_generan_oportunidades(self, config, universe, histories) -> None:
         provider = FakeProvider(histories, closes={"^VIX": 14.0})

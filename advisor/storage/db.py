@@ -286,6 +286,7 @@ class AdvisorDB:
             "reward_pct", "rr_ratio", "reasons", "run_id",
             "discard_code", "execution_code", "quality_freshness", "quality_recent",
             "quality_historical", "execution_ready", "quality_period", "quality_interval",
+            "warnings",
         ]
         placeholders = ", ".join(f":{c}" for c in columns)
         sql = f"INSERT INTO recommendation ({', '.join(columns)}) VALUES ({placeholders})"
@@ -352,6 +353,7 @@ class AdvisorDB:
             "reward_pct", "rr_ratio", "reasons", "run_id",
             "discard_code", "execution_code", "quality_freshness", "quality_recent",
             "quality_historical", "execution_ready", "quality_period", "quality_interval",
+            "warnings",
         ]
         placeholders = ", ".join(f":{c}" for c in columns)
         sql = f"INSERT INTO recommendation ({', '.join(columns)}) VALUES ({placeholders})"
@@ -698,7 +700,7 @@ def freshness_measurement_to_row(row: Dict[str, Any]) -> Dict[str, Any]:
 def _add_recommendation_quality_defaults(row: Dict[str, Any]) -> None:
     for column in (
         "discard_code", "execution_code", "quality_freshness", "quality_recent",
-        "quality_historical", "quality_period", "quality_interval",
+        "quality_historical", "quality_period", "quality_interval", "warnings",
     ):
         row.setdefault(column, None)
     if "execution_ready" not in row or row["execution_ready"] is None:

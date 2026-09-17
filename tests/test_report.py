@@ -10,13 +10,20 @@ import pytest
 
 from advisor.analysis.analyzer import AnalysisResult, SkippedAnalysis
 from advisor.analysis.levels import Levels, compute_levels
-from advisor.analysis.opportunity import RADAR_DESCARTAR, build_opportunity
+from advisor.analysis.opportunity import RADAR_DESCARTAR, RADAR_VIGILAR, build_opportunity
 from advisor.analysis.overview import IndexQuote
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.sizing import calculate_position_sizing
 from advisor.config import AdvisorConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.data.freshness import DataFreshness
 from advisor.data.fx import FxConverter
+from advisor.data.quality import (
+    STALE_DATA,
+    DataQuality,
+    FreshnessState,
+    QualityReason,
+    Severity,
+)
 from advisor.events.models import (
     ALCANCE_ACTIVO,
     ALCANCE_GLOBAL,
@@ -159,6 +166,38 @@ class TestFormatOpportunity:
         assert "**Ejecutabilidad en broker:** ❓ pendiente de verificación" in ficha
         assert "### Acción\n**COMPRAR**" in ficha
         assert "**Disponibilidad:** ❓ pendiente de verificación" in ficha
+
+    def test_aviso_de_precio_extendido_llega_a_la_ficha(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        """La advertencia no descarta, así que no viaja en `decision_reasons`.
+        Si el formatter deja de recorrer `warnings` desaparece sin romper nada:
+        ya ocurrió una vez."""
+
+        opportunity = _opportunity(asset_eur, benign_context, price=100.0, ema_fast=90.0, atr=2.0)
+        assert opportunity.warnings, "el caso debe producir la advertencia que se quiere fijar"
+
+        ficha = format_opportunity(opportunity, fx, REPORT_REFERENCE)
+        accion = ficha.split("### Acción", 1)[1]
+
+        for warning in opportunity.warnings:
+            assert f"⚠️ {warning}" in accion
+        assert "precio extendido" in accion
+
+    def test_precio_extendido_avisa_tambien_en_la_zona_de_entrada(
+        self, asset_eur, benign_context, fx: FxConverter
+    ) -> None:
+        opportunity = _opportunity(asset_eur, benign_context, price=100.0, ema_fast=90.0, atr=2.0)
+        assert opportunity.levels.chase is True
+
+        entrada = format_opportunity(opportunity, fx, REPORT_REFERENCE).split("### Entrada", 1)[1]
+        assert "NO PERSEGUIR PRECIO" in entrada.split("###", 1)[0]
+
+    def test_precio_no_extendido_no_avisa(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        opportunity = _opportunity(asset_eur, benign_context)
+        assert opportunity.levels.chase is False
+
+        ficha = format_opportunity(opportunity, fx, REPORT_REFERENCE)
+        assert "NO PERSEGUIR PRECIO" not in ficha
+        assert "precio extendido" not in ficha
 
     def test_declara_frescura_y_avisa_si_la_barra_es_vieja(
         self,
@@ -441,6 +480,47 @@ class TestFormatReport:
             assert seccion in informe
         assert "no es asesoramiento financiero" in informe.lower()
 
+    def test_aviso_de_precio_extendido_llega_al_informe_tambien_en_radar(
+        self, asset_eur, hostile_context, fx: FxConverter
+    ) -> None:
+        """`format_opportunity` solo se genera para las OPERAR.
+
+        Un activo en vigilancia no tenía dónde enseñar su advertencia, así que
+        el aviso se perdía justo para los que están más cerca de recomendarse.
+        Este test va por `format_report` a propósito: comprobarlo sobre
+        `format_opportunity` pasa en verde con el defecto presente.
+        """
+
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        # Sin bajar el umbral, el contexto hostil deja la nota en 67,8 y la
+        # clasificación sale por «insuficiente para operar» antes de llegar a
+        # la extensión, que es lo que genera la advertencia. Con 60 el activo
+        # recorre el camino real hasta VIGILAR por contexto, con su aviso.
+        scoring = ScoringConfig(min_score_operar=60.0)
+        snapshot = make_snapshot(price=100.0, ema_fast=90.0, atr=2.0)
+        levels = compute_levels(snapshot, LevelsConfig(), RiskConfig().min_rr_ratio)
+        vigilado = build_opportunity(
+            asset=asset_eur,
+            horizonte="swing",
+            snapshot=snapshot,
+            levels=levels,
+            score=compute_score(snapshot, levels, hostile_context, scoring, 250),
+            context=hostile_context,
+            scoring=scoring,
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+        )
+        assert vigilado.radar == RADAR_VIGILAR
+        assert vigilado.warnings
+
+        informe = format_report(self._result([vigilado], hostile_context), config, fx)
+
+        assert "🔥 OPORTUNIDADES DETECTADAS" in informe
+        radar = informe.split("👀 RADAR", 1)[1].split("🔴 DESCARTADOS", 1)[0]
+        assert "precio extendido" in radar
+        for warning in vigilado.warnings:
+            assert f"⚠️ {warning}" in radar
+
     def test_sin_oportunidades_recomienda_liquidez(self, benign_context, fx: FxConverter) -> None:
         config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
         informe = format_report(self._result([], benign_context), config, fx)
@@ -598,6 +678,87 @@ class TestFormatReport:
         assert "  - LOW_SCORE: 2 activos — SAP.DE, AAPL" in bloque_descartados
         assert "2026-03-06" not in bloque_descartados
         assert "⚠️ falta sesión" not in bloque_descartados
+
+    def test_descartes_reciben_el_codigo_del_setup_y_no_el_del_dato(
+        self,
+        asset_eur,
+        asset_usd,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        """Llega al bloque DESCARTADOS por `build_opportunity`, a propósito.
+
+        Fijar `radar` y `discard_code` con `replace` deja pasar el defecto que
+        esta entrega corrige: el código de calidad desplazaba al del setup y la
+        misma línea imprimía dos códigos contradictorios. Aquí los dos activos
+        tienen estados de dato distintos —uno DEGRADADO con sesión ausente y
+        otro al día— y ambos deben caer bajo el único código que produce el
+        clasificador del setup.
+        """
+
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        # Umbrales por encima de cualquier nota alcanzable: fuerza el descarte
+        # por el camino real, sin tocar el resultado a mano.
+        scoring = ScoringConfig(min_score_vigilar=99.0, min_score_operar=99.5)
+        degradado = DataFreshness(
+            last_bar_date=date(2026, 9, 14),
+            natural_days=2,
+            sessions_approx=1,
+            label="hace 2 días naturales; 1 sesión",
+            calendar="XETR",
+            absent_reference_sessions=(date(2026, 3, 6),),
+            quality="DEGRADADO",
+            quality_reasons=("DEGRADADO: faltan sesiones frente al calendario de la plaza fuera de la ventana de veto 2026-03-06",),
+            # Con `data_quality` de verdad, no solo la etiqueta: es el campo
+            # que consultaba el código defectuoso para pisar al del setup.
+            data_quality=DataQuality(
+                freshness=FreshnessState.STALE_1,
+                recent_completeness=Severity.MEDIUM,
+                historical_completeness=Severity.OK,
+                indicator_readiness=True,
+                execution_readiness=False,
+                reasons=(
+                    QualityReason(
+                        code=STALE_DATA,
+                        severity=Severity.MEDIUM,
+                        detail="última barra de hace 1 sesión cerrada",
+                        sessions_ago=1,
+                    ),
+                ),
+            ),
+        )
+
+        def _descartado(asset, freshness):
+            snapshot = make_snapshot()
+            levels = compute_levels(snapshot, LevelsConfig(), RiskConfig().min_rr_ratio)
+            return build_opportunity(
+                asset=asset,
+                horizonte="swing",
+                snapshot=snapshot,
+                levels=levels,
+                score=compute_score(snapshot, levels, benign_context, scoring, 250),
+                context=benign_context,
+                scoring=scoring,
+                risk=RiskConfig(),
+                portfolio=PortfolioConfig(),
+                data_freshness=freshness,
+            )
+
+        sap = _descartado(asset_eur, degradado)
+        apple = _descartado(asset_usd, None)
+        assert sap.radar == RADAR_DESCARTAR and apple.radar == RADAR_DESCARTAR
+        assert sap.discard_code == "LOW_SCORE" and apple.discard_code == "LOW_SCORE"
+
+        informe = format_report(self._result([sap, apple], benign_context), config, fx)
+        bloque = informe.split("## 🔴 DESCARTADOS", maxsplit=1)[1].split("## 🎯 CONCLUSIÓN", maxsplit=1)[0]
+
+        assert "2 activos descartados por código:" in bloque
+        assert "  - LOW_SCORE: 2 activos — SAP.DE, AAPL" in bloque
+        # Un solo grupo: `RADAR_DESCARTAR` solo se alcanza por nota, así que
+        # ningún código de calidad puede encabezar una línea de este bloque.
+        assert bloque.count("  - ") == 1
+        for codigo in ("MISSING_RECENT_DATA", "STALE_DATA", "PARTIAL_BAR", "SIN_CODIGO"):
+            assert codigo not in bloque
 
 
 class TestEventosEnLaFicha:

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from advisor.analysis.analyzer import indicator_reference_sessions
 from advisor.config import AdvisorConfig
 from advisor.data.calendars import expected_sessions
 from advisor.data.freshness import (
@@ -119,6 +120,50 @@ class TestMedirFrescuraDatos:
         viejo = buckets[1]
         assert viejo.freshness.sessions_approx == 2
         assert viejo.markets_label == "AMS, XETRA"
+
+    def test_no_publica_calidad_de_ejecucion_porque_mide_el_dato_crudo(self) -> None:
+        """Los dos caminos respondían distinto sobre el mismo activo e instante.
+
+        `analizar` recorta la barra no cerrada antes de juzgar la calidad y
+        este comando no la recorta, a propósito: existe para ver lo que sirve
+        el proveedor. Publicar aquí un `DataQuality` afirmaba un veredicto de
+        ejecución que esta medición no puede sostener, y para un activo con la
+        sesión ya cerrada decía PARTIAL_BAR / no ejecutable donde el asesor
+        decía FRESH / ejecutable.
+        """
+
+        asset = _asset("7203.T", "JPX", region="ASIA")
+        provider = FakeProvider(histories={"7203.T": make_ohlcv(n=30, start_date="2026-08-03")})
+        # Tokio cierra a las 15:30 locales, o sea 06:30 UTC: a las 11:00 UTC la
+        # última barra es de una sesión ya cerrada, no una barra parcial.
+        reference = datetime(2026, 9, 1, 11, 0, tzinfo=timezone.utc)
+
+        rows = medir_frescura_datos([asset], provider, _config(), reference)
+
+        assert len(rows) == 1
+        freshness = rows[0].freshness
+        assert freshness is not None
+        # La medición cruda sigue entera: fecha, antigüedad y ausencias.
+        assert freshness.last_bar_date.isoformat() == "2026-09-01"
+        # El veredicto de ejecución, no: se declara ausente en vez de fingirlo.
+        assert freshness.data_quality is None
+
+    def test_usa_las_ventanas_de_configuracion_y_no_los_valores_por_defecto(self) -> None:
+        """Ignoraba `veto_window_sessions` y la ventana de indicadores, así que
+        medía con 10/10 mientras producción usaba 20 y la ventana larga."""
+
+        asset = _asset("SAP.DE", "XETRA")
+        provider = FakeProvider(histories={"SAP.DE": make_ohlcv(n=30, start_date="2026-08-03")})
+        config = _config()
+        reference = datetime(2026, 9, 11, 11, 0, tzinfo=timezone.utc)
+
+        freshness = medir_frescura_datos([asset], provider, config, reference)[0].freshness
+
+        assert freshness is not None
+        assert freshness.veto_window_sessions == config.data_quality.veto_window_sessions == 20
+        # La ventana larga se acota al histórico disponible (30 barras), pero
+        # ya no es el 10 por defecto que este camino usaba sin querer.
+        assert 10 < freshness.reference_sessions_checked <= indicator_reference_sessions(config)
 
     def test_salida_declara_hora_de_medicion_y_dispersion_por_plaza(self) -> None:
         assets = [

@@ -186,6 +186,29 @@ Consecuencia sobre cripto: su barra 24/7 es parcial hasta las 00:00 UTC más el
 margen de liquidación, así que cripto no es recomendable en ninguna de las
 cuatro pasadas. Se deduce de la regla y nadie lo decidió aparte. Ver OD-10.
 
+### D-22 (propuesta) — 2026-09-17 — Qué mide `frescura-datos`: el dato crudo o el que ve el asesor
+Metodológica, pendiente de revisión independiente. Sale de la segunda revisión
+de T-005, que encontró los dos caminos contestando distinto sobre el mismo
+activo e instante: `7203.T` con Tokio ya cerrado salía `FRESH` / ejecutable por
+`analizar` y `PARTIAL_BAR` / no ejecutable por `frescura-datos`.
+
+La causa no es un descuido de parámetros, es una diferencia real: `analizar`
+recorta la barra no cerrada con `trim_unclosed_bar` antes de juzgar, y
+`frescura-datos` no la recorta porque existe para ver qué sirve el proveedor.
+
+- **(a) Que `frescura-datos` recorte también.** Los dos caminos coinciden, pero
+  cambia la serie histórica de retrasos ya medida: para cripto, cuya barra de
+  hoy siempre está sin cerrar, pasaría a medirse la de ayer y aparecería un
+  retraso de una sesión donde D-21 registró cero. Reescribiría la base de OD-10.
+- **(b) Que no recorte y no publique calidad de ejecución.** Es lo aplicado
+  ahora: la medición cruda se conserva entera —fecha, antigüedad, ausencias— y
+  `data_quality` queda en `None` declarado, en vez de afirmar un veredicto de
+  ejecución que esta medición no puede sostener.
+
+**Aplicado (b)** por ser lo que no invalida ninguna medición publicada. Si se
+prefiere (a), hay que rehacer las conclusiones de retraso de D-21 y OD-10 con
+la serie recortada, no solo cambiar el código.
+
 ---
 
 ## OWNER_DECISION_REQUIRED

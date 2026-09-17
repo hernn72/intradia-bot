@@ -4,6 +4,16 @@
 - Implementación: Codex · Verificación real, medición y correcciones: Claude Code
 - Suite final: **483 tests**, `ruff` y `mypy` limpios (60 ficheros)
 
+> **OBSOLETO desde el 2026-09-17.** La tabla de impacto de más abajo y el
+> `despues.txt` de esta carpeta son de las 13:21 del 2026-09-16 y las
+> correcciones de la primera revisión entraron a las 13:45 (`98039b4`). El
+> reparto que publican —`LOW_SCORE` 51 · `MISSING_RECENT_DATA` 22 ·
+> `STALE_DATA` 13 · `PARTIAL_BAR` 3— **el código ya no puede producirlo**:
+> `RADAR_DESCARTAR` solo se alcanza por nota, así que todo descarte es
+> `LOW_SCORE`. La medición válida está en
+> `evidence/2026-09-17-T-005-correcciones/`. Se conserva esta carpeta porque
+> los cuatro defectos que documenta sí se encontraron aquí.
+
 ## Impacto medido, comparando dos pasadas reales seguidas
 
 Para que el mercado no confundiera la comparación, la pasada «antes» se ejecutó

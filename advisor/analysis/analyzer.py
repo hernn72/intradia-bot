@@ -19,8 +19,8 @@ from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.levels import compute_levels
 from advisor.analysis.market_context import MarketContext, fetch_market_context
 from advisor.analysis.opportunity import (
+    ANALYSIS_ERROR,
     INSUFFICIENT_HISTORY,
-    INVALID_INDICATORS,
     NO_LEVELS,
     Opportunity,
     build_opportunity,
@@ -157,7 +157,7 @@ def analyze_asset(
                 market=market,
                 barra_actual_cerrada=barra_actual_cerrada,
                 strength_benchmark=benchmark_symbol,
-                recent_reference_sessions=_indicator_reference_sessions(config),
+                recent_reference_sessions=indicator_reference_sessions(config),
                 veto_window_sessions=config.data_quality.veto_window_sessions,
                 asset_timezone=asset.timezone,
                 settlement_minutes=config.data_quality.settlement_minutes,
@@ -302,7 +302,7 @@ def run_analysis(
     )
 
 
-def _indicator_reference_sessions(config: AdvisorConfig) -> int:
+def indicator_reference_sessions(config: AdvisorConfig) -> int:
     return max(
         config.indicators.sma_long,
         config.indicators.ema_slow,
@@ -324,9 +324,17 @@ def _missing_indicators(snapshot: TechnicalSnapshot) -> tuple[str, ...]:
 
 
 def _skip_code(exc: Exception) -> str:
+    """Traduce el fallo a código, y declara desconocido lo que no reconoce.
+
+    El caso por defecto era ``INVALID_INDICATORS``, de modo que un 404 del
+    proveedor, un `KeyError` de pandas o una plaza sin calendario declarado se
+    publicaban en el informe como indicadores inválidos: una causa concreta
+    que nadie había comprobado. INV-16 exige lo contrario.
+    """
+
     reason = str(exc).lower()
     if "histórico insuficiente" in reason or "histórico está vacío" in reason or "sin datos" in reason:
         return INSUFFICIENT_HISTORY
     if "no se pueden situar los niveles" in reason:
         return NO_LEVELS
-    return INVALID_INDICATORS
+    return ANALYSIS_ERROR

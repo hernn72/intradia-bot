@@ -186,3 +186,44 @@ Ambigüedad registrada:
 - `discard_code` nombra códigos de setup, pero la ficha exige código para toda
   espera; por eso `LOW_SCORE` se guarda también cuando el setup queda en
   `VIGILAR/ESPERAR` por estar bajo `min_score_operar`.
+
+## Segunda revisión independiente — 2026-09-17 — CORREGIR, corregido
+
+La primera revisión dio CORREGIR y sus siete defectos se arreglaron en
+`98039b4`. La segunda revisó **esas correcciones** y encontró cuatro hallazgos
+de alcance, los cuatro reproducidos y corregidos el mismo día:
+
+1. **La deduplicación de la frescura quedó a medias.** `98039b4` decía haber
+   eliminado el segundo camino y solo lo había hecho dentro de `analyze_asset`:
+   `medir_frescura_datos` seguía construyendo `DataQuality` sin el cierre de
+   plaza y sin las ventanas de configuración, de modo que el mismo activo en el
+   mismo instante salía `FRESH`/ejecutable por un camino y `PARTIAL_BAR`/no
+   ejecutable por el otro. Corregido pasando las ventanas de config y dejando
+   `data_quality` en `None` en ese camino, que mide el dato crudo y no puede
+   sostener un veredicto de ejecución. Ver D-22 (propuesta).
+2. **El aviso de precio extendido seguía perdido, y además dejó de guardarse.**
+   `format_opportunity` solo se genera para las OPERAR, así que el bloque RADAR
+   nunca lo imprimía; y al sacarlo de `decision_reasons` salió de lo único que
+   la fila persistía, con lo que desapareció de la base de datos **también para
+   las OPERAR**. Corregido: se imprime en RADAR y viaja en una columna
+   `warnings` propia, añadida a la migración v4 —que todavía no está en `main`,
+   así que no hace falta una v5.
+3. **`_skip_code` atribuía una causa que nadie había comprobado.** Un 404 del
+   proveedor, un timeout o una plaza sin calendario se publicaban como
+   `INVALID_INDICATORS`. Corregido con `ANALYSIS_ERROR` para el fallo no
+   reconocido, que es lo que exige INV-16.
+4. **Faltaban tests que la ficha pedía.** Añadidos el de severidad `CRITICAL`
+   —que no tenía ninguno pese a ser la máxima— y uno del bloque DESCARTADOS que
+   llega al código por `build_opportunity` en vez de fijarlo con `replace`. El
+   que existía pasaba en verde con el defecto reintroducido; el nuevo falla.
+
+### Consecuencia sobre el objetivo 6, que conviene dejar escrita
+
+«DESCARTADOS agrupados por código con conteo» queda **degenerado a un solo
+grupo** y no es un fallo: `RADAR_DESCARTAR` solo se alcanza por nota, así que
+todo descarte es `LOW_SCORE` mientras el clasificador de setup no tenga más
+ramas. Los códigos `INVALID_TREND`, `OVEREXTENDED`, `VOLATILITY_TOO_HIGH` y
+`EVENT_RISK` están declarados y **nadie los asigna nunca**. El `or "SIN_CODIGO"`
+de `formatter.py` es inalcanzable en producción. Si se quiere que el bloque
+vuelva a discriminar, hay que darle ramas al clasificador del setup, no
+devolverle el código de calidad.

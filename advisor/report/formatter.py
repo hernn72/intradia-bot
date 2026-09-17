@@ -543,6 +543,12 @@ def format_report(
                 f"{_compact_freshness_marker(opportunity, result.generated_at)}"
                 f"{_code_marker(opportunity.discard_code or opportunity.execution_code)} — {reason}"
             )
+            # `format_opportunity` solo se genera para las OPERAR, así que un
+            # activo en vigilancia no tenía dónde enseñar sus advertencias: el
+            # aviso de precio extendido se perdía justo para los activos que
+            # más cerca están de recomendarse.
+            for warning in opportunity.warnings:
+                lines.append(f"      ⚠️ {warning}")
     else:
         lines.append("Sin activos en vigilancia.")
     lines.append("")

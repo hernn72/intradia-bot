@@ -59,6 +59,11 @@ BELOW_RISK_FREE = "BELOW_RISK_FREE"
 NO_LEVELS = "NO_LEVELS"
 INSUFFICIENT_HISTORY = "INSUFFICIENT_HISTORY"
 INVALID_INDICATORS = "INVALID_INDICATORS"
+# Para el fallo que no se ha sabido clasificar. Existe porque atribuirlo a
+# INVALID_INDICATORS afirmaba una causa técnica que nadie había comprobado:
+# un 404 del proveedor, un timeout de red o una plaza sin calendario se
+# publicaban como indicadores inválidos (INV-16).
+ANALYSIS_ERROR = "ANALYSIS_ERROR"
 
 # Tipo de operación asociado a cada horizonte de análisis.
 TIPO_OPERACION = {
