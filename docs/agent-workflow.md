@@ -9,138 +9,85 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-16 (pausa a mitad de T-005)
+# START HERE — actualizado 2026-09-17 (fin de jornada)
 
 ## Dónde está todo
 
-    main                        c255e0c   PR 1, T-001, T-002, T-003, T-004   · pusheado
-    refactor/data-quality-codes 98039b4   T-005, EN_REVISION                 · pusheado, SIN mergear
-    La Pi                       c581fb1   = main sin T-004 ni T-005
+    main / origin/main / la Pi    4f07829    las tres alineadas, CI verde
+    graphify-out/                 sin seguimiento, ignorar
 
-`main` tiene PR 2 cerrado entero (fases 4, 5 y 6). **La Pi va dos entregas por
-detrás**: le faltan T-004 (calendario corregido y `diagnosticar-barra`) y T-005.
+Nada pendiente de commitear. La Pi corre lo mismo que `main`, con esquema v4 y
+los timers vivos.
 
-## Lo que queda de T-005, en orden
+## Lo que entró hoy, de abajo arriba
 
-La revisión independiente dio CORREGIR con 3 defectos y 4 avisos. **Los siete
-están corregidos y commiteados** en `98039b4`, con 484 tests, `ruff` y `mypy`
-limpios, y cada test nuevo comprobado reintroduciendo su defecto. Falta:
+    572192c  T-005: las 5 correcciones de su 2.ª revisión independiente
+    6e7eaa5  despliegue de T-004 y T-005 en la Pi (migración v3→v4 verificada)
+    5de38c2  D-22 validada con Codex; resuelto el added_at de los 8 renombrados
+    e0bff6b  T-006: identidad de instrumentos y universe_vintage_id canónico
+    cc9341f  T-006: las 3 correcciones de su revisión (una era un BLOCKER de CI)
+    4f07829  OA-03 primera tanda: 19 ISIN verificados en la app del broker
 
-1. **Test del aviso de precio extendido en el formatter.** El aviso ya se
-   imprime (`formatter.py`, tras `decision_reasons`), pero no hay test que lo
-   fije. Sin él vuelve a desaparecer sin que nadie se entere: ya pasó una vez.
-2. **Pasada real y rehacer la tabla de impacto.** El README de
-   `evidence/2026-09-16-T-005-calidad/` dice «LOW_SCORE 51 · MISSING_RECENT_DATA
-   22 · STALE_DATA 13 · PARTIAL_BAR 3» y **eso ya no es cierto ni lo era**:
-   todos los descartes son `LOW_SCORE` de origen. Ejecutar
-   `python -m advisor.main analizar --horizonte swing --sin-ia --sin-guardar` y
-   reescribir la tabla con lo que salga, separando `discard_code` de
-   `execution_code`.
-3. **Segunda revisión independiente** de las correcciones, o al menos de los
-   dos cambios de semántica: la separación de códigos y la deduplicación de la
-   frescura en `analyzer.py`.
-4. Mergear en `main` y **desplegar en la Pi T-004 y T-005 juntas**, con copia
-   previa de `intradia.db` y vigilando la migración v4 (probada ya sobre una
-   copia real: v3→v4, backup previo, 6 columnas, 214 recomendaciones intactas).
+Vintage actual del universo: `23afb7bb…`. Cambia con cada tanda de OA-03,
+y el test `test_universe_real_tiene_107_analizables_y_vintage_conocido` se
+actualiza a propósito con cada una.
 
-## Después de T-005
+## Por dónde seguir, en orden
 
-**T-006** (`universe_vintage_id`, ficha escrita) → **T-007..T-010**, que son
-PR 4 y PR 5 y **cuyas fichas hay que escribir** con la plantilla → GATE L0.
-Luego la línea C (C-03 a C-06). El orden completo está en `docs/roadmap.md`.
+1. **T-007** (PR 4) está **escrita y sin implementar**:
+   `docs/tareas/T-007-estado-de-mercado-y-broker.md`. Lleva dentro un defecto
+   medido hoy que **no estaba en ningún plan**: `trim_unclosed_bar` compara
+   contra el cierre **regular** de la plaza, así que en un día de media sesión
+   descarta una barra ya cerrada. No ha mordido nunca —el bot nació en agosto—
+   y muerde por primera vez el **2026-11-27** (NYSE y NASDAQ cierran a las
+   13:00), luego el 24, 30 y 31 de diciembre con ocho plazas. Hay margen hasta
+   finales de noviembre y ni un día más.
+   Ojo: la ficha corrige un error propio. NO añadir `open_time` a mano a
+   `MARKET_SESSIONS`: `exchange_calendars` ya da apertura y cierre, y sus 14
+   cierres coinciden exactamente con los hardcodeados. Copiarlos sería una
+   segunda fuente de verdad (INV-06).
+2. **OA-03, el resto**: 70 sin ISIN y 15 heredados sin fuente primaria; 87
+   activos en `unknown` para Trade Republic. Inventario priorizado en
+   `evidence/2026-09-17-OA-03-isin/inventario.csv`, ordenado por si el activo
+   ha llegado a OPERAR alguna vez. Los 19 de prioridad 1 están cerrados.
+3. **T-008..T-010** (PR 5) siguen **sin ficha**; las escribe Opus.
 
-## Decisiones del propietario que quedaron abiertas hoy
+## Decisiones del propietario pendientes
 
-- **OD-09** — horario de las pasadas. Con D-21, las dos pasadas de la mañana no
-  podrán recomendar ningún activo europeo. Medido sobre las 21 pasadas de la
-  Pi: el retraso europeo es del 96-100 % a las 06:02 y 07:32 UTC y del 0 % a
-  las 20:02, y no afecta a ningún activo no europeo.
-- **OD-10** — cripto. Su barra 24/7 es parcial hasta las 00:00 UTC más el
-  margen, así que con D-21 no es recomendable en ninguna pasada.
-- **OA-02** — branch protection, sin hacer. `main` sigue sin protección.
+- **OA-02** — branch protection en GitHub, sin hacer. `main` recibió seis
+  commits hoy y sigue admitiendo push directo y force-push.
+- **OD-09** (horario de las pasadas) y **OD-10** (cripto), abiertas desde ayer.
+  Hoy se ven mejor: con 11 activos ya `EXECUTABLE`, los que frenan a los
+  europeos son `STALE_DATA` y `MISSING_RECENT_DATA`, no el broker.
 
-## Cómo se ha trabajado hoy, y por qué seguir igual
+## Dos hallazgos abiertos que no son de ninguna ficha
 
-Tres capas, y **cada una encontró cosas que las otras no**: Codex entrega con la
-suite verde; la verificación contra datos reales encuentra lo que los tests no
-ven (siete defectos hoy); y la revisión independiente encuentra lo que se le
-escapa al supervisor (diez más). Ninguna es prescindible.
+- `analizar --grupos X` declara el vintage del universo **entero**, no el del
+  subconjunto analizado.
+- El informe de `capacidad-estadistica` no publica ningún vintage, así que un
+  veredicto de GATE no es atribuible a ninguna cosecha.
 
-**Codex agotó su cuota de uso** a media tarde, a mitad de las correcciones de
-T-005. Si vuelve a pasar, las correcciones bien especificadas se pueden hacer a
-mano; las tareas grandes conviene esperar a que recupere.
-```
+## Cómo se trabajó hoy, y qué repetir
 
----
+Las tres capas siguieron encontrando cosas distintas, y **la revisión
+independiente encontró defectos en las dos entregas**, incluidos dos errores
+míos: afirmé en una evidencia que una guarda empezaría a proteger con la
+próxima cosecha cuando el campo no lo escribía nadie, y mi comprobación manual
+del benchmark tocó justo el único caso que ya funcionaba. Verificar contra
+datos reales no basta si la comprobación se apoya en el mismo punto ciego.
 
-## 1. Reparto de funciones
+Tres trampas concretas que volverán:
+- Revertir un defecto inyectado con `git checkout -- <fichero>` **borra las
+  correcciones sin commitear**. Copiar a /tmp y restaurar desde ahí.
+- `trade_republic: yes` sin comillas lo lee YAML como booleano y la carga falla.
+- Una suite verde en el portátil no dice nada del CI: comprobar con
+  `git archive HEAD | tar -x` en un directorio aparte.
 
-### Opus — diseño, método, estadística, diagnóstico
-
-Preferir para: arquitectura y contratos de datos; decisiones metodológicas y
-pre-registro; investigación estadística (P2–P9) e interpretación de
-resultados; depuración de causa raíz con datos reales (T-004 es el modelo);
-revisión conceptual e independiente; documentación técnica que fija reglas.
-
-### Codex — implementación especificada, mecánica, verificación
-
-Preferir para: fichas con contrato ya fijado; refactors locales; tests;
-migraciones; CI/CD y automatización; cambios mecánicos multiarchivo;
-búsqueda de referencias y eliminación de duplicación; herramientas de línea
-de comandos con salida definida.
-
-### Cuándo se encadena Opus → Codex → Opus
-
-Obligatorio cuando la tarea cumple **una** de estas:
-
-- introduce o cambia un contrato de datos (`Levels`, `DataQuality`,
-  esquema SQLite, manifiesto, `universe.yaml`);
-- toca `advisor/research/`, calendarios, fechado de sesiones, `classify()`,
-  `compute_levels*`, `compute_score`;
-- tiene consecuencias estadísticas o de look-ahead;
-- la ficha dice «Opus diseña».
-
-Entonces: Opus escribe/valida la sección «Implementación requerida» de la
-ficha (contrato, invariantes, tests con números), Codex implementa, Opus
-revisa con `PROMPT_REVIEW` intentando refutar.
-
-### Cuándo basta un solo agente
-
-- Codex solo: la ficha ya tiene contrato cerrado y la tarea no entra en la
-  lista de arriba (T-001, T-002 salvo la revisión final, T-006).
-- Opus solo: diagnóstico, investigación, documentación, decisiones (T-004,
-  A-01, A-02…). Si del diagnóstico sale un cambio mecánico grande, lo
-  delega a Codex con una ficha nueva.
-
-### Claude Code
-
-Puede actuar como Opus o como Codex según el prompt que reciba; usa el
-subagente `revisor` para la revisión independiente y sigue exactamente los
-mismos prompts.
-
----
-
-## 2. Prohibición de decisiones silenciosas
-
-Ningún agente inventa una decisión de producto o de investigación. Si la
-ficha, el decision log y el protocolo no la resuelven:
-
-1. Comprobar si es **técnica reversible** (sección 6 de `docs/metodo-trabajo.md`):
-   entonces se decide, se anota en la ficha y, si afecta a más tareas, en el
-   decision log con `D-nn`.
-2. Si es **metodológica**: se propone en el decision log como `D-nn
-   (propuesta)` con alternativas, y se pide revisión independiente antes de
-   medir.
-3. Si es **de propietario**: se escribe en `docs/decision-log.md` con este
-   formato y la tarea pasa a `BLOQUEADA_POR_OWNER`, **haciendo todo lo demás**:
-
-```markdown
-### OD-nn — <título>
-- **Pregunta:** <pregunta exacta, cerrada>
-- **Alternativas:** (a) … (b) … (c) …
-- **Consecuencia:** (a) … (b) … (c) …
-- **Recomendación técnica:** <una>, y qué se hace si no hay respuesta en N días
-- **Bloquea:** <tareas/gates>
+**Codex**: agotó la cuota a mediodía (vuelve a las 13:48 del día siguiente).
+Su sandbox **no puede escribir refs de git**, así que hay que crearle la rama
+antes y commitear por él. Y `codex exec` se cuelga esperando stdin si no se
+cierra con `< /dev/null`; `--full-auto` no existe en la 0.150.1, se usa
+`--sandbox workspace-write -c sandbox_workspace_write.network_access=true`.
 ```
 
 ---
