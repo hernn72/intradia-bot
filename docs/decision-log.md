@@ -258,7 +258,7 @@ no saltaba nunca. Consecuencia asumida: las cosechas nuevas tienen un
 `data_vintage_id` distinto del que tendrían con el esquema anterior; la cosecha
 `071ddb2b…` se sigue leyendo igual.
 
-### D-24 — 2026-09-17 — Primera tanda de OA-03: 18 ISIN desde la app del broker
+### D-24 — 2026-09-17 — OA-03, primera tanda: 19 ISIN desde la app del broker
 El propietario comprobó en la app de Trade Republic los 18 activos que el bot
 ha llegado a recomendar COMPRAR alguna vez —medido sobre las 15 pasadas
 guardadas en la Pi, no elegidos a ojo— y aportó el ISIN que muestra la ficha de
@@ -297,6 +297,36 @@ activos cambian de `instrument_id` (de `SYMBOL@MARKET` al ISIN). Está previsto:
 cada tanda de OA-03 lo moverá otra vez, y el test
 `test_universe_real_tiene_107_analizables_y_vintage_conocido` se actualiza a
 propósito con cada una, que es para lo que existe.
+
+### D-25 — 2026-09-17 — OA-03, segunda tanda: 52 ISIN y 48 disponibilidades
+El propietario amplió el inventario a mano y aportó 33 ISIN más y la
+disponibilidad de 48 activos. **Cuatro filas no se aplicaron tal cual**, y las
+cuatro son el motivo por el que la validación no puede quedarse en el dígito de
+control:
+
+- `ENI.MI` traía `JP3164630000`, un ISIN **japonés válido** para una empresa
+  italiana. Corregido por el propietario a `IT0003132476`.
+- `PLTR` traía `2026-09-17`: una fecha, por una columna desplazada al pegar.
+  Corregido a `US69608A1088`.
+- `BBVA` no existe como símbolo; era la fila de `BBVA.MC` con el sufijo perdido
+  al editar. Se identificó sin inferir nada: misma plaza `MCE`, mismo nombre, y
+  ninguna fila `BBVA.MC` en la tabla.
+- `SOL-EUR` traía `US42328V8761`, válido pero con prefijo `US`: no es la
+  criptomoneda sino un producto cotizado sobre ella, que es **otro
+  instrumento** que el que el bot mide contra `SOL-EUR`. No se aplicó.
+
+**La regla que sale de aquí:** el dígito de control no detecta un ISIN correcto
+de otra cosa. Hay que cruzar además el país del ISIN con la plaza del activo,
+que es lo que cazó `ENI.MI` y `SOL-EUR`.
+
+Queda abierta una incoherencia por confirmar: `BTC-EUR` figura como no
+disponible y `SOL-EUR` como disponible, lo que es raro si el broker ofrece
+cripto. `ETH-EUR` sigue sin comprobar.
+
+Estado tras la tanda: **52 con ISIN verificado, 52 pendientes, 3 no aplicable**;
+45 disponibles, 3 no disponibles, 59 sin comprobar. Los 19 de prioridad 1 —los
+que el bot ha llegado a recomendar COMPRAR— están cerrados. Vintage:
+`9d0a4c6ff32d604d5829d3b74620a94d28b6a9af5b16bfa9c89d4e7fa7caae54`.
 
 **Trampa de formato, anotada porque volverá a aparecer:** escribir
 `trade_republic: yes` sin comillas hace que YAML lo lea como el booleano `True`
