@@ -291,12 +291,14 @@ Fichas completas en `docs/tareas/`. Orden y paralelismo en
 | T-004 Investigar huecos 2026-09-07 y 2026-03-06 | Opus | T-003 | GATE L0 (2), OD-02 |
 | T-005 Calidad del dato por dimensiones y códigos | Opus → Codex → Opus | T-002, T-003, T-004 | GATE L0 (3) |
 | T-006 `universe_vintage_id` e identidad | Codex → Opus | T-002 | GATE P2 (3), GATE B0 |
+| T-007 Estado de mercado, precio ejecutable y broker | Codex → Opus | T-005, T-006 | GATE L0 (4) |
+| T-008 Informe honesto e invariantes de integración | Codex → Opus | T-007 | GATE L0 (5) |
+| T-009 Filtro de ejecución medido aparte del score | Codex → Opus | T-008 | GATE L0 (5) |
+| T-010 Limpieza final y cierre de GATE L0 | Codex → Opus | T-009 | **GATE L0** |
+| T-011 Release por tag, `verificar-release` y rollback | Codex → Opus → propietario | T-001 | GATE PROD (2, 7) |
+| T-012 Histórico de frescura de la Pi | Codex → Opus → propietario | acceso a la Pi | OD-02, OD-09, OD-10 |
 
-Siguientes fichas por escribir (las escribe Opus al llegar, con la plantilla):
-T-007 PR 4 fases 9–11 (estado de mercado, reevaluación, broker e ISIN de
-`EXH1.DE`); T-008 PR 5 fases 12–13 (informe e invariantes de integración);
-T-009 fase 14 (filtro de ejecución medido aparte del score, incluida la
-pérdida por `ABOVE_MAX_ENTRY` a la apertura, decisión D-06); T-010 fase 15 +
-cierre de GATE L0; T-011 C-03 despliegue por tag y rollback; T-012 A-01
-histórico de frescura de la Pi; T-013 A-02 rehacer P2.3/P2.4/P2.5 → GATE P2;
-T-014 B-00 contrato point-in-time y ficha de proveedor.
+Escritas el 2026-09-18: T-008, T-009, T-010, T-011 y T-012. Quedan por escribir
+T-013 (A-02, rehacer P2.3/P2.4/P2.5 → GATE P2) y T-014 (B-00, contrato
+point-in-time y ficha de proveedor), más las de la línea C que salgan de T-010
+(C-04 alertas y timeouts, C-05 narrativa LLM versionada, C-06 backup programado).
