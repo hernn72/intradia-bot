@@ -50,7 +50,7 @@ propietario, y `enforce_admins` está activo. Un tag `vX.Y.Z` empujado dispara
     785daf4  corrección: un tag anotado daba FUERA_DE_TAG  ·  v0.2.0
 
 **GATE L0 CRUZADO** (D-30), evidencia en `evidence/2026-09-18-L0-cierre/`.
-**Universo: 126 activos, 103 analizables**, vintage `c8496446…`.
+**Universo: 126 activos, 93 analizables** tras D-31 y D-35, vintage `237b0056…`.
 
 **T-011 y T-017 ACEPTADAS**, con el ensayo de OA-04 hecho sobre la base real:
 `evidence/2026-09-18-OA-04-ensayo-release/`. La Pi migró a esquema v5
@@ -76,9 +76,9 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 
 - **OD-09** (horario de las pasadas) y **OD-10** (cripto) — esperan T-012.
 - **OD-01** (proveedor de fundamentales) y **OD-03** (presupuesto LLM), abiertas.
-- Los **10 activos marcados `no`** en el broker siguen siendo analizables y
-  vetados como `BROKER_UNAVAILABLE`. Es la misma situación que los cuatro dados
-  de baja en D-31, pero **es otra decisión** y no se ha tomado.
+- ~~Los 10 activos marcados `no` en el broker~~ **decidido el 2026-09-18**:
+  dados de baja (D-35). El universo analizable queda en **93** y ya no hay
+  ningún analizable con `trade_republic: "no"`.
 
 ## Cuatro cifras de hoy que cambian cómo se piensa el asesor
 

@@ -709,3 +709,34 @@ No se unifica el ajuste: cambiar el modo en vivo está fuera del alcance de la
 ficha, y reajustar la cosecha rompería sus hashes (INV-13) y la convención
 pre-registrada de P2, que trabaja con material bruto y trata el dividendo aparte
 en `gap_for_catalyst`. Lo que se hace es **declararlo en cada informe**.
+
+### D-35 — 2026-09-18 — Baja de los diez activos marcados `no` en el broker
+Decisión del propietario, y cierre de lo que D-31 dejó abierto a propósito.
+Aquel día se dieron de baja cuatro activos por no estar en Trade Republic y
+quedaron **diez más en la misma situación** —verificados como `no` en OA-03—
+que seguían siendo analizables y vetados como `BROKER_UNAVAILABLE`. Era la misma
+situación con decisión distinta; hoy se toma: salen del universo analizable.
+
+Los diez: `LRCX`, `JPM`, `GE`, `RTX`, `RHM.DE`, `NOVO-B.CO`, `9984.T`,
+`000660.KS`, `DFEN.DE` y `4GLD.DE`.
+
+**Se hace como D-31 y por el mismo motivo**: `valid_to: 2026-09-18`,
+`analizable: false` y nota, **sin borrar las líneas**. Las cosechas congeladas
+contienen sus series y la base de la Pi tiene filas que los referencian; borrar
+la definición los dejaría huérfanos y rompería la reconstrucción. Y `valid_to`
+es obligatorio junto a `analizable: false`: sin él, `context_assets_of` los
+tomaría por índices de contexto y aparecerían en «Situación global»,
+descargándose en cada pasada. Comprobado: los activos de contexto siguen siendo
+19 y ninguno de los diez está entre ellos.
+
+Consecuencias: **126 activos, 93 analizables** (antes 103). Vintage nuevo
+`237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19` (INV-19).
+Ya no queda **ningún** activo analizable con `trade_republic: "no"`, así que el
+motivo de descarte `BROKER_UNAVAILABLE` deja de aplicarse a nadie en producción;
+se conserva en el código como guarda, igual que `RR_TOO_LOW` tras D-29.
+
+**Efecto sobre lo medido, que hay que declarar al comparar.** Todo lo publicado
+hasta hoy es sobre 107 o sobre 103: P2.3 con sus 121.786 señales, T-007 a T-009,
+la línea base de la línea 0 y el backtest de T-015 (866 operaciones sobre los
+103). A-02 rehará el laboratorio sobre la población vigente y **la comparación
+con lo anterior debe declarar las tres poblaciones**, no solo dos.
