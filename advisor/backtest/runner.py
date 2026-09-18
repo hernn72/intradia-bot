@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
@@ -18,10 +19,12 @@ import pandas as pd
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.backtest.engine import POLICY_OPERAR, POLICY_TODAS, BacktestTrade, simulate_asset
 from advisor.config import AdvisorConfig
+from advisor.data.freshness import mercado_para_simbolo
 from advisor.data.market_data import MarketDataProvider
+from advisor.data.sessions import trim_unclosed_bar
 from advisor.indicators.technical import sma
 from advisor.research.vintage import VintageLoad, frozen_close
-from advisor.universe.models import Universe
+from advisor.universe.models import Asset, Universe
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +106,8 @@ def run_backtest(
     period: str = "5y",
     cost_pct: float = 0.2,
     vintage: Optional[VintageLoad] = None,
+    reference: Optional[datetime] = None,
+    settlement_minutes: int = 20,
 ) -> BacktestResult:
     """Simula el asesor sobre histórico diario.
 
@@ -136,6 +141,13 @@ def run_backtest(
 
     if vintage is None and provider is None:
         raise ValueError("el backtest necesita un proveedor de datos o una cosecha congelada")
+
+    referencia = reference or datetime.now(timezone.utc)
+
+    def mercado_de(asset: Asset) -> str:
+        # El mismo resolutor que usa el análisis: prioriza la plaza declarada en
+        # el universo y solo infiere del símbolo cuando no la hay (INV-06).
+        return mercado_para_simbolo(asset, asset.primary_symbol)
 
     def cierres(symbol: Optional[str]) -> Optional[pd.Series]:
         if vintage is not None:
@@ -174,6 +186,18 @@ def run_backtest(
                 df = provider.get_history(asset.primary_symbol, period=period, interval="1d")
             except Exception as exc:
                 result.skipped.append((asset.symbol, str(exc)))
+                continue
+            # Una barra en curso no es un dato ni aquí: simular con la vela de
+            # hoy a medias metería en el backtest un precio que todavía se
+            # mueve (D-37). En modo cosecha no aplica: lo congelado ya está.
+            df = trim_unclosed_bar(
+                df,
+                market=mercado_de(asset),
+                reference=referencia,
+                settlement_minutes=settlement_minutes,
+            ).df
+            if df.empty:
+                result.skipped.append((asset.symbol, "sin barras cerradas"))
                 continue
         if len(df) < window.min_bars + 10:
             result.skipped.append(

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from functools import cache
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -136,6 +136,100 @@ def market_for_symbol(symbol: str, *, asset_class: Optional[str] = None) -> str:
     raise ValueError(f"{symbol}: símbolo sin plaza declarada")
 
 
+CRYPTO_MIC = "CRYPTO_24_7"
+
+
+def session_date_of(timestamp: object, market: str) -> Optional[date]:
+    """A qué sesión de la plaza pertenece una barra.
+
+    Es la **única** forma de fechar una barra en el asesor. Fechar en UTC y
+    recortar en la zona de la plaza son dos maneras distintas de responder a la
+    misma pregunta, y dan respuestas distintas: una barra de la sesión XETRA del
+    18 llega estampada como `2026-09-17T22:00:00Z`, así que en UTC parece del 17.
+    Con el veto midiéndose contra la última sesión cerrada exigible, esa
+    diferencia de un día veta a un activo que tiene su dato al día (INV-06).
+
+    Devuelve ``None`` si la plaza no está declarada: entonces quien llama decide,
+    en vez de que este módulo se invente una zona.
+    """
+
+    try:
+        zone = ZoneInfo(market_session(market).timezone)
+    except ValueError:
+        return None
+    return _session_date(timestamp, zone)
+
+
+def session_close_at(market: str, session_date: date) -> Optional[datetime]:
+    """Instante en que cierra la sesión de una plaza, o ``None`` si no se sabe.
+
+    Una plaza 24/7 no tiene hora de cierre pero sus barras diarias **sí** se
+    cierran: la del día D queda cerrada a las 00:00 UTC del día siguiente. Eso
+    es lo que permite tratar cripto con la misma regla que el resto en vez de
+    con una excepción (D-37).
+    """
+
+    session = market_session(market)
+    if session.mic == CRYPTO_MIC:
+        return datetime.combine(session_date + timedelta(days=1), time(0, 0), tzinfo=timezone.utc)
+    if session.close_time is None:
+        return None
+    try:
+        return _session_close_at(session, session_date).to_pydatetime()
+    except Exception:  # calendario no declarado o fecha fuera de rango
+        return None
+
+
+def latest_expected_closed_session(
+    market: str,
+    reference: datetime,
+    *,
+    settlement_minutes: int = 0,
+    lookback_days: int = 45,
+) -> Optional[date]:
+    """La última sesión cuyo cierre —más la liquidación— ya ha pasado.
+
+    Es la barra que el proveedor **ya debería** haber publicado. Si falta, el
+    dato está retrasado y D-21 veta; cualquier barra posterior sigue abierta, se
+    ignora y no veta. La regla es la misma para todas las plazas, incluida una
+    24/7: lo único que cambia es a qué hora cierra cada sesión.
+
+    Devuelve ``None`` cuando no se puede determinar —plaza sin calendario
+    declarado—, y entonces quien llama declara desconocido en vez de suponer
+    (INV-16).
+
+    ``lookback_days`` son 45 y no 15 porque un cierre largo real —una semana
+    dorada asiática encadenada con festivos, una suspensión— dejaría la ventana
+    sin ninguna sesión y la frescura volvería a la cuenta antigua sin que nadie
+    se enterara. Con 45 días no hay cierre de plaza conocido que la agote, y si
+    lo hubiera se declara desconocido, que es lo correcto.
+    """
+
+    # Import diferido: `calendars` importa este módulo, así que hacerlo arriba
+    # cerraría el círculo. Es la misma lista de sesiones que usa todo lo demás,
+    # con los overrides de plaza aplicados (INV-06).
+    from advisor.data.calendars import expected_sessions
+
+    try:
+        session = market_session(market)
+    except ValueError:
+        # Plaza sin declarar: aquí no se grita, se declara desconocido. Quien
+        # necesite gritar es `trim_unclosed_bar`, que sí exige plaza conocida.
+        return None
+    zone = ZoneInfo(session.timezone)
+    hoy = reference.astimezone(zone).date()
+    for delta in range(lookback_days + 1):
+        candidata = hoy - timedelta(days=delta)
+        if session.mic != CRYPTO_MIC and not expected_sessions(market, candidata, candidata):
+            continue
+        cierre = session_close_at(market, candidata)
+        if cierre is None:
+            return None
+        if cierre + timedelta(minutes=settlement_minutes) <= reference:
+            return candidata
+    return None
+
+
 def trim_unclosed_bar(
     df: pd.DataFrame,
     *,
@@ -144,33 +238,52 @@ def trim_unclosed_bar(
     settlement_minutes: int,
     interval: str = "1d",
 ) -> TrimResult:
-    """Descarta la última barra diaria si su sesión regular no está cerrada."""
+    """Descarta las barras posteriores a la última sesión cerrada exigible.
+
+    Una barra en curso no es un dato: se ignora para indicadores, puntuación,
+    señales y backtest. Lo que decide cuál sobra no es «es de hoy», sino si su
+    sesión ha cerrado ya —lo que vale igual para XETRA a las 17:30 de Berlín que
+    para una plaza 24/7 a las 00:00 UTC (D-37)—.
+    """
 
     session = market_session(market)
     if df.empty or interval != "1d":
         return TrimResult(df=df, status="sin recorte: intervalo no diario o histórico vacío")
-    if session.close_time is None:
-        return TrimResult(df=df, status="sin sesión de cierre")
+
+    ultima_cerrada = latest_expected_closed_session(
+        market, reference, settlement_minutes=settlement_minutes
+    )
+    if ultima_cerrada is None:
+        return TrimResult(df=df, status="sin recorte: no se puede determinar la última sesión cerrada")
 
     zone = ZoneInfo(session.timezone)
-    local_now = reference.astimezone(zone)
-    last_session_date = _session_date(df.index[-1], zone)
-    close_at = _session_close_at(session, last_session_date).to_pydatetime().astimezone(zone)
-    settled_at = close_at + timedelta(minutes=settlement_minutes)
-    if local_now < settled_at:
+    cierre = session_close_at(market, ultima_cerrada)
+    detalle_cierre = ""
+    if cierre is not None:
+        local = cierre.astimezone(zone)
+        detalle_cierre = f"cierre de sesión {local:%H:%M} {session.timezone} + {settlement_minutes} min"
+
+    abiertas = [
+        posicion
+        for posicion in range(len(df.index))
+        if _session_date(df.index[posicion], zone) > ultima_cerrada
+    ]
+    if abiertas:
+        recortado = df.iloc[: abiertas[0]]
+        fechas = ", ".join(sorted({_session_date(df.index[p], zone).isoformat() for p in abiertas}))
         return TrimResult(
-            df=df.iloc[:-1],
+            df=recortado,
             status=(
-                f"barra {last_session_date.isoformat()} recortada: cierre de sesión "
-                f"{close_at:%H:%M} {session.timezone} + {settlement_minutes} min no alcanzado"
+                f"barra {fechas} recortada: aún abierta; la última sesión cerrada exigible es "
+                f"{ultima_cerrada.isoformat()} ({detalle_cierre})"
             ),
             removed_last_bar=True,
         )
     return TrimResult(
         df=df,
         status=(
-            f"última barra cerrada según cierre de sesión {close_at:%H:%M} "
-            f"{session.timezone} + {settlement_minutes} min"
+            f"última barra cerrada según {detalle_cierre}; "
+            f"última sesión cerrada exigible: {ultima_cerrada.isoformat()}"
         ),
     )
 

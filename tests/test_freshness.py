@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from advisor.analysis.analyzer import indicator_reference_sessions
 from advisor.config import AdvisorConfig
@@ -19,6 +20,7 @@ from advisor.data.freshness import (
     calcular_frescura_dato,
     calcular_frescura_serie,
 )
+from advisor.data.sessions import trim_unclosed_bar
 from advisor.main import format_frescura_datos, format_frescura_historico, medir_frescura_datos
 from advisor.universe.loader import load_universe
 from advisor.universe.models import Asset
@@ -87,6 +89,15 @@ class TestCalcularFrescuraDato:
         assert "2 sesiones" in freshness.label
 
 
+def _sellado(df, zona: str):
+    """Reestampa un histórico a medianoche local, como lo sirve el proveedor."""
+
+    from zoneinfo import ZoneInfo
+
+    fechas = pd.DatetimeIndex([pd.Timestamp(t).date() for t in df.index])
+    return df.set_axis(fechas.tz_localize(ZoneInfo(zona)).tz_convert("UTC"))
+
+
 class TestMedirFrescuraDatos:
     def test_agrupa_por_fecha_y_plaza_con_proveedor_inyectado(self) -> None:
         assets = [
@@ -94,11 +105,15 @@ class TestMedirFrescuraDatos:
             _asset("ASML.AS", "AMS"),
             _asset("AAPL", "NASDAQ", "USA"),
         ]
+        # Las marcas se sellan a medianoche **local**, que es como las sirve el
+        # proveedor: una barra de NASDAQ llega a las 04:00Z y una de XETRA a las
+        # 22:00Z del día anterior. Con 00:00Z para todas, la de NASDAQ sería de
+        # las 20:00 de la víspera en Nueva York y pertenecería a otra sesión.
         provider = FakeProvider(
             histories={
-                "SAP.DE": make_ohlcv(n=3, start_date="2026-08-24"),
-                "ASML.AS": make_ohlcv(n=3, start_date="2026-08-24"),
-                "AAPL": make_ohlcv(n=5, start_date="2026-08-24"),
+                "SAP.DE": _sellado(make_ohlcv(n=3, start_date="2026-08-24"), "Europe/Berlin"),
+                "ASML.AS": _sellado(make_ohlcv(n=3, start_date="2026-08-24"), "Europe/Amsterdam"),
+                "AAPL": _sellado(make_ohlcv(n=5, start_date="2026-08-24"), "America/New_York"),
             }
         )
 
@@ -517,3 +532,68 @@ class TestUniversoRealCompleto:
 
         assert "Símbolos sin datos:" in salida
         assert "sin calendario declarado" in salida
+
+
+class TestFechadoDeLaBarra:
+    """Regresión del BLOCKER de la revisión de D-21 (2026-09-18).
+
+    La barra se recortaba con la zona de la plaza y se fechaba en UTC. Como el
+    veto se mide contra la última sesión cerrada exigible, ese día de diferencia
+    vetaba activos que tenían su dato al día.
+    """
+
+    @staticmethod
+    def _serie(ultima: str, tz: str = "UTC"):
+        fechas = pd.date_range(end=ultima, periods=300, freq="D", tz=tz)
+        return make_ohlcv(n=len(fechas)).set_axis(fechas)
+
+    @pytest.mark.parametrize(
+        ("market", "zona_activo", "ultima_utc", "sesion_real"),
+        [
+            # 18/09 00:00 Berlín = 17/09 22:00Z
+            ("XETRA", "Europe/Berlin", "2026-09-17T22:00:00Z", date(2026, 9, 18)),
+            # 18/09 00:00 Tokio = 17/09 15:00Z
+            ("JPX", "Asia/Tokyo", "2026-09-17T15:00:00Z", date(2026, 9, 18)),
+            # 18/09 00:00 Hong Kong = 17/09 16:00Z
+            ("HKG", "Asia/Hong_Kong", "2026-09-17T16:00:00Z", date(2026, 9, 18)),
+        ],
+    )
+    def test_una_barra_estampada_en_utc_se_fecha_en_su_plaza(
+        self, market, zona_activo, ultima_utc, sesion_real
+    ) -> None:
+        df = self._serie(ultima_utc)
+        reference = datetime(2026, 9, 18, 16, 0, tzinfo=timezone.utc)
+
+        recorte = trim_unclosed_bar(
+            df, market=market, reference=reference, settlement_minutes=20
+        )
+        freshness = calcular_frescura_serie(
+            recorte.df,
+            reference,
+            market,
+            asset_timezone=zona_activo,
+            settlement_minutes=20,
+            barra_actual_cerrada=recorte.removed_last_bar or recorte.status.startswith("última barra cerrada"),
+        )
+
+        assert recorte.removed_last_bar is False, "la barra es de una sesión ya cerrada: no se recorta"
+        assert freshness.last_bar_date == sesion_real
+        assert freshness.sessions_approx == 0, "tiene su última barra exigible: no puede contar como retraso"
+        assert freshness.data_quality is not None
+        assert freshness.data_quality.execution_readiness is True
+
+    def test_la_zona_declarada_de_cada_activo_es_la_de_su_plaza(self) -> None:
+        """Guarda del universo real: si divergieran, habría dos fechados otra vez."""
+
+        from advisor.data.freshness import mercado_para_simbolo
+        from advisor.data.sessions import market_session
+        from advisor.universe.loader import load_universe
+
+        universe = load_universe("universe.yaml")
+        discrepan = [
+            asset.symbol
+            for asset in universe.analizables()
+            if market_session(mercado_para_simbolo(asset, asset.primary_symbol)).timezone != asset.timezone
+        ]
+
+        assert discrepan == []

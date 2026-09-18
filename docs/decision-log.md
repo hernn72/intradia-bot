@@ -501,7 +501,7 @@ demás**.
 
 ---
 
-### OD-09 — Horario de las pasadas, ahora que el dato retrasado veta
+### OD-09 — Horario de las pasadas, ahora que el dato retrasado veta · CERRADA en D-36
 - **Pregunta:** ¿se aceptan mañanas solo con valores de EE. UU., o se mueven las pasadas?
 - **Alternativas:** dejarlo como está (07:00, 08:30, 14:30, 21:00 local) / mover
   las dos de la mañana a después de que el proveedor publique el cierre europeo /
@@ -510,7 +510,7 @@ demás**.
   ningún activo europeo. Medido, no supuesto.
 - **Bloquea:** nada técnico; cambia qué recomienda el bot y cuándo.
 
-### OD-10 — Cripto con la regla de D-21
+### OD-10 — Cripto con la regla de D-21 · CERRADA en D-37
 - **Pregunta:** ¿cripto deja de ser recomendable, o su barra parcial no veta?
 - **Consecuencia:** tal como queda D-21, las tres criptos no son recomendables
   en ninguna pasada, porque su sesión 24/7 solo cierra a las 00:00 UTC.
@@ -740,3 +740,61 @@ hasta hoy es sobre 107 o sobre 103: P2.3 con sus 121.786 señales, T-007 a T-009
 la línea base de la línea 0 y el backtest de T-015 (866 operaciones sobre los
 103). A-02 rehará el laboratorio sobre la población vigente y **la comparación
 con lo anterior debe declarar las tres poblaciones**, no solo dos.
+
+### D-36 — 2026-09-18 — OD-09 cerrada: los horarios se mantienen y D-21 actúa por activo
+Decisión del propietario. **Las pasadas siguen siendo 07:00, 08:30, 14:30 y
+21:00 locales.** No se redefinen las de la mañana como «solo EE. UU. y Asia», ni
+se veta a Europa por la hora: eso sería un veto por reloj, no por dato.
+
+La regla es por activo y sobre disponibilidad real: **veta solo si la última
+barra que ya debería estar cerrada todavía no está**. A las 07:00 la sesión
+europea de ayer ya cerró y su barra es exigible; si el proveedor aún no la ha
+publicado, ese activo queda vetado esa pasada, y **si en el futuro la entrega
+antes, vuelve a ser elegible sin tocar nada**, porque no hay ninguna regla
+horaria que lo impida.
+
+**Lo que esto cambia de verdad**, y es lo que no se veía antes: la frontera deja
+de ser «hoy». `sessions_approx` se calculaba con `closed_sessions_between(última
+barra, hoy)`, que **excluye el día de referencia**, así que una sesión que
+cerraba hoy nunca se contaba como exigible. Medido el 2026-09-18 a las 16:20
+UTC sobre el universo real, corriendo `main` y la rama a la vez: la calidad pasa
+de `INCOMPLETO=41, OK=52` a `DEGRADADO=9, INCOMPLETO=41, OK=43`. **Los 9 nuevos
+son los 6 japoneses y los 3 de Hong Kong**: su sesión cerró hace horas y el
+proveedor no la ha publicado. Comprobado contra el dato crudo —`7203.T` y
+`0700.HK` van por el 17/09 mientras `SAP.DE` y `AAPL` ya tienen el 18/09—, así
+que es un veto correcto, no un falso positivo.
+
+**El caso de las 21:00 con EE. UU., que el propietario pidió comprobar.** A las
+21:00 BST (20:00 UTC) Nueva York cierra **en ese mismo instante**, así que su
+sesión de hoy todavía no es exigible y no puede vetar; con la liquidación de 20
+minutos, pasa a serlo a las 20:20 UTC. En horario de invierno ocurre lo mismo
+desplazado. Fijado en
+`tests/test_sessions.py::test_la_sesion_estadounidense_de_hoy_es_exigible_pasado_su_cierre`.
+
+### D-37 — 2026-09-18 — OD-10 cerrada: una barra abierta se ignora, no veta
+Decisión del propietario. Una barra parcial o en curso **no es un dato
+retrasado**: es un dato que todavía no existe. Se ignora para indicadores,
+puntuación, señales y backtest, y **no genera veto**.
+
+Regla, genérica para cualquier calendario y sin excepción para cripto:
+
+- falta una barra que ya debería estar cerrada → dato retrasado y **veto**;
+- existe una barra todavía abierta → **se recorta** y no veta.
+
+Lo que hacía falta para que fuera genérica: una plaza 24/7 no tiene hora de
+cierre, pero **sus barras diarias sí cierran**. La del día D queda cerrada a las
+00:00 UTC del día siguiente. Con eso, cripto se trata exactamente igual que
+XETRA; lo único que cambia entre plazas es a qué hora cierra cada sesión.
+
+**Por qué importaba.** `trim_unclosed_bar` devolvía «sin sesión de cierre» para
+cripto y dejaba la barra en curso dentro de la serie, así que los indicadores se
+calculaban con una vela a medias; y `may_be_partial_current_session` la marcaba
+`PARTIAL_BAR`, que quita `execution_readiness`. El resultado es que **cripto no
+era recomendable nunca**: no existe ningún instante en que su barra del día esté
+cerrada y siga siendo la última. Medido hoy: los tres pasan de la lista de
+«barra potencialmente parcial» a evaluarse por su nota.
+
+**Qué queda igual.** Si no se puede determinar la frontera —plaza sin calendario
+declarado— no se recorta y no se supone que el dato está al día: se declara
+desconocido (INV-16). El veto residual por `PARTIAL_BAR` sobrevive solo para ese
+caso, y hoy no alcanza a ningún analizable.

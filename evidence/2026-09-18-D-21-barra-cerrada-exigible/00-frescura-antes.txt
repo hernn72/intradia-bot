@@ -1,0 +1,168 @@
+Medición: 2026-09-18 16:03:06 UTC
+
+| Última barra | Símbolos | Plazas |
+|---|---|---|
+| vie 18 (al día) | 98 | XETRA (32), NASDAQ (27), NYSE (19), PAR (7), MCE (4), CRYPTO (3), MIL (3), AMS (2), CPH |
+| jue 17 (al día) | 16 | JPX (7), HKG (5), KSC (3), TAI |
+| mié 16 (−1 sesión) | 1 | SHH |
+
+Dispersión por plaza:
+| Plaza | Escalón mayoritario | No coinciden |
+|---|---|---|
+| AMS | vie 18 | 0 / 2 |
+| CPH | vie 18 | 0 / 1 |
+| CRYPTO | vie 18 | 0 / 3 |
+| HKG | jue 17 | 0 / 5 |
+| JPX | jue 17 | 0 / 7 |
+| KSC | jue 17 | 0 / 3 |
+| MCE | vie 18 | 0 / 4 |
+| MIL | vie 18 | 0 / 3 |
+| NASDAQ | vie 18 | 0 / 27 |
+| NYSE | vie 18 | 0 / 19 |
+| PAR | vie 18 | 0 / 7 |
+| SHH | mié 16 | 0 / 1 |
+| TAI | jue 17 | 0 / 1 |
+| XETRA | vie 18 | 0 / 32 |
+
+Detalle por símbolo:
+| Símbolo | Símbolo datos | Plaza | Última barra | Antigüedad | Calendario | Sesiones ausentes |
+|---|---|---|---|---|---|---|
+| AAPL | AAPL | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| MSFT | MSFT | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| GOOGL | GOOGL | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| AMZN | AMZN | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| META | META | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| TSLA | TSLA | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| ORCL | ORCL | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| CRM | CRM | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| NOW | NOW | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| ADBE | ADBE | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| NFLX | NFLX | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| NVDA | NVDA | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| AVGO | AVGO | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| AMD | AMD | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| MU | MU | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| QCOM | QCOM | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| MRVL | MRVL | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| INTC | INTC | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| AMAT | AMAT | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| LRCX | LRCX | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| ARM | ARM | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| PLTR | PLTR | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| PANW | PANW | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| CRWD | CRWD | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| UBER | UBER | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| APP | APP | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| JPM | JPM | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| GS | GS | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| V | V | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| MA | MA | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| BRK-B | BRK-B | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| LLY | LLY | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| ABBV | ABBV | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| VRTX | VRTX | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| GE | GE | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| RTX | RTX | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| LMT | LMT | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| CAT | CAT | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| XOM | XOM | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| CVX | CVX | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| COIN | COIN | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| SAP.DE | SAP.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| SIE.DE | SIE.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| ALV.DE | ALV.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| MBG.DE | MBG.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| RHM.DE | RHM.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| ENR.DE | ENR.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| DTE.DE | DTE.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| DBK.DE | DBK.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| MUV2.DE | MUV2.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| IFX.DE | IFX.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| ASML.AS | ASML.AS | AMS | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XAMS | 2026-09-17 |
+| ADYEN.AS | ADYEN.AS | AMS | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XAMS | 2026-09-17 |
+| MC.PA | MC.PA | PAR | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XPAR | 2026-09-17 |
+| AIR.PA | AIR.PA | PAR | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XPAR | 2026-09-17 |
+| SU.PA | SU.PA | PAR | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XPAR | 2026-09-17 |
+| SAF.PA | SAF.PA | PAR | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XPAR | 2026-09-17 |
+| TTE.PA | TTE.PA | PAR | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XPAR | 2026-09-17 |
+| OR.PA | OR.PA | PAR | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XPAR | 2026-09-17 |
+| IBE.MC | IBE.MC | MCE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XMAD | 2026-09-17 |
+| ITX.MC | ITX.MC | MCE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XMAD | 2026-09-17 |
+| SAN.MC | SAN.MC | MCE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XMAD | 2026-09-17 |
+| BBVA.MC | BBVA.MC | MCE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XMAD | 2026-09-17 |
+| RACE.MI | RACE.MI | MIL | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XMIL | 2026-09-17 |
+| UCG.MI | UCG.MI | MIL | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XMIL | 2026-09-17 |
+| ENI.MI | ENI.MI | MIL | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XMIL | 2026-09-17 |
+| NOVO-B.CO | NOVO-B.CO | CPH | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XCSE | 2026-09-17 |
+| RRU.DE | RRU.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| BSP.DE | BSP.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| AZN | AZN | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| R6C0.DE | R6C0.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| 7203.T | 7203.T | JPX | 2026-09-17 | hace 1 día natural; al día | XTKS | sin sesiones ausentes recientes |
+| 6758.T | 6758.T | JPX | 2026-09-17 | hace 1 día natural; al día | XTKS | sin sesiones ausentes recientes |
+| 7011.T | 7011.T | JPX | 2026-09-17 | hace 1 día natural; al día | XTKS | sin sesiones ausentes recientes |
+| 6501.T | 6501.T | JPX | 2026-09-17 | hace 1 día natural; al día | XTKS | sin sesiones ausentes recientes |
+| 9984.T | 9984.T | JPX | 2026-09-17 | hace 1 día natural; al día | XTKS | sin sesiones ausentes recientes |
+| 6857.T | 6857.T | JPX | 2026-09-17 | hace 1 día natural; al día | XTKS | sin sesiones ausentes recientes |
+| 8035.T | 8035.T | JPX | 2026-09-17 | hace 1 día natural; al día | XTKS | sin sesiones ausentes recientes |
+| TSM | TSM | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| 005930.KS | 005930.KS | KSC | 2026-09-17 | hace 1 día natural; al día | XKRX | sin sesiones ausentes recientes |
+| 000660.KS | 000660.KS | KSC | 2026-09-17 | hace 1 día natural; al día | XKRX | sin sesiones ausentes recientes |
+| 0700.HK | 0700.HK | HKG | 2026-09-17 | hace 1 día natural; al día | XHKG | sin sesiones ausentes recientes |
+| 9988.HK | 9988.HK | HKG | 2026-09-17 | hace 1 día natural; al día | XHKG | sin sesiones ausentes recientes |
+| 1810.HK | 1810.HK | HKG | 2026-09-17 | hace 1 día natural; al día | XHKG | sin sesiones ausentes recientes |
+| 1211.HK | 1211.HK | HKG | 2026-09-17 | hace 1 día natural; al día | XHKG | sin sesiones ausentes recientes |
+| INFY | INFY | NYSE | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNYS | sin sesiones ausentes recientes |
+| EUNL.DE | EUNL.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| SXR8.DE | SXR8.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| EQQQ.DE | EQQQ.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| EXSA.DE | EXSA.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| IS3N.DE | IS3N.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| EUNN.DE | EUNN.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| ICGA.DE | ICGA.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| QDV5.DE | QDV5.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| IQQT.DE | IQQT.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| IQQK.DE | IQQK.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| VVSM.DE | VVSM.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| DFEN.DE | DFEN.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| Q8Y0.DE | Q8Y0.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| 4GLD.DE | 4GLD.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| EUNH.DE | EUNH.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| ZPRR.DE | ZPRR.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| EXV1.DE | EXV1.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| EXH1.DE | EXH1.DE | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | 2026-09-17 |
+| BTC-EUR | BTC-EUR | CRYPTO | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | CRYPTO_24_7 | sin sesiones ausentes recientes |
+| ETH-EUR | ETH-EUR | CRYPTO | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | CRYPTO_24_7 | sin sesiones ausentes recientes |
+| SOL-EUR | SOL-EUR | CRYPTO | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | CRYPTO_24_7 | sin sesiones ausentes recientes |
+| ^VIX | ^VIX | CBOE | N/D | error | N/D | N/D |
+| ^GSPC | ^GSPC | SNP | N/D | error | N/D | N/D |
+| ^NDX | ^NDX | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| ^RUT | ^RUT | WCB | N/D | error | N/D | N/D |
+| ^SOX | ^SOX | NASDAQ | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XNAS | sin sesiones ausentes recientes |
+| ^STOXX | ^STOXX | ZRH | N/D | error | N/D | N/D |
+| ^STOXX50E | ^STOXX50E | ZRH | N/D | error | N/D | N/D |
+| ^GDAXI | ^GDAXI | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | sin sesiones ausentes recientes |
+| ^FCHI | ^FCHI | PAR | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XPAR | sin sesiones ausentes recientes |
+| ^N225 | ^N225 | OSA | N/D | error | N/D | N/D |
+| ^HSI | ^HSI | HKG | 2026-09-17 | hace 1 día natural; al día | XHKG | sin sesiones ausentes recientes |
+| 510300.SS | 510300.SS | SHH | 2026-09-16 | hace 2 días naturales; 1 sesión | XSHG | sin sesiones ausentes recientes |
+| ^KS11 | ^KS11 | KSC | 2026-09-17 | hace 1 día natural; al día | XKRX | sin sesiones ausentes recientes |
+| ^TWII | ^TWII | TAI | 2026-09-17 | hace 1 día natural; al día | XTAI | sin sesiones ausentes recientes |
+| EURUSD=X | EURUSD=X | CCY | N/D | error | N/D | N/D |
+| DX-Y.NYB | DX-Y.NYB | NYB | N/D | error | N/D | N/D |
+| ^TNX | ^TNX | CGI | N/D | error | N/D | N/D |
+| CL=F | CL=F | NYM | N/D | error | N/D | N/D |
+| GC=F | GC=F | CMX | N/D | error | N/D | N/D |
+
+Símbolos sin datos:
+- ^VIX (^VIX, CBOE): plaza 'CBOE' sin calendario declarado
+- ^GSPC (^GSPC, SNP): plaza 'SNP' sin calendario declarado
+- ^RUT (^RUT, WCB): plaza 'WCB' sin calendario declarado
+- ^STOXX (^STOXX, ZRH): plaza 'ZRH' sin calendario declarado
+- ^STOXX50E (^STOXX50E, ZRH): plaza 'ZRH' sin calendario declarado
+- ^N225 (^N225, OSA): plaza 'OSA' sin calendario declarado
+- EURUSD=X (EURUSD=X, CCY): plaza 'CCY' sin calendario declarado
+- DX-Y.NYB (DX-Y.NYB, NYB): plaza 'NYB' sin calendario declarado
+- ^TNX (^TNX, CGI): plaza 'CGI' sin calendario declarado
+- CL=F (CL=F, NYM): plaza 'NYM' sin calendario declarado
+- GC=F (GC=F, CMX): plaza 'CMX' sin calendario declarado

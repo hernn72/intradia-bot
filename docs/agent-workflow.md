@@ -63,7 +63,9 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 1. **T-015** backtest sobre cosecha congelada. Conviene **antes** de A-02 si
    A-02 va a comparar poblaciones, porque hoy el backtest en vivo da 891, 893 y
    890 operaciones en tres pasadas del mismo commit.
-2. **T-012** (Codex → Opus → propietario): la cifra que cierra OD-02, OD-09 y OD-10.
+2. **T-012** (Codex → Opus → propietario): la cifra de OD-02. Ya **no** decide
+   OD-09 ni OD-10 —cerradas en D-36 y D-37—, pero sigue diciendo con qué
+   frecuencia llega tarde cada plaza, que es lo que ahora determina el veto.
 3. **T-013 (A-02)** → GATE P2. **Desbloqueada.** Dos avisos: la población pasa
    de 107 a 103 (D-31) y la comparación con lo publicado debe declararlo; y
    D-29 quedó cerrada, así que `RR_TOO_LOW` sigue existiendo como guarda de P4
@@ -74,7 +76,11 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 
 ## Decisiones del propietario pendientes
 
-- **OD-09** (horario de las pasadas) y **OD-10** (cripto) — esperan T-012.
+- ~~**OD-09** (horario de las pasadas) y **OD-10** (cripto)~~ **cerradas el
+  2026-09-18** sin esperar a T-012, en D-36 y D-37: los horarios se mantienen,
+  D-21 actúa por activo contra la última barra cerrada exigible, y una barra
+  abierta se ignora en vez de vetar. T-012 sigue siendo útil para saber **con
+  qué frecuencia** llega tarde cada plaza, pero ya no bloquea nada.
 - **OD-01** (proveedor de fundamentales) y **OD-03** (presupuesto LLM), abiertas.
 - ~~Los 10 activos marcados `no` en el broker~~ **decidido el 2026-09-18**:
   dados de baja (D-35). El universo analizable queda en **93** y ya no hay
