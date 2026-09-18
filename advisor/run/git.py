@@ -146,9 +146,19 @@ def commits_ahead_of(tag: str, repo: str | Path = ".") -> Optional[int]:
 
 
 def tag_sha(tag: str, repo: str | Path = ".") -> Optional[str]:
-    """SHA del commit al que apunta un tag local (``^{commit}`` desreferencia anotados)."""
+    """SHA del **commit** al que apunta un tag local, anotado o no."""
 
     return run_git(["rev-list", "-n", "1", tag], repo).output or None
+
+
+def tag_object_sha(tag: str, repo: str | Path = ".") -> Optional[str]:
+    """SHA del objeto tag: distinto del commit cuando el tag es anotado.
+
+    Hace falta porque un remoto puede publicar el objeto tag sin desreferenciar,
+    y entonces su SHA no es el del commit sin que nada esté mal.
+    """
+
+    return run_git(["rev-parse", tag], repo).output or None
 
 
 def remote_tag_sha(
@@ -165,19 +175,27 @@ def remote_tag_sha(
     podido preguntar», que INV-16 obliga a distinguir.
     """
 
-    result = run_git(["ls-remote", "--tags", remote, f"refs/tags/{tag}"], repo, timeout=timeout)
+    # Los dos patrones, y no solo `refs/tags/<tag>`: con el nombre exacto,
+    # `ls-remote` **no** devuelve la línea desreferenciada `refs/tags/<tag>^{}`,
+    # que es la que lleva el commit de un tag anotado. Pedir solo el primero
+    # hacía que un despliegue correcto sobre un tag anotado se declarase
+    # FUERA_DE_TAG, comparando el SHA del objeto tag contra el del commit.
+    result = run_git(
+        ["ls-remote", "--tags", remote, f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}"],
+        repo,
+        timeout=timeout,
+    )
     if not result.ok:
         return result
     if not result.output:
         return GitResult("", None)
-    # `ls-remote` lista `refs/tags/v1` y `refs/tags/v1^{}` para un tag anotado;
-    # el segundo es el commit, que es lo que se compara con el SHA local.
-    sha = ""
+    directo = ""
     for line in result.output.splitlines():
         parts = line.split()
         if len(parts) != 2:
             continue
-        if parts[1].endswith("^{}"):
+        if parts[1] == f"refs/tags/{tag}^{{}}":
             return GitResult(parts[0], None)
-        sha = parts[0]
-    return GitResult(sha, None)
+        if parts[1] == f"refs/tags/{tag}":
+            directo = parts[0]
+    return GitResult(directo, None)

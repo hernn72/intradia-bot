@@ -1,0 +1,25 @@
+El tag v0.1.0 es ANOTADO, y el primer intento de verificarlo fallo:
+
+  origin             DIFIERE (a2e498da739c141920ae81a02c1eafd6aa0b7300)
+  veredicto          FUERA_DE_TAG
+
+Causa: 'git ls-remote --tags origin refs/tags/v0.1.0' con el nombre EXACTO
+no devuelve la linea desreferenciada refs/tags/v0.1.0^{}, que es la que
+lleva el commit. Se comparaba el SHA del objeto tag contra el del commit.
+
+a2e498da739c141920ae81a02c1eafd6aa0b7300	refs/tags/v0.1.0
+  ^ una sola linea: el objeto tag
+
+a2e498da739c141920ae81a02c1eafd6aa0b7300	refs/tags/v0.1.0
+11efae8c3d85fa1ba901a317b54cb117f8e6e725	refs/tags/v0.1.0^{}
+  ^ con los dos patrones aparece el commit
+
+Despues de corregir, contra el tag real:
+
+HEAD               11efae8c3d85fa1ba901a317b54cb117f8e6e725
+tag exacto         v0.1.0
+SHA del tag        11efae8c3d85fa1ba901a317b54cb117f8e6e725
+árbol modificado   no
+origin             COINCIDE (11efae8c3d85fa1ba901a317b54cb117f8e6e725)
+veredicto          EN_TAG
+codigo de salida: 0

@@ -34,7 +34,13 @@ def _git(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def _repo_con_tag(tmp_path: Path, *, tag: str = "v0.1.0", con_origin: bool = True) -> Path:
+def _repo_con_tag(
+    tmp_path: Path,
+    *,
+    tag: str = "v0.1.0",
+    con_origin: bool = True,
+    anotado: bool = False,
+) -> Path:
     """Repositorio de trabajo con un tag y, si se pide, un `origin` que lo publica.
 
     El `origin` es un repositorio local: la prueba no toca la red, pero
@@ -49,7 +55,10 @@ def _repo_con_tag(tmp_path: Path, *, tag: str = "v0.1.0", con_origin: bool = Tru
     (repo / "codigo.py").write_text("uno\n", encoding="utf-8")
     _git(repo, "add", "codigo.py")
     _git(repo, "commit", "-q", "-m", "primer commit")
-    _git(repo, "tag", tag)
+    if anotado:
+        _git(repo, "tag", "-a", tag, "-m", f"release {tag}")
+    else:
+        _git(repo, "tag", tag)
     if con_origin:
         origin = tmp_path / "origin.git"
         _git(repo, "init", "-q", "--bare", str(origin))
@@ -68,6 +77,32 @@ def test_verificar_release_en_tag_exacto(tmp_path) -> None:
     assert status.head_sha == _git(repo, "rev-parse", "HEAD")
     assert status.local_tag_sha == status.head_sha
     assert status.origin_state == ORIGIN_COINCIDE
+    assert status.exit_code == 0
+
+
+def test_verificar_release_con_tag_anotado(tmp_path) -> None:
+    """Un tag anotado tiene dos SHA y el remoto publica los dos.
+
+    Con `ls-remote --tags origin refs/tags/v0.1.0` —el nombre exacto— git **no**
+    devuelve la línea `refs/tags/v0.1.0^{}`, que es la que lleva el commit. Al
+    comparar el SHA del objeto tag contra el del commit, un despliegue correcto
+    salía `FUERA_DE_TAG`. Se vio al etiquetar `v0.1.0` de verdad, no en la suite.
+    """
+
+    repo = _repo_con_tag(tmp_path, anotado=True)
+
+    status = evaluate_release(repo)
+
+    assert status.tag == "v0.1.0"
+    commit = _git(repo, "rev-list", "-n", "1", "v0.1.0")
+    objeto = _git(repo, "rev-parse", "v0.1.0")
+    assert objeto != commit  # guarda: si fueran iguales el tag no seria anotado
+    assert status.local_tag_sha == commit
+    # El SHA que se publica es el del commit, no el del objeto tag: es lo que
+    # se compara a mano contra `git rev-list -n 1 <tag>` en el despliegue.
+    assert status.origin_tag_sha == commit
+    assert status.origin_state == ORIGIN_COINCIDE
+    assert status.verdict == EN_TAG
     assert status.exit_code == 0
 
 
@@ -354,3 +389,27 @@ def test_sqlite_de_la_copia_manual_se_abre(tmp_path) -> None:
     copia.write_bytes(viva.read_bytes())
     with sqlite3.connect(f"file:{copia}?mode=ro", uri=True) as conn:
         assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+
+def test_verificar_release_acepta_un_remoto_que_no_desreferencia(tmp_path, monkeypatch) -> None:
+    """Un remoto puede publicar el objeto tag en vez del commit; es el mismo tag.
+
+    Aquí sí se sustituye `remote_tag_sha`, porque el comportamiento que se prueba
+    es el del **remoto**, y un `git` local siempre desreferencia. Sin esto, el
+    veredicto sería `FUERA_DE_TAG` comparando dos SHA del mismo tag.
+    """
+
+    from advisor.deploy import release as release_module
+    from advisor.run.git import GitResult
+
+    repo = _repo_con_tag(tmp_path, anotado=True)
+    objeto = _git(repo, "rev-parse", "v0.1.0")
+    commit = _git(repo, "rev-list", "-n", "1", "v0.1.0")
+    assert objeto != commit
+    monkeypatch.setattr(release_module, "remote_tag_sha", lambda *a, **k: GitResult(objeto, None))
+
+    status = evaluate_release(repo)
+
+    assert status.origin_tag_sha == objeto
+    assert status.origin_state == ORIGIN_COINCIDE
+    assert status.verdict == EN_TAG
