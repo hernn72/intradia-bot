@@ -250,7 +250,7 @@ class TestUniverse:
         universe = load_universe("universe.yaml")
 
         assert len(universe.all_assets()) == 126
-        assert len(universe.analizables()) == 107
+        assert len(universe.analizables()) == 103
         assert universe.get("IS3N.DE").region == "EMERGING_MARKETS"
         assert universe.get("4GLD.DE").asset_class == "commodity_etc"
         assert universe.get("BTC-EUR").requires_isin is False

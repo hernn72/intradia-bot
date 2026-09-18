@@ -34,7 +34,7 @@ leído en documentos:
 | CI | `.github/workflows/ci.yml` en rama `ci/github-actions` (`e5ed089`), run verde en 3.12 y 3.13 |
 | Esquema SQLite | v2 con migraciones (`PRAGMA user_version`), backup pre-migración verificado, `analysis_run` + `run_id` (T-002) |
 | Calendarios | `advisor/data/calendars.py` con `exchange_calendars==4.13.2` y cripto 24/7; taxonomía única en `MARKET_SESSIONS` con MIC. T-003 **aceptada** el 2026-09-16 tras revisión independiente; rama sin mergear y sin desplegar |
-| Universo | 107 analizables + 19 contexto; 18 ISIN; 107/107 `trade_republic: unknown`; seleccionado el 2026-08-27/29 |
+| Universo | **103 analizables** + 19 contexto + 4 dados de baja el 2026-09-18 (D-31); 92 ISIN verificados; 95 disponibles, 10 `no` analizables, 0 sin comprobar; seleccionado el 2026-08-27/29 |
 | Cosecha | `071ddb2b…`, 126 símbolos, 5 años, solo en el portátil (`data/vintages/` ignorado, 18 MB); manifiesto 87 KB |
 | LLM | `claude-sonnet-5` vía `advisor/ai/`; prompt sin versión; narrativa **no** se persiste |
 | Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): **desplegada `main` `a8a70e2` el 2026-09-16**, con PR 1, T-001 y T-003. Base migrada a v3 con backup previo verificado; 432 tests + 3 saltados; `verificar-systemd` alineadas; `frescura-datos` y una pasada real con código 0; 107/107 mediciones con calendario; timers vivos y reloj sincronizado. Evidencia en `evidence/2026-09-16-despliegue-pi/` |
@@ -127,8 +127,9 @@ Republic) y se miden desde 2021. Ninguno ha sido excluido de cotización;
 constituyentes históricos ni de exclusiones.
 
 **Identidad del universo (A-00, D-23).** El vintage vigente es
-`894ce776ff8572b3a9dfc97a724f96789122e0dd2c46eef55045d4968e0b5fb0`, y **se
-mueve con cada tanda de OA-03**, porque el `instrument_id` de un activo pasa de
+`c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132` (D-31,
+2026-09-18: 103 analizables tras cuatro bajas por no estar en el broker; el
+anterior, `894ce776…`, era el de los 107), y **se mueve con cada cambio de la lista**, porque el `instrument_id` de un activo pasa de
 `SYMBOL@MARKET` a su ISIN en cuanto se verifica. Todo resultado publicado debe
 llevar el vintage con el que se calculó; las pasadas anteriores al 2026-09-17
 llevan el id provisional `80d05f21…`, que era solo la lista de símbolos.

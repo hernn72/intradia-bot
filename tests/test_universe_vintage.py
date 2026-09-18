@@ -13,7 +13,7 @@ from advisor.universe.vintage import universe_vintage_id
 BASE_VINTAGE = "b11204ead2a392b2832764b234b584dd3f070b9a11a884bd3994d39364e30709"
 WITH_THIRD_ASSET = "28534156227fa947f5cb788f360c91d0038834dc82835fc8fef3646ed33d0eed"
 WITH_OTHER_BENCHMARK = "717e561a9a2b0cb736c4101c76c9a3ab65ac72d849bcd1a3d5d648b01c13a024"
-REAL_UNIVERSE_VINTAGE = "894ce776ff8572b3a9dfc97a724f96789122e0dd2c46eef55045d4968e0b5fb0"
+REAL_UNIVERSE_VINTAGE = "c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132"
 
 
 SIN_DECLARAR = object()
@@ -128,11 +128,12 @@ groups:
         load_universe(universe_path)
 
 
-def test_universe_real_tiene_107_analizables_y_vintage_conocido() -> None:
+def test_universe_real_tiene_103_analizables_y_vintage_conocido() -> None:
     universe = load_universe("universe.yaml")
 
     assert len(universe.all_assets()) == 126
-    assert len(universe.analizables()) == 107
+    # 107 hasta el 2026-09-18; cuatro bajas por no estar en Trade Republic (D-31).
+    assert len(universe.analizables()) == 103
     assert universe_vintage_id(universe) == REAL_UNIVERSE_VINTAGE
 
 
