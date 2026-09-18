@@ -85,7 +85,18 @@ asume que coincide).
      esquema actual, se restaura el backup previo a la migración, que
      `verificar-backup` ya sabe comprobar. Escribirlo explícitamente.
 
-5. **Ensayo real (OA-04, propietario).** Etiquetar el estado aceptado como
+5. **`verificar-backup` distingue «no registrado» de «corrupto».** Medido en el
+   despliegue del 2026-09-18: una copia manual `cp intradia.db …` con
+   `integrity_check = ok`, esquema 4 y los mismos recuentos que la base viva
+   sale como «Backup inválido», porque el comando solo valida contra
+   `backup_log`, donde las copias manuales no existen. En un rollback de
+   madrugada ese mensaje lleva a descartar la copia buena. El comando debe:
+   comprobar integridad y recuentos de **cualquier** fichero SQLite que se le
+   pase; decir «registrado en `backup_log`» o «no registrado (copia manual)»
+   como dato aparte; y reservar «inválido» para lo que de verdad no se puede
+   restaurar. Test con una copia manual válida y con un fichero corrupto.
+
+6. **Ensayo real (OA-04, propietario).** Etiquetar el estado aceptado como
    `v0.2.0`, desplegarlo en la Pi, ejecutar las tres verificaciones y una
    pasada; después **volver a propósito** al tag anterior, verificar, y
    regresar a `v0.2.0`. Sin este ensayo la ficha no se acepta: un rollback no
