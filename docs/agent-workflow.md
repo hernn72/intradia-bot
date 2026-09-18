@@ -51,7 +51,7 @@ con rebase. El push directo a `main` está bloqueado también para el propietari
 
 - **OA-04** — desplegar la línea 0 en la Pi (ver arriba).
 - **OD-09** y **OD-10** — esperan la cifra de T-012.
-- **SAN.MC** y **005930.KS** en `PENDIENTE_ADR`; `UCG.MI` y `1211.HK` sin comprobar en la app.
+- ~~`SAN.MC`, `005930.KS`, `UCG.MI`, `1211.HK`~~ — **resuelto (D-31)**: baja por no estar en el broker. Universo: 103 analizables, vintage `c8496446…`.
 
 ## Tres cifras de hoy que cambian cómo se piensa el asesor
 

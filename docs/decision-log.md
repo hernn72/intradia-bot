@@ -420,6 +420,30 @@ detrás.
 Lo que el gate no afirma: ventaja del sistema (P10), reproducibilidad del
 backtest en vivo (T-015), ni que la Pi ejecute esto.
 
+### D-31 — 2026-09-18 — Baja de `SAN.MC`, `UCG.MI`, `005930.KS` y `1211.HK`: no están en Trade Republic
+Decisión del propietario. Los cuatro salen del universo analizable porque no se
+pueden comprar en el broker: `UCG.MI` y `1211.HK` estaban sin comprobar desde
+OA-03 y resultan no disponibles; `SAN.MC` y `005930.KS` eran el caso
+`PENDIENTE_ADR` de D-26 —en la app existe el ADR/GDR estadounidense, que es
+otro instrumento, no la acción local que el bot analiza— y se resuelve dándolos
+de baja en vez de cambiar el símbolo analizado.
+
+**Cómo se hace la baja, y por qué no se borran las líneas.** Se marcan con
+`valid_to: 2026-09-18`, `analizable: false`, `trade_republic: "no"` y nota;
+`added_at`, ISIN y el resto de la identidad se conservan. La cosecha congelada
+`071ddb2b…` contiene sus 4 series y la base de la Pi tiene 4.963 filas que los
+referencian: borrar la definición los dejaría huérfanos y rompería la
+reconstrucción. Es para lo que A-00 dejó `valid_to` y `delisted_at` «vacíos
+hasta que haga falta».
+
+Consecuencias: **126 activos, 103 analizables** (antes 107). Vintage nuevo
+`c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132` (INV-19).
+Los resultados publicados hasta hoy —P2.3 con 121.786 señales, T-009, la línea
+base de L0— son sobre los 107 y llevan su vintage; A-02 rehará el laboratorio
+sobre los 103, y la comparación entre ambos debe declarar la diferencia de
+población. Quedan **10 activos** marcados `no` que siguen siendo analizables y
+vetados como `BROKER_UNAVAILABLE` (D-26); no se tocan aquí, es otra decisión.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

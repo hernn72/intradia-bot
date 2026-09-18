@@ -499,7 +499,7 @@ class TestUniversoRealCompleto:
         assert "^VIX" in fallidas and "sin calendario declarado" in fallidas["^VIX"]
         assert all(row.freshness is not None for row in rows if row.symbol not in fallidas)
         assert {row.market for row in rows if row.error is not None} != {MERCADO_DESCONOCIDO}
-        # Los 107 analizables sí se miden.
+        # Los analizables (103 desde D-31) sí se miden.
         analizables = {asset.symbol for asset in universe.analizables()}
         assert analizables.isdisjoint(fallidas)
 

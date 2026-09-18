@@ -1,5 +1,6 @@
 """Panorama de mercados por región: cierre y variación de los índices de
-contexto declarados en el universo (``analizable: false``).
+contexto declarados en el universo (``analizable: false`` **sin** ``valid_to``:
+un activo dado de baja tampoco se analiza, pero no es contexto).
 
 Alimenta la sección "situación global" del informe diario. No genera
 recomendaciones: un índice no se compra.
@@ -50,6 +51,17 @@ class IndexQuote:
         return self.price is not None
 
 
+def context_assets_of(universe: Universe) -> List[Asset]:
+    """Instrumentos que alimentan el panorama: no analizables y vigentes.
+
+    Una baja (``valid_to`` informado) comparte ``analizable: false`` con los
+    índices, pero no es un índice: si entrara aquí, un valor que se dejó de
+    seguir aparecería en «situación global» y se descargaría en cada pasada.
+    """
+
+    return [a for a in universe.all_assets() if not a.analizable and a.valid_to is None]
+
+
 def fetch_overview(provider: MarketDataProvider, universe: Universe) -> List[IndexQuote]:
     """Descarga los índices de contexto del universo, en orden por región.
 
@@ -57,7 +69,7 @@ def fetch_overview(provider: MarketDataProvider, universe: Universe) -> List[Ind
     muestra como no disponible.
     """
 
-    context_assets: List[Asset] = [a for a in universe.all_assets() if not a.analizable]
+    context_assets = context_assets_of(universe)
     if not context_assets:
         return []
 
