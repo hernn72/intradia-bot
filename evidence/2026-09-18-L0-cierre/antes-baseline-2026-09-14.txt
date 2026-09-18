@@ -1,0 +1,219 @@
+==========================================================================================
+ASESOR DE INVERSIÓN — 2026-09-14 08:12 UTC  |  horizonte: swing  |  velas: 1d
+==========================================================================================
+
+## 🌍 SITUACIÓN GLOBAL
+
+Asia:
+  - CSI 300 (vía ETF China AMC) (510300.SS): 4,55 CNY -0,6%
+  - Hang Seng (^HSI): 24892,71 HKD +0,4%
+  - KOSPI (^KS11): 6684,37 KRW -3,3%
+  - Nikkei 225 (^N225): 63492,99 JPY -0,8%
+  - Taiwan Weighted (^TWII): 45862,52 TWD -0,7%
+Europa:
+  - CAC 40 (^FCHI): 8125,53 EUR -0,7%
+  - DAX (^GDAXI): 25405,47 EUR -0,6%
+  - STOXX Europe 600 (^STOXX): 637,68 EUR -0,2%
+  - Euro Stoxx 50 (^STOXX50E): 6272,29 EUR -0,8%
+EE. UU.:
+  - S&P 500 (^GSPC): 7656,98 USD +0,9%
+  - Nasdaq 100 (^NDX): 29368,44 USD +0,9%
+  - Russell 2000 (^RUT): 2903,94 USD +0,4%
+  - Philadelphia Semiconductor (^SOX): 11824,00 USD +1,8%
+  - Treasury 10 años (^TNX): 4,97 USD +0,6%
+  - VIX (^VIX): 17,79 USD +12,3%
+Global:
+  - WTI (CL=F): 102,65 USD +2,6%
+  - Dollar Index (DX-Y.NYB): 99,50 USD +0,4%
+  - EUR/USD (EURUSD=X): 1,15 USD -0,6%
+  - Oro (GC=F): 4351,90 USD -0,3%
+
+Volatilidad: VIX 15,8 (umbral 25,0)  |  Contexto: RISK_ON — tendencia alcista del índice de referencia y volatilidad contenida
+
+**Frescura de datos:** 107 activos analizados con snapshot.
+  - Calidad: DEGRADADO=18, INCOMPLETO=30, OK=59.
+  - 0 sesiones cerradas perdidas: 107 activos; última barra 2026-09-14 (JPX (7), CRYPTO (3), KSC (2)); 2026-09-11 (XETRA (31), NASDAQ (25), NYSE (19), PAR (6), HKG (4), MCE (4), MIL (3), AMS (2), CPH).
+  - 1 sesión cerrada perdida: 0 activos.
+  - 2 o más sesiones cerradas perdidas: 0 activos.
+⚠️ Sesiones ausentes frente al benchmark: 43 activos.
+  - IQQT.DE: faltan 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01 presentes en ^N225.
+  - EUNN.DE: faltan 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01 presentes en ^N225.
+  - R6C0.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - TTE.PA: faltan 2026-09-07 presentes en ^STOXX.
+  - IQQK.DE: faltan 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01 presentes en ^N225.
+  - BBVA.MC: faltan 2026-09-07 presentes en ^STOXX.
+  - EQQQ.DE: faltan 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01 presentes en ^GSPC.
+  - TSM: faltan 2025-11-27, 2026-01-19, 2026-05-25, 2026-07-03, 2026-09-07 presentes en ^TWII.
+  - UCG.MI: faltan 2026-09-07 presentes en ^STOXX.
+  - IBE.MC: faltan 2026-09-07 presentes en ^STOXX.
+  - ENI.MI: faltan 2026-09-07 presentes en ^STOXX.
+  - ALV.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - MBG.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - ITX.MC: faltan 2026-09-07 presentes en ^STOXX.
+  - SAP.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - ZPRR.DE: faltan 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01 presentes en ^GSPC.
+  - DTE.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - AIR.PA: faltan 2026-09-07 presentes en ^STOXX.
+  - NOVO-B.CO: faltan 2026-03-23, 2026-04-02, 2026-05-15, 2026-06-05, 2026-09-07 presentes en ^STOXX.
+  - QDV5.DE: faltan 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01 presentes en ^N225.
+  - SXR8.DE: faltan 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01 presentes en ^GSPC.
+  - DBK.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - EUNL.DE: faltan 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01 presentes en ^GSPC.
+  - OR.PA: faltan 2026-09-07 presentes en ^STOXX.
+  - RACE.MI: faltan 2026-09-07 presentes en ^STOXX.
+  - VVSM.DE: faltan 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01 presentes en ^GSPC.
+  - IFX.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - SU.PA: faltan 2026-09-07 presentes en ^STOXX.
+  - MUV2.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - ASML.AS: faltan 2026-09-07 presentes en ^STOXX.
+  - SIE.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - SAF.PA: faltan 2026-09-07 presentes en ^STOXX.
+  - RRU.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - MC.PA: faltan 2026-09-07 presentes en ^STOXX.
+  - Q8Y0.DE: faltan 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01 presentes en ^GSPC.
+  - BSP.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - 4GLD.DE: faltan 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01 presentes en ^GSPC.
+  - AZN: faltan 2025-11-27, 2026-01-19, 2026-02-16, 2026-06-19, 2026-07-03, 2026-09-07 presentes en ^STOXX.
+  - ADYEN.AS: faltan 2026-09-07 presentes en ^STOXX.
+  - ICGA.DE: faltan 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01 presentes en ^N225.
+  - DFEN.DE: faltan 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01 presentes en ^GSPC.
+  - RHM.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - ENR.DE: faltan 2026-09-07 presentes en ^STOXX.
+  - Sin calendario de referencia comparable: IS3N.DE, ETH-EUR, BTC-EUR, SOL-EUR, INFY.
+Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre regular local + 20 min. No se modelan festivos ni medias sesiones; cripto no tiene sesión de cierre.
+
+## 🔥 OPORTUNIDADES DETECTADAS
+
+| Activo     | Tipo                   |           Precio |     Entrada máx. |       Objetivo 2 |             Stop |  Potenc. |   Riesgo | Score |
+|------------|------------------------|------------------|------------------|------------------|------------------|----------|----------|-------|
+| EXH1.DE    | 🚀 Swing / corto plazo  |          56,11 € |          56,11 € |          58,20 € |          54,71 € |    +3,7% |    -2,5% |    74 |
+
+------------------------------------------------------------------------------------------
+## iShares STOXX Europe 600 Oil & Gas
+
+**Ticker:** EXH1.DE
+**ISIN:** ⚠️ NO REGISTRADO — complétalo en universe.yaml
+**Mercado de datos:** XETRA (Europa)
+**Divisa de cotización:** EUR
+**Exposición económica:** EUR
+**Broker / ejecución:** trade_republic / best_price
+**Disponible en Trade Republic:** ⚠️ PENDIENTE DE VERIFICACIÓN
+
+**Precio actual:** 56,11 €
+**Tipo de operación:** 🚀 Swing / corto plazo
+**Señal:** 🟢 OPERAR
+**Ejecutabilidad en broker:** ❓ pendiente de verificación
+**Datos de mercado:** OK; última barra 2026-09-11 (hace 3 días naturales; al día)
+**Cierre de sesión:** barra 2026-09-14 recortada: cierre regular 17:30 Europe/Berlin + 20 min no alcanzado
+**Puntuación:** 74/100 (Interesante) — calculada sobre 80 puntos evaluables
+
+### Tesis
+el activo mantiene estructura alcista (EMA rápida sobre la lenta y precio sobre la SMA larga) con el RSI en 67 y por delante de su índice de referencia (+5.7 pp). El planteamiento arriesga un 2.5% para buscar un 3.7%, un ratio de 1.5:1
+
+### Catalizador
+Huella en el precio: volumen 4.2× la media; apertura sin hueco relevante (+0.0%); a -0.6% del máximo de la ventana. El bot no consulta noticias ni resultados, así que la causa de fondo no está verificada.
+
+### Entrada
+Zona de entrada ideal: 55,76 € — 56,11 €
+Entrada máxima aceptable: 56,11 €
+⚠️ ESPERAR PULLBACK / NO PERSEGUIR PRECIO — el precio está extendido sobre su media rápida.
+
+### Stop / invalidación
+Stop de precio: 54,71 € (2·ATR por debajo del precio)
+Invalidación de la tesis: 53,84 € — cierre por debajo de la EMA lenta: la tendencia que sostiene la tesis desaparece
+Pérdida máxima estimada desde el precio actual: -2,5%
+
+### Objetivos
+Objetivo 1: 56,46 €  (+0,6%)
+Objetivo 2: 58,20 €  (+3,7%)
+Objetivo 3: 59,60 €  (+6,2%)
+
+### Potencial
++3,7% hasta el objetivo 2 (escenario principal)
+
+### Riesgo
+-2,5% hasta el stop
+
+### Ratio beneficio/riesgo
+1,5 : 1
+
+### Horizonte temporal
+de 2 días a 8 semanas
+
+### Confianza
+Media
+
+### Próximo evento importante
+Ninguno con fecha conocida en la ventana consultada.
+
+### Escenarios
+Alcista: el precio alcanza el objetivo 3 (59,60 €, +6,2%).
+Base: el precio alcanza el objetivo 2 (58,20 €, +3,7%).
+Bajista: se activa el stop en 54,71 € (-2,5%).
+Sin datos de probabilidad histórica de cada escenario: el bot no estima probabilidades que no ha medido.
+
+### Qué podría salir mal
+  - Disponibilidad en Trade Republic sin confirmar: la operación puede no ser ejecutable.
+  - Análisis sin dimensión fundamental: la puntuación no recoge ese factor.
+
+### Dimensionamiento sugerido
+Convicción media: 10,0% de la cartera, arriesgando 0,25% si salta el stop.
+El tope máximo por posición (10%) limita la posición; sin tope serían 20,1% de la cartera.
+Cálculo hecho con entrada de referencia 56,11 €; si introduces otro precio en Trade Republic, recalcula el tamaño.
+
+### Desglose de la puntuación
+  - catalizador: 12.0/20
+      · volumen: volumen 4.2× la media
+      · hueco: apertura sin hueco relevante (+0.0%)
+      · ruptura: a -0.6% del máximo de la ventana
+  - fundamental: excluida — sin fuente de datos fundamentales configurada
+  - tecnico: 20.0/20
+      · cruce de medias: EMA rápida por encima de la lenta
+      · tendencia de fondo: precio por encima de la SMA larga
+      · RSI: RSI 67, en zona de entrada
+      · MACD: histograma MACD positivo
+      · fortaleza relativa: bate a su índice en +5.7 pp
+  - beneficio_riesgo: 10.0/20
+      · ratio B/R: ratio 1.5:1 — aceptable
+  - contexto: 7.3/10
+      · régimen: RISK_ON: tendencia alcista del índice de referencia y volatilidad contenida
+  - conviccion: 10.0/10
+      · histórico: 251 velas (100% de lo requerido)
+      · indicadores: 6/6 disponibles
+      · estabilidad: ATR 1.2% del precio
+
+### Acción
+**COMPRAR**
+**Señal:** 🟢 OPERAR
+**Disponibilidad:** ❓ pendiente de verificación
+  - precio extendido 1.7·ATR sobre su media rápida: no persigas, prioriza la zona de entrada ideal o un pullback
+  - disponibilidad en Trade Republic sin verificar: confírmala antes de ejecutar
+
+## 👀 RADAR
+
+  - ORCL (Oracle) — score 67, ratio 1,5:1 — puntuación 67, insuficiente para operar (70)
+  - IQQT.DE (iShares MSCI Taiwan) — score 67, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01 — puntuación 67, insuficiente para operar (70)
+  - EUNN.DE (iShares Core MSCI Japan IMI) — score 64, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01 — puntuación 64, insuficiente para operar (70)
+  - R6C0.DE (Shell) — score 64, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07 — puntuación 64, insuficiente para operar (70)
+  - TTE.PA (TotalEnergies) — score 64, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07 — puntuación 64, insuficiente para operar (70)
+  - CVX (Chevron) — score 64, ratio 1,5:1 — puntuación 64, insuficiente para operar (70)
+  - MRVL (Marvell) — score 64, ratio 1,5:1 — puntuación 64, insuficiente para operar (70)
+  - IQQK.DE (iShares MSCI Korea) — score 63, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01 — puntuación 63, insuficiente para operar (70)
+  - BBVA.MC (BBVA) — score 63, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07 — puntuación 63, insuficiente para operar (70)
+  - EXV1.DE (iShares STOXX Europe 600 Banks) — score 63, ratio 1,5:1 — puntuación 63, insuficiente para operar (70)
+
+## 🔴 DESCARTADOS
+
+90 activos descartados: TSM calidad INCOMPLETO; ⚠️ falta sesión 2025-11-27, 2026-01-19, 2026-05-25, 2026-07-03, 2026-09-07, GS, XOM, SAN.MC, UCG.MI calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, INTC, IBE.MC calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, ENI.MI calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, META, EUNH.DE, GE, 6501.T, BRK-B, ALV.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, MBG.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, 6758.T, NOW, ITX.MC calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, JPM, MSFT, ETH-EUR calidad DEGRADADO, NVDA, SAP.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, ZPRR.DE calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01, DTE.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, AIR.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, V, ARM, 000660.KS, NOVO-B.CO calidad INCOMPLETO; ⚠️ falta sesión 2026-03-23, 2026-04-02, 2026-05-15, 2026-06-05, 2026-09-07, QDV5.DE calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01, SXR8.DE calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01, VRTX, DBK.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, EUNL.DE calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01, BTC-EUR calidad DEGRADADO, CRM, SOL-EUR calidad DEGRADADO, OR.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, CAT, CRWD, MA, ABBV, RACE.MI calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, VVSM.DE calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01, IFX.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, ADBE, AMZN, SU.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, APP, TSLA, PLTR, QCOM, MUV2.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, ASML.AS calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, UBER, AMAT, SIE.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, LLY, RTX, COIN, SAF.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, EXSA.DE, RRU.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, 8035.T, LRCX, PANW, MC.PA calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, AVGO, Q8Y0.DE calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01, BSP.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, 7203.T, 6857.T, 4GLD.DE calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01, NFLX, AZN calidad INCOMPLETO; ⚠️ falta sesión 2025-11-27, 2026-01-19, 2026-02-16, 2026-06-19, 2026-07-03, 2026-09-07, ADYEN.AS calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, GOOGL, ICGA.DE calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-25, 2025-12-26, 2026-03-06, 2026-04-03, 2026-04-06, 2026-05-01, DFEN.DE calidad DEGRADADO; ⚠️ falta sesión 2025-12-24, 2025-12-26, 2025-12-31, 2026-03-06, 2026-04-06, 2026-05-01, RHM.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07, 1810.HK, 005930.KS, LMT, 0700.HK, 1211.HK, INFY calidad DEGRADADO, 9988.HK, 7011.T, ENR.DE calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07
+
+## 🎯 CONCLUSIÓN
+
+Mejor oportunidad (🚀 Swing / corto plazo): EXH1.DE — score 74, ratio 1.5:1.
+Principal riesgo del mercado: tendencia alcista del índice de referencia y volatilidad contenida.
+Liquidez recomendada: 90% — suma de las 1 mejores ideas por señal en su dimensionamiento máximo. La disponibilidad del broker se informa aparte.
+
+------------------------------------------------------------------------------------------
+Conversión a euros aproximada (cierre del 2026-09-14) — 1 JPY ≈ 0,0056 EUR; 1 USD ≈ 0,8664 EUR. El importe que aplicará Trade Republic al ejecutar puede diferir.
+------------------------------------------------------------------------------------------
+Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
+==========================================================================================

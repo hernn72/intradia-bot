@@ -12,6 +12,15 @@ Convenciones: «artefacto» = fichero en `evidence/` o en el repositorio;
 
 ## GATE L0 — Correctitud de ejecución y del dato
 
+> **CRUZADO el 2026-09-18** sobre `main` tras T-007, T-008 y T-009 (ficha
+> T-010). Las seis métricas medidas juntas y los siete requisitos respondidos
+> en `evidence/2026-09-18-L0-cierre/README.md`. Dos precisiones declaradas,
+> ninguna excepción: la métrica 4 se apoya en 2 fichas (el informe solo genera
+> ficha completa para OPERAR) y la 5 se cumple en el informe con un descarte
+> cuyo motivo va en `execution_code`. La casilla 26 del plan (backtest en vivo
+> reproducible) queda abierta con ficha T-015. Decisión D-30.
+
+
 **Cierra** la línea 0 (PR 1–5 de `docs/plan-ejecucion.md`). Mientras no se
 cruce, **ninguna** fase de la línea A recalibra nada.
 

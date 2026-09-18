@@ -351,7 +351,7 @@ instrumentos distintos del mismo emisor; no son `ticker_history`.
 
 ---
 
-### D-29 (abierta) — 2026-09-18 — Qué código emite un precio por encima de la entrada máxima
+### D-29 — 2026-09-18 — Qué código emite un precio por encima de la entrada máxima · CERRADA en T-010
 El repositorio se contradice desde antes de hoy. `docs/plan-ejecucion.md`, en su
 caso de regresión de `EXH1.DE`, pide `RR_TOO_LOW` para `entry 56,63`; la ficha de
 T-007, el roadmap y **D-06** piden `ABOVE_MAX_ENTRY`. La causa es que
@@ -383,8 +383,16 @@ el orden actual, que respeta D-06, y retirar `RR_TOO_LOW` del vocabulario de
 ejecución por inalcanzable, documentándolo; o (b) invertir el orden, cumplir la
 línea del plan y asumir que el muerto pasa a ser `ABOVE_MAX_ENTRY`, lo que
 obliga a un punto de corte declarado porque `execution_code` se persiste.
-Mientras no se decida, la línea del caso EXH1 de `docs/plan-ejecucion.md` es la
-única de sus 27 casillas que no se cumple.
+**Decidido en T-010 (2026-09-18), opción (a).** Se mantiene el orden actual:
+`ABOVE_MAX_ENTRY` primero, que es lo que D-06 dice y lo que producción lleva
+emitiendo desde PR 1, así que las 4.963 filas persistidas en la Pi conservan su
+significado sin punto de corte. `RR_TOO_LOW` **no se borra**: hoy es
+inalcanzable por construcción —si `precio ≤ entry_max ≤ entry_max_rr`, el ratio
+llega al mínimo— pero deja de serlo en cuanto P4 (A-04) introduzca holgura de
+entrada y `entry_max` pueda superar a `entry_max_rr`; es la guarda de ese
+escenario, y borrarla hoy sería quitarla justo antes de necesitarla. Se corrige
+la línea del caso EXH1 en `docs/plan-ejecucion.md`, que era la fuente anterior a
+PR 1, y `test_exh1_regresion_de_la_linea_0` la fija con los cuatro precios.
 
 **Medición T-009, 2026-09-18, sin decisión de política.** Con la cosecha
 `071ddb2b…`, horizonte `swing`, la población perdida por ejecución contiene
@@ -397,6 +405,20 @@ Mientras no se decida, la línea del caso EXH1 de `docs/plan-ejecucion.md` es la
 La misma entrega constata que no se cambia la política de entrada: no hay
 holgura nueva, no se mueve `entry_max`, no se toca el score y el
 contrafactual se etiqueta como medición, no recomendación.
+
+### D-30 — 2026-09-18 — GATE L0 cruzado
+Se cruza con las seis métricas medidas a la vez sobre `main` (`d8cbc37` más la
+limpieza de T-010) y los siete requisitos respondidos con evidencia, en
+`evidence/2026-09-18-L0-cierre/`. La métrica 6 se midió **en la Pi** (2.460
+filas con `run_id` desde la migración, sin solape con las 2.503 anteriores),
+porque en el portátil no se guarda nada. Consecuencias: A-02 (T-013) pasa de
+bloqueada a pendiente, **con T-016 por delante** porque el veredicto de P2.5
+puede llevar un intervalo falso; y el despliegue de la línea 0 en la Pi (OA-04)
+deja de tener motivo para esperar: la Pi está en `894fa75`, cuatro entregas por
+detrás.
+
+Lo que el gate no afirma: ventaja del sistema (P10), reproducibilidad del
+backtest en vivo (T-015), ni que la Pi ejecute esto.
 
 ## OWNER_DECISION_REQUIRED
 
@@ -480,7 +502,8 @@ se fusionaron en fast-forward: `main` pasa de `6d32cf2` a `74c4ce4`, 10
 commits, pusheado. Verificado sobre `main` antes de subir: 435 tests, `ruff` y
 `mypy` limpios.
 
-### OA-02 — Activar branch protection en GitHub para `main`
+### OA-02 — Activar branch protection en GitHub para `main` · HECHA el 2026-09-18
+Comprobado por API: `checks (3.12)` y `checks (3.13)` obligatorios con `strict`, `enforce_admins` activo, force-push y borrado bloqueados, PR obligatorio. Desde entonces todo entra por PR (#1 T-008, #2 T-009). El CI cazó el primer error el mismo día (un script de evidencia sin lint), que es para lo que estaba.
 Required checks: el workflow de C-00. Prohibir push directo y force-push.
 T-001 hecho (`e5ed089`): checks requeridos `checks (3.12)` y `checks (3.13)`; bloque completo en `evidence/2026-09-14-T-001-ci/README.md`. Pendiente de activar por el propietario.
 

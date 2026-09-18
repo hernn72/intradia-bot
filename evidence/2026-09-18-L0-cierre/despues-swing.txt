@@ -1,0 +1,280 @@
+2026-09-18 11:20:36 [INFO] advisor.analysis.analyzer: Analizando 107 activos (horizonte swing, velas de 1d)
+2026-09-18 11:21:40 [INFO] advisor.analysis.analyzer: ^STOXX benchmark: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:41 [INFO] advisor.analysis.analyzer: SAP.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:42 [INFO] advisor.analysis.analyzer: SIE.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:43 [INFO] advisor.analysis.analyzer: ALV.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:44 [INFO] advisor.analysis.analyzer: MBG.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:45 [INFO] advisor.analysis.analyzer: RHM.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:46 [INFO] advisor.analysis.analyzer: ENR.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:47 [INFO] advisor.analysis.analyzer: DTE.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:48 [INFO] advisor.analysis.analyzer: DBK.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:49 [INFO] advisor.analysis.analyzer: MUV2.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:50 [INFO] advisor.analysis.analyzer: IFX.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:21:51 [INFO] advisor.analysis.analyzer: ASML.AS: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-18 11:21:52 [INFO] advisor.analysis.analyzer: ADYEN.AS: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-18 11:21:53 [INFO] advisor.analysis.analyzer: MC.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 11:21:54 [INFO] advisor.analysis.analyzer: AIR.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 11:21:55 [INFO] advisor.analysis.analyzer: SU.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 11:21:56 [INFO] advisor.analysis.analyzer: SAF.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 11:21:57 [INFO] advisor.analysis.analyzer: TTE.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 11:21:58 [INFO] advisor.analysis.analyzer: OR.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 11:21:59 [INFO] advisor.analysis.analyzer: IBE.MC: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-18 11:22:00 [INFO] advisor.analysis.analyzer: ITX.MC: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-18 11:22:01 [INFO] advisor.analysis.analyzer: SAN.MC: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-18 11:22:02 [INFO] advisor.analysis.analyzer: BBVA.MC: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-18 11:22:03 [INFO] advisor.analysis.analyzer: RACE.MI: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-18 11:22:04 [INFO] advisor.analysis.analyzer: UCG.MI: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-18 11:22:05 [INFO] advisor.analysis.analyzer: ENI.MI: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-18 11:22:06 [INFO] advisor.analysis.analyzer: NOVO-B.CO: barra 2026-09-18 recortada: cierre de sesión 17:00 Europe/Copenhagen + 20 min no alcanzado
+2026-09-18 11:22:07 [INFO] advisor.analysis.analyzer: RRU.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:08 [INFO] advisor.analysis.analyzer: BSP.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:10 [INFO] advisor.analysis.analyzer: R6C0.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:30 [INFO] advisor.analysis.analyzer: EUNL.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:31 [INFO] advisor.analysis.analyzer: SXR8.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:32 [INFO] advisor.analysis.analyzer: EQQQ.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:33 [INFO] advisor.analysis.analyzer: EXSA.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:34 [INFO] advisor.analysis.analyzer: IS3N.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:35 [INFO] advisor.analysis.analyzer: EUNN.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:36 [INFO] advisor.analysis.analyzer: ICGA.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:37 [INFO] advisor.analysis.analyzer: QDV5.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:38 [INFO] advisor.analysis.analyzer: IQQT.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:39 [INFO] advisor.analysis.analyzer: IQQK.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:40 [INFO] advisor.analysis.analyzer: VVSM.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:41 [INFO] advisor.analysis.analyzer: DFEN.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:42 [INFO] advisor.analysis.analyzer: Q8Y0.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:43 [INFO] advisor.analysis.analyzer: 4GLD.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:44 [INFO] advisor.analysis.analyzer: EUNH.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:45 [INFO] advisor.analysis.analyzer: ZPRR.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:46 [INFO] advisor.analysis.analyzer: EXV1.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 11:22:47 [INFO] advisor.analysis.analyzer: EXH1.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+==========================================================================================
+ASESOR DE INVERSIÓN — 2026-09-18 10:22 UTC  |  horizonte: swing  |  velas: 1d
+==========================================================================================
+
+## 🌍 SITUACIÓN GLOBAL
+
+Asia:
+  - CSI 300 (vía ETF China AMC) (510300.SS): 4,58 CNY +0,7%
+  - Hang Seng (^HSI): 24750,78 HKD +0,6%
+  - KOSPI (^KS11): 6894,23 KRW +2,7%
+  - Nikkei 225 (^N225): 65018,95 JPY +1,4%
+  - Taiwan Weighted (^TWII): 47180,75 TWD +1,9%
+Europa:
+  - CAC 40 (^FCHI): 8129,36 EUR -0,7%
+  - DAX (^GDAXI): 25526,48 EUR -0,7%
+  - STOXX Europe 600 (^STOXX): 639,51 EUR -0,5%
+  - Euro Stoxx 50 (^STOXX50E): 6272,53 EUR -0,8%
+EE. UU.:
+  - S&P 500 (^GSPC): 7637,76 USD +1,1%
+  - Nasdaq 100 (^NDX): 29446,98 USD +1,7%
+  - Russell 2000 (^RUT): 2874,63 USD +0,6%
+  - Philadelphia Semiconductor (^SOX): 11599,49 USD +3,1%
+  - Treasury 10 años (^TNX): 4,95 USD -1,2%
+  - VIX (^VIX): 15,36 USD -0,5%
+Global:
+  - WTI (CL=F): 96,22 USD -5,6%
+  - Dollar Index (DX-Y.NYB): 100,35 USD +0,1%
+  - EUR/USD (EURUSD=X): 1,15 USD +0,2%
+  - Oro (GC=F): 4419,00 USD +0,4%
+
+Volatilidad: VIX 15,4 (umbral 25,0)  |  Contexto: RISK_ON — tendencia alcista del índice de referencia y volatilidad contenida
+
+**Frescura de datos:** 107 activos analizados con snapshot.
+  - Calidad: DEGRADADO=25, INCOMPLETO=22, OK=60.
+  - 0 sesiones cerradas perdidas: 60 activos; última barra 2026-09-18 (JPX (7), HKG (4), CRYPTO (3), KSC (2)); 2026-09-17 (NASDAQ (25), NYSE (19)).
+⚠️ 1 sesión cerrada perdida: 47 activos; última barra 2026-09-16 (XETRA (31), PAR (6), MCE (4), MIL (3), AMS (2), CPH).
+  - 2 o más sesiones cerradas perdidas: 0 activos.
+⚠️ Sesiones ausentes frente al calendario de su plaza: 37 activos.
+  - IFX.DE: faltan 2026-09-07 en XETR.
+  - ENI.MI: faltan 2026-09-07 en XMIL.
+  - EUNN.DE: faltan 2026-03-06 en XETR.
+  - TTE.PA: faltan 2026-09-07 en XPAR.
+  - IQQT.DE: faltan 2026-03-06 en XETR.
+  - RACE.MI: faltan 2026-09-07 en XMIL.
+  - ALV.DE: faltan 2026-09-07 en XETR.
+  - IBE.MC: faltan 2026-09-07 en XMAD.
+  - R6C0.DE: faltan 2026-09-07 en XETR.
+  - BBVA.MC: faltan 2026-09-07 en XMAD.
+  - IQQK.DE: faltan 2026-03-06 en XETR.
+  - ITX.MC: faltan 2026-09-07 en XMAD.
+  - VVSM.DE: faltan 2026-03-06 en XETR.
+  - SIE.DE: faltan 2026-09-07 en XETR.
+  - OR.PA: faltan 2026-09-07 en XPAR.
+  - DBK.DE: faltan 2026-09-07 en XETR.
+  - DTE.DE: faltan 2026-09-07 en XETR.
+  - SXR8.DE: faltan 2026-03-06 en XETR.
+  - EQQQ.DE: faltan 2026-03-06 en XETR.
+  - EUNL.DE: faltan 2026-03-06 en XETR.
+  - IS3N.DE: faltan 2026-03-06 en XETR.
+  - MUV2.DE: faltan 2026-09-07 en XETR.
+  - NOVO-B.CO: faltan 2026-03-23 en XCSE.
+  - QDV5.DE: faltan 2026-03-06 en XETR.
+  - MBG.DE: faltan 2026-09-07 en XETR.
+  - ZPRR.DE: faltan 2026-03-06 en XETR.
+  - SU.PA: faltan 2026-09-07 en XPAR.
+  - RRU.DE: faltan 2026-09-07 en XETR.
+  - 4GLD.DE: faltan 2026-03-06 en XETR.
+  - BSP.DE: faltan 2026-09-07 en XETR.
+  - Q8Y0.DE: faltan 2026-03-06 en XETR.
+  - SAF.PA: faltan 2026-09-07 en XPAR.
+  - ENR.DE: faltan 2026-09-07 en XETR.
+  - DFEN.DE: faltan 2026-03-06 en XETR.
+  - ADYEN.AS: faltan 2026-09-07 en XAMS.
+  - AIR.PA: faltan 2026-09-07 en XPAR.
+  - ICGA.DE: faltan 2026-03-06 en XETR.
+⚠️ Barra potencialmente parcial: última barra fechada hoy, puede no ser cierre de sesión.
+  - SOL-EUR
+  - ETH-EUR
+  - BTC-EUR
+Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre de la sesión local + 20 min. Las ausencias se validan contra el calendario de plaza con festivos; cripto no tiene sesión de cierre.
+
+## 🔥 OPORTUNIDADES DETECTADAS
+
+| Activo     | Tipo                   |           Precio |     Entrada máx. |       Objetivo 2 |             Stop |  Potenc. |   Riesgo | Score |
+|------------|------------------------|------------------|------------------|------------------|------------------|----------|----------|-------|
+| AMD        | 🚀 Swing / corto plazo  |         474,56 € |         474,56 € |         531,95 € |         436,29 € |   +12,1% |    -8,1% |    74 |
+
+------------------------------------------------------------------------------------------
+## AMD
+
+**Ticker:** AMD
+**ISIN:** US0079031078
+**Mercado de datos:** NASDAQ (EE. UU.)
+**Divisa de cotización:** USD
+**Exposición económica:** USD
+**Broker / ejecución:** trade_republic / best_price
+**Disponible en Trade Republic:** Sí
+
+**Último cierre:** 545,09 USD (≈ 474,56 €) · Sesión: 2026-09-17 · Mercado: PRE_OPEN
+**Tipo de operación:** 🚀 Swing / corto plazo
+Score: 74/100 (Interesante)
+Setup: VÁLIDO
+Ejecución: EJECUTABLE
+Dato: OK
+Broker: AVAILABLE
+**Señal:** 🟢 OPERAR
+**Ejecutabilidad en broker:** ✅ disponible verificado
+**Datos de mercado:** OK; última barra 2026-09-17 (hace 1 día natural; al día); histórico OK
+**Cierre de sesión:** última barra cerrada según cierre de sesión 16:00 America/New_York + 20 min
+**Puntuación:** 74/100 (Interesante) — calculada sobre 80 puntos evaluables
+
+### Tesis
+el activo mantiene estructura alcista (EMA rápida sobre la lenta y precio sobre la SMA larga) con el RSI en 67 y por delante de su índice de referencia (+17.8 pp). El planteamiento arriesga un 8.1% para buscar un 12.1%, un ratio de 1.5:1
+
+### Catalizador
+Huella en el precio: volumen 1.6× la media; hueco alcista +4.1%. El bot no consulta noticias ni resultados, así que la causa de fondo no está verificada.
+
+### Entrada
+Entrada ideal: 534,10 USD (≈ 464,99 €) — 545,09 USD (≈ 474,56 €)
+Entrada máxima por técnica (ATR): 561,57 USD (≈ 488,90 €)
+Entrada máxima por RR mínimo (1,5): 545,09 USD (≈ 474,56 €)
+Entrada máxima aplicada: 545,09 USD (≈ 474,56 €) — manda el RR mínimo
+⚠️ ESPERAR PULLBACK / NO PERSEGUIR PRECIO — el precio está extendido sobre su media rápida.
+
+### Stop / invalidación
+Stop de precio: 501,14 USD (≈ 436,29 €) (2·ATR por debajo del precio)
+Invalidación de la tesis: 488,87 USD (≈ 425,61 €) — cierre por debajo de la EMA lenta: la tendencia que sostiene la tesis desaparece
+Pérdida máxima estimada desde el precio de referencia: -8,1%
+
+### Objetivos
+Objetivo 1: 578,05 USD (≈ 503,25 €)  (+6,0%)
+Objetivo 2: 611,02 USD (≈ 531,95 €)  (+12,1%)
+Objetivo 3: 654,97 USD (≈ 570,22 €)  (+20,2%)
+
+### Potencial
++12,1% hasta el objetivo 2 (escenario principal)
+
+### Riesgo
+-8,1% hasta el stop
+
+### Ratio beneficio/riesgo
+1,5 : 1
+RR a 545,09 USD (≈ 474,56 €): 1,50
+
+### Horizonte temporal
+de 2 días a 8 semanas
+
+### Confianza
+Media
+
+### Próximo evento importante
+Ninguno con fecha conocida en la ventana consultada.
+
+### Escenarios
+Alcista: el precio alcanza el objetivo 3 (654,97 USD (≈ 570,22 €), +20,2%).
+Base: el precio alcanza el objetivo 2 (611,02 USD (≈ 531,95 €), +12,1%).
+Bajista: se activa el stop en 501,14 USD (≈ 436,29 €) (-8,1%).
+Sin datos de probabilidad histórica de cada escenario: el bot no estima probabilidades que no ha medido.
+
+### Qué podría salir mal
+  - Volatilidad elevada (ATR = 4.0% del precio): el stop puede activarse por ruido.
+  - Análisis sin dimensión fundamental: la puntuación no recoge ese factor.
+
+### Dimensionamiento sugerido
+Convicción media: 6,2% de la cartera, arriesgando 0,50% si salta el stop.
+Restricción dominante: manda el presupuesto de riesgo.
+Cálculo hecho con entrada de referencia 545,09 USD (≈ 474,56 €); si introduces otro precio en Trade Republic, recalcula el tamaño.
+
+### Desglose de la puntuación
+  - catalizador: 11.0/20
+      · volumen: volumen 1.6× la media
+      · hueco: hueco alcista +4.1%
+      · ruptura: a -6.8% del máximo de la ventana
+  - fundamental: excluida — sin fuente de datos fundamentales configurada
+  - tecnico: 20.0/20
+      · cruce de medias: EMA rápida por encima de la lenta
+      · tendencia de fondo: precio por encima de la SMA larga
+      · RSI: RSI 67, en zona de entrada
+      · MACD: histograma MACD positivo
+      · fortaleza relativa: bate a su índice en +17.8 pp
+  - beneficio_riesgo: 10.0/20
+      · ratio B/R: ratio 1.5:1 — aceptable
+  - contexto: 8.8/10
+      · régimen: RISK_ON: tendencia alcista del índice de referencia y volatilidad contenida
+  - conviccion: 9.5/10
+      · histórico: 251 velas (100% de lo requerido)
+      · indicadores: 6/6 disponibles
+      · estabilidad: ATR 4.0% del precio
+
+### Acción
+**COMPRAR**
+**Señal:** 🟢 OPERAR
+**Disponibilidad:** ✅ disponible verificado
+  ⚠️ precio extendido 2.2·ATR sobre su media rápida: no persigas, prioriza la zona de entrada ideal o un pullback
+
+## 👀 RADAR
+
+  - 6501.T (Hitachi) — score 68, ratio 1,5:1 [LOW_SCORE] — puntuación 68, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - IFX.DE (Infineon) — score 68, ratio 3,1:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 68, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - 000660.KS (SK Hynix) — score 68, ratio 1,5:1 [LOW_SCORE] — puntuación 68, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - ARM (Arm Holdings) — score 68, ratio 1,5:1 [LOW_SCORE] — puntuación 68, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - INTC (Intel) — score 68, ratio 1,5:1 [LOW_SCORE] — puntuación 68, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - TSM (TSMC ADR) — score 67, ratio 1,5:1 [LOW_SCORE] — puntuación 67, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - ENI.MI (Eni) — score 66, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - EUNN.DE (iShares Core MSCI Japan IMI) — score 66, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - BRK-B (Berkshire Hathaway) — score 66, ratio 1,5:1 [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - TTE.PA (TotalEnergies) — score 66, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-07; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+
+## 🔴 DESCARTADOS
+
+82 activos descartados por grupo:
+  - score insuficiente: 81 activos — CAT, SAN.MC, R6C0.DE, PANW, 6857.T, AMZN, BBVA.MC, MSFT, GOOGL, NVDA, CVX, IQQK.DE, EXV1.DE, 8035.T, TSLA, NOW, ITX.MC, VVSM.DE, XOM, ETH-EUR, SIE.DE, GS, EXSA.DE, OR.PA, UCG.MI, DBK.DE, DTE.DE, SAP.DE, AZN, SXR8.DE, 7203.T, EQQQ.DE, EUNL.DE, IS3N.DE, BTC-EUR, APP, 005930.KS, V, COIN, LRCX, MUV2.DE, PLTR, CRM, NOVO-B.CO, QDV5.DE, MC.PA, 0700.HK, GE, MBG.DE, AVGO, ORCL, ZPRR.DE, SU.PA, 6758.T, JPM, MA, RRU.DE, VRTX, 4GLD.DE, BSP.DE, ASML.AS, Q8Y0.DE, 7011.T, EUNH.DE, SAF.PA, ENR.DE, LLY, NFLX, DFEN.DE, ADBE, ADYEN.AS, AIR.PA, RTX, ICGA.DE, LMT, RHM.DE, 9988.HK, 1211.HK, UBER, 1810.HK, INFY
+  - RR/ejecución: 0 activos
+  - datos: 0 activos
+  - tendencia: 0 activos
+  - sobreextensión: 0 activos
+  - broker: 1 activos — 9984.T
+  - otros: 0 activos
+
+## 🎯 CONCLUSIÓN
+
+Mejor oportunidad (🚀 Swing / corto plazo): AMD — score 74, ratio 1.5:1.
+Régimen: RISK_ON — tendencia alcista del índice de referencia y volatilidad contenida.
+Capital asignado a señales actuales: 6% · Capital no asignado: 94%. Suma de las 1 mejores ideas por señal en su dimensionamiento máximo. No es una política de asignación a efectivo. Topes dominantes: manda el presupuesto de riesgo. Cuando manda el tope máximo por posición, el riesgo efectivo es menor que el configurado. La disponibilidad del broker se informa aparte.
+
+------------------------------------------------------------------------------------------
+Conversión a euros aproximada (cierre del 2026-09-18) — 1 JPY ≈ 0,0055 EUR; 1 KRW ≈ 0,0006 EUR; 1 USD ≈ 0,8706 EUR. El importe que aplicará Trade Republic al ejecutar puede diferir.
+------------------------------------------------------------------------------------------
+Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
+==========================================================================================
+run 992af83f-d583-404e-847c-e53610c238d6 · d8cbc37dc46a · config 271d46b2 · universo 894ce776

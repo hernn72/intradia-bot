@@ -1,6 +1,6 @@
 # T-010 — Limpieza final y cierre de GATE L0 (PR 5, fase 15)
 
-Estado: PENDIENTE
+Estado: ACEPTADA — GATE L0 CRUZADO (2026-09-18, D-30)
 Agente: Opus (ficha) → Codex (limpieza) → Opus (cierre del gate)
 Línea / fase: L0 PR 5, fase 15 de `docs/plan-ejecucion.md`
 Gate al que contribuye: **GATE L0 — es la ficha que lo cierra**
@@ -188,4 +188,12 @@ desbloqueada (A-02 pasa de `BLOQUEADO(GATE L0, A-00)` a `PENDIENTE`).
 `docs/agent-workflow.md`: START HERE reescrito con el punto de retomada.
 
 ## Handoff al siguiente agente
-Pendiente de escribir al terminar.
+- Estado: ACEPTADA, GATE L0 CRUZADO · Rama: `chore/l0-cleanup` · Evidencia: `evidence/2026-09-18-L0-cierre/`
+- Verificado (comando + número comprobado a mano): las seis métricas en el README, cada una con su script o su consulta. A mano: la métrica 6 se comprobó en la Pi mirando el corte de fechas (última fila sin `run_id` 2026-09-14T07:32, primera con él 09:38 del mismo día); la 1 recorriendo las 37 ausencias contra `expected_sessions` de la plaza de cada activo.
+- Impacto medido: 0 cambios de acción; tres funciones huérfanas borradas sin efecto en la suite (548 pasan) ni en el informe.
+- Invariantes ejercitadas: INV-03, INV-05, INV-06, INV-16, INV-17 (todas por las métricas y los tests de higiene). No aplican: ninguna se relajó.
+- Hallazgos: BLOCKER: ninguno · SAME_SCOPE (arreglados): `apply_migrations` migraba sin backup, borrada; casilla EXH1 del plan anterior a PR 1, corregida con D-29 · FOLLOW_UP (fichas): T-015 backtest no reproducible, T-016 centinela `[0,1]` en `capacity.py`, T-017 higiene del manifiesto · OBSERVATION: la métrica 4 solo tiene 2 fichas por pasada; `ruff check .` cubre `evidence/`, así que los scripts que se dejen ahí deben pasar lint (el CI lo cazó hoy).
+- Decisiones tomadas (D-nn) / pendientes (OD-nn): D-29 cerrada (opción a), D-30 gate cruzado. Pendientes del propietario: OA-04 desplegar la línea 0 en la Pi (está en `894fa75`, cuatro entregas por detrás); OD-09/OD-10 esperan la cifra de T-012.
+- Qué queda de esta ficha: nada.
+- Siguiente ficha y agente recomendado: **T-016** (Codex → Opus) antes de A-02, porque el veredicto de P2.5 puede llevar un intervalo falso. En paralelo T-011 + T-017 con una sola migración, y T-012 para dar cifra a OD-09/OD-10.
+- Trampas para el siguiente: la métrica 6 no se puede medir en el portátil (aquí no se guarda nada); el backtest en vivo no sirve como criterio de aceptación de nada (T-015); `git archive HEAD | tar -x` es la única forma de saber lo que verá el CI.
