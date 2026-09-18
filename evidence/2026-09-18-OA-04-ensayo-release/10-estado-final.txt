@@ -1,0 +1,17 @@
+=== 11. Pasada real reducida sobre el estado final, y de paso el vintage por grupo en produccion ===
+==========================================================================================
+run 34273a26-43e3-44d6-b0de-41b0e62fbb0c · 785daf40ca39 · config 1294c526 · universo d0c7c4dc
+
+=== 12. Reanudar los timers ===
+NEXT                            LEFT LAST                              PASSED UNIT                     ACTIVATES
+Fri 2026-09-18 21:00:00 BST 5h 15min Fri 2026-09-18 14:30:13 BST 1h 14min ago intradia-bot.timer       intradia-bot.service
+Fri 2026-09-18 22:30:00 BST       6h Thu 2026-09-17 22:30:08 BST      17h ago intradia-bot-event.timer intradia-bot-event.service
+
+
+=== 13. Estado final ===
+HEAD: 785daf4  tag: v0.2.0
+arbol: 0 ficheros modificados
+intradia-bot.timer           active
+intradia-bot-event.timer     active
+                Time zone: Europe/London (BST, +0100)
+System clock synchronized: yes

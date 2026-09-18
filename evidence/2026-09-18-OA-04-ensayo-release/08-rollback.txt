@@ -1,0 +1,29 @@
+=== 1. Red de seguridad: copia de la base v5 actual (paso del procedimiento) ===
+guardada en intradia.db.rollback-20260918-144036
+
+=== 2. Restaurar el backup previo a la migracion (D-32) ===
+  esquema ahora: v 4
+  analysis_run         25
+  recommendation       5169
+
+=== 3. Volver al tag anterior ===
+11efae8 docs: punto de retomada completo tras la jornada del 2026-09-18
+
+=== 4. verificar-systemd con el codigo viejo ===
+Unidades systemd alineadas con las plantillas versionadas.
+codigo: 0
+
+=== 5. verificar-release NO existe en v0.1.0 (es anterior a T-011) ===
+               {analizar,backtest,congelar-datos,frescura-datos,frescura-historico,diagnosticar-barra,verificar-backup,manifiesto,universo,event-study,filtro-ejecucion,capacidad-estadistica,ablacion-score,comparacion-pareada,pasada-evento,render-systemd,verificar-systemd,seguimiento,abrir,cerrar,posiciones} ...
+advisor: error: argument comando: invalid choice: 'verificar-release' (choose from analizar, backtest, congelar-datos, frescura-datos, frescura-historico, diagnosticar-barra, verificar-backup, manifiesto, universo, event-study, filtro-ejecucion, capacidad-estadistica, ablacion-score, comparacion-pareada, pasada-evento, render-systemd, verificar-systemd, seguimiento, abrir, cerrar, posiciones)
+
+=== 6. El verificar-backup VIEJO sobre la copia manual integra ===
+Backup inválido: intradia.db.bak-manual-pre-v020-20260918-143636
+codigo: 1
+=== 7. Pasada real con el codigo de v0.1.0 sobre la base v4 restaurada ===
+CODIGO DE SALIDA: 0
+==========================================================================================
+run a3758bf0-7366-45db-a7a4-b3a142164d6e · 11efae8c3d85 · config 271d46b2 · universo c8496446
+
+esquema tras la pasada (no debe haber migrado nada, es --sin-guardar):
+  v 4

@@ -1,0 +1,24 @@
+=== 8. Volver a v0.2.0 ===
+785daf4 fix(release): un tag anotado no puede salir FUERA_DE_TAG por comparar dos SHA suyos
+
+=== 9. Recuperar la base v5 de la red de seguridad ===
+  esquema v 5
+  analysis_run                   26
+  recommendation                 5272
+  data_freshness_measurement     3947
+  manifiestos por regla del hash: {1: 25, 2: 1}
+
+=== 10. Las tres verificaciones, otra vez ===
+Unidades systemd alineadas con las plantillas versionadas.
+codigo: 0
+HEAD               785daf40ca3943b4bf4c2d739812f59ee0f1472a
+tag exacto         v0.2.0
+SHA del tag        785daf40ca3943b4bf4c2d739812f59ee0f1472a
+árbol modificado   no
+origin             COINCIDE (785daf40ca3943b4bf4c2d739812f59ee0f1472a)
+veredicto          EN_TAG
+codigo: 0
+filas en la viva   analysis_run=26, data_freshness_measurement=3947, event_pass=1, position=0, position_review=0, recommendation=5272
+veredicto          VALIDO
+  - no figura en backup_log: copia manual, no la hizo una migración
+codigo: 0

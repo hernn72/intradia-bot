@@ -1,0 +1,34 @@
+=== PORTATIL ===
+db_path        : intradia.db
+universe_path  : universe.yaml
+hash regla 1   : 271d46b2affe7e74fb99a99052e39fbf494ffcce7a18407b6c668448b810ccf4
+hash regla 2   : 1294c526cd64a9acd62cc81de98ae5cf791c57bd9fc1c83d320d6bb77d7f3fa0
+=== LA PI ===
+15:universe_path: "universe.yaml"
+18:db_path: "intradia.db"
+10:EnvironmentFile=-@INTRADIA_BOT_ENV_FILE@
+16:ExecStart=@INTRADIA_BOT_PYTHON@ -m advisor.main analizar --horizonte swing --telegram
+db_path        : intradia.db
+universe_path  : universe.yaml
+hash regla 1   : 271d46b2affe7e74fb99a99052e39fbf494ffcce7a18407b6c668448b810ccf4
+hash regla 2   : 1294c526cd64a9acd62cc81de98ae5cf791c57bd9fc1c83d320d6bb77d7f3fa0
+
+LECTURA, y corrige el motivo que daba la ficha T-017:
+
+Las dos maquinas dan EL MISMO hash con la regla 1 (271d46b2) y con la regla 2
+(1294c526). El hallazgo 2 de T-017 decia que "la misma configuracion en el
+portatil y en la Pi da hashes distintos"; medido hoy, NO es cierto en este
+despliegue, porque las dos usan las mismas rutas relativas: db_path
+"intradia.db" y universe_path "universe.yaml", y la cadena que entra en el hash
+es identica.
+
+El cambio sigue siendo correcto por lo otro que dice D-33 —la identidad de una
+configuracion no puede depender de donde estan los ficheros— y empieza a
+importar de verdad en cuanto alguien use una ruta absoluta: el propio
+procedimiento de rollback copia la base a otro nombre, y cualquier segunda
+instancia o un --config apuntando fuera del repo produciria hashes distintos
+para la misma configuracion logica.
+
+Pero el criterio de aceptacion "portatil y Pi dan el mismo config_hash" se
+cumplia YA antes del cambio. No se puede presentar como prueba de que el cambio
+hizo algo.

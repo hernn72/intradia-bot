@@ -1,6 +1,6 @@
 # T-011 — Release por tag, `verificar-release` y rollback probado (C-03)
 
-Estado: EN_REVISION (2026-09-18) — implementada junto con T-017; **falta el punto 6, el ensayo en la Pi**
+Estado: ACEPTADA (2026-09-18) — incluido el punto 6, el ensayo en la Pi
 Agente: Opus (ficha e implementación) → Codex (revisión independiente) → propietario (OA-04, ejecutar en la Pi)
 Línea / fase: Línea C, C-03
 Gate al que contribuye: GATE PROD (requisitos 2 y 7)
@@ -227,21 +227,57 @@ defectos importantes**, todos corregidos en la misma entrega:
   copia previa a v5 y no podía anotarla. Ahora `_init_schema` aplica la DDL
   versionada antes del bucle de migraciones.
 
+## El ensayo (punto 6), hecho el 2026-09-18
+
+Evidencia completa en `evidence/2026-09-18-OA-04-ensayo-release/`. Tags:
+`v0.1.0` = `11efae8` (lo que corría), `v0.2.0` = `785daf4`, publicado por el
+workflow nuevo tras pasar los checks.
+
+Resultados que cierran los criterios de aceptación:
+
+- **`verificar-release` distingue los tres veredictos y falla cuando debe.** En
+  la Pi, sobre `v0.2.0`: `EN_TAG` y código 0. Los tres SHA comparados a mano
+  —`git rev-list -n 1 v0.2.0`, el del comando y el `git_sha` del manifiesto de la
+  pasada— son idénticos carácter a carácter.
+- **El tag `v0.2.0` existe con CI verde y changelog**, publicado como release de
+  GitHub por `release.yml`.
+- **El rollback se ejecutó de verdad**, incluido el caso del esquema: se
+  restauró el backup previo a la migración (la base vuelve a v4 con sus 25
+  manifiestos), se volvió a `v0.1.0` y se corrió una pasada real con el código
+  viejo —código 0, y la base **sigue en v4**—, y después se regresó a `v0.2.0`
+  recuperando la base v5 desde la copia que el procedimiento manda hacer. Lo que
+  se perdía estaba contado **antes** de restaurar: 1 manifiesto, 103
+  recomendaciones, 103 mediciones de frescura.
+- **El defecto de `verificar-backup`, reproducido y corregido en producción**:
+  con `v0.1.0` la copia manual íntegra sale «Backup inválido» con código 1; con
+  `v0.2.0` sale `VALIDO` con «no figura en backup_log: copia manual».
+
+La migración v4→v5 sobre la base real conservó los 25 manifiestos antiguos con
+su `config_hash` y `config_hash_version = 1`; el nuevo lleva `2`,
+`release_tag = v0.2.0` y `schema_version = 5`. Backup automático
+`intradia.db.bak-20260918-143726-pre-v5`, registrado y verificado.
+
+## Supervisión previa de Codex
+
+Antes de tocar la Pi, Codex revisó el plan en solo lectura y cambió dos cosas:
+
+1. **Nada de correr el código de `v0.1.0` persistiendo contra una base ya
+   migrada a v5.** Arranca y escribe —`config_hash_version` tiene `DEFAULT 1`—,
+   pero eso no es el rollback que exige D-32: es compatibilidad accidental. El
+   ensayo se hizo **restaurando el backup primero**, que es la regla escrita.
+2. **Confirmar que ningún servicio está activo**, no solo parar los timers: el
+   respaldo previo se hace fuera del `BEGIN IMMEDIATE` de la migración, así que
+   una pasada del timer solapada sería una carrera real.
+
+También señaló que `verificar-backup` puede dar `VALIDO` a un fichero que solo
+tenga la tabla `recommendation`, así que para el ensayo se exigió además esquema
+v4 y los conteos esperados, no solo el veredicto.
+
 ## Handoff al siguiente agente
 
-**Lo que falta para aceptar la ficha es el punto 6, y solo lo puede hacer el
-propietario:** etiquetar el estado aceptado como `v0.2.0`, desplegarlo en la Pi,
-ejecutar las tres verificaciones y una pasada, **volver a propósito** al estado
-anterior, verificar, y regresar. Un rollback no probado no es un rollback, así
-que la ficha sigue en EN_REVISION hasta entonces.
+Ficha cerrada. Lo que queda vivo de aquí:
 
-Dos avisos para ese ensayo:
-
-- El tag anterior a `v0.2.0` no existe: este será el primer release etiquetado.
-  El ensayo de vuelta atrás tendrá que hacerse contra un commit anterior
-  etiquetado a mano (por ejemplo `v0.1.0` sobre `11efae8`) o aceptar que el
-  primer rollback probado es el de `v0.2.0` → `v0.1.0` creado para la ocasión.
-- **`v0.2.0` migra la base de producción v4→v5** en la primera pasada. Se hace
-  supervisado, con la copia manual previa del paso 0 del procedimiento, y
-  comprobando después que los manifiestos antiguos de la Pi conservan su
-  `config_hash` con `config_hash_version = 1`.
+- **C-06** (backup programado en la Pi y simulacro trimestral) ya tiene
+  procedimiento del que colgar: `docs/despliegue-y-rollback.md`.
+- Endurecer `verificar-backup` para que exija un esquema mínimo, no solo la
+  tabla `recommendation`, es un FOLLOW_UP menor que salió de la supervisión.

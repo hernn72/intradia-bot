@@ -1,6 +1,6 @@
 # T-017 — Higiene del manifiesto y del esquema (cuatro hallazgos, una migración)
 
-Estado: EN_REVISION (2026-09-18) — implementada junto con T-011, una sola migración v4→v5
+Estado: ACEPTADA (2026-09-18) — migración v4→v5 aplicada en producción
 Agente: Opus (implementación) → Codex (revisión independiente)
 Línea / fase: Línea C, C-02 (manifiesto) y C-01 (migraciones)
 Gate al que contribuye: GATE PROD (requisito 4: reconstrucción probada a ≥ 30 días)

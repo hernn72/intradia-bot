@@ -1,0 +1,37 @@
+esquema v 4
+  analysis_run                   25
+  recommendation                 5169
+  data_freshness_measurement     3844
+  backup_log                     17
+  event_pass                     1
+  position                       0
+  position_review                0
+
+Columnas de analysis_run: run_id, command, git_sha, git_dirty, config_hash, universe_vintage_id, data_vintage_id, score_model_version, context_model_version, schema_version, analysis_timestamp, environment, python_version, provider_versions, clock_drift_seconds, clock_status
+
+Los 25 manifiestos (run_id, config_hash, git_dirty):
+  e777e161 d359c8d3bf39fd24 dirty=1 2026-09-14T09:36:29
+  c9961433 d359c8d3bf39fd24 dirty=0 2026-09-14T13:30:16
+  57199d92 d359c8d3bf39fd24 dirty=0 2026-09-14T20:00:06
+  6913b2cd d359c8d3bf39fd24 dirty=0 2026-09-15T06:00:16
+  15834be4 d359c8d3bf39fd24 dirty=0 2026-09-15T07:30:06
+  04abae0d d359c8d3bf39fd24 dirty=0 2026-09-15T13:30:06
+  b31664ca d359c8d3bf39fd24 dirty=0 2026-09-15T20:00:11
+  928e4c66 d359c8d3bf39fd24 dirty=0 2026-09-16T06:00:16
+  0f131cad d359c8d3bf39fd24 dirty=0 2026-09-16T07:30:06
+  beda75e7 d359c8d3bf39fd24 dirty=0 2026-09-16T08:22:12
+  02106c9a d359c8d3bf39fd24 dirty=0 2026-09-16T13:30:16
+  e335c244 d359c8d3bf39fd24 dirty=0 2026-09-16T20:00:21
+  f3b3848d d359c8d3bf39fd24 dirty=0 2026-09-17T06:00:16
+  4d6b638b d359c8d3bf39fd24 dirty=0 2026-09-17T07:30:11
+  f9b975ba 271d46b2affe7e74 dirty=0 2026-09-17T08:29:12
+  5c0188cd 271d46b2affe7e74 dirty=0 2026-09-17T11:31:47
+  67e63ed7 271d46b2affe7e74 dirty=0 2026-09-17T12:02:01
+  5b394675 271d46b2affe7e74 dirty=0 2026-09-17T12:06:54
+  0d9d036e 271d46b2affe7e74 dirty=0 2026-09-17T12:51:52
+  1b61ca47 271d46b2affe7e74 dirty=0 2026-09-17T13:30:21
+  9ecf3193 271d46b2affe7e74 dirty=0 2026-09-17T20:00:06
+  cd2753a1 271d46b2affe7e74 dirty=0 2026-09-18T06:00:16
+  14e3f47a 271d46b2affe7e74 dirty=0 2026-09-18T07:30:11
+  2d654dc3 271d46b2affe7e74 dirty=0 2026-09-18T11:26:45
+  d1b60e47 271d46b2affe7e74 dirty=0 2026-09-18T13:30:17

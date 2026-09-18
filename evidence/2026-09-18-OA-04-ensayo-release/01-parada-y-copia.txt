@@ -1,0 +1,12 @@
+=== 1. Parar timers ===
+timers parados
+=== 2. Confirmar que no hay servicio activo (Codex, riesgo 2) ===
+intradia-bot.service           inactive
+intradia-bot-event.service     inactive
+NEXT LEFT LAST                             PASSED UNIT                     ACTIVATES
+-       - Thu 2026-09-17 22:30:08 BST     17h ago intradia-bot-event.timer intradia-bot-event.service
+-       - Fri 2026-09-18 14:30:13 BST 1h 6min ago intradia-bot.timer       intradia-bot.service
+
+2 timers listed.
+=== 3. Copia manual previa ===
+-rw-r--r-- 1 fer fer 3080192 Sep 18 15:36 intradia.db.bak-manual-pre-v020-20260918-143636
