@@ -8,7 +8,13 @@ from typing import ClassVar, List
 import pandas as pd
 import pytest
 
-from advisor.analysis.execution import ABOVE_MAX_ENTRY, EXECUTABLE, RR_TOO_LOW, evaluate_trade_at_entry
+from advisor.analysis.execution import (
+    ABOVE_MAX_ENTRY,
+    BROKER_UNVERIFIED,
+    EXECUTABLE,
+    RR_TOO_LOW,
+    evaluate_trade_at_entry,
+)
 from advisor.analysis.levels import (
     Levels,
     entry_max_for_rr,
@@ -21,11 +27,13 @@ from advisor.analysis.opportunity import (
     ACCION_COMPRAR,
     ACCION_DESCARTAR,
     ACCION_ESPERAR,
+    ACCION_VERIFICAR_BROKER,
     RADAR_DESCARTAR,
     RADAR_OPERAR,
     RADAR_VIGILAR,
     build_opportunity,
     classify,
+    reevaluate_execution_at_price,
 )
 from advisor.analysis.scoring import Component, Dimension, Score, compute_score
 from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, calculate_position_sizing
@@ -33,6 +41,7 @@ from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.data.freshness import QUALITY_DEGRADED, QUALITY_INCOMPLETE, DataFreshness
 from advisor.data.quality import INVALID_INDICATORS, DataQuality, FreshnessState, Severity
+from advisor.universe.models import Asset
 from tests.conftest import make_ohlcv
 
 MIN_RR = RiskConfig().min_rr_ratio
@@ -614,16 +623,40 @@ class TestClassify:
         radar, accion, motivos = classify(
             self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), no_disponible
         )
-        assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
+        assert (radar, accion) == (RADAR_DESCARTAR, ACCION_DESCARTAR)
         assert "Trade Republic" in motivos[0]
 
-    def test_disponibilidad_sin_verificar_avisa_pero_no_bloquea(self, asset_usd, benign_context) -> None:
+    def test_disponibilidad_sin_verificar_da_accion_propia(self, asset_usd, benign_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, motivos = classify(
             self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_usd
         )
-        assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
+        assert (radar, accion) == (RADAR_OPERAR, ACCION_VERIFICAR_BROKER)
         assert any("sin verificar" in m for m in motivos)
+
+    def test_accion_verificar_broker_con_universo_real(self, benign_context) -> None:
+        asset = Asset(
+            symbol="SAP.DE",
+            name="SAP",
+            asset_class="stock",
+            region="EUROPA",
+            market="XETRA",
+            currency="EUR",
+            economic_currency="EUR",
+            timezone="Europe/Berlin",
+            trade_republic="unknown",
+            isin=None,
+        )
+        score = self._score_con_valor(90.0)
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+
+        radar, accion, motivos = classify(
+            score, levels, benign_context, ScoringConfig(), RiskConfig(), asset
+        )
+
+        assert score.value == 90.0
+        assert (radar, accion) == (RADAR_OPERAR, ACCION_VERIFICAR_BROKER)
+        assert any("sin verificar" in motivo for motivo in motivos)
 
     def test_compra_limpia_no_genera_advertencias(self, asset_eur, benign_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
@@ -759,6 +792,97 @@ class TestClassify:
 
 
 class TestExecutionEvaluation:
+    def _score_con_valor(self, valor: float):
+        class _Score:
+            value = valor
+            missing_dimensions: ClassVar[List] = []
+            dimensions: ClassVar[List] = []
+            evaluable_max = 80.0
+
+        return _Score()
+
+    def _niveles_reevaluacion(self) -> Levels:
+        return Levels(
+            price=56.11,
+            entry_ideal_low=55.00,
+            entry_ideal_high=56.11,
+            entry_max=56.11,
+            stop=54.71,
+            invalidation_level=54.71,
+            invalidation_reason="stop técnico",
+            stop_basis="manual test",
+            target1=57.20,
+            target2=58.20,
+            target3=59.10,
+            risk_pp=2.4951,
+            reward_pct=3.7248,
+            rr_ratio=1.4929,
+            extension_atr=None,
+            chase=False,
+        )
+
+    def _oportunidad_reevaluacion(self, asset_eur, benign_context):
+        snapshot = make_snapshot(price=56.11)
+        return build_opportunity(
+            asset=asset_eur,
+            horizonte="swing",
+            snapshot=snapshot,
+            levels=self._niveles_reevaluacion(),
+            score=self._score_con_valor(90.0),
+            context=benign_context,
+            scoring=ScoringConfig(),
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+        )
+
+    def test_reevaluacion_por_encima_de_entry_max_da_above_max_entry(self, asset_eur, benign_context) -> None:
+        opportunity = self._oportunidad_reevaluacion(asset_eur, benign_context)
+
+        execution = reevaluate_execution_at_price(
+            opportunity,
+            market_price=56.70,
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+        )
+
+        assert opportunity.score.value == 90.0
+        assert execution.entry_price == pytest.approx(56.70)
+        assert execution.entry_max == pytest.approx(56.11)
+        assert execution.executable is False
+        assert execution.reason == ABOVE_MAX_ENTRY
+
+    def test_reevaluacion_dentro_del_rango_vuelve_a_ser_ejecutable(self, asset_eur, benign_context) -> None:
+        opportunity = self._oportunidad_reevaluacion(asset_eur, benign_context)
+
+        execution = reevaluate_execution_at_price(
+            opportunity,
+            market_price=55.95,
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+        )
+
+        expected_rr = (58.20 - 55.95) / (55.95 - 54.71)
+        assert expected_rr == pytest.approx(1.814516129)
+        assert execution.rr == pytest.approx(expected_rr)
+        assert execution.rr >= 1.5
+        assert execution.executable is True
+        assert execution.reason == EXECUTABLE
+
+    def test_unverified_no_se_convierte_en_unavailable(self, asset_usd) -> None:
+        levels = self._niveles_reevaluacion()
+
+        execution = evaluate_trade_at_entry(
+            levels=levels,
+            entry_price=55.95,
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+            label="test",
+            asset=asset_usd,
+        )
+
+        assert execution.executable is True
+        assert execution.reason == BROKER_UNVERIFIED
+
     def test_entry_above_max_is_not_executable(self, asset_eur) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         execution = evaluate_trade_at_entry(

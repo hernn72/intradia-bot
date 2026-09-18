@@ -138,7 +138,7 @@ class TestFormatOpportunity:
         for campo in [
             "**Ticker:**", "**ISIN:**", "**Mercado de datos:**", "**Divisa de cotización:**",
             "**Exposición económica:**", "**Broker / ejecución:**", "**Disponible en Trade Republic:**",
-            "**Precio actual:**", "**Tipo de operación:**", "**Señal:**", "**Ejecutabilidad en broker:**",
+            "**Último cierre:**", "**Tipo de operación:**", "**Señal:**", "**Ejecutabilidad en broker:**",
             "**Puntuación:**",
             "### Tesis", "### Catalizador", "### Entrada", "### Stop / invalidación",
             "### Objetivos", "### Potencial", "### Riesgo", "### Ratio beneficio/riesgo",
@@ -164,8 +164,20 @@ class TestFormatOpportunity:
 
         assert "**Señal:** 🟢 OPERAR" in ficha
         assert "**Ejecutabilidad en broker:** ❓ pendiente de verificación" in ficha
-        assert "### Acción\n**COMPRAR**" in ficha
+        assert "### Acción\n**VERIFICAR_BROKER**" in ficha
         assert "**Disponibilidad:** ❓ pendiente de verificación" in ficha
+
+    def test_informe_no_llama_precio_actual_al_cierre_anterior(
+        self,
+        asset_eur,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE)
+
+        assert "**Último cierre:**" in ficha
+        assert "· Mercado: CLOSED" in ficha
+        assert "**Precio actual:**" not in ficha
 
     def test_aviso_de_precio_extendido_llega_a_la_ficha(self, asset_eur, benign_context, fx: FxConverter) -> None:
         """La advertencia no descarta, así que no viaja en `decision_reasons`.
@@ -559,8 +571,8 @@ class TestFormatReport:
         assert "⚠️ 1 sesión cerrada perdida: 1 activo; última barra 2026-08-25 (XETRA)." in informe
         assert "SAP.DE (SAP) — score" in informe
         assert "⚠️ dato 2026-08-25 (1s)" in informe
-        assert "AAPL (Apple) — score" in informe
-        assert "no disponible en Trade Republic" in informe
+        assert "BROKER_UNAVAILABLE: 1 activos — AAPL" in informe
+        assert "BROKER_UNAVAILABLE" in informe
         assert "## SAP" not in informe
 
     def test_informe_declara_sesion_ausente_intermedia_y_marca_compacta(
@@ -620,8 +632,8 @@ class TestFormatReport:
         )
 
         assert "suma de las 0 mejores ideas" not in informe
-        assert "suma de las 2 mejores ideas por señal" in informe
-        assert "La disponibilidad del broker se informa aparte" in informe
+        assert "Liquidez recomendada: 100%" in informe
+        assert "ninguna queda en COMPRAR" in informe
 
     def test_nota_del_tipo_de_cambio_solo_si_se_usa(self, asset_eur, asset_usd, benign_context, fx: FxConverter) -> None:
         config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})

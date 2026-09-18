@@ -475,3 +475,46 @@ tenía su ISIN verificado contra el KID de VanEck por la mañana y resultó **no
 disponible** en el broker. El identificador era correcto y aun así no sirve.
 
 Vintage: `894ce776ff8572b3a9dfc97a724f96789122e0dd2c46eef55045d4968e0b5fb0`.
+
+### D-27 — 2026-09-18 — `BROKER_UNVERIFIED` pasa a accion propia, no a compra
+La disponibilidad del broker sigue separada de la senal (D-04), pero el informe
+deja de presentar un `unknown` como `COMPRAR`: si el setup y la ejecucion son
+validos y el broker esta sin verificar, la accion publicada es
+`VERIFICAR_BROKER`. Si el broker esta marcado como no disponible, la accion no
+es operar.
+
+Consecuencia medida en T-007 con el universo vigente: ya no hay 107 `unknown`;
+hay 95 `yes`, 10 `no` y 2 `unknown`. En la pasada real del 2026-09-18 ningun
+`unknown` alcanzo setup operativo, asi que no aparecio `VERIFICAR_BROKER` en el
+informe real; `9984.T`, que estaba en `no`, paso de radar con
+`BROKER_UNAVAILABLE` a descartado por `BROKER_UNAVAILABLE`. El score no cambia.
+
+**Corregido en la revision independiente (2026-09-18):** la accion nueva salia
+de la poblacion de `POLICY_OPERAR` del backtest, porque `engine.py` filtraba por
+`accion == ACCION_COMPRAR`. Eso hacia depender la poblacion que mide el
+laboratorio de un metadato de broker que cambia con cada tanda de OA-03, en
+contra de D-04 y de INV-04, y ademas hacia que esas operaciones desaparecieran
+sin rastro del informe del backtest. Se introduce `ACCIONES_OPERABLES`
+(`COMPRAR` + `VERIFICAR_BROKER`) en `advisor/backtest/engine.py`, se anade la
+fila propia en `advisor/backtest/report.py` y se deja de contar
+`VERIFICAR_BROKER` como veto. Medido: misma senal (score 85, mismos niveles,
+mismo contexto) entra en la poblacion con `yes` y, antes de la correccion, no
+entraba con `unknown`. Afecta hoy a `UCG.MI` y `1211.HK`, los dos unicos
+analizables sin verificar.
+
+**Hallazgo abierto que esto deja a la vista (FOLLOW_UP, va a T-009):** los 10
+activos marcados `no` en el broker siguen fuera de la poblacion de
+`POLICY_OPERAR`, y eso **ya ocurria antes de T-007** (PR 1). La poblacion del
+laboratorio no deberia depender del broker en ningun caso; se decide y se
+corrige al medir el filtro de ejecucion aparte del score.
+
+### D-28 — 2026-09-18 — El recorte diario usa el cierre de la sesion concreta
+`trim_unclosed_bar` deja de comparar contra el cierre regular hardcodeado y usa
+`exchange_calendars.session_close(sesion)` para la sesion concreta. Esto evita
+recortar barras ya cerradas en medias sesiones sin duplicar horarios de apertura
+o cierre en `MARKET_SESSIONS`.
+
+Consecuencia medida con `exchange_calendars==4.13.2` entre 2025-11-01 y
+2026-12-31: XETRA tiene 2 cierres a las 14:00, NYSE 4 cierres a las 13:00 y PAR
+4 cierres a las 14:05. La primera fecha futura que muerde al bot es
+2026-11-27 para NYSE/NASDAQ.

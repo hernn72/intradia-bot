@@ -9,13 +9,15 @@ test mueve una única vela para provocar la salida que quiere comprobar.
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Tuple
+from typing import ClassVar, Dict, Optional, Tuple
 
 import pandas as pd
 import pytest
 
-from advisor.analysis.opportunity import ACCION_COMPRAR
+from advisor.analysis.levels import compute_levels
+from advisor.analysis.opportunity import ACCION_COMPRAR, ACCION_VERIFICAR_BROKER, classify
 from advisor.backtest.engine import (
+    ACCIONES_OPERABLES,
     EXIT_FINAL,
     EXIT_STOP,
     EXIT_TARGET,
@@ -26,8 +28,10 @@ from advisor.backtest.engine import (
     simulate_asset,
 )
 from advisor.backtest.report import format_backtest_report
-from advisor.backtest.runner import run_backtest
+from advisor.backtest.runner import BacktestResult, run_backtest
+from advisor.universe.models import Asset
 from tests.conftest import FakeProvider, make_ohlcv
+from tests.test_analysis import make_snapshot
 
 WARMUP = 20
 
@@ -251,3 +255,84 @@ class TestRunner:
         assert "Advertencias" in report
         assert "¿ORDENA LA PUNTUACIÓN?" in report
         assert "no garantizan nada" in report
+
+
+class TestPoblacionDeOperarYBroker:
+    """El estado del broker no puede cambiar la población que mide el laboratorio.
+
+    Regresión de la revisión de T-007: al convertir ``BROKER_UNVERIFIED`` en la
+    acción propia ``VERIFICAR_BROKER``, los activos sin verificar salían de
+    ``POLICY_OPERAR`` en silencio, que es justo lo que D-04 prohíbe.
+    """
+
+    def test_verificar_broker_sigue_entrando_en_la_poblacion_de_operar(self) -> None:
+        assert ACCION_COMPRAR in ACCIONES_OPERABLES
+        assert ACCION_VERIFICAR_BROKER in ACCIONES_OPERABLES
+
+    def test_misma_senal_misma_poblacion_con_y_sin_broker_verificado(self, config, benign_context) -> None:
+        """La misma señal, con el activo verificado y sin verificar, entra igual."""
+
+        class _Score:
+            value = 85.0
+            missing_dimensions: ClassVar[list] = []
+            dimensions: ClassVar[list] = []
+            evaluable_max = 80.0
+
+        def _asset(trade_republic: str) -> Asset:
+            return Asset(
+                symbol="UCG.MI",
+                name="UniCredit",
+                asset_class="stock",
+                region="EUROPA",
+                market="MIL",
+                currency="EUR",
+                timezone="Europe/Rome",
+                trade_republic=trade_republic,
+                isin=None,
+            )
+
+        levels = compute_levels(make_snapshot(), config.levels, config.risk.min_rr_ratio)
+        acciones = {}
+        for estado in ("yes", "unknown"):
+            _, accion, _ = classify(
+                _Score(), levels, benign_context, config.scoring, config.risk, _asset(estado)
+            )
+            acciones[estado] = accion
+
+        assert acciones["yes"] == ACCION_COMPRAR
+        assert acciones["unknown"] == ACCION_VERIFICAR_BROKER
+        # Lo que no puede cambiar: si una entra en la población medida, la otra también.
+        assert all(accion in ACCIONES_OPERABLES for accion in acciones.values())
+
+    def test_el_informe_del_backtest_no_esconde_las_operaciones_sin_verificar(self) -> None:
+        """Una operación ``VERIFICAR_BROKER`` tiene fila propia en el informe."""
+
+        def _trade(accion: str, symbol: str) -> BacktestTrade:
+            return BacktestTrade(
+                symbol=symbol,
+                score=85.0,
+                radar="OPERAR",
+                accion=accion,
+                entry_date=pd.Timestamp("2026-01-01", tz="UTC"),
+                exit_date=pd.Timestamp("2026-01-02", tz="UTC"),
+                entry_price=100.0,
+                exit_price=110.0,
+                stop=95.0,
+                target=110.0,
+                exit_reason=EXIT_TARGET,
+                bars_held=1,
+                cost_pct=0.20,
+            )
+
+        result = BacktestResult(
+            horizonte="swing",
+            period="5y",
+            cost_pct=0.20,
+            warmup_bars=WARMUP,
+            trades_operar=[_trade(ACCION_COMPRAR, "SAP.DE")],
+            trades_todas=[_trade(ACCION_COMPRAR, "SAP.DE"), _trade(ACCION_VERIFICAR_BROKER, "UCG.MI")],
+            evaluated=["SAP.DE", "UCG.MI"],
+        )
+
+        informe = format_backtest_report(result)
+        assert ACCION_VERIFICAR_BROKER in informe

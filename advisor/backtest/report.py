@@ -13,8 +13,13 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from advisor.analysis.opportunity import ACCION_COMPRAR, ACCION_DESCARTAR, ACCION_ESPERAR
-from advisor.backtest.engine import BacktestTrade
+from advisor.analysis.opportunity import (
+    ACCION_COMPRAR,
+    ACCION_DESCARTAR,
+    ACCION_ESPERAR,
+    ACCION_VERIFICAR_BROKER,
+)
+from advisor.backtest.engine import ACCIONES_OPERABLES, BacktestTrade
 from advisor.backtest.runner import BacktestResult
 
 _LINE = "=" * 90
@@ -208,7 +213,7 @@ def format_backtest_report(result: BacktestResult) -> str:
     # --- ¿Aportan los vetos? ---
     lines.append("## ¿APORTAN LOS VETOS? (mismas señales, agrupadas por la decisión del asesor)")
     accion_means: Dict[str, Optional[float]] = {}
-    for accion in (ACCION_COMPRAR, ACCION_ESPERAR, ACCION_DESCARTAR):
+    for accion in (ACCION_COMPRAR, ACCION_VERIFICAR_BROKER, ACCION_ESPERAR, ACCION_DESCARTAR):
         subset = [t for t in todas if t.accion == accion]
         lines.append(f"  {accion:<10} {_stats_line(subset)}")
         accion_means[accion] = _mean(_net_rs(subset)) if len(subset) >= _MIN_SAMPLE else None
@@ -281,7 +286,7 @@ def _verdicts(
             )
 
     comprar = accion_means.get(ACCION_COMPRAR)
-    vetadas = [v for k, v in accion_means.items() if k != ACCION_COMPRAR and v is not None]
+    vetadas = [v for k, v in accion_means.items() if k not in ACCIONES_OPERABLES and v is not None]
     if comprar is not None and vetadas:
         vetada_media = sum(vetadas) / len(vetadas)
         if comprar > vetada_media:

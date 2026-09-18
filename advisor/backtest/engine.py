@@ -30,7 +30,7 @@ import pandas as pd
 from advisor.analysis.execution import evaluate_trade_at_entry
 from advisor.analysis.levels import compute_levels
 from advisor.analysis.market_context import build_market_context
-from advisor.analysis.opportunity import ACCION_COMPRAR, classify
+from advisor.analysis.opportunity import ACCION_COMPRAR, ACCION_VERIFICAR_BROKER, classify
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import SnapshotSeries, build_snapshot, build_snapshot_series, snapshot_from_series
 from advisor.config import AdvisorConfig
@@ -43,6 +43,11 @@ from advisor.universe.models import Asset
 #            el asesor; sirve para comparar tramos de puntuación y vetos.
 POLICY_OPERAR = "operar"
 POLICY_TODAS = "todas"
+
+# El estado del broker no forma parte de la señal (D-04, INV-04): un activo
+# sin verificar en Trade Republic produce la misma señal que uno verificado,
+# así que la población de POLICY_OPERAR no puede depender de ese metadato.
+ACCIONES_OPERABLES = (ACCION_COMPRAR, ACCION_VERIFICAR_BROKER)
 
 # Máximo de velas en posición por horizonte, según la duración que la
 # especificación asigna a cada tipo de operación: swing 2 días-8 semanas,
@@ -305,7 +310,7 @@ def simulate_asset(
                 asset, snapshot_series, j, config, horizonte, warmup,
                 vix_at, trend_price_at, trend_sma_at,
             )
-            if signal is not None and (policy == POLICY_TODAS or signal["accion"] == ACCION_COMPRAR):
+            if signal is not None and (policy == POLICY_TODAS or signal["accion"] in ACCIONES_OPERABLES):
                 pending = signal
 
     if position is not None:

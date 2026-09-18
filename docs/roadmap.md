@@ -183,10 +183,10 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | PR 2 | Fase 4 calendarios de plaza · fase 6 cripto 24/7 · unificar taxonomía | **HECHA: aceptada, en `main` y desplegada** (2026-09-16) | T-002 | T-003 |
 | PR 2 | Fase 5 causa de los huecos 2026-09-07 y 2026-03-06 | **HECHA** (2026-09-16, revisión independiente CORREGIR con 7 defectos, corregidos y verificados). Tres causas: 4 pares eran cierre real de KRX que la librería no codifica, 43 son huecos del proveedor con la plaza abierta, 0 del pipeline | T-003 | T-004 |
 | PR 3 | Fases 7–8 calidad por dimensiones + códigos de descarte | **HECHA: aceptada, en `main` y desplegada** (2026-09-17). Dos revisiones independientes, las dos CORREGIR: la 1.ª con 3 defectos y 4 avisos, la 2.ª con 4 de alcance (el segundo camino de `DataQuality`, el aviso de precio extendido perdido y sin persistir, `_skip_code` atribuyendo causas y tests que faltaban). Todo corregido y verificado; evidencia rehecha en `evidence/2026-09-17-T-005-correcciones/` | T-002, T-003, T-004 | T-005 |
-| PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | PENDIENTE, **ficha escrita** (2026-09-17). Incorpora un defecto medido que no estaba en el plan: `trim_unclosed_bar` usa el cierre **regular** y descarta barras ya cerradas en días de media sesión; muerde por primera vez el 2026-11-27. Releer su fase 11 antes de encargarla: se escribió con los 107 activos en `unknown` y hoy solo quedan 2 | PR 3 | **T-007** |
-| PR 5 | Fases 12–13 informe + siete invariantes de integración | PENDIENTE | PR 4 | T-008 |
-| PR 5 | Fase 14 filtro de ejecución medido aparte del score, incl. pérdida por `ABOVE_MAX_ENTRY` a la apertura (D-06) | PENDIENTE | PR 4 | T-009 |
-| PR 5 | Fase 15 limpieza → **GATE L0** | PENDIENTE | todo lo anterior + C-00..C-02 | T-010 |
+| PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | **ACEPTADA** (2026-09-18). Revisión independiente CORREGIR: un BLOCKER —`VERIFICAR_BROKER` sacaba a los activos sin verificar de la población de `POLICY_OPERAR` del backtest y los borraba de su informe, contra D-04 e INV-04— y un fallo de `market_state` con `datetime` sin zona; los dos corregidos con tests que fallan contra el código sin corregir. ISIN `DE000A0H08M3` cruzado contra la ficha del emisor. Incorpora un defecto medido que no estaba en el plan: `trim_unclosed_bar` usaba el cierre **regular** y descartaba barras ya cerradas en días de media sesión; muerde por primera vez el 2026-11-27. La ficha se escribió con los 107 activos en `unknown`; tras OA-03 quedan 2 | PR 3 | **T-007** |
+| PR 5 | Fases 12–13 informe + siete invariantes de integración | PENDIENTE, **ficha escrita** (2026-09-18) | PR 4 | **T-008** |
+| PR 5 | Fase 14 filtro de ejecución medido aparte del score, incl. pérdida por `ABOVE_MAX_ENTRY` a la apertura (D-06) | PENDIENTE, **ficha escrita** (2026-09-18). Hereda el caso `no` del broker en la población del laboratorio, abierto desde PR 1 | PR 4 | **T-009** |
+| PR 5 | Fase 15 limpieza → **GATE L0** | PENDIENTE, **ficha escrita** (2026-09-18) | todo lo anterior + C-00..C-02 | **T-010** |
 
 ### Línea C — Ingeniería de producción (transversal; C-00..C-02 antes de PR 3)
 
@@ -195,7 +195,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | C-00 | CI: pytest, ruff, mypy en push/PR; branch protection (OA-02) | HECHO y en `main` (`e5ed089`); OA-02 pendiente del propietario | — | T-001 |
 | C-01 | Migraciones `user_version`, backup pre-migración, `verificar-backup` | HECHO (T-002, revisión independiente aplicada; ver evidencia) | C-00 | T-002 |
 | C-02 | Manifiesto de ejecución (`run_id`, SHA, config hash, vintages, versiones, reloj) | HECHO (T-002; reloj medido vía `timesync-status`/`chronyc`/SNTP UDP; alerta Telegram pendiente en C-04) | C-01 | T-002 |
-| C-03 | Release por tag, `verificar-release` en la Pi, despliegue y rollback documentados y probados | PENDIENTE | C-00 | T-011 |
+| C-03 | Release por tag, `verificar-release` en la Pi, despliegue y rollback documentados y probados | PENDIENTE, **ficha escrita** (2026-09-18) | C-00 | **T-011** |
 | C-04 | Logs rotados, alertas Telegram (pasada fallida, proveedor caído, reloj > 60 s, `events.yaml` caduca), timeouts y reintentos por proveedor, degradación sin red probada | PENDIENTE | C-02 | por escribir |
 | C-05 | Persistir narrativa LLM con provider/model/prompt_version/input_hash (D-12) | PENDIENTE | C-01 | por escribir |
 | C-06 | Backup programado en la Pi + simulacro de restauración trimestral | PENDIENTE | C-01, C-03 | por escribir |
@@ -205,7 +205,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | ID | Fase | Estado | Depende de | Ficha |
 |---|---|---|---|---|
 | A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | **ACEPTADA y en `main`** (2026-09-17). Revisión independiente CORREGIR: un BLOCKER de CI, la guarda de INV-08 que no escribía nadie y el vintage ciego al benchmark declarado; los tres corregidos. Vintage vigente `894ce776…`, que se mueve con cada tanda de OA-03 | C-02 | T-006 |
-| A-01 | Interpretar el histórico de frescura de la Pi (recurrencia de huecos) → alimenta OD-02 | PENDIENTE | acceso a la Pi | T-012 |
+| A-01 | Interpretar el histórico de frescura de la Pi (recurrencia de huecos) → alimenta OD-02 | PENDIENTE, **ficha escrita** (2026-09-18); da también la cifra de OD-09 y OD-10 | acceso a la Pi | **T-012** |
 | A-02 | Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con RS alineada y línea 0; decidir el RR en el score → **GATE P2** | BLOQUEADO(GATE L0, A-00) | GATE L0 | T-013 |
 | A-03 | P3 Score v2: dimensiones, pesos, `score_model_version`, umbrales por horizonte, ¿`convicción` fuera del número? → **GATE P3** | BLOQUEADO(GATE P2) | A-02 | por escribir |
 | A-04 | P4 Geometría: stop/objetivo/entrada **incluida la holgura de entrada** (D-06), pareado + bootstrap por bloques, heterogeneidad → **GATE P4** | BLOQUEADO(GATE P3) | A-03 | por escribir |

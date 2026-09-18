@@ -1,6 +1,6 @@
 # T-007 — Estado de mercado, precio ejecutable y estado de broker (PR 4, fases 9–11)
 
-Estado: PENDIENTE
+Estado: EN_REVISION
 Agente: Opus (ficha) → Codex (implementación) → Opus (revisión)
 Línea / fase: L0 PR 4, fases 9, 10 y 11 de `docs/plan-ejecucion.md`
 Gate al que contribuye: GATE L0
@@ -49,6 +49,18 @@ INV-03 (el estado de mercado y el del broker **no** tocan `score.value`),
 INV-04 (señal y ejecutabilidad separadas), INV-16 (lo desconocido se declara
 desconocido: `UNVERIFIED` nunca se convierte en `UNAVAILABLE`), INV-05 (la plaza
 sale de `primary_market`, nunca del benchmark).
+
+Revisión al entregar:
+- INV-03: ejercitada por `test_accion_verificar_broker_con_universo_real`; el
+  score queda en 90,0 al pasar a `VERIFICAR_BROKER`. En salida real `AMD`
+  conserva score 74 antes/después.
+- INV-04: ejercitada por la separación `Señal: OPERAR` /
+  `Acción: VERIFICAR_BROKER` en test con `trade_republic="unknown"`.
+- INV-16: ejercitada por `test_unverified_no_se_convierte_en_unavailable`; el
+  motivo queda `BROKER_UNVERIFIED`, ejecutable, y no se convierte en
+  `BROKER_UNAVAILABLE`.
+- INV-05: ejercitada indirectamente en `format_opportunity`, que usa
+  `mercado_para_simbolo(asset, asset.data_symbol(reference))` y no el benchmark.
 
 ## Implementación requerida
 
@@ -173,6 +185,26 @@ pasada anterior, solo su etiqueta.
 - cambio en resultados relevantes: ninguno en el backtest, que no pasa por el
   informe. Confirmarlo ejecutándolo.
 
+Resultado medido el 2026-09-18:
+- Universo real vigente: 107 analizables; `trade_republic`: 95 `yes`, 10 `no`,
+  2 `unknown`. La previsión de 107 `unknown` ya no aplica tras OA-03/D-26.
+- Acciones en la salida real: `AMD` sigue `COMPRAR` porque está verificado en
+  broker; no aparece `VERIFICAR_BROKER` porque los 2 `unknown` reales no
+  alcanzan setup operativo en esta pasada.
+- Cambio de acción/radar atribuible al código: `9984.T` pasa de radar con
+  `BROKER_UNAVAILABLE` a descartado por `BROKER_UNAVAILABLE` (broker `no` ya no
+  queda como espera ejecutable).
+- Señales afectadas en puntuación: 0. `AMD` conserva score 74; el test de
+  broker conserva score 90,0.
+- Etiqueta de precio: `AMD` cambia de `Precio actual: 545,09 USD` a
+  `Último cierre: 545,09 USD · Sesión: 2026-09-17 · Mercado: PRE_OPEN`; el
+  número nativo no cambia.
+- Calidad agregada: OK 57 → 60, INCOMPLETO 31 → 28, DEGRADADO 19 → 19 por
+  drift de datos reales entre pasadas (cripto actualizó barra durante la
+  verificación), no por cambio de scoring.
+- Backtest: ejecutado `advisor.main backtest --horizonte swing --period 5y`;
+  sigue generando resultados y no pasa por el formatter del informe.
+
 ## Criterio de aceptación
 - `market_state` con las 15 plazas declaradas y fuente de cada horario.
 - El informe no contiene «Precio actual» con la plaza cerrada.
@@ -193,6 +225,9 @@ instante, conclusión), `antes.txt`, `despues.txt`, la tabla de acciones antes y
 después, y el recuento de sesiones con cierre anticipado por plaza que justifica
 el cambio de `trim_unclosed_bar`.
 
+Evidencia registrada en `evidence/2026-09-18-T-007-estado-de-mercado/`:
+`README.md`, `antes.txt`, `despues.txt`, `acciones.md`, `backtest.txt`.
+
 ## Commit esperado
 Rama `feat/market-state-and-broker`. Mensaje:
 `feat(execution): estado de plaza, precio ejecutable y estado de broker en el informe`
@@ -203,5 +238,95 @@ Rama `feat/market-state-and-broker`. Mensaje:
 `VERIFICAR_BROKER`, y otra con el cambio de cierre regular a cierre de la sesión
 concreta en `trim_unclosed_bar`.
 
+Actualizado:
+- `docs/roadmap.md`: PR 4 a `EN_REVISION`.
+- `docs/decision-log.md`: D-27 (`BROKER_UNVERIFIED` pasa a acción propia) y
+  D-28 (`trim_unclosed_bar` usa cierre de la sesión concreta).
+
 ## Handoff al siguiente agente
-Pendiente de escribir al terminar.
+Estado: ACEPTADA tras revisión independiente.
+
+Implementado:
+- `market_state(market, reference)` en `advisor/data/sessions.py`, con cripto
+  siempre `OPEN`, plazas sin calendario como `None` y Xetra/NASDAQ/etc. vía
+  `exchange_calendars`.
+- `trim_unclosed_bar` usa `session_close(sesion)` de la sesión concreta; tests
+  cubren NYSE 2026-12-24 13:00 y XETRA 2026-12-30 14:00.
+- El informe etiqueta `Precio actual` solo si la plaza está `OPEN`; con
+  `PRE_OPEN`/`CLOSED` imprime `Último cierre`, sesión y estado.
+- Añadido `reevaluate_execution_at_price(...)` para reevaluar entrada contra un
+  precio posterior sin recalcular score ni niveles.
+- `BROKER_UNVERIFIED` produce acción `VERIFICAR_BROKER`; `BROKER_UNAVAILABLE`
+  deja de quedar como espera ejecutable.
+
+Verificado:
+- Baseline antes de editar: 502 tests, `ruff`, `mypy` limpios; salida real
+  guardada en `antes.txt`.
+- Posterior: 513 tests, `ruff check .`, `mypy advisor` limpios.
+- Salida real guardada en `despues.txt`; backtest de control en `backtest.txt`.
+- Comprobación manual: `AMD` mantiene 545,09 USD y cambia solo etiqueta
+  `Precio actual` → `Último cierre · Mercado: PRE_OPEN`; cálculo de RR de
+  reevaluación escrito en `README.md`.
+
+Pendiente:
+- No se escribió el ISIN de `EXH1.DE` en `universe.yaml`; lo verifica el
+  supervisor contra fuente primaria en paralelo, según el contexto operativo de
+  la sesión.
+- Revisión independiente obligatoria por tocar calendarios y clasificación.
+
+Hallazgos clasificados:
+- OBSERVATION: la ficha esperaba 107 `unknown`, pero el universo vigente tras
+  OA-03/D-26 tiene 95 `yes`, 10 `no` y 2 `unknown`; por eso la salida real no
+  convierte 107 recomendaciones a `VERIFICAR_BROKER`.
+- OBSERVATION: la pasada posterior se ejecutó a las 09:51 de Berlín, no antes
+  de las 09:00; la comprobación real de estado de mercado fue `AMD`/NASDAQ
+  `PRE_OPEN`, y Xetra `PRE_OPEN` queda cubierto por test unitario.
+- OBSERVATION: los conteos de calidad cambiaron 57/31/19 → 60/28/19 por drift
+  de datos reales entre pasadas (cripto actualizó barra), no por la lógica de
+  esta tarea.
+
+Siguiente paso: revisor independiente debe revisar especialmente
+`advisor/data/sessions.py`, `advisor/analysis/opportunity.py` y
+`advisor/report/formatter.py`, y el supervisor debe cerrar el punto del ISIN de
+`EXH1.DE`.
+
+
+---
+
+## Revisión independiente — 2026-09-18 — VEREDICTO: CORREGIR → corregido
+
+Evidencia completa en `evidence/2026-09-18-T-007-revision/README.md`.
+
+**BLOCKER (corregido).** `VERIFICAR_BROKER` sacaba a los activos sin verificar
+de la población de `POLICY_OPERAR` del backtest, porque `engine.py` filtraba por
+`accion == ACCION_COMPRAR`, y además esas operaciones desaparecían del informe
+del backtest sin dejar rastro. Contradice D-04 e INV-04, y contamina la
+población que A-02 va a medir en GATE P2. Medido con la misma señal cambiando
+solo `trade_republic`: `yes` → entra, `unknown` → no entraba. Corregido con
+`ACCIONES_OPERABLES` en `advisor/backtest/engine.py`, fila propia en
+`advisor/backtest/report.py` y `VERIFICAR_BROKER` fuera del cómputo de vetos.
+Tres tests de regresión que fallan contra el código sin corregir.
+
+**Defecto menor (corregido).** `market_state` lanzaba `TypeError` con un
+`datetime` sin zona horaria, mientras `trim_unclosed_bar` —mismo módulo— lo
+tolera. Hoy no muerde porque todos los llamantes pasan `datetime.now(timezone.utc)`,
+pero se llama dentro de la generación de cada ficha: un fallo ahí mata el
+informe entero. Corregido con la convención que ya usaba el módulo.
+
+**FOLLOW_UP heredado (no se corrige aquí).** Los 10 activos marcados `no` en el
+broker quedan fuera de `POLICY_OPERAR` **desde PR 1**, no desde esta ficha.
+Incorporado como requisito 5 de T-009, que es la ficha que separa el filtro de
+ejecución del score.
+
+**Dos afirmaciones comprobadas, no aceptadas por fe.** El cambio de calidad
+57/31/19 → 60/28/19 sí es drift: comparando el cierre viejo con el nuevo el
+2026-09-17, **0 de las 15 plazas** tienen cierre distinto, luego el código no
+pudo moverlo. Y el ISIN de `EXH1.DE` (`DE000A0H08M3`) queda cerrado: ya estaba
+escrito desde OA-03 y se cruzó contra la ficha del emisor (nombre, plaza y país
+del prefijo coinciden).
+
+**Aviso para T-010.** La pasada real generó **una sola** ficha de oportunidad,
+así que la métrica de GATE L0 «0 fichas con Precio actual» se apoya aquí en un
+único caso. Debe medirse con una pasada con más fichas.
+
+**Verificación final:** 517 tests, `ruff` y `mypy` limpios.

@@ -39,6 +39,7 @@ from advisor.data.freshness import (
     mercado_para_simbolo,
 )
 from advisor.data.fx import FxConverter
+from advisor.data.sessions import MARKET_CLOSED, MARKET_OPEN, MARKET_PRE_OPEN, market_state
 from advisor.events.calendar import EventCalendar
 from advisor.events.models import TIPO_BANCO_CENTRAL, TIPO_RESULTADOS, MarketEvent
 from advisor.report.money import MoneyFormatter
@@ -82,6 +83,20 @@ def _quote_line(quote: IndexQuote) -> str:
     return f"{quote.name} ({quote.symbol}): {_num(quote.price, 2)} {quote.currency} {_pct(quote.change_pct)}"
 
 
+def _price_reference_line(opportunity: Opportunity, money: MoneyFormatter, reference: datetime) -> str:
+    asset = opportunity.asset
+    data_symbol = asset.data_symbol(reference)
+    market = mercado_para_simbolo(asset, data_symbol)
+    state = market_state(market, reference)
+    session_date = opportunity.snapshot.timestamp.date().isoformat()
+    price = money(opportunity.snapshot.price)
+    if state == MARKET_OPEN:
+        return f"**Precio actual:** {price} · Sesión: {session_date} · Mercado: {state}"
+    if state in (MARKET_PRE_OPEN, MARKET_CLOSED):
+        return f"**Último cierre:** {price} · Sesión: {session_date} · Mercado: {state}"
+    return f"**Precio de referencia:** {price} · Sesión: {session_date} · Mercado: N/D"
+
+
 def format_overview(quotes: List[IndexQuote]) -> str:
     """Sección de situación global, agrupada por región."""
 
@@ -110,7 +125,6 @@ def format_opportunity(
 
     asset = opportunity.asset
     levels = opportunity.levels
-    snapshot = opportunity.snapshot
     score = opportunity.score
     money = MoneyFormatter(fx, asset.currency)
 
@@ -129,7 +143,7 @@ def format_opportunity(
     lines.append(f"**Broker / ejecución:** {asset.broker} / {asset.execution_mode}")
     lines.append(f"**Disponible en Trade Republic:** {asset.availability_label}")
     lines.append("")
-    lines.append(f"**Precio actual:** {money(snapshot.price)}")
+    lines.append(_price_reference_line(opportunity, money, reference))
     lines.append(f"**Tipo de operación:** {opportunity.tipo_operacion}")
     lines.append(f"**Señal:** {opportunity.signal_label}")
     lines.append(f"**Ejecutabilidad en broker:** {opportunity.broker_execution_label}")
@@ -504,7 +518,7 @@ def format_report(
     lines.append("")
     lines.append(_report_freshness_summary(result.opportunities, result.generated_at))
     lines.append(
-        "Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre regular local "
+        "Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre de la sesión local "
         f"+ {config.data_quality.settlement_minutes} min. Las ausencias se validan contra el calendario "
         "de plaza con festivos; cripto no tiene sesión de cierre."
     )
@@ -616,6 +630,12 @@ def _conclusion(result: AnalysisResult, operar: List[Opportunity]) -> str:
     ]
 
     comprar = [o for o in operar if o.accion == ACCION_COMPRAR]
+    if not comprar:
+        lines.append(
+            "Liquidez recomendada: 100% — hay señales con setup válido, pero ninguna queda en COMPRAR "
+            "por ejecutabilidad o verificación de broker."
+        )
+        return "\n".join(lines)
     exposure = sum(o.sizing.position_pct for o in comprar[:3])
     liquidez = max(0.0, 100.0 - exposure)
     lines.append(

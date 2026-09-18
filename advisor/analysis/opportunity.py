@@ -48,6 +48,7 @@ RADAR_DESCARTAR = "DESCARTAR"
 ACCION_COMPRAR = "COMPRAR"
 ACCION_ESPERAR = "ESPERAR"
 ACCION_DESCARTAR = "DESCARTAR"
+ACCION_VERIFICAR_BROKER = "VERIFICAR_BROKER"
 
 LOW_SCORE = "LOW_SCORE"
 INVALID_TREND = "INVALID_TREND"
@@ -216,11 +217,15 @@ def classify(
         data_freshness=data_freshness,
         data_quality=data_quality,
     )
+    if execution.reason == BROKER_UNAVAILABLE:
+        reasons.extend(_execution_reasons(execution, risk, data_freshness))
+        return RADAR_DESCARTAR, ACCION_DESCARTAR, reasons
     if not execution.executable:
         reasons.extend(_execution_reasons(execution, risk, data_freshness))
         return RADAR_VIGILAR, ACCION_ESPERAR, reasons
     if execution.reason == BROKER_UNVERIFIED:
         reasons.extend(_execution_reasons(execution, risk, data_freshness))
+        return RADAR_OPERAR, ACCION_VERIFICAR_BROKER, reasons
 
     return RADAR_OPERAR, ACCION_COMPRAR, reasons
 
@@ -399,6 +404,28 @@ def build_opportunity(
         discard_code=_discard_code(setup),
         execution_code=_execution_code(execution, data_freshness),
         warnings=setup.warnings,
+    )
+
+
+def reevaluate_execution_at_price(
+    opportunity: Opportunity,
+    *,
+    market_price: float,
+    risk: RiskConfig,
+    portfolio: PortfolioConfig,
+    data_quality: Optional[DataQualityConfig] = None,
+) -> ExecutionEvaluation:
+    """Reevalúa la ejecutabilidad sin recalcular señal, score ni niveles."""
+
+    return evaluate_trade_at_entry(
+        levels=opportunity.levels,
+        entry_price=market_price,
+        risk=risk,
+        portfolio=portfolio,
+        label=conviction_label(opportunity.score),
+        asset=opportunity.asset,
+        data_freshness=opportunity.data_freshness,
+        data_quality=data_quality,
     )
 
 

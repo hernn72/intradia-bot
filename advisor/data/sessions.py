@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from functools import cache
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+import exchange_calendars as xcals
 import pandas as pd
 
 
@@ -27,6 +29,10 @@ class TrimResult:
     status: str
     removed_last_bar: bool = False
 
+
+MARKET_PRE_OPEN = "PRE_OPEN"
+MARKET_OPEN = "OPEN"
+MARKET_CLOSED = "CLOSED"
 
 MARKET_SESSIONS = {
     "AMS": MarketSession("Europe/Amsterdam", time(17, 30), "XAMS"),
@@ -82,6 +88,32 @@ def market_timezone(market: str) -> ZoneInfo:
     return ZoneInfo(market_session(market).timezone)
 
 
+def market_state(market: str, reference: datetime) -> Optional[str]:
+    session = MARKET_SESSIONS.get(market)
+    if session is None:
+        return None
+    if session.mic == "CRYPTO_24_7":
+        return MARKET_OPEN
+
+    cal = _exchange_calendar(session.mic)
+    local_reference = reference.astimezone(ZoneInfo(session.timezone))
+    session_label = pd.Timestamp(local_reference.date())
+    if not cal.is_session(session_label):
+        return MARKET_CLOSED
+
+    opened_at = cal.session_open(session_label)
+    closed_at = cal.session_close(session_label)
+    # ``local_reference`` ya es consciente de zona horaria: para un ``reference``
+    # sin zona, ``astimezone`` asume la del sistema, que es la misma convención
+    # que sigue ``trim_unclosed_bar`` en este módulo.
+    reference_utc = pd.Timestamp(local_reference).tz_convert("UTC")
+    if reference_utc < opened_at:
+        return MARKET_PRE_OPEN
+    if reference_utc <= closed_at:
+        return MARKET_OPEN
+    return MARKET_CLOSED
+
+
 def market_for_symbol(symbol: str, *, asset_class: Optional[str] = None) -> str:
     cleaned = symbol.upper()
     if cleaned in SYMBOL_MARKETS:
@@ -127,24 +159,40 @@ def trim_unclosed_bar(
     zone = ZoneInfo(session.timezone)
     local_now = reference.astimezone(zone)
     last_session_date = _session_date(df.index[-1], zone)
-    close_at = datetime.combine(last_session_date, session.close_time, tzinfo=zone)
+    close_at = _session_close_at(session, last_session_date).to_pydatetime().astimezone(zone)
     settled_at = close_at + timedelta(minutes=settlement_minutes)
     if local_now < settled_at:
         return TrimResult(
             df=df.iloc[:-1],
             status=(
-                f"barra {last_session_date.isoformat()} recortada: cierre regular "
-                f"{session.close_time:%H:%M} {session.timezone} + {settlement_minutes} min no alcanzado"
+                f"barra {last_session_date.isoformat()} recortada: cierre de sesión "
+                f"{close_at:%H:%M} {session.timezone} + {settlement_minutes} min no alcanzado"
             ),
             removed_last_bar=True,
         )
     return TrimResult(
         df=df,
         status=(
-            f"última barra cerrada según cierre regular {session.close_time:%H:%M} "
+            f"última barra cerrada según cierre de sesión {close_at:%H:%M} "
             f"{session.timezone} + {settlement_minutes} min"
         ),
     )
+
+
+@cache
+def _exchange_calendar(mic: str):
+    return xcals.get_calendar(mic)
+
+
+def _session_close_at(session: MarketSession, session_date: date) -> pd.Timestamp:
+    cal = _exchange_calendar(session.mic)
+    session_label = pd.Timestamp(session_date)
+    if cal.is_session(session_label):
+        return cal.session_close(session_label)
+    close_time = session.close_time
+    if close_time is None:
+        raise ValueError("no hay cierre de sesión para una plaza sin cierre")
+    return pd.Timestamp(datetime.combine(session_date, close_time, tzinfo=ZoneInfo(session.timezone))).tz_convert("UTC")
 
 
 def _session_date(timestamp: object, zone: ZoneInfo) -> date:
