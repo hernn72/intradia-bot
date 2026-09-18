@@ -282,7 +282,7 @@ class TestComputeLevels:
         universe = load_universe()
         assets = universe.analizables()
 
-        assert len(assets) == 103  # 107 hasta las cuatro bajas de D-31
+        assert len(assets) == 93  # 107, menos cuatro bajas de D-31 y diez de D-35
         for asset in assets:
             levels = compute_levels(make_snapshot(symbol=asset.symbol, price=100.0, atr=2.0), LevelsConfig())
             rr = reward_risk(levels.entry_max, levels.target2, levels.stop)

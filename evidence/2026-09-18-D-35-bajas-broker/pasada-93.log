@@ -1,0 +1,43 @@
+2026-09-18 16:55:03 [INFO] advisor.analysis.analyzer: Analizando 93 activos (horizonte swing, velas de 1d)
+2026-09-18 16:55:25 [INFO] advisor.analysis.analyzer: ^GSPC benchmark: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:26 [INFO] advisor.analysis.analyzer: AAPL: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:27 [INFO] advisor.analysis.analyzer: MSFT: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:28 [INFO] advisor.analysis.analyzer: GOOGL: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:29 [INFO] advisor.analysis.analyzer: AMZN: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:30 [INFO] advisor.analysis.analyzer: META: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:31 [INFO] advisor.analysis.analyzer: TSLA: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:32 [INFO] advisor.analysis.analyzer: ORCL: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:33 [INFO] advisor.analysis.analyzer: CRM: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:34 [INFO] advisor.analysis.analyzer: NOW: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:35 [INFO] advisor.analysis.analyzer: ADBE: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:36 [INFO] advisor.analysis.analyzer: NFLX: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:37 [INFO] advisor.analysis.analyzer: NVDA: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:38 [INFO] advisor.analysis.analyzer: AVGO: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:39 [INFO] advisor.analysis.analyzer: AMD: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:40 [INFO] advisor.analysis.analyzer: MU: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:41 [INFO] advisor.analysis.analyzer: QCOM: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:42 [INFO] advisor.analysis.analyzer: MRVL: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:43 [INFO] advisor.analysis.analyzer: INTC: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:44 [INFO] advisor.analysis.analyzer: AMAT: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:45 [INFO] advisor.analysis.analyzer: ARM: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:46 [INFO] advisor.analysis.analyzer: PLTR: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:47 [INFO] advisor.analysis.analyzer: PANW: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:48 [INFO] advisor.analysis.analyzer: CRWD: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:49 [INFO] advisor.analysis.analyzer: UBER: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:50 [INFO] advisor.analysis.analyzer: APP: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:51 [INFO] advisor.analysis.analyzer: GS: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:52 [INFO] advisor.analysis.analyzer: V: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:53 [INFO] advisor.analysis.analyzer: MA: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:54 [INFO] advisor.analysis.analyzer: BRK-B: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:55 [INFO] advisor.analysis.analyzer: LLY: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:56 [INFO] advisor.analysis.analyzer: ABBV: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:57 [INFO] advisor.analysis.analyzer: VRTX: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:58 [INFO] advisor.analysis.analyzer: LMT: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:55:59 [INFO] advisor.analysis.analyzer: CAT: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:56:00 [INFO] advisor.analysis.analyzer: XOM: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:56:01 [INFO] advisor.analysis.analyzer: CVX: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:56:02 [INFO] advisor.analysis.analyzer: COIN: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:56:28 [INFO] advisor.analysis.analyzer: AZN: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:56:38 [INFO] advisor.analysis.analyzer: TSM: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 16:56:43 [INFO] advisor.analysis.analyzer: INFY: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+CODIGO: 0

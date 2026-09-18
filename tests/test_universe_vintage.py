@@ -13,7 +13,7 @@ from advisor.universe.vintage import universe_vintage_id
 BASE_VINTAGE = "b11204ead2a392b2832764b234b584dd3f070b9a11a884bd3994d39364e30709"
 WITH_THIRD_ASSET = "28534156227fa947f5cb788f360c91d0038834dc82835fc8fef3646ed33d0eed"
 WITH_OTHER_BENCHMARK = "717e561a9a2b0cb736c4101c76c9a3ab65ac72d849bcd1a3d5d648b01c13a024"
-REAL_UNIVERSE_VINTAGE = "c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132"
+REAL_UNIVERSE_VINTAGE = "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19"
 
 
 SIN_DECLARAR = object()
@@ -128,12 +128,15 @@ groups:
         load_universe(universe_path)
 
 
-def test_universe_real_tiene_103_analizables_y_vintage_conocido() -> None:
+def test_universe_real_tiene_93_analizables_y_vintage_conocido() -> None:
     universe = load_universe("universe.yaml")
 
     assert len(universe.all_assets()) == 126
-    # 107 hasta el 2026-09-18; cuatro bajas por no estar en Trade Republic (D-31).
-    assert len(universe.analizables()) == 103
+    # 107 hasta el 2026-09-18; luego cuatro bajas por no estar en Trade Republic
+    # (D-31) y diez más el mismo día, los que estaban marcados `no` (D-35).
+    assert len(universe.analizables()) == 93
+    # Ninguna baja se queda analizable, y ninguna se cuela como contexto.
+    assert [a.symbol for a in universe.all_assets() if a.trade_republic == "no" and a.analizable] == []
     assert universe_vintage_id(universe) == REAL_UNIVERSE_VINTAGE
 
 
