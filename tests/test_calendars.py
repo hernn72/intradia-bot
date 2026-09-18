@@ -71,6 +71,47 @@ def test_etf_xetra_sobre_sp500_usa_calendario_xetra() -> None:
     assert freshness.calendar == "XETR"
 
 
+def test_benchmark_no_es_calendario() -> None:
+    history = _ohlcv_for_dates([date(2026, 9, 4), date(2026, 9, 8)])
+    freshness = calcular_frescura_serie(
+        history,
+        datetime(2026, 9, 8, 20, 0, tzinfo=timezone.utc),
+        market="NYSE",
+        strength_benchmark="^GDAXI",
+    )
+
+    assert freshness.calendar == "XNYS"
+    assert freshness.strength_benchmark == "^GDAXI"
+    assert freshness.absent_reference_sessions == ()
+
+
+def test_festivo_no_es_sesion_ausente() -> None:
+    dates = expected_sessions("XETRA", date(2026, 4, 1), date(2026, 4, 8))
+    freshness = calcular_frescura_serie(
+        _ohlcv_for_dates(dates),
+        datetime(2026, 4, 8, 20, 0, tzinfo=timezone.utc),
+        market="XETRA",
+        strength_benchmark="^GSPC",
+    )
+
+    assert date(2026, 4, 3) not in dates
+    assert date(2026, 4, 3) not in freshness.absent_reference_sessions
+
+
+def test_sesion_de_benchmark_extranjero_no_exige_vela() -> None:
+    xetra_dates = expected_sessions("XETRA", date(2026, 4, 2), date(2026, 4, 7))
+    freshness = calcular_frescura_serie(
+        _ohlcv_for_dates(xetra_dates),
+        datetime(2026, 4, 7, 20, 0, tzinfo=timezone.utc),
+        market="XETRA",
+        strength_benchmark="^GSPC",
+    )
+
+    assert date(2026, 4, 6) in expected_sessions("NYSE", date(2026, 4, 6), date(2026, 4, 6))
+    assert date(2026, 4, 6) not in xetra_dates
+    assert date(2026, 4, 6) not in freshness.absent_reference_sessions
+
+
 def test_cripto_sabado_domingo_navidad_son_sesion() -> None:
     sessions = set(expected_sessions("CRYPTO", date(2025, 12, 25), date(2025, 12, 28)))
 

@@ -351,6 +351,25 @@ instrumentos distintos del mismo emisor; no son `ticker_history`.
 
 ---
 
+### D-29 (abierta) — 2026-09-18 — Qué código emite un precio por encima de la entrada máxima
+El repositorio se contradice desde antes de hoy. `docs/plan-ejecucion.md`, en su
+caso de regresión de `EXH1.DE`, pide `RR_TOO_LOW` para `entry 56,63`; la ficha de
+T-007, el roadmap y **D-06** piden `ABOVE_MAX_ENTRY`. La causa es que
+`entry_max = min(entry_max_tecnica, entry_max_rr)` y el RR manda en 102 de los
+107 activos (medido en T-008), así que un precio por encima de la máxima
+aplicada incumple también el ratio: las dos condiciones son ciertas a la vez y
+solo el orden de las ramas decide la etiqueta. Con cualquiera de los dos órdenes
+uno de los códigos queda casi inalcanzable.
+
+En T-008 se revirtió al orden que respeta D-06 (`ABOVE_MAX_ENTRY` primero),
+porque `execution_code` se persiste y cambiar su significado a mitad de camino
+rompe la reconstrucción que exige GATE PROD.
+
+**Se decide en T-009**, que mide las dos poblaciones por separado y es la única
+que puede decir cuál de las dos etiquetas informa mejor. Hasta entonces, la
+línea del caso EXH1 de `docs/plan-ejecucion.md` es la única de sus 27 casillas
+que no se cumple, y T-010 la encontrará declarada, no por sorpresa.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
