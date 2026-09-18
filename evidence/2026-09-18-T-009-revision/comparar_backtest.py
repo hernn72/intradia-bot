@@ -1,6 +1,18 @@
-"""Simula una serie fija y escribe las operaciones, para comparar dos codigos."""
-import sys, json
-import numpy as np, pandas as pd
+"""Simula una serie fija y escribe las operaciones, para comparar dos codigos.
+
+Uso, desde la raiz del repositorio:
+
+    PYTHONPATH="$PWD" .venv/bin/python evidence/.../comparar_backtest.py
+
+y el mismo comando con PYTHONPATH apuntando a un worktree de otra rama, para
+comparar las dos salidas con diff. La semilla esta fijada: dos ejecuciones del
+mismo codigo dan el mismo fichero byte a byte.
+"""
+import json
+
+import numpy as np
+import pandas as pd
+
 from advisor.backtest.engine import POLICY_OPERAR, POLICY_TODAS, simulate_asset
 from advisor.config import AdvisorConfig
 from advisor.universe.models import Asset
