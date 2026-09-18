@@ -112,18 +112,3 @@ def run_migration(conn: sqlite3.Connection, version: int, migrate: Callable[[sql
     except Exception:
         conn.rollback()
         raise
-
-
-def apply_migrations(conn: sqlite3.Connection) -> None:
-    """Aplica las migraciones pendientes sobre una conexión abierta."""
-
-    current = int(conn.execute("PRAGMA user_version").fetchone()[0])
-    if current == 0 and table_exists(conn, "recommendation"):
-        conn.execute("PRAGMA user_version = 1")
-        current = 1
-
-    for version, _description, migrate in MIGRATIONS:
-        if version <= current:
-            continue
-        run_migration(conn, version, migrate)
-        current = version

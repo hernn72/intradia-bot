@@ -148,12 +148,6 @@ class Opportunity:
         return "❓ pendiente de verificación"
 
     @property
-    def executable_in_broker(self) -> bool:
-        """Solo un 'yes' explícito permite hablar de ejecución confirmada."""
-
-        return self.asset.trade_republic == "yes"
-
-    @property
     def confianza(self) -> str:
         """Confianza en el análisis: alta, media o baja.
 

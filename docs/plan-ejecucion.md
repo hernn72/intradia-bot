@@ -740,7 +740,11 @@ Resultado aproximado esperado: `entry_max_rr: 56.11`.
 entry 55.76 -> ejecutable por RR
 entry 56.00 -> ejecutable por RR
 entry 56.11 -> límite
-entry 56.63 -> NO ejecutable, motivo RR_TOO_LOW
+entry 56.63 -> NO ejecutable, motivo ABOVE_MAX_ENTRY
+                (D-29: esta línea decía RR_TOO_LOW; se escribió antes de que
+                PR 1 creara entry_max_for_rr. Con entry_max = rotura del RR, un
+                precio por encima de la máxima se etiqueta por la máxima, y
+                RR_TOO_LOW queda como guarda para cuando P4 introduzca holgura)
 ```
 
 ---

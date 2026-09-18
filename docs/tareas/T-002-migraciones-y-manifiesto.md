@@ -46,7 +46,7 @@ deben seguir pasando sin modificar sus aserciones de datos.
    esquema existente = 1 (marcar bases ya creadas: si `user_version == 0` y
    existe `recommendation`, fijar 1 sin tocar nada).
 2. `AdvisorDB._init_schema` → aplica el esquema base solo en base nueva y
-   luego `apply_migrations(conn)` hasta la última versión.
+   luego `apply_migrations(conn)` hasta la última versión. *(Nota de T-010, 2026-09-18: el punto de entrada real quedó en `SQLiteDB._init_schema`, que además hace backup previo; `apply_migrations` acabó huérfana y sin backup, y se borró.)*
 3. Antes de aplicar cualquier migración con versión > actual sobre un fichero
    existente: copia `intradia.db.bak-<YYYYmmdd-HHMMSS>-pre-v<n>` en el mismo
    directorio, con `sqlite3.Connection.backup()` (no `shutil.copy` sobre una

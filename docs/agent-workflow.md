@@ -9,104 +9,78 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-17 (cierre del día; OA-03 casi cerrada)
+# START HERE — actualizado 2026-09-18 (GATE L0 cruzado)
 
 ## Dónde está todo
 
-    main / origin/main / la Pi    894fa75    las tres alineadas, CI verde
-    graphify-out/                 sin seguimiento, ignorar
+    main / origin/main    <sha de esta entrega>    CI verde, branch protection activa (OA-02 HECHA)
+    la Pi                 894fa75                  CUATRO entregas por detrás: T-007, T-008, T-009, T-010
+    graphify-out/         sin seguimiento, ignorar
 
-Nada pendiente de commitear. La Pi corre lo mismo que `main`, con esquema v4 y
-los timers vivos.
+Desde OA-02 **todo entra por PR**: push de la rama → PR → dos checks → merge
+con rebase. El push directo a `main` está bloqueado también para el propietario.
 
 ## Lo que entró hoy, de abajo arriba
 
-    572192c  T-005: las 5 correcciones de su 2.ª revisión independiente
-    6e7eaa5  despliegue de T-004 y T-005 en la Pi (migración v3→v4 verificada)
-    5de38c2  D-22 validada con Codex; resuelto el added_at de los 8 renombrados
-    e0bff6b  T-006: identidad de instrumentos y universe_vintage_id canónico
-    cc9341f  T-006: las 3 correcciones de su revisión (una era un BLOCKER de CI)
-    4f07829  OA-03 primera tanda: 19 ISIN verificados en la app del broker
-    3ece8f1  punto de retomada
-    5125e90  OA-03 segunda tanda: 52 ISIN y 48 disponibilidades
-    54ac004  BTC-EUR sí está disponible (corrección del propietario)
-    ae39c6c  punto de retomada
-    894fa75  OA-03 tercera tanda: 92 ISIN, 95 disponibles, el universo cubierto
+    c314729  T-007 estado de plaza, precio ejecutable y broker (+ revisión: BLOCKER en la población del backtest)
+    36f7260  fichas T-008..T-012
+    6fbeed0  T-008 informe por capas y siete invariantes (+ revisión: invariante 1 vacua, cambio de contrato revertido)
+    3ac1fb8  T-009 filtro de ejecución medido (+ revisión: centinela [0,1] publicado como intervalo)
+    d8cbc37  arreglo de lint en evidencia (el CI lo cazó)
+    <esta>   T-010 limpieza y cierre de GATE L0
 
-Vintage actual del universo: `894ce776…`. Cambia con cada tanda de OA-03,
-y el test `test_universe_real_tiene_107_analizables_y_vintage_conocido` se
-actualiza a propósito con cada una.
+**GATE L0 CRUZADO** (D-30). Evidencia en `evidence/2026-09-18-L0-cierre/`.
 
 ## Por dónde seguir, en orden
 
-1. **T-007** (PR 4) está **escrita y sin implementar**:
-   `docs/tareas/T-007-estado-de-mercado-y-broker.md`. Lleva dentro un defecto
-   medido hoy que **no estaba en ningún plan**: `trim_unclosed_bar` compara
-   contra el cierre **regular** de la plaza, así que en un día de media sesión
-   descarta una barra ya cerrada. No ha mordido nunca —el bot nació en agosto—
-   y muerde por primera vez el **2026-11-27** (NYSE y NASDAQ cierran a las
-   13:00), luego el 24, 30 y 31 de diciembre con ocho plazas. Hay margen hasta
-   finales de noviembre y ni un día más.
-   Ojo: la ficha corrige un error propio. NO añadir `open_time` a mano a
-   `MARKET_SESSIONS`: `exchange_calendars` ya da apertura y cierre, y sus 14
-   cierres coinciden exactamente con los hardcodeados. Copiarlos sería una
-   segunda fuente de verdad (INV-06).
-2. **OA-03 está prácticamente cerrada.** 92 con ISIN verificado, 95
-   disponibles, 10 no disponibles, 3 no aplicable. Solo faltan:
-   - `UCG.MI` y `1211.HK`, sin comprobar en la app.
-   - `SAN.MC` y `005930.KS`, en **`PENDIENTE_ADR`**: el propietario aportó el
-     ISIN del ADR/GDR estadounidense, pero el bot analiza la acción local en
-     Madrid y en Seúl. Hay que decidir si se registra el ADR anotando la
-     diferencia o se cambia el símbolo analizado. Mismo problema que `TSM` e
-     `INFY`. **Decisión pendiente del propietario, no la tome un agente.**
-   - Nueve sin ISIN por estar marcados no disponibles, que es coherente.
-
-   Efecto en producción: `EXECUTABLE` pasó de 0 a **51** y `BROKER_UNVERIFIED`
-   de 57 a **1**. Lo que frena ahora al asesor es la calidad del dato —28
-   `MISSING_RECENT_DATA`, 18 `STALE_DATA`, 3 `PARTIAL_BAR`—, nunca el broker.
-
-3. **T-008..T-010** (PR 5) siguen **sin ficha**; las escribe Opus.
+1. **OA-04 (propietario):** desplegar en la Pi. No hay motivo para esperar y
+   la Pi lleva cuatro entregas sin la capa de ejecución honesta.
+2. **T-016** (Codex → Opus) — el centinela `(0.0, 1.0)` de
+   `bootstrap_block_mean_interval` lo consume `capacity.py`, que emite el
+   veredicto de P2.5. **Va antes de A-02.** Hay que contar cuántas celdas de ese
+   veredicto lo llevaban.
+3. **T-011 + T-017** juntas (Codex → Opus), una sola migración v4→v5:
+   release por tag y rollback probado, más `git_dirty` nullable,
+   `config_hash` sin rutas, `backup_log` migrado y vintage por grupo.
+4. **T-012** (Codex → Opus → propietario): la cifra de OD-02/OD-09/OD-10.
+5. **T-015**: backtest sobre cosecha congelada. Antes de A-02 si A-02 va a
+   comparar poblaciones.
+6. **T-013 (A-02)** → GATE P2. Ya no está bloqueada.
 
 ## Decisiones del propietario pendientes
 
-- **OA-02** — branch protection en GitHub, sin hacer. `main` recibió seis
-  commits hoy y sigue admitiendo push directo y force-push.
-- **OD-09** (horario de las pasadas) y **OD-10** (cripto), abiertas desde ayer.
-  Ahora se deciden con datos: con **24 activos ya `EXECUTABLE`**, lo que frena a
-  los europeos es `STALE_DATA` y `MISSING_RECENT_DATA`, y a las criptos
-  `PARTIAL_BAR`. Ninguna de las dos cosas es el broker. `BTC-EUR` está
-  disponible y aun así no es recomendable por su barra 24/7: eso es OD-10 en
-  estado puro.
+- **OA-04** — desplegar la línea 0 en la Pi (ver arriba).
+- **OD-09** y **OD-10** — esperan la cifra de T-012.
+- **SAN.MC** y **005930.KS** en `PENDIENTE_ADR`; `UCG.MI` y `1211.HK` sin comprobar en la app.
 
-## Dos hallazgos abiertos que no son de ninguna ficha
+## Tres cifras de hoy que cambian cómo se piensa el asesor
 
-- `analizar --grupos X` declara el vintage del universo **entero**, no el del
-  subconjunto analizado.
-- El informe de `capacidad-estadistica` no publica ningún vintage, así que un
-  veredicto de GATE no es atribuible a ninguna cosecha.
+- **El RR mínimo manda en 102 de los 107** (T-008): `entry_max_atr` interviene en menos del 5 %.
+- **El filtro de ejecución rechaza más de la mitad de lo que el score aprueba**, y lo ejecutado rinde 0,21 R frente a 0,12 de lo rechazado, con intervalos solapados (T-009).
+- **`RR_TOO_LOW` es inalcanzable: 0 de 2.151** (T-009, D-29). Se conserva como guarda para P4.
 
 ## Cómo se trabajó hoy, y qué repetir
 
-Las tres capas siguieron encontrando cosas distintas, y **la revisión
-independiente encontró defectos en las dos entregas**, incluidos dos errores
-míos: afirmé en una evidencia que una guarda empezaría a proteger con la
-próxima cosecha cuando el campo no lo escribía nadie, y mi comprobación manual
-del benchmark tocó justo el único caso que ya funcionaba. Verificar contra
-datos reales no basta si la comprobación se apoya en el mismo punto ciego.
+Tres entregas de Codex, tres revisiones independientes, **las tres CORREGIR**, y
+en cada una el defecto fue del mismo tipo: algo que la suite verde no veía.
 
-Tres trampas concretas que volverán:
-- Revertir un defecto inyectado con `git checkout -- <fichero>` **borra las
-  correcciones sin commitear**. Copiar a /tmp y restaurar desde ahí.
-- `trade_republic: yes` sin comillas lo lee YAML como booleano y la carga falla.
-- Una suite verde en el portátil no dice nada del CI: comprobar con
-  `git archive HEAD | tar -x` en un directorio aparte.
+- T-007: la acción nueva sacaba activos de la población del backtest en silencio.
+- T-008: una invariante vacua (un caso bueno sale bueno) y un cambio de contrato
+  colado como SAME_SCOPE.
+- T-009: un centinela publicado como intervalo. Y el propio Codex bloqueó con
+  razón: el backtest en vivo no es reproducible.
 
-**Codex**: disponible otra vez, comprobado al cierre del 2026-09-17. Agota la
-cuota con facilidad y la recupera a las ~13:48.
-Su sandbox **no puede escribir refs de git**, así que hay que crearle la rama
-antes y commitear por él. Y `codex exec` se cuelga esperando stdin si no se
-cierra con `< /dev/null`; `--full-auto` no existe en la 0.150.1, se usa
-`--sandbox workspace-write -c sandbox_workspace_write.network_access=true`.
+Reglas que salieron de hoy, ya en los prompts:
+- **SAME_SCOPE significa dentro del alcance de la ficha, no «me venía bien».**
+  Si cambia un contrato, un código persistido o una decisión registrada, no lo es.
+- **Una invariante se comprueba inyectando el defecto y ejecutando**, con la
+  salida guardada. «Revisé que la aserción toca el campo» se devuelve.
+- **Verifica lo que vas a commitear, no lo que había antes de añadir el último
+  fichero.** `ruff check .` cubre `evidence/`; el CI cazó un script sin lint.
+- **La métrica 6 solo se mide en la Pi.** Aquí no se guarda nada.
+- **Codex** agota la cuota a media tarea (hoy a las ~11:00, vuelve a las 13:34)
+  y deja el árbol sin commitear; lo que deja se puede terminar a mano si está
+  bien especificado. Su sandbox no escribe refs: crearle la rama antes.
 ```
 
 ---

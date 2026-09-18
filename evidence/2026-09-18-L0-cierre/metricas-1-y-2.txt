@@ -1,0 +1,26 @@
+instante=2026-09-18T10:55:06.971161+00:00
+ausencias totales=37 en 3 fechas distintas
+METRICA 1 -- huecos falsos (plaza cerrada ese dia): 0
+METRICA 2 -- activos con ausencia el 2026-09-07: 22
+    IFX.DE     plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    ENI.MI     plaza=MIL    abierta_ese_dia=True calidad_reciente=MEDIUM
+    TTE.PA     plaza=PAR    abierta_ese_dia=True calidad_reciente=MEDIUM
+    RACE.MI    plaza=MIL    abierta_ese_dia=True calidad_reciente=MEDIUM
+    ALV.DE     plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    IBE.MC     plaza=MCE    abierta_ese_dia=True calidad_reciente=MEDIUM
+    R6C0.DE    plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    BBVA.MC    plaza=MCE    abierta_ese_dia=True calidad_reciente=MEDIUM
+    ITX.MC     plaza=MCE    abierta_ese_dia=True calidad_reciente=MEDIUM
+    SIE.DE     plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    OR.PA      plaza=PAR    abierta_ese_dia=True calidad_reciente=MEDIUM
+    DBK.DE     plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    DTE.DE     plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    MUV2.DE    plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    MBG.DE     plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    SU.PA      plaza=PAR    abierta_ese_dia=True calidad_reciente=MEDIUM
+    RRU.DE     plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    BSP.DE     plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    SAF.PA     plaza=PAR    abierta_ese_dia=True calidad_reciente=MEDIUM
+    ENR.DE     plaza=XETRA  abierta_ese_dia=True calidad_reciente=MEDIUM
+    ADYEN.AS   plaza=AMS    abierta_ese_dia=True calidad_reciente=MEDIUM
+    AIR.PA     plaza=PAR    abierta_ese_dia=True calidad_reciente=MEDIUM

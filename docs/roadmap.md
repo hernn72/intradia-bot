@@ -186,7 +186,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | PR 4 | Fases 9–11 estado de mercado, «último cierre», reevaluación tras apertura, broker, ISIN `EXH1.DE` | **ACEPTADA** (2026-09-18). Revisión independiente CORREGIR: un BLOCKER —`VERIFICAR_BROKER` sacaba a los activos sin verificar de la población de `POLICY_OPERAR` del backtest y los borraba de su informe, contra D-04 e INV-04— y un fallo de `market_state` con `datetime` sin zona; los dos corregidos con tests que fallan contra el código sin corregir. ISIN `DE000A0H08M3` cruzado contra la ficha del emisor. Incorpora un defecto medido que no estaba en el plan: `trim_unclosed_bar` usaba el cierre **regular** y descartaba barras ya cerradas en días de media sesión; muerde por primera vez el 2026-11-27. La ficha se escribió con los 107 activos en `unknown`; tras OA-03 quedan 2 | PR 3 | **T-007** |
 | PR 5 | Fases 12–13 informe + siete invariantes de integración | **ACEPTADA** (2026-09-18). Revisión independiente CORREGIR: la invariante 1 era vacua (pasaba con la guarda de ejecución quitada) y un cambio de contrato —intercambiar `ABOVE_MAX_ENTRY` y `RR_TOO_LOW`— iba declarado como SAME_SCOPE pese a que `execution_code` se persiste; los dos corregidos. Medido: el RR manda en 102 de los 107, la técnica en 5 | PR 4 | **T-008** |
 | PR 5 | Fase 14 filtro de ejecución medido aparte del score, incl. pérdida por `ABOVE_MAX_ENTRY` a la apertura (D-06) | **ACEPTADA** (2026-09-18). Entregada BLOQUEADA por su autor con razón: el criterio «el backtest no cambia» era inverificable porque el backtest en vivo no es reproducible (891/893/890 en el mismo commit). Sustituido por comparación determinista, idéntica byte a byte. Revisión: se publicaba el centinela `[0,1]` como intervalo; corregido. **Medido: el filtro rechaza más de la mitad de lo que el score aprueba**, y lo ejecutado rinde 0,21 R por bloque frente a 0,12 de lo rechazado, con intervalos solapados | PR 4 | **T-009** |
-| PR 5 | Fase 15 limpieza → **GATE L0** | PENDIENTE, **ficha escrita** (2026-09-18) | todo lo anterior + C-00..C-02 | **T-010** |
+| PR 5 | Fase 15 limpieza → **GATE L0** | **ACEPTADA — GATE L0 CRUZADO** (2026-09-18, D-30). Seis métricas medidas juntas sobre `main`, la 6 en la Pi; tres huérfanas borradas, una de ellas `apply_migrations`, que migraba sin backup; 13 hallazgos abiertos resueltos o con ficha; suite también en clon limpio. Casilla 26 del plan abierta con T-015 | todo lo anterior + C-00..C-02 | **T-010** |
 
 ### Línea C — Ingeniería de producción (transversal; C-00..C-02 antes de PR 3)
 
@@ -196,6 +196,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | C-01 | Migraciones `user_version`, backup pre-migración, `verificar-backup` | HECHO (T-002, revisión independiente aplicada; ver evidencia) | C-00 | T-002 |
 | C-02 | Manifiesto de ejecución (`run_id`, SHA, config hash, vintages, versiones, reloj) | HECHO (T-002; reloj medido vía `timesync-status`/`chronyc`/SNTP UDP; alerta Telegram pendiente en C-04) | C-01 | T-002 |
 | C-07 | Backtest reproducible sobre cosecha congelada; el modo en vivo declara que no lo es | PENDIENTE, **ficha escrita** (2026-09-18). Medido: tres pasadas del mismo commit dan 891, 893 y 890 operaciones. Afecta a la línea base de la línea 0 | — | **T-015** |
+| C-08 | Higiene del manifiesto y del esquema: `git_dirty` nullable, `config_hash` sin rutas, `backup_log` migrado, vintage por grupo — una sola migración, junto con T-011 | PENDIENTE, **ficha escrita** (2026-09-18) | C-01, C-02 | **T-017** |
 | C-03 | Release por tag, `verificar-release` en la Pi, despliegue y rollback documentados y probados | PENDIENTE, **ficha escrita** (2026-09-18) | C-00 | **T-011** |
 | C-04 | Logs rotados, alertas Telegram (pasada fallida, proveedor caído, reloj > 60 s, `events.yaml` caduca), timeouts y reintentos por proveedor, degradación sin red probada | PENDIENTE | C-02 | por escribir |
 | C-05 | Persistir narrativa LLM con provider/model/prompt_version/input_hash (D-12) | PENDIENTE | C-01 | por escribir |
@@ -208,7 +209,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | **ACEPTADA y en `main`** (2026-09-17). Revisión independiente CORREGIR: un BLOCKER de CI, la guarda de INV-08 que no escribía nadie y el vintage ciego al benchmark declarado; los tres corregidos. Vintage vigente `894ce776…`, que se mueve con cada tanda de OA-03 | C-02 | T-006 |
 | A-09 | El centinela `(0.0, 1.0)` deja de publicarse como intervalo; auditar cuántas celdas de P2.5 lo llevaban | PENDIENTE, **ficha escrita** (2026-09-18). **Antes de A-02**: `capacity.py` lo consume y es quien emite el veredicto de P2.5 | — | **T-016** |
 | A-01 | Interpretar el histórico de frescura de la Pi (recurrencia de huecos) → alimenta OD-02 | PENDIENTE, **ficha escrita** (2026-09-18); da también la cifra de OD-09 y OD-10 | acceso a la Pi | **T-012** |
-| A-02 | Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con RS alineada y línea 0; decidir el RR en el score → **GATE P2** | BLOQUEADO(GATE L0, A-00) | GATE L0 | T-013 |
+| A-02 | Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con RS alineada y línea 0; decidir el RR en el score → **GATE P2** | **PENDIENTE** (GATE L0 cruzado el 2026-09-18). **Antes: T-016**, porque `capacity.py` puede estar publicando un intervalo falso en el veredicto de P2.5 | GATE L0, T-016 | T-013 |
 | A-03 | P3 Score v2: dimensiones, pesos, `score_model_version`, umbrales por horizonte, ¿`convicción` fuera del número? → **GATE P3** | BLOQUEADO(GATE P2) | A-02 | por escribir |
 | A-04 | P4 Geometría: stop/objetivo/entrada **incluida la holgura de entrada** (D-06), pareado + bootstrap por bloques, heterogeneidad → **GATE P4** | BLOQUEADO(GATE P3) | A-03 | por escribir |
 | A-05 | P5 Regiones robustas → **GATE P5** | BLOQUEADO | A-04 | por escribir |
@@ -304,19 +305,15 @@ flowchart LR
 
 ## Hallazgos abiertos (FOLLOW_UP y OBSERVATION que no tienen ficha)
 
-- `events.yaml` caduca el **2027-12-16**; avisa a 60 días (C-04 lo convierte en alerta).
-- `^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F`, `GC=F` no alimentan el contexto de mercado (solo VIX, tendencia europea y Asia). Medir antes de enchufar.
-- `economic_currency` se guarda y no se usa; descomponer el ATR en riesgo de activo y de divisa es cambio de cálculo: medir (P4 o después).
-- Los eventos no puntúan, a propósito; `YahooEarningsSource` no es point-in-time (ver auditoría, punto 8).
-- Dividendo cobrado durante una posición de horizonte medio no entra en el P&L del laboratorio (protocolo P2.0, pendiente antes de interpretar P6 en `medio`).
-- `capital:` vacío en `config.yaml` a propósito; P6 usa capital sintético.
-- `portfolio.risk_per_trade_pct: 0.5` con `max_position_pct: 10` produce riesgos efectivos de 0,25 % cuando el tope manda (visto en `EXH1.DE`); es coherente, pero el informe debería decirlo más claro (fase 12).
-- `git_dirty` devuelve `False` si `git status` falla o expira (`advisor/run/manifest.py`); convertirlo en nullable exige otra migración (FOLLOW_UP del revisor de T-002, INV-16).
-- `config_hash` incluye `db_path` y `universe_path`: la misma configuración lógica en portátil y Pi da hashes distintos. Decidir si se excluyen las rutas (OBSERVATION del revisor de T-002; afecta a la reconstrucción de D-10).
-- `backup_log` se crea fuera de la lista de migraciones (`_ensure_backup_log`); inocuo, pero es esquema no versionado (OBSERVATION).
-- `docs/protocolo-investigacion.md` sigue diciendo «Estado: acordado, sin implementar» en la cabecera; P2.0–P2.6 están implementados. Corregir la cabecera en la próxima entrega que toque `advisor/research/` (OBSERVATION).
+Triados en T-010 (2026-09-18): de los trece que había, 4 cerrados, 6 con ficha
+(C-04, T-014, T-017) y 3 convertidos en notas de fase. Detalle en
+`evidence/2026-09-18-L0-cierre/README.md` §5. Quedan aquí solo las notas, que
+no son defectos sino condiciones para fases futuras:
 
----
+- **A-03 (P3):** `^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F`, `GC=F` no alimentan el contexto de mercado. Medir antes de enchufar.
+- **A-04 (P4):** `economic_currency` se guarda y no se usa; descomponer el ATR en riesgo de activo y de divisa es cambio de cálculo, se mide allí. Y `RR_TOO_LOW` es hoy inalcanzable por construcción (D-29); vuelve a ser alcanzable si P4 introduce holgura de entrada, y por eso no se borra.
+- **A-06 (P6):** el dividendo cobrado durante una posición de horizonte medio no entra en el P&L del laboratorio (protocolo P2.0); resolver antes de interpretar `medio`.
+- **`RR` en el score:** sigue siendo dimensión (20 de 100 puntos) por D-17; lo decide A-02, no la línea 0.
 
 ## Definición de terminado del proyecto
 

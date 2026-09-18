@@ -18,10 +18,6 @@ class MarketSession:
     close_time: Optional[time]
     mic: str
 
-    @property
-    def has_close(self) -> bool:
-        return self.close_time is not None
-
 
 @dataclass(frozen=True)
 class TrimResult:
