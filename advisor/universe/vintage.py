@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any
+from typing import Any, List, Optional
 
 from advisor.universe.models import Universe
 
@@ -14,8 +14,17 @@ def canonical_hash(value: Any) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def universe_vintage_payload(universe: Universe) -> list[dict[str, object]]:
-    """Lista canónica de analizables que entra en el hash del universo."""
+def universe_vintage_payload(
+    universe: Universe,
+    groups: Optional[List[str]] = None,
+) -> list[dict[str, object]]:
+    """Lista canónica de analizables que entra en el hash del universo.
+
+    Con ``groups``, la lista es la de **esa** selección: una pasada sobre un
+    subconjunto analiza una población distinta y no puede declarar el
+    identificador de la lista entera (INV-19). Sin ``groups``, el resultado es
+    el de siempre, bit a bit (D-23).
+    """
 
     return [
         {
@@ -37,9 +46,9 @@ def universe_vintage_payload(universe: Universe) -> list[dict[str, object]]:
             # él su fortaleza relativa y su puntuación— sin mover el vintage.
             "benchmark_declared": "benchmark" in asset.model_fields_set,
         }
-        for asset in sorted(universe.analizables(), key=lambda item: item.instrument_id or "")
+        for asset in sorted(universe.analizables(groups), key=lambda item: item.instrument_id or "")
     ]
 
 
-def universe_vintage_id(universe: Universe) -> str:
-    return canonical_hash(universe_vintage_payload(universe))
+def universe_vintage_id(universe: Universe, groups: Optional[List[str]] = None) -> str:
+    return canonical_hash(universe_vintage_payload(universe, groups))

@@ -1,0 +1,33 @@
+Comparacion de dos pasadas reales del mismo dia sobre los 103 analizables:
+  pasada-main.txt   codigo de main (11efae8), 13:57 UTC
+  pasada-rama.txt   esta rama, 13:55 UTC
+
+Diff normalizando los numeros (los precios en vivo cambian entre pasadas):
+
+2c2
+< ASESOR DE INVERSIÓN — 2026-09-18 13:57 UTC  |  horizonte: swing  |  velas: 1d
+---
+> ASESOR DE INVERSIÓN — 2026-09-18 13:55 UTC  |  horizonte: swing  |  velas: 1d
+176d175
+<   - SOL-EUR (Solana) — score 69, ratio N:1 [LOW_SCORE] — puntuación 69, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+184a184
+>   - SOL-EUR (Solana) — score 66, ratio N:1 [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+209c209
+< run 20357477-3128-4310-a2e6-73cffe57c006 · 11efae8c3d85 · config 271d46b2 · universo c8496446
+---
+> run ecce9cd2-a89b-498a-91e3-8516c9de4004 · 11efae8c3d85+dirty · config 1294c526 · universo c8496446
+
+Lectura:
+1. La cabecera difiere en la hora: son dos pasadas distintas.
+2. SOL-EUR cambia de posicion dentro de DESCARTADOS porque su score paso
+   de 69 a 66 entre las 13:55 y las 13:57. Mismo radar, mismo code
+   LOW_SCORE, mismo umbral 70: es el precio de la cripto moviendose, no
+   una decision distinta.
+3. El pie cambia en dos cosas, las dos esperadas:
+   - config_hash 271d46b2 -> 1294c526, porque D-33 saca las rutas del hash.
+   - +dirty, porque el arbol de la rama tiene cambios sin commitear.
+4. Ninguna recomendacion cambia de radar ni de accion.
+
+No se puede hacer mejor que esto con pasadas en vivo: dos ejecuciones
+consecutivas del MISMO commit tampoco darian ficheros identicos. Por eso
+se compara la estructura y no el byte.

@@ -1,0 +1,14 @@
+Vintage declarado en el pie del manifiesto de dos pasadas reales del mismo commit:
+
+  sin --grupos (103 analizables):
+run ecce9cd2-a89b-498a-91e3-8516c9de4004 · 11efae8c3d85+dirty · config 1294c526 · universo c8496446
+
+  --grupos europa (28 analizables):
+run 3ce5a8a2-d243-4c76-831d-bf43ae6b42a1 · 11efae8c3d85+dirty · config 1294c526 · universo 1d721d98
+
+El universo cambia (c8496446 -> 1d721d98) y el config_hash no (1294c526),
+que es exactamente lo que pide T-017: el vintage es el de la poblacion
+analizada, y la configuracion logica es la misma.
+
+c8496446... es el vintage publicado en D-31 para los 103 analizables:
+16:REAL_UNIVERSE_VINTAGE = "c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132"

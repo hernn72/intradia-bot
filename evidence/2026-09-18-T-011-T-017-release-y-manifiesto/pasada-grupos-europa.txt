@@ -1,0 +1,74 @@
+==========================================================================================
+ASESOR DE INVERSIÓN — 2026-09-18 13:56 UTC  |  horizonte: swing  |  velas: 1d
+==========================================================================================
+
+## 🌍 SITUACIÓN GLOBAL
+
+Asia:
+  - CSI 300 (vía ETF China AMC) (510300.SS): 4,58 CNY +0,7%
+  - Hang Seng (^HSI): 24750,78 HKD +0,6%
+  - KOSPI (^KS11): 6894,23 KRW +2,7%
+  - Nikkei 225 (^N225): 65018,95 JPY +1,4%
+  - Taiwan Weighted (^TWII): 47180,75 TWD +1,9%
+Europa:
+  - CAC 40 (^FCHI): 8070,47 EUR -1,4%
+  - DAX (^GDAXI): 25371,39 EUR -1,3%
+  - STOXX Europe 600 (^STOXX): 636,33 EUR -1,0%
+  - Euro Stoxx 50 (^STOXX50E): 6239,71 EUR -1,3%
+EE. UU.:
+  - S&P 500 (^GSPC): 7630,63 USD -0,1%
+  - Nasdaq 100 (^NDX): 29494,14 USD +0,2%
+  - Russell 2000 (^RUT): 2859,13 USD -0,5%
+  - Philadelphia Semiconductor (^SOX): 11735,10 USD +1,2%
+  - Treasury 10 años (^TNX): 4,99 USD +0,9%
+  - VIX (^VIX): 15,27 USD -1,1%
+Global:
+  - WTI (CL=F): 97,83 USD -4,0%
+  - Dollar Index (DX-Y.NYB): 100,48 USD +0,3%
+  - EUR/USD (EURUSD=X): 1,15 USD -0,0%
+  - Oro (GC=F): 4394,40 USD -0,1%
+
+Volatilidad: VIX 15,4 (umbral 25,0)  |  Contexto: RISK_ON — tendencia alcista del índice de referencia y volatilidad contenida
+
+**Frescura de datos:** 28 activos analizados con snapshot.
+  - Calidad: DEGRADADO=27, OK=1.
+  - 0 sesiones cerradas perdidas: 1 activo; última barra 2026-09-17 (NASDAQ).
+⚠️ 1 sesión cerrada perdida: 27 activos; última barra 2026-09-16 (XETRA (13), PAR (6), MCE (3), AMS (2), MIL (2), CPH).
+  - 2 o más sesiones cerradas perdidas: 0 activos.
+⚠️ Sesiones ausentes frente al calendario de su plaza: 1 activo.
+  - NOVO-B.CO: faltan 2026-03-23 en XCSE.
+Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre de la sesión local + 20 min. Las ausencias se validan contra el calendario de plaza con festivos; cripto no tiene sesión de cierre.
+
+## 🔥 OPORTUNIDADES DETECTADAS
+
+Ninguna oportunidad cumple hoy los criterios de entrada.
+
+## 👀 RADAR
+
+  - IFX.DE (Infineon) — score 69, ratio 3,2:1 calidad DEGRADADO; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 69, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - TTE.PA (TotalEnergies) — score 65, ratio 1,5:1 calidad DEGRADADO; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 65, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - ALV.DE (Allianz) — score 65, ratio 1,5:1 calidad DEGRADADO; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 65, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - IBE.MC (Iberdrola) — score 62, ratio 1,5:1 calidad DEGRADADO; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 62, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - RACE.MI (Ferrari) — score 62, ratio 1,5:1 calidad DEGRADADO; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 62, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - ENI.MI (Eni) — score 62, ratio 1,5:1 calidad DEGRADADO; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 62, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - BBVA.MC (BBVA) — score 61, ratio 1,5:1 calidad DEGRADADO; ⚠️ dato 2026-09-16 (1s) [LOW_SCORE] — puntuación 61, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+
+## 🔴 DESCARTADOS
+
+21 activos descartados por grupo:
+  - score insuficiente: 21 activos — R6C0.DE, ITX.MC, DTE.DE, SIE.DE, DBK.DE, SAP.DE, AZN, OR.PA, MBG.DE, MUV2.DE, NOVO-B.CO, MC.PA, RRU.DE, BSP.DE, SU.PA, ASML.AS, ADYEN.AS, SAF.PA, ENR.DE, AIR.PA, RHM.DE
+  - RR/ejecución: 0 activos
+  - datos: 0 activos
+  - tendencia: 0 activos
+  - sobreextensión: 0 activos
+  - broker: 0 activos
+  - otros: 0 activos
+
+## 🎯 CONCLUSIÓN
+
+**NO OPERAR / MANTENER LIQUIDEZ** — ninguna oportunidad ofrece hoy una relación rentabilidad/riesgo suficiente. Mantener liquidez también es una decisión de inversión.
+
+------------------------------------------------------------------------------------------
+Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
+==========================================================================================
+run 3ce5a8a2-d243-4c76-831d-bf43ae6b42a1 · 11efae8c3d85+dirty · config 1294c526 · universo 1d721d98

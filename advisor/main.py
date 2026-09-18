@@ -41,6 +41,7 @@ from advisor.data.freshness import (
 )
 from advisor.data.fx import FxConverter
 from advisor.data.market_data import MarketDataProvider
+from advisor.deploy.release import evaluate_release, format_release_status
 from advisor.deploy.systemd import DEFAULT_CONFIG_ENV, DEFAULT_SYSTEMD_DIR, find_systemd_drift, write_rendered_units
 from advisor.events.calendar import EventCalendar, YahooEarningsSource
 from advisor.events.passes import decide_event_pass, format_event_trigger
@@ -59,7 +60,7 @@ from advisor.research.execution_filter import format_execution_filter_report, ru
 from advisor.research.uncertainty import compare_target_geometry, format_paired_comparison
 from advisor.research.vintage import freeze_vintage, select_symbols
 from advisor.run.manifest import RunManifest, build_run_manifest, format_manifest_footer
-from advisor.storage.db import AdvisorDB, verify_backup
+from advisor.storage.db import AdvisorDB, check_backup, format_backup_check
 from advisor.storage.migrations import LATEST_VERSION
 from advisor.telegram.notifier import TelegramNotifier
 from advisor.universe.loader import load_universe
@@ -190,17 +191,20 @@ def freshness_row_to_measurement(row: FreshnessRow, measured_at: str) -> Dict[st
 
 def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     db = None if args.sin_guardar else AdvisorDB(config.db_path)
+    # Los grupos se resuelven antes del manifiesto: el vintage que se declara
+    # es el de la población que se va a analizar, no el del universo entero.
+    groups: Optional[List[str]] = args.grupos.split(",") if args.grupos else None
     manifest = build_run_manifest(
         command="analizar",
         config=config,
         universe=universe,
         schema_version=db.schema_version() if db is not None else LATEST_VERSION,
         timestamp=datetime.now(timezone.utc),
+        groups=groups,
     )
     provider = MarketDataProvider(config.request_min_interval_seconds)
     fx = FxConverter(provider, config.base_currency)
 
-    groups: Optional[List[str]] = args.grupos.split(",") if args.grupos else None
     result = run_analysis(config, universe, provider, horizonte=args.horizonte, groups=groups)
 
     if config.ai.enabled and not args.sin_ia:
@@ -526,12 +530,17 @@ def cmd_filtro_ejecucion(args: argparse.Namespace, config: AdvisorConfig, univer
 
 def cmd_verificar_backup(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     del universe
-    ok = verify_backup(config.db_path, args.ruta)
-    if ok:
-        print(f"Backup verificado: {args.ruta}")
-        return 0
-    print(f"Backup inválido: {args.ruta}", file=sys.stderr)
-    return 1
+    check = check_backup(config.db_path, args.ruta)
+    salida = sys.stdout if check.restorable else sys.stderr
+    print(format_backup_check(check), file=salida)
+    return 0 if check.restorable else 1
+
+
+def cmd_verificar_release(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    del config, universe
+    status = evaluate_release(args.repo, remote=args.remote, check_remote=not args.sin_red)
+    print(format_release_status(status))
+    return status.exit_code
 
 
 def cmd_manifiesto(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
@@ -549,7 +558,9 @@ def cmd_manifiesto(args: argparse.Namespace, config: AdvisorConfig, universe: Un
     provider_versions = payload.get("provider_versions")
     if isinstance(provider_versions, str):
         payload["provider_versions"] = json.loads(provider_versions)
-    payload["git_dirty"] = bool(payload["git_dirty"])
+    # `None` es un valor propio: significa que la pasada no pudo comprobarlo.
+    if payload.get("git_dirty") is not None:
+        payload["git_dirty"] = bool(payload["git_dirty"])
     print(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True))
     print("\nRecomendaciones:")
     for row in db.get_recommendations_for_run(args.run_id):
@@ -996,6 +1007,17 @@ def build_parser() -> argparse.ArgumentParser:
     render_systemd.add_argument("--output-dir", required=True, help="directorio donde escribir las unidades renderizadas")
     render_systemd.add_argument("--event-time", help="hora HH:MM de la pasada por evento; por defecto, config.yaml")
     render_systemd.set_defaults(func=cmd_render_systemd)
+
+    verificar_release = sub.add_parser("verificar-release", help="compara el código en ejecución con su tag de release")
+    verificar_release.add_argument("--repo", default=".", help="raíz del repositorio a comprobar")
+    verificar_release.add_argument("--remote", default="origin", help="remoto contra el que comprobar el tag")
+    verificar_release.add_argument(
+        "--sin-red",
+        action="store_true",
+        dest="sin_red",
+        help="no preguntar al remoto; el punto de origin queda declarado como desconocido",
+    )
+    verificar_release.set_defaults(func=cmd_verificar_release)
 
     verificar_systemd = sub.add_parser("verificar-systemd", help="compara systemd instalado contra plantillas resueltas")
     verificar_systemd.add_argument("--config-env", default=DEFAULT_CONFIG_ENV, help="EnvironmentFile externo de despliegue")

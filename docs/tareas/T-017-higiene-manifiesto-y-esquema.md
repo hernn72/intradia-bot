@@ -1,7 +1,7 @@
 # T-017 — Higiene del manifiesto y del esquema (cuatro hallazgos, una migración)
 
-Estado: PENDIENTE
-Agente: Codex (implementación) → Opus (revisión)
+Estado: EN_REVISION (2026-09-18) — implementada junto con T-011, una sola migración v4→v5
+Agente: Opus (implementación) → Codex (revisión independiente)
 Línea / fase: Línea C, C-02 (manifiesto) y C-01 (migraciones)
 Gate al que contribuye: GATE PROD (requisito 4: reconstrucción probada a ≥ 30 días)
 
@@ -119,5 +119,78 @@ Rama `fix/manifest-schema-hygiene`. Mensaje:
 la sección de abiertos. `docs/decision-log.md`: D-nn con la regla del hash y su
 versión. `docs/tareas/T-002-…md`: nota de que estos FOLLOW_UP se cierran aquí.
 
+## Qué se implementó, hallazgo por hallazgo
+
+1. **`git_dirty` nullable.** Los primitivos de git se mudan a
+   `advisor/run/git.py`, donde `run_git` distingue «el comando falló» de «la
+   salida está vacía» —que es justo lo que se confundía—. `git_dirty` devuelve
+   `GitDirty(value, reason)`: `True`, `False` o `None` con el motivo. La columna
+   `git_dirty` pasa a aceptar `NULL` y se añade `git_dirty_reason`. El pie del
+   informe dice `+dirty?` cuando no se pudo comprobar, en vez de callar.
+2. **`config_hash` sin rutas, y versionado.** `db_path` y `universe_path` salen
+   del hash. Los manifiestos anteriores **no** se recalculan: la migración los
+   marca con `config_hash_version = 1` y los nuevos nacen con `2` (D-33).
+3. **`backup_log` en la lista de migraciones.** La DDL vive en
+   `advisor/storage/migrations.py` (`BACKUP_LOG_STATEMENTS`), la aplica el
+   esquema base para bases nuevas y la migración v5 para las que ya existían,
+   idempotente. `_ensure_backup_log` desaparece: ya no se crea esquema en cada
+   apertura.
+4. **Vintage del subconjunto.** `universe_vintage_id(universe, groups)` y
+   `build_run_manifest(..., groups=...)`. `analizar --grupos europa` declara el
+   vintage de esos activos y guarda los grupos pedidos en el manifiesto. Sin
+   `--grupos` el identificador es idéntico al publicado (D-23), comprobado
+   contra la constante real `c8496446…`.
+
+## Invariantes ejercitadas
+
+- **INV-16**: `test_git_dirty_es_null_cuando_git_status_falla`, verificada
+  inyectando el defecto (`evidence/.../inyeccion-de-defectos.txt`, bloque D).
+- **INV-17**: migración v5 con backup previo, probada sobre una copia de la base
+  real (`evidence/.../migracion-v4-a-v5.txt`) y sobre una copia con manifiestos
+  de la forma que tiene la Pi (`migracion-con-manifiestos.txt`).
+- **INV-19**: `test_grupos_declara_el_vintage_del_subconjunto` —`europa` da un
+  identificador distinto del de los 103, y dos pasadas sobre el mismo grupo dan
+  el mismo—, con la guarda de D-23 en `test_el_vintage_sin_grupos_no_cambia`.
+- **INV-06**: una sola implementación de los primitivos de git, compartida por
+  el manifiesto y `verificar-release`.
+
+## Medición del impacto
+
+- **Recomendaciones: ninguna.** El diff no toca `advisor/analysis` ni
+  `advisor/report`. Confirmado con una pasada real sobre los 103 analizables.
+- **Manifiestos afectados por la migración:** en el portátil, 0 (aquí siempre se
+  corre con `--sin-guardar`). En la Pi hay que contarlos al desplegar; la
+  migración se probó con filas sintéticas de la forma v4 y las conservó todas
+  con su `config_hash` y `config_hash_version = 1`.
+- **Vintage:** sin `--grupos`, `c8496446…`, el mismo de D-31. Con
+  `--grupos europa`, 28 analizables y un identificador propio.
+
+## Desviación respecto a la ficha
+
+La ficha propone verificar con `manifiesto --ultima`; ese flag **no existe**
+—`manifiesto` exige `--run-id`— y añadirlo queda fuera del alcance. Se verifica
+con el `run` que imprime el pie del informe. Queda como FOLLOW_UP menor.
+
 ## Handoff al siguiente agente
-Pendiente de escribir al terminar.
+
+La ficha está completa salvo por lo que solo se puede medir en producción: el
+recuento de manifiestos migrados en la Pi y la prueba de que el `config_hash`
+del portátil y el de la Pi coinciden para la misma configuración lógica. Las dos
+cosas se hacen en el mismo ensayo de OA-04 que cierra T-011, y por eso las dos
+fichas se aceptan juntas.
+
+**FOLLOW_UP que deja a la vista esta ficha, y que NO se toca aquí.**
+`congelar-datos --grupos X` (o `--symbols`) tiene el mismo defecto que se acaba
+de corregir en `analizar`: el manifiesto de la cosecha declara el
+`universe_vintage_id` del universo entero (`advisor/main.py:293`), congele lo que
+congele. No se corrige junto con esto porque `replay_managed_population`
+compara ese campo contra el vintage calculado sobre el universo completo
+(`advisor/research/event_study.py:347`): cambiarlo invalidaría la comprobación
+de INV-08 para las cosechas ya congeladas, incluida `071ddb2b…`. Es una decisión
+—recongelar o versionar la regla—, no un arreglo, y necesita ficha propia.
+
+Para esa comprobación: ejecutar en ambas máquinas
+`.venv/bin/python -c "from advisor.config import load_config;
+from advisor.run.manifest import config_hash; print(config_hash(load_config('config.yaml')))"`
+y comparar. Antes de esta ficha daban distinto **por construcción**, así que es
+la prueba de que el cambio hizo lo que decía.

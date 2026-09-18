@@ -1,0 +1,11 @@
+$ .venv/bin/python -m advisor.main verificar-release
+HEAD               11efae8c3d85fa1ba901a317b54cb117f8e6e725
+tag exacto         ninguno
+tag más cercano    ninguno (HEAD por delante: desconocido commits)
+árbol modificado   sí
+origin             DESCONOCIDO (HEAD no está en un tag: no hay nada que comparar con el remoto)
+veredicto          DESCONOCIDO
+  - no hay ningún release vX.Y.Z alcanzable desde HEAD
+código de salida: 1
+
+$ git tag  (ninguno: este repo aún no tiene releases)
