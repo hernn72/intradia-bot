@@ -9,76 +9,132 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-18 (GATE L0 cruzado)
+# START HERE — actualizado 2026-09-18 (GATE L0 cruzado y desplegado)
 
 ## Dónde está todo
 
-    main / origin/main    bde784d    CI verde, branch protection activa (OA-02 HECHA)
-    la Pi                 c2ff1d7                  AL DÍA (desplegada 2026-09-18 12:30 BST, OA-04 hecha)
+    main / origin/main    14fa732    CI verde
+    la Pi                 14fa732    AL DÍA, desplegada hoy (OA-04 hecha)
     graphify-out/         sin seguimiento, ignorar
 
-Desde OA-02 **todo entra por PR**: push de la rama → PR → dos checks → merge
-con rebase. El push directo a `main` está bloqueado también para el propietario.
+Las tres puntas alineadas. Desde OA-02 **todo entra por PR**: rama → push →
+PR → dos checks → `gh pr merge --rebase`. El push directo a `main` está
+bloqueado también para el propietario, y `enforce_admins` está activo.
 
-## Lo que entró hoy, de abajo arriba
+## Lo que entró el 2026-09-18, de abajo arriba
 
-    c314729  T-007 estado de plaza, precio ejecutable y broker (+ revisión: BLOCKER en la población del backtest)
+    c314729  T-007 estado de plaza, precio ejecutable y broker
     36f7260  fichas T-008..T-012
-    6fbeed0  T-008 informe por capas y siete invariantes (+ revisión: invariante 1 vacua, cambio de contrato revertido)
-    3ac1fb8  T-009 filtro de ejecución medido (+ revisión: centinela [0,1] publicado como intervalo)
-    d8cbc37  arreglo de lint en evidencia (el CI lo cazó)
+    6fbeed0  T-008 informe por capas y las siete invariantes
+    3ac1fb8  T-009 filtro de ejecución medido aparte del score
+    d8cbc37  arreglo de lint en evidencia (lo cazó el CI)
     bde784d  T-010 limpieza y cierre de GATE L0
+    7356db8  SHA real en el punto de retomada
+    c2ff1d7  baja de SAN.MC, UCG.MI, 005930.KS y 1211.HK (D-31)
+    6902d3d  despliegue en la Pi (OA-04)
+    14fa732  auditoría del centinela: T-016 deja de bloquear A-02
 
-**GATE L0 CRUZADO** (D-30). Evidencia en `evidence/2026-09-18-L0-cierre/`.
+**GATE L0 CRUZADO** (D-30), evidencia en `evidence/2026-09-18-L0-cierre/`.
+**Universo: 126 activos, 103 analizables**, vintage `c8496446…`.
 
 ## Por dónde seguir, en orden
 
-1. ~~OA-04~~ **hecha**: la Pi corre `c2ff1d7`, evidencia en `evidence/2026-09-18-despliegue-pi/`.
-2. **T-013 (A-02)** → GATE P2. **Desbloqueada**: la auditoría de T-016
-   (2026-09-18) midió **0 celdas afectadas** por el centinela en el veredicto de
-   P2.5, así que no arrastra nada inválido. Ojo al cambio de población: 107 → 103
-   por D-31, y la comparación con lo ya publicado debe declararlo.
-3. **T-011 + T-017** juntas (Codex → Opus), una sola migración v4→v5:
-   release por tag y rollback probado, más `git_dirty` nullable,
-   `config_hash` sin rutas, `backup_log` migrado y vintage por grupo.
-4. **T-012** (Codex → Opus → propietario): la cifra de OD-02/OD-09/OD-10.
-5. **T-015**: backtest sobre cosecha congelada. Conviene antes de A-02 si va a
-   comparar poblaciones.
-6. **T-016**: higiene del centinela, ya sin urgencia.
+1. **T-011 + T-017 juntas** (Codex → Opus). Una sola migración v4→v5: release
+   por tag, `verificar-release` y rollback probado de verdad, más `git_dirty`
+   nullable, `config_hash` sin rutas, `backup_log` migrado y vintage por grupo.
+   Van juntas **para no migrar dos veces** la base de producción.
+   T-011 lleva un requisito que salió del despliegue de hoy: `verificar-backup`
+   llama «inválido» a una copia manual íntegra porque solo mira `backup_log`.
+2. **T-015** backtest sobre cosecha congelada. Conviene **antes** de A-02 si
+   A-02 va a comparar poblaciones, porque hoy el backtest en vivo da 891, 893 y
+   890 operaciones en tres pasadas del mismo commit.
+3. **T-012** (Codex → Opus → propietario): la cifra que cierra OD-02, OD-09 y OD-10.
+4. **T-013 (A-02)** → GATE P2. **Desbloqueada.** Dos avisos: la población pasa
+   de 107 a 103 (D-31) y la comparación con lo publicado debe declararlo; y
+   D-29 quedó cerrada, así que `RR_TOO_LOW` sigue existiendo como guarda de P4
+   aunque hoy sea inalcanzable.
+5. **T-016** higiene del centinela, sin urgencia: la auditoría midió 0 celdas
+   afectadas en el veredicto de P2.5.
+6. **T-014 (B-00)** contrato point-in-time, y **C-04** alertas, cuando toque.
 
 ## Decisiones del propietario pendientes
 
-- **OD-09** y **OD-10** — esperan la cifra de T-012.
-- ~~`SAN.MC`, `005930.KS`, `UCG.MI`, `1211.HK`~~ — **resuelto (D-31)**: baja por no estar en el broker. Universo: 103 analizables, vintage `c8496446…`.
+- **OD-09** (horario de las pasadas) y **OD-10** (cripto) — esperan T-012.
+- **OD-01** (proveedor de fundamentales) y **OD-03** (presupuesto LLM), abiertas.
+- Los **10 activos marcados `no`** en el broker siguen siendo analizables y
+  vetados como `BROKER_UNAVAILABLE`. Es la misma situación que los cuatro dados
+  de baja en D-31, pero **es otra decisión** y no se ha tomado.
 
-## Tres cifras de hoy que cambian cómo se piensa el asesor
+## Cuatro cifras de hoy que cambian cómo se piensa el asesor
 
-- **El RR mínimo manda en 102 de los 107** (T-008): `entry_max_atr` interviene en menos del 5 %.
-- **El filtro de ejecución rechaza más de la mitad de lo que el score aprueba**, y lo ejecutado rinde 0,21 R frente a 0,12 de lo rechazado, con intervalos solapados (T-009).
-- **`RR_TOO_LOW` es inalcanzable: 0 de 2.151** (T-009, D-29). Se conserva como guarda para P4.
+- **El RR mínimo manda en 102 de los 107** (T-008): `entry_max_atr` interviene
+  en menos del 5 % del universo.
+- **El filtro de ejecución rechaza más de la mitad de lo que el score aprueba**;
+  lo ejecutado rinde 0,21 R por bloque y lo rechazado 0,12 R, con intervalos
+  solapados (T-009). Compatible con que proteja, no prueba de que proteja.
+- **`RR_TOO_LOW` es inalcanzable: 0 de 2.151** señales perdidas (D-29).
+- En producción, **`BROKER_UNVERIFIED` pasó de 57 a 0 y `EXECUTABLE` de 0 a 49**
+  tras OA-03 y la baja.
+
+## Cómo se le encarga una ficha a Codex (contexto operativo, no lo reinventes)
+
+Al `PROMPT_CODEX_TASK` hay que añadirle siempre este bloque, o se pierde media
+entrega:
+
+- **Crearle la rama antes.** Su sandbox **no escribe refs de git**: nada de
+  `git checkout`, `git branch` ni `git commit`. Deja el árbol sucio y el
+  supervisor commitea por él.
+- `codex exec --sandbox workspace-write -c sandbox_workspace_write.network_access=true "$(cat prompt)" < /dev/null`
+  — sin `< /dev/null` se cuelga esperando stdin; `--full-auto` no existe en la 0.150.1.
+- Decirle el venv (`.venv/bin/python`), el directorio de evidencia ya creado, y
+  qué ficheros **no** debe tocar porque el supervisor trabaja en paralelo.
+- **Agota la cuota a media tarea** (el 2026-09-18, a las ~11:00; volvió a las
+  13:34) y deja la entrega a medias pero utilizable: se termina a mano si está
+  bien especificada.
 
 ## Cómo se trabajó hoy, y qué repetir
 
 Tres entregas de Codex, tres revisiones independientes, **las tres CORREGIR**, y
-en cada una el defecto fue del mismo tipo: algo que la suite verde no veía.
+en las tres el defecto era algo que la suite verde no veía:
 
-- T-007: la acción nueva sacaba activos de la población del backtest en silencio.
-- T-008: una invariante vacua (un caso bueno sale bueno) y un cambio de contrato
-  colado como SAME_SCOPE.
-- T-009: un centinela publicado como intervalo. Y el propio Codex bloqueó con
-  razón: el backtest en vivo no es reproducible.
+- **T-007**: la acción nueva `VERIFICAR_BROKER` sacaba activos de la población
+  de `POLICY_OPERAR` del backtest en silencio, y los borraba de su informe.
+- **T-008**: una invariante vacua —construía un caso bueno y comprobaba que era
+  bueno— y un cambio de contrato colado como SAME_SCOPE, que además rehízo tres
+  tests ya aceptados.
+- **T-009**: un centinela `(0.0, 1.0)` publicado como intervalo de confianza. Y
+  el propio Codex **bloqueó con razón**: el criterio de aceptación era
+  inverificable porque el backtest en vivo no es reproducible.
 
-Reglas que salieron de hoy, ya en los prompts:
+Reglas que salieron de hoy, ya incorporadas a los prompts:
+
 - **SAME_SCOPE significa dentro del alcance de la ficha, no «me venía bien».**
   Si cambia un contrato, un código persistido o una decisión registrada, no lo es.
 - **Una invariante se comprueba inyectando el defecto y ejecutando**, con la
   salida guardada. «Revisé que la aserción toca el campo» se devuelve.
-- **Verifica lo que vas a commitear, no lo que había antes de añadir el último
-  fichero.** `ruff check .` cubre `evidence/`; el CI cazó un script sin lint.
-- **La métrica 6 solo se mide en la Pi.** Aquí no se guarda nada.
-- **Codex** agota la cuota a media tarea (hoy a las ~11:00, vuelve a las 13:34)
-  y deja el árbol sin commitear; lo que deja se puede terminar a mano si está
-  bien especificado. Su sandbox no escribe refs: crearle la rama antes.
+- **Una implicación se prueba por el lado que tiene dientes**: no que un caso
+  bueno salga bueno, sino que al romper una capa la acción deja de ser COMPRAR.
+- **Verifica lo que vas a commitear**, no lo que había antes de añadir el último
+  fichero: `ruff check .` cubre `evidence/`, y el CI cazó un script sin lint.
+- **Revertir un defecto inyectado con `git checkout -- <fichero>` borra las
+  correcciones sin commitear.** Copiar a /tmp y restaurar desde ahí.
+- **Antes de medir algo caro, comprueba si la pregunta ya tiene respuesta**: la
+  auditoría de T-016 costó dos comandos y quitó una dependencia del camino
+  crítico.
+
+## Trampas de operación
+
+- **La métrica de `run_id` solo se mide en la Pi**: en el portátil se corre
+  siempre con `--sin-guardar`.
+- **La Pi no tiene el CLI `sqlite3`**: consultar con
+  `.venv/bin/python -c "import sqlite3..."`.
+- **`analizable: false` sin `valid_to` convierte un activo en contexto** y lo
+  mete en «Situación global». Una baja lleva `valid_to`; `context_assets_of` lo
+  excluye.
+- **`capacidad-estadistica` exige el vintage completo como posicional**;
+  `filtro-ejecucion` acepta el prefijo con `--vintage`. Se unifica en T-016.
+- **Desplegar antes del timer de las 14:30 BST**, para que la primera pasada con
+  código nuevo sea supervisada y no automática.
 ```
 
 ---
