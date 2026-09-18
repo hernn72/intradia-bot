@@ -1,0 +1,50 @@
+=== A) el contexto mira la vela siguiente (look-ahead de un dia) ===
+.                                                                        [100%]
+1 passed in 0.35s
+
+=== B) el informe deja de avisar de que el modo en vivo no es reproducible ===
+=========================== short test summary info ============================
+FAILED tests/test_backtest.py::TestCosechaCongelada::test_backtest_en_vivo_declara_que_no_es_reproducible
+1 failed in 0.16s
+=== C) la media de tendencia se centra: usa barras futuras ===
+=========================== short test summary info ============================
+FAILED tests/test_backtest.py::TestCosechaCongelada::test_la_cosecha_no_contiene_barras_posteriores_a_la_senal
+1 failed in 0.38s
+
+=== D) el alineado arrastra hacia atras (bfill): el contexto viene del futuro ===
+.                                                                        [100%]
+1 passed in 0.34s
+
+LECTURA DE LOS CUATRO BLOQUES
+
+A) look-ahead de UNA barra (vix con shift(-1))      -> el test PASA: no lo caza
+B) el informe deja de avisar del modo en vivo       -> el test FALLA: lo caza
+C) media de tendencia centrada (100 barras futuras) -> el test FALLA: lo caza
+D) alineado con bfill                               -> el test PASA, pero aqui
+   no es un defecto real: en el fixture todas las series comparten indice
+   diario, asi que bfill y ffill dan exactamente lo mismo. No prueba nada.
+
+Conclusion honesta: el test de estabilidad de prefijo caza look-ahead ANCHO,
+del orden de la distancia al corte, y NO caza uno de una barra. Es estructural:
+cualquier corte posterior a la barra espiada la deja presente en las dos
+series. Por eso el test se llama como lo que prueba —que lo ya cerrado no
+cambia al quitar el futuro— y no "point-in-time", que prometeria mas.
+
+=== E) look-ahead de UNA barra, contra el test de perturbacion (via de Codex) ===
+/Users/fer/Desktop/Trading bot/intradia-bot/tests/test_backtest.py:637: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_backtest.py::TestCosechaCongelada::test_una_decision_no_puede_depender_de_la_barra_siguiente
+1 failed in 0.47s
+
+=== F) y el de truncamiento, con el mismo defecto, para contrastar ===
+.                                                                        [100%]
+1 passed in 0.36s
+
+=== G) el aviso de tendencia ausente ===
+
+
+no tests ran in 0.02s
+=== G) el informe deja de distinguir 'falta toda la tendencia' de 'no falta nada' ===
+=========================== short test summary info ============================
+FAILED tests/test_backtest.py::TestCosechaCongelada::test_una_cosecha_sin_tendencia_lo_dice
+1 failed in 0.30s

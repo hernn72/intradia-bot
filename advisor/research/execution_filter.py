@@ -5,7 +5,6 @@ from __future__ import annotations
 import statistics
 from dataclasses import dataclass, field
 from datetime import date
-from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from advisor.analysis.benchmark import resolve_benchmark_symbol
@@ -26,7 +25,7 @@ from advisor.research.bootstrap import (
     session_block_lookup,
 )
 from advisor.research.event_study import SCORE_BANDS
-from advisor.research.vintage import VintageLoad, load_vintage
+from advisor.research.vintage import frozen_close, load_vintage, resolve_vintage_id
 from advisor.run.manifest import config_hash, git_sha
 from advisor.universe.models import Universe
 from advisor.universe.vintage import universe_vintage_id
@@ -96,10 +95,10 @@ def run_execution_filter_study(
 
     if horizonte not in MAX_HOLD_BARS:
         raise ValueError(f"filtro-ejecucion solo cubre swing y medio: '{horizonte}'")
-    vintage = load_vintage(_resolve_vintage_id(data_vintage_id, root_dir), root_dir=root_dir)
+    vintage = load_vintage(resolve_vintage_id(data_vintage_id, root_dir), root_dir=root_dir)
     window = config.horizonte(horizonte)
-    vix_close = _frozen_close(vintage, config.market_context.vix_symbol)
-    trend_close = _frozen_close(vintage, config.market_context.trend_symbol)
+    vix_close = frozen_close(vintage, config.market_context.vix_symbol)
+    trend_close = frozen_close(vintage, config.market_context.trend_symbol)
     trend_sma_close = sma(trend_close, config.market_context.trend_sma) if trend_close is not None else None
     benchmark_cache: Dict[str, Optional[object]] = {}
 
@@ -122,7 +121,7 @@ def run_execution_filter_study(
         benchmark_close = None
         if benchmark_symbol is not None:
             if benchmark_symbol not in benchmark_cache:
-                benchmark_cache[benchmark_symbol] = _frozen_close(vintage, benchmark_symbol)
+                benchmark_cache[benchmark_symbol] = frozen_close(vintage, benchmark_symbol)
             cached = benchmark_cache[benchmark_symbol]
             benchmark_close = cached if cached is not None else None
         vix_aligned = _align(vix_close, df.index) if vix_close is not None else None
@@ -365,27 +364,6 @@ def _percentile(values: Sequence[float], q: float) -> Optional[float]:
 
 def _fmt(value: Optional[float]) -> str:
     return "" if value is None else f"{value:.4f}"
-
-
-def _resolve_vintage_id(value: str, root_dir: str) -> str:
-    root = Path(root_dir)
-    if (root / value / "manifest.json").is_file():
-        return value
-    matches = [path.name for path in root.iterdir() if path.is_dir() and path.name.startswith(value)]
-    if len(matches) == 1:
-        return matches[0]
-    if not matches:
-        raise FileNotFoundError(f"No existe la cosecha {value!r} en {root_dir}")
-    raise ValueError(f"Prefijo de cosecha ambiguo {value!r}: {matches}")
-
-
-def _frozen_close(vintage: VintageLoad, symbol: Optional[str]):
-    if symbol is None:
-        return None
-    views = vintage.by_symbol.get(symbol)
-    if views is None:
-        return None
-    return views.signal_prices["Close"]
 
 
 def _align(series, index):

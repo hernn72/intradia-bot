@@ -1,0 +1,5 @@
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+587 passed, 3 warnings in 107.43s (0:01:47)
+All checks passed!
+Success: no issues found in 64 source files

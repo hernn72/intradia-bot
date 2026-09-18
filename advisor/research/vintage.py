@@ -195,6 +195,36 @@ def load_vintage(data_vintage_id: str, *, root_dir: str | Path = "data/vintages"
     return VintageLoad(data_vintage_id=data_vintage_id, manifest=manifest, by_symbol=loaded)
 
 
+def resolve_vintage_id(value: str, root_dir: str | Path = "data/vintages") -> str:
+    """Acepta el identificador entero o un prefijo inequívoco.
+
+    Un `data_vintage_id` son 64 caracteres de hash: escribirlo entero a mano en
+    cada comando invita a equivocarse. El prefijo solo vale si identifica una
+    sola cosecha; si es ambiguo, se dice cuáles y no se elige por el operador.
+    """
+
+    root = Path(root_dir)
+    if (root / value / "manifest.json").is_file():
+        return value
+    matches = [path.name for path in root.iterdir() if path.is_dir() and path.name.startswith(value)]
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        raise FileNotFoundError(f"No existe la cosecha {value!r} en {root_dir}")
+    raise ValueError(f"Prefijo de cosecha ambiguo {value!r}: {matches}")
+
+
+def frozen_close(vintage: VintageLoad, symbol: Optional[str]) -> Optional[pd.Series]:
+    """Cierres congelados de un símbolo, o ``None`` si la cosecha no lo tiene."""
+
+    if symbol is None:
+        return None
+    views = vintage.by_symbol.get(symbol)
+    if views is None:
+        return None
+    return views.signal_prices["Close"]
+
+
 def build_views(raw: pd.DataFrame) -> VintageViews:
     """Deriva las tres vistas P2.0 a partir del material bruto."""
 

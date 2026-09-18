@@ -27,7 +27,7 @@ from advisor.data.sessions import market_for_symbol, market_session
 from advisor.indicators.technical import sma
 from advisor.research.observations import SignalObservation, build_signal_observation
 from advisor.research.timestamps import parse_timestamp, timestamp_raw
-from advisor.research.vintage import VintageLoad, load_vintage
+from advisor.research.vintage import VintageLoad, frozen_close, load_vintage
 from advisor.universe.models import Asset, Universe
 from advisor.universe.vintage import universe_vintage_id
 
@@ -250,8 +250,8 @@ def run_event_study_on_vintage(
         max_hold_bars=max_hold,
     )
 
-    vix_close = _frozen_close(vintage, config.market_context.vix_symbol)
-    trend_close = _frozen_close(vintage, config.market_context.trend_symbol)
+    vix_close = frozen_close(vintage, config.market_context.vix_symbol)
+    trend_close = frozen_close(vintage, config.market_context.trend_symbol)
     trend_sma_close = sma(trend_close, config.market_context.trend_sma) if trend_close is not None else None
     benchmark_cache: Dict[str, Optional[pd.Series]] = {}
 
@@ -274,7 +274,7 @@ def run_event_study_on_vintage(
         benchmark_close = None
         if benchmark_symbol is not None:
             if benchmark_symbol not in benchmark_cache:
-                benchmark_cache[benchmark_symbol] = _frozen_close(vintage, benchmark_symbol)
+                benchmark_cache[benchmark_symbol] = frozen_close(vintage, benchmark_symbol)
             benchmark_close = benchmark_cache[benchmark_symbol]
         try:
             snapshot_series = build_snapshot_series(
@@ -676,15 +676,6 @@ def score_band(score: float) -> str:
 
 def _score_band(score: float) -> str:
     return score_band(score)
-
-
-def _frozen_close(vintage: VintageLoad, symbol: Optional[str]) -> Optional[pd.Series]:
-    if symbol is None:
-        return None
-    views = vintage.by_symbol.get(symbol)
-    if views is None:
-        return None
-    return views.signal_prices["Close"]
 
 
 def _naive_dates(index: pd.Index) -> pd.DatetimeIndex:
