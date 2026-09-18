@@ -13,7 +13,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 
 ## Dónde está todo
 
-    main / origin/main    <sha de esta entrega>    CI verde, branch protection activa (OA-02 HECHA)
+    main / origin/main    bde784d    CI verde, branch protection activa (OA-02 HECHA)
     la Pi                 894fa75                  CUATRO entregas por detrás: T-007, T-008, T-009, T-010
     graphify-out/         sin seguimiento, ignorar
 
@@ -27,7 +27,7 @@ con rebase. El push directo a `main` está bloqueado también para el propietari
     6fbeed0  T-008 informe por capas y siete invariantes (+ revisión: invariante 1 vacua, cambio de contrato revertido)
     3ac1fb8  T-009 filtro de ejecución medido (+ revisión: centinela [0,1] publicado como intervalo)
     d8cbc37  arreglo de lint en evidencia (el CI lo cazó)
-    <esta>   T-010 limpieza y cierre de GATE L0
+    bde784d  T-010 limpieza y cierre de GATE L0
 
 **GATE L0 CRUZADO** (D-30). Evidencia en `evidence/2026-09-18-L0-cierre/`.
 
