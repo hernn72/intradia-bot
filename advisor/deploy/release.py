@@ -25,6 +25,7 @@ from advisor.run.git import (
     git_sha,
     nearest_tag,
     remote_tag_sha,
+    tag_object_sha,
     tag_sha,
 )
 
@@ -77,6 +78,9 @@ def evaluate_release(
             ahead = commits_ahead_of(nearest, repo)
 
     local_sha = tag_sha(tag, repo) if tag is not None else None
+    # Un tag anotado tiene dos SHA —el del objeto y el del commit— y un remoto
+    # puede publicar cualquiera de los dos. Los dos identifican el mismo tag.
+    local_object_sha = tag_object_sha(tag, repo) if tag is not None else None
 
     origin_state = ORIGIN_DESCONOCIDO
     origin_sha: Optional[str] = None
@@ -94,7 +98,8 @@ def evaluate_release(
             origin_reason = f"{remote} no publica el tag {tag}"
         else:
             origin_sha = result.output
-            origin_state = ORIGIN_COINCIDE if origin_sha == local_sha else ORIGIN_DIFIERE
+            coincide = origin_sha in {sha for sha in (local_sha, local_object_sha) if sha}
+            origin_state = ORIGIN_COINCIDE if coincide else ORIGIN_DIFIERE
 
     reasons: List[str] = []
     verdict = EN_TAG
