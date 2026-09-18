@@ -1,0 +1,54 @@
+===== swing =====
+Cosecha: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+Universo: c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132
+
+SWING
+Capacidad global: LIMITADA
+  n=117275; n_by_band={'<50': 49501, '50-60': 43192, '60-70': 22029, '70-80': 2480, '80+': 73}; n_blocks=21; block_length=60; interval=[0.344, 0.443]; interval_width=0.099; block_n_min=144; block_n_mean=5584.5; EXIT_FINAL=0.014; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=True; reasons=[]
+
+Estimadores pre-registrados 2026-09-02: primario=media por bloque de expectancy neta en R +0.070 (bloques=21, longitud=60 sesiones); secundarios=tasa agrupada expectancy neta en R +0.110, tasa agrupada TARGET_FIRST/(TARGET_FIRST+STOP_FIRST) 0.436, P(objetivo antes de stop) [0.413, 0.413].
+
+Bandas de score:
+Score <50: LIMITADA
+  n=49501; n_by_band={'<50': 49501, '50-60': 0, '60-70': 0, '70-80': 0, '80+': 0}; n_blocks=21; block_length=60; interval=[0.362, 0.456]; interval_width=0.094; block_n_min=132; block_n_mean=2357.2; EXIT_FINAL=0.011; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=True; reasons=[]
+Score 50-60: LIMITADA
+  n=43192; n_by_band={'<50': 0, '50-60': 43192, '60-70': 0, '70-80': 0, '80+': 0}; n_blocks=21; block_length=60; interval=[0.310, 0.425]; interval_width=0.115; block_n_min=12; block_n_mean=2056.8; EXIT_FINAL=0.016; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=True; reasons=[]
+Score 60-70: LIMITADA
+  n=22029; n_by_band={'<50': 0, '50-60': 0, '60-70': 22029, '70-80': 0, '80+': 0}; n_blocks=20; block_length=60; interval=[0.341, 0.461]; interval_width=0.120; block_n_min=71; block_n_mean=1101.5; EXIT_FINAL=0.016; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=True; reasons=[]
+Score 70-80: LIMITADA
+  n=2480; n_by_band={'<50': 0, '50-60': 0, '60-70': 0, '70-80': 2480, '80+': 0}; n_blocks=20; block_length=60; interval=[0.301, 0.470]; interval_width=0.169; block_n_min=2; block_n_mean=124.0; EXIT_FINAL=0.012; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=False; reasons=['bloque mínimo 2 < 5 observaciones']
+Score 80+: INSUFICIENTE
+  n=73; n_by_band={'<50': 0, '50-60': 0, '60-70': 0, '70-80': 0, '80+': 73}; n_blocks=16; block_length=60; interval=[0.420, 0.661]; interval_width=0.241; block_n_min=1; block_n_mean=4.6; EXIT_FINAL=0.000; AMBIGUOUS=0.000; resolution=LOW; conclusive=False; reasons=['bloque mínimo 1 < 5 observaciones', 'n 73 < 100', 'intervalo 0.241 > 0.200']
+
+Comparaciones:
+50-60 vs 80+: INSUFICIENTE
+  intervalos=[0.310, 0.425] vs [0.420, 0.661]; anchura_max=0.241; resolution=LOW; conclusive=False; reasons=['80+ no concluyente', 'los intervalos se solapan']
+
+Conclusión: no se permite calibrar un threshold apoyándose en 80+.
+===== medio =====
+Cosecha: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+Universo: c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132
+
+MEDIO
+Capacidad global: INSUFICIENTE
+  n=103885; n_by_band={'<50': 39323, '50-60': 40454, '60-70': 21608, '70-80': 2430, '80+': 70}; n_blocks=5; block_length=300; interval=[0.363, 0.475]; interval_width=0.112; block_n_min=4562; block_n_mean=20777.0; EXIT_FINAL=0.016; AMBIGUOUS=0.000; resolution=LOW; conclusive=False; reasons=['bloques 5 < 12']
+
+Estimadores pre-registrados 2026-09-02: primario=media por bloque de expectancy neta en R +0.109 (bloques=5, longitud=300 sesiones); secundarios=tasa agrupada expectancy neta en R +0.163, tasa agrupada TARGET_FIRST/(TARGET_FIRST+STOP_FIRST) 0.461, P(objetivo antes de stop) [0.454, 0.454].
+
+Bandas de score:
+Score <50: INSUFICIENTE
+  n=39323; n_by_band={'<50': 39323, '50-60': 0, '60-70': 0, '70-80': 0, '80+': 0}; n_blocks=5; block_length=300; interval=[0.371, 0.499]; interval_width=0.128; block_n_min=4050; block_n_mean=7864.6; EXIT_FINAL=0.014; AMBIGUOUS=0.000; resolution=LOW; conclusive=False; reasons=['bloques 5 < 12']
+Score 50-60: INSUFICIENTE
+  n=40454; n_by_band={'<50': 0, '50-60': 40454, '60-70': 0, '70-80': 0, '80+': 0}; n_blocks=5; block_length=300; interval=[0.341, 0.456]; interval_width=0.115; block_n_min=476; block_n_mean=8090.8; EXIT_FINAL=0.018; AMBIGUOUS=0.000; resolution=LOW; conclusive=False; reasons=['bloques 5 < 12']
+Score 60-70: INSUFICIENTE
+  n=21608; n_by_band={'<50': 0, '50-60': 0, '60-70': 21608, '70-80': 0, '80+': 0}; n_blocks=5; block_length=300; interval=[0.394, 0.468]; interval_width=0.074; block_n_min=35; block_n_mean=4321.6; EXIT_FINAL=0.017; AMBIGUOUS=0.000; resolution=LOW; conclusive=False; reasons=['bloques 5 < 12']
+Score 70-80: INSUFICIENTE
+  n=2430; n_by_band={'<50': 0, '50-60': 0, '60-70': 0, '70-80': 2430, '80+': 0}; n_blocks=5; block_length=300; interval=[0.186, 0.498]; interval_width=0.312; block_n_min=1; block_n_mean=486.0; EXIT_FINAL=0.013; AMBIGUOUS=0.000; resolution=LOW; conclusive=False; reasons=['bloque mínimo 1 < 5 observaciones', 'bloques 5 < 12', 'intervalo 0.312 > 0.200']
+Score 80+: INSUFICIENTE
+  n=70; n_by_band={'<50': 0, '50-60': 0, '60-70': 0, '70-80': 0, '80+': 70}; n_blocks=4; block_length=300; interval=[0.363, 0.606]; interval_width=0.243; block_n_min=3; block_n_mean=17.5; EXIT_FINAL=0.000; AMBIGUOUS=0.000; resolution=LOW; conclusive=False; reasons=['bloque mínimo 3 < 5 observaciones', 'bloques 4 < 12', 'n 70 < 100', 'intervalo 0.243 > 0.200']
+
+Comparaciones:
+50-60 vs 80+: INSUFICIENTE
+  intervalos=[0.341, 0.456] vs [0.363, 0.606]; anchura_max=0.243; resolution=LOW; conclusive=False; reasons=['50-60 no concluyente', '80+ no concluyente', 'los intervalos se solapan']
+
+Conclusión: no se permite calibrar un threshold apoyándose en 80+.
