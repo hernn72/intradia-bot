@@ -9,13 +9,31 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-18 (tarde: la Pi corre un release, no `main`)
+# START HERE — actualizado 2026-09-18 (cierre de jornada)
 
 ## Dónde está todo
 
     main / origin/main    este commit    CI verde
-    la Pi                 v0.2.0 = 785daf4    esquema v5
+    la Pi                 v0.2.0 = 785daf4    esquema v5  ← TRES ENTREGAS POR DETRÁS
     graphify-out/         sin seguimiento, ignorar
+
+## Lo primero de mañana: etiquetar v0.3.0 y desplegar
+
+`main` lleva tres entregas que la Pi no tiene, y **una de ellas cambia a quién
+recomienda el bot**:
+
+    fe684e9  T-015 backtest sobre cosecha congelada
+    3d0e611  D-35 baja de los diez marcados `no` → 93 analizables
+    042b9de  D-36 y D-37: el veto contra la última barra cerrada exigible
+
+El propietario autorizó desplegar sin preguntar cada vez: **la Pi está en fase de
+pruebas y lo que recomiende es parte del desarrollo**. El procedimiento está en
+`docs/despliegue-y-rollback.md`; no hay migración de esquema en estas tres, así
+que el rollback es solo de código.
+
+Al desplegar, comprobar en la Pi lo que aquí no se puede medir: cuántos activos
+quedan vetados por dato retrasado en cada una de las cuatro pasadas, que es lo
+que ahora decide D-21.
 
 **Lo que cambió hoy y cambia cómo se opera: la Pi ya no corre `main`, corre un
 tag.** Desde T-011, `main` puede ir por delante sin que eso signifique que
@@ -48,6 +66,9 @@ propietario, y `enforce_admins` está activo. Un tag `vX.Y.Z` empujado dispara
     11efae8  punto de retomada  ·  etiquetado después como v0.1.0
     ba034d4  T-011 + T-017 en una sola migración v4→v5
     785daf4  corrección: un tag anotado daba FUERA_DE_TAG  ·  v0.2.0
+    fe684e9  T-015: backtest reproducible sobre cosecha (D-34)
+    3d0e611  D-35: baja de los diez marcados `no` → 93 analizables
+    042b9de  D-36 y D-37: el veto se mide contra la última barra cerrada exigible
 
 **GATE L0 CRUZADO** (D-30), evidencia en `evidence/2026-09-18-L0-cierre/`.
 **Universo: 126 activos, 93 analizables** tras D-31 y D-35, vintage `237b0056…`.
@@ -60,7 +81,11 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 
 ## Por dónde seguir, en orden
 
-1. **T-015** backtest sobre cosecha congelada. Conviene **antes** de A-02 si
+**0. Etiquetar `v0.3.0` y desplegar** (arriba). Hasta entonces la Pi corre un
+universo de 103 y el veto viejo.
+
+1. ~~**T-015** backtest sobre cosecha congelada~~ **HECHA** (D-34): 866
+   operaciones idénticas byte a byte frente a 869/862/867 en vivo el mismo día. Conviene **antes** de A-02 si
    A-02 va a comparar poblaciones, porque hoy el backtest en vivo da 891, 893 y
    890 operaciones en tres pasadas del mismo commit.
 2. **T-012** (Codex → Opus → propietario): la cifra de OD-02. Ya **no** decide
