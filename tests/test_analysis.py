@@ -41,6 +41,7 @@ from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.data.freshness import QUALITY_DEGRADED, QUALITY_INCOMPLETE, DataFreshness
 from advisor.data.quality import INVALID_INDICATORS, DataQuality, FreshnessState, Severity
+from advisor.universe.loader import load_universe
 from advisor.universe.models import Asset
 from tests.conftest import make_ohlcv
 
@@ -276,6 +277,17 @@ class TestComputeLevels:
         rr = reward_risk(levels.entry_max, levels.target2, levels.stop)
         assert rr is not None
         assert rr >= 1.5 - 1e-9
+
+    def test_entry_max_nunca_incumple_min_rr(self) -> None:
+        universe = load_universe()
+        assets = universe.analizables()
+
+        assert len(assets) == 107
+        for asset in assets:
+            levels = compute_levels(make_snapshot(symbol=asset.symbol, price=100.0, atr=2.0), LevelsConfig())
+            rr = reward_risk(levels.entry_max, levels.target2, levels.stop)
+            assert rr is not None, asset.symbol
+            assert rr_at_least(rr, MIN_RR), asset.symbol
 
     def test_exh1_regression_2026_09_14(self) -> None:
         entry_max = entry_max_for_rr(target=58.20, stop=54.71, min_rr=1.5)
@@ -819,6 +831,9 @@ class TestExecutionEvaluation:
             rr_ratio=1.4929,
             extension_atr=None,
             chase=False,
+            entry_max_tecnica=57.42,
+            entry_max_rr=56.106,
+            min_rr_ratio=1.5,
         )
 
     def _oportunidad_reevaluacion(self, asset_eur, benign_context):
@@ -835,7 +850,7 @@ class TestExecutionEvaluation:
             portfolio=PortfolioConfig(),
         )
 
-    def test_reevaluacion_por_encima_de_entry_max_da_above_max_entry(self, asset_eur, benign_context) -> None:
+    def test_reevaluacion_por_encima_de_entry_max_da_rr_too_low(self, asset_eur, benign_context) -> None:
         opportunity = self._oportunidad_reevaluacion(asset_eur, benign_context)
 
         execution = reevaluate_execution_at_price(
@@ -868,6 +883,131 @@ class TestExecutionEvaluation:
         assert execution.executable is True
         assert execution.reason == EXECUTABLE
 
+    def test_operar_implica_las_cuatro_capas_validas(self, asset_eur, benign_context) -> None:
+        snapshot = make_snapshot()
+        levels = compute_levels(snapshot, LevelsConfig())
+        opportunity = build_opportunity(
+            asset=asset_eur,
+            horizonte="swing",
+            snapshot=snapshot,
+            levels=levels,
+            score=self._score_con_valor(90.0),
+            context=benign_context,
+            scoring=ScoringConfig(),
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+        )
+
+        assert opportunity.accion == ACCION_COMPRAR
+        assert opportunity.setup_accion == ACCION_COMPRAR
+        assert opportunity.execution.executable is True
+        assert opportunity.execution.rr is not None
+        assert rr_at_least(opportunity.execution.rr, MIN_RR)
+        assert opportunity.execution.entry_price <= opportunity.levels.entry_max
+        assert opportunity.asset.trade_republic == "yes"
+
+    @pytest.mark.parametrize(
+        ("capa_rota", "levels_kwargs", "trade_republic"),
+        [
+            # La ejecucion cae porque al precio de referencia el ratio no llega
+            # al minimo: stop lejano y objetivos cortos, la misma geometria que
+            # usa test_setup_bueno_con_rr_malo_espera_sin_tocar_score.
+            ("ejecucion", {"atr_stop_multiple": 4.0, "target_atr_multiples": [1.0, 2.0, 3.0]}, "yes"),
+            # El broker no esta disponible.
+            ("broker", {}, "no"),
+        ],
+    )
+    def test_operar_exige_las_cuatro_capas_y_no_solo_las_declara(
+        self, benign_context, capa_rota, levels_kwargs, trade_republic
+    ) -> None:
+        """La invariante 1, en la direccion que tiene dientes.
+
+        Comprobar que un caso bueno sale bueno no demuestra nada: el defecto que
+        esta invariante debe cazar es que se publique COMPRAR con una capa
+        invalida. Se comprueba, por tanto, que al romper una capa la accion deja
+        de ser COMPRAR.
+        """
+
+        asset = Asset(
+            symbol="UCG.MI",
+            name="UniCredit",
+            asset_class="stock",
+            region="EUROPA",
+            market="MIL",
+            currency="EUR",
+            timezone="Europe/Rome",
+            trade_republic=trade_republic,
+            isin=None,
+        )
+        snapshot = make_snapshot()
+        levels = compute_levels(snapshot, LevelsConfig(**levels_kwargs))
+        opportunity = build_opportunity(
+            asset=asset,
+            horizonte="swing",
+            snapshot=snapshot,
+            levels=levels,
+            score=self._score_con_valor(90.0),
+            context=benign_context,
+            scoring=ScoringConfig(),
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+        )
+
+        assert opportunity.score.value == 90.0, "el score no lo toca ninguna capa (INV-03)"
+        assert opportunity.accion != ACCION_COMPRAR, capa_rota
+
+    def test_cambiar_entry_recalcula_toda_la_cadena(self, asset_eur) -> None:
+        levels = self._niveles_reevaluacion()
+        portfolio = PortfolioConfig(capital=100_000.0, risk_per_trade_pct=0.5, max_position_pct=100.0)
+        risk = RiskConfig(min_rr_ratio=1.5)
+
+        at_55_76 = evaluate_trade_at_entry(
+            levels=levels, entry_price=55.76, risk=risk, portfolio=portfolio, label="test", asset=asset_eur
+        )
+        at_56_00 = evaluate_trade_at_entry(
+            levels=levels, entry_price=56.00, risk=risk, portfolio=portfolio, label="test", asset=asset_eur
+        )
+        at_limit = evaluate_trade_at_entry(
+            levels=levels, entry_price=56.106, risk=risk, portfolio=portfolio, label="test", asset=asset_eur
+        )
+        at_56_63 = evaluate_trade_at_entry(
+            levels=levels, entry_price=56.63, risk=risk, portfolio=portfolio, label="test", asset=asset_eur
+        )
+
+        assert pytest.approx(2.323809524) == (58.20 - 55.76) / (55.76 - 54.71)
+        assert at_55_76.rr == pytest.approx(2.323809524)
+        assert at_55_76.risk_pct == pytest.approx(1.883070301)
+        assert at_55_76.potential_pct == pytest.approx(4.3758967)
+        assert at_55_76.position_size.position_pct == pytest.approx(26.552380952)
+        assert at_55_76.capital_at_risk == pytest.approx(500.0)
+        assert at_55_76.executable is True
+
+        assert pytest.approx(1.705426357) == (58.20 - 56.00) / (56.00 - 54.71)
+        assert at_56_00.rr == pytest.approx(1.705426357)
+        assert at_56_00.risk_pct == pytest.approx(2.303571429)
+        assert at_56_00.potential_pct == pytest.approx(3.928571429)
+        assert at_56_00.position_size.position_pct == pytest.approx(21.705426357)
+        assert at_56_00.capital_at_risk == pytest.approx(500.0)
+        assert at_56_00.executable is True
+
+        assert pytest.approx(1.5) == (58.20 - 56.106) / (56.106 - 54.71)
+        assert at_limit.rr == pytest.approx(1.5)
+        assert at_limit.executable is True
+
+        assert pytest.approx(0.817708333) == (58.20 - 56.63) / (56.63 - 54.71)
+        assert at_56_63.rr == pytest.approx(0.817708333)
+        assert at_56_63.risk_pct == pytest.approx(3.3904291)
+        assert at_56_63.potential_pct == pytest.approx(2.772382129)
+        assert at_56_63.position_size.position_pct == pytest.approx(14.747395833)
+        assert at_56_63.capital_at_risk == pytest.approx(500.0)
+        assert at_56_63.executable is False
+        # Con la geometria por defecto entry_max = entry_max_rr, asi que un
+        # precio por encima de la maxima aplicada se etiqueta ABOVE_MAX_ENTRY y
+        # no RR_TOO_LOW, aunque su RR tambien sea insuficiente. Cual de las dos
+        # etiquetas debe mandar esta abierto y se decide en T-009, que es donde
+        # se miden las dos poblaciones por separado.
+        assert at_56_63.reason == ABOVE_MAX_ENTRY
+
     def test_unverified_no_se_convierte_en_unavailable(self, asset_usd) -> None:
         levels = self._niveles_reevaluacion()
 
@@ -883,7 +1023,7 @@ class TestExecutionEvaluation:
         assert execution.executable is True
         assert execution.reason == BROKER_UNVERIFIED
 
-    def test_entry_above_max_is_not_executable(self, asset_eur) -> None:
+    def test_entry_above_max_rr_is_not_executable(self, asset_eur) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         execution = evaluate_trade_at_entry(
             levels=levels,

@@ -80,6 +80,9 @@ class Levels:
     rr_ratio: float
     extension_atr: Optional[float]
     chase: bool
+    entry_max_tecnica: Optional[float] = None
+    entry_max_rr: Optional[float] = None
+    min_rr_ratio: Optional[float] = None
 
     @property
     def target_pcts(self) -> tuple:
@@ -225,4 +228,7 @@ def compute_levels_from_inputs(
         rr_ratio=rr_ratio,
         extension_atr=extension_atr,
         chase=chase,
+        entry_max_tecnica=entry_max_tecnica,
+        entry_max_rr=entry_max_rr,
+        min_rr_ratio=min_rr_ratio,
     )

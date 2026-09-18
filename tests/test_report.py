@@ -9,8 +9,9 @@ import pandas as pd
 import pytest
 
 from advisor.analysis.analyzer import AnalysisResult, SkippedAnalysis
+from advisor.analysis.execution import ABOVE_MAX_ENTRY, RR_TOO_LOW
 from advisor.analysis.levels import Levels, compute_levels
-from advisor.analysis.opportunity import RADAR_DESCARTAR, RADAR_VIGILAR, build_opportunity
+from advisor.analysis.opportunity import LOW_SCORE, RADAR_DESCARTAR, RADAR_VIGILAR, build_opportunity
 from advisor.analysis.overview import IndexQuote
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.sizing import calculate_position_sizing
@@ -211,6 +212,55 @@ class TestFormatOpportunity:
         assert "NO PERSEGUIR PRECIO" not in ficha
         assert "precio extendido" not in ficha
 
+    def test_ficha_publica_las_dos_entradas_maximas_y_cual_manda(
+        self,
+        asset_eur,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        opportunity = _opportunity(asset_eur, benign_context)
+        levels = replace(
+            opportunity.levels,
+            entry_ideal_low=55.76,
+            entry_ideal_high=56.11,
+            entry_max_tecnica=57.42,
+            entry_max_rr=56.11,
+            entry_max=56.11,
+            min_rr_ratio=1.5,
+        )
+        opportunity = replace(opportunity, levels=levels)
+
+        ficha = format_opportunity(opportunity, fx, REPORT_REFERENCE)
+
+        assert "Entrada ideal: 55,76 € — 56,11 €" in ficha
+        assert "Entrada máxima por técnica (ATR): 57,42 €" in ficha
+        assert "Entrada máxima por RR mínimo (1,5): 56,11 €" in ficha
+        assert "Entrada máxima aplicada: 56,11 € — manda el RR mínimo" in ficha
+
+    def test_entry_max_rr_none_se_declara_desconocido(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        opportunity = _opportunity(asset_eur, benign_context)
+        levels = replace(opportunity.levels, entry_max_rr=None)
+        ficha = format_opportunity(replace(opportunity, levels=levels), fx, REPORT_REFERENCE)
+
+        assert "Entrada máxima por RR mínimo: N/D — la geometría no admite ningún precio con el RR mínimo." in ficha
+
+    def test_rr_al_precio_evaluado_y_motivo_de_espera(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        opportunity = _opportunity(asset_eur, benign_context)
+        execution = replace(
+            opportunity.execution,
+            entry_price=100.50,
+            entry_max=100.00,
+            rr=1.495,
+            executable=False,
+            reason=ABOVE_MAX_ENTRY,
+        )
+
+        ficha = format_opportunity(replace(opportunity, execution=execution), fx, REPORT_REFERENCE)
+
+        assert "RR a 100,50 €: 1,50" in ficha
+        assert "Ejecución: ESPERAR — código: ABOVE_MAX_ENTRY" in ficha
+        assert "No perseguir precio. Si cotiza > 100,00 €, la operación deja de cumplir el RR mínimo configurado." in ficha
+
     def test_declara_frescura_y_avisa_si_la_barra_es_vieja(
         self,
         asset_eur,
@@ -228,6 +278,32 @@ class TestFormatOpportunity:
         assert "**Datos de mercado:** DEGRADADO; última barra 2026-08-26" in ficha
         assert "hace 4 días naturales; 2 sesiones" in ficha
         assert "Dato retrasado" in ficha
+
+    def test_ficha_no_imprime_mas_de_una_linea_de_fechas_por_dimension(
+        self,
+        asset_eur,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        freshness = DataFreshness(
+            last_bar_date=date(2026, 9, 14),
+            natural_days=2,
+            sessions_approx=0,
+            label="al día",
+            calendar="XETR",
+            absent_recent_sessions=(date(2026, 9, 10), date(2026, 9, 11), date(2026, 9, 14)),
+            quality="INCOMPLETO",
+        )
+
+        ficha = format_opportunity(
+            _opportunity(asset_eur, benign_context, data_freshness=freshness),
+            fx,
+            REPORT_REFERENCE,
+        )
+
+        assert "2026-09-10 (+2 más)" in ficha
+        assert "2026-09-11" not in ficha
+        assert "2026-09-14." not in ficha
 
     def test_avisa_con_una_sesion_cerrada_perdida(
         self,
@@ -538,6 +614,40 @@ class TestFormatReport:
         informe = format_report(self._result([], benign_context), config, fx)
         assert "NO OPERAR / MANTENER LIQUIDEZ" in informe
 
+    def test_regimen_se_nombra_regimen_y_no_riesgo_principal(
+        self,
+        asset_eur,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        informe = format_report(self._result([_opportunity(asset_eur, benign_context)], benign_context), config, fx)
+
+        assert "Régimen: RISK_ON — tendencia alcista y volatilidad contenida" in informe
+        assert "Principal riesgo del mercado" not in informe
+
+    def test_liquidez_se_nombra_capital_no_asignado(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        informe = format_report(self._result([_opportunity(asset_eur, benign_context)], benign_context), config, fx)
+
+        assert "Capital asignado a señales actuales:" in informe
+        assert "Capital no asignado:" in informe
+        assert "No es una política de asignación a efectivo" in informe
+        assert "Liquidez recomendada" not in informe
+
+    def test_sizing_declara_el_tope_dominante(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        opportunity = _opportunity(
+            asset_eur,
+            benign_context,
+            portfolio=PortfolioConfig(risk_per_trade_pct=0.5, max_position_pct=10.0),
+        )
+
+        informe = format_report(self._result([opportunity], benign_context), config, fx)
+
+        assert "Restricción dominante: manda el tope máximo por posición." in informe
+        assert "Topes dominantes: manda el tope máximo por posición" in informe
+
     def test_informe_declara_frescura_sin_operar(
         self,
         asset_eur,
@@ -571,8 +681,7 @@ class TestFormatReport:
         assert "⚠️ 1 sesión cerrada perdida: 1 activo; última barra 2026-08-25 (XETRA)." in informe
         assert "SAP.DE (SAP) — score" in informe
         assert "⚠️ dato 2026-08-25 (1s)" in informe
-        assert "BROKER_UNAVAILABLE: 1 activos — AAPL" in informe
-        assert "BROKER_UNAVAILABLE" in informe
+        assert "broker: 1 activos — AAPL" in informe
         assert "## SAP" not in informe
 
     def test_informe_declara_sesion_ausente_intermedia_y_marca_compacta(
@@ -632,7 +741,7 @@ class TestFormatReport:
         )
 
         assert "suma de las 0 mejores ideas" not in informe
-        assert "Liquidez recomendada: 100%" in informe
+        assert "Capital asignado a señales actuales: 0% · Capital no asignado: 100%" in informe
         assert "ninguna queda en COMPRAR" in informe
 
     def test_nota_del_tipo_de_cambio_solo_si_se_usa(self, asset_eur, asset_usd, benign_context, fx: FxConverter) -> None:
@@ -686,8 +795,8 @@ class TestFormatReport:
         informe = format_report(self._result([sap, apple], benign_context), config, fx)
         bloque_descartados = informe.split("## 🔴 DESCARTADOS", maxsplit=1)[1].split("## 🎯 CONCLUSIÓN", maxsplit=1)[0]
 
-        assert "2 activos descartados por código:" in bloque_descartados
-        assert "  - LOW_SCORE: 2 activos — SAP.DE, AAPL" in bloque_descartados
+        assert "2 activos descartados por grupo:" in bloque_descartados
+        assert "  - score insuficiente: 2 activos — SAP.DE, AAPL" in bloque_descartados
         assert "2026-03-06" not in bloque_descartados
         assert "⚠️ falta sesión" not in bloque_descartados
 
@@ -764,13 +873,33 @@ class TestFormatReport:
         informe = format_report(self._result([sap, apple], benign_context), config, fx)
         bloque = informe.split("## 🔴 DESCARTADOS", maxsplit=1)[1].split("## 🎯 CONCLUSIÓN", maxsplit=1)[0]
 
-        assert "2 activos descartados por código:" in bloque
-        assert "  - LOW_SCORE: 2 activos — SAP.DE, AAPL" in bloque
+        assert "2 activos descartados por grupo:" in bloque
+        assert "  - score insuficiente: 2 activos — SAP.DE, AAPL" in bloque
         # Un solo grupo: `RADAR_DESCARTAR` solo se alcanza por nota, así que
         # ningún código de calidad puede encabezar una línea de este bloque.
-        assert bloque.count("  - ") == 1
+        assert bloque.count("  - ") == 7
         for codigo in ("MISSING_RECENT_DATA", "STALE_DATA", "PARTIAL_BAR", "SIN_CODIGO"):
             assert codigo not in bloque
+
+    def test_descartados_no_caen_en_otros_con_el_universo_real(
+        self,
+        asset_eur,
+        benign_context,
+        fx: FxConverter,
+    ) -> None:
+        config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
+        descartado = replace(
+            _opportunity(asset_eur, benign_context),
+            radar=RADAR_DESCARTAR,
+            discard_code=LOW_SCORE,
+            execution_code=RR_TOO_LOW,
+        )
+
+        informe = format_report(self._result([descartado], benign_context), config, fx)
+        bloque = informe.split("## 🔴 DESCARTADOS", maxsplit=1)[1].split("## 🎯 CONCLUSIÓN", maxsplit=1)[0]
+
+        assert "  - score insuficiente: 1 activos — SAP.DE" in bloque
+        assert "  - otros: 0 activos" in bloque
 
 
 class TestEventosEnLaFicha:

@@ -20,14 +20,34 @@ from typing import List, Optional
 import pandas as pd
 
 from advisor.analysis.analyzer import AnalysisResult
+from advisor.analysis.execution import (
+    ABOVE_MAX_ENTRY,
+    BROKER_UNAVAILABLE,
+    BROKER_UNVERIFIED,
+    DATA_NOT_EXECUTABLE,
+    INVALID_STOP,
+    INVALID_TARGET,
+    POSITION_TOO_SMALL,
+    RR_TOO_LOW,
+)
 from advisor.analysis.opportunity import (
     ACCION_COMPRAR,
+    BELOW_RISK_FREE,
+    HOSTILE_CONTEXT,
+    INSUFFICIENT_HISTORY,
+    INVALID_INDICATORS,
+    INVALID_TREND,
+    LOW_SCORE,
+    NO_LEVELS,
+    OVEREXTENDED,
     RADAR_DESCARTAR,
     RADAR_OPERAR,
     RADAR_VIGILAR,
+    VOLATILITY_TOO_HIGH,
     Opportunity,
 )
 from advisor.analysis.overview import REGION_ORDER, IndexQuote
+from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, POSITION_LIMIT_RISK_BUDGET
 from advisor.config import AdvisorConfig, PortfolioConfig
 from advisor.data.freshness import (
     DataFreshness,
@@ -39,6 +59,15 @@ from advisor.data.freshness import (
     mercado_para_simbolo,
 )
 from advisor.data.fx import FxConverter
+from advisor.data.quality import (
+    INVALID_INDICATORS as QUALITY_INVALID_INDICATORS,
+)
+from advisor.data.quality import (
+    MISSING_HISTORICAL_DATA,
+    MISSING_RECENT_DATA,
+    PARTIAL_BAR,
+    STALE_DATA,
+)
 from advisor.data.sessions import MARKET_CLOSED, MARKET_OPEN, MARKET_PRE_OPEN, market_state
 from advisor.events.calendar import EventCalendar
 from advisor.events.models import TIPO_BANCO_CENTRAL, TIPO_RESULTADOS, MarketEvent
@@ -55,6 +84,41 @@ _REGION_LABEL = {
     "USA": "EE. UU.",
     "GLOBAL": "Global",
     "EMERGING_MARKETS": "Emergentes",
+}
+
+_DISCARD_GROUPS = (
+    "score insuficiente",
+    "RR/ejecución",
+    "datos",
+    "tendencia",
+    "sobreextensión",
+    "broker",
+    "otros",
+)
+
+_DISCARD_CODE_GROUP = {
+    LOW_SCORE: "score insuficiente",
+    ABOVE_MAX_ENTRY: "RR/ejecución",
+    RR_TOO_LOW: "RR/ejecución",
+    INVALID_STOP: "RR/ejecución",
+    INVALID_TARGET: "RR/ejecución",
+    POSITION_TOO_SMALL: "RR/ejecución",
+    DATA_NOT_EXECUTABLE: "datos",
+    INSUFFICIENT_HISTORY: "datos",
+    INVALID_INDICATORS: "datos",
+    QUALITY_INVALID_INDICATORS: "datos",
+    MISSING_RECENT_DATA: "datos",
+    MISSING_HISTORICAL_DATA: "datos",
+    STALE_DATA: "datos",
+    PARTIAL_BAR: "datos",
+    INVALID_TREND: "tendencia",
+    HOSTILE_CONTEXT: "tendencia",
+    BELOW_RISK_FREE: "tendencia",
+    OVEREXTENDED: "sobreextensión",
+    VOLATILITY_TOO_HIGH: "sobreextensión",
+    BROKER_UNAVAILABLE: "broker",
+    BROKER_UNVERIFIED: "broker",
+    NO_LEVELS: "otros",
 }
 
 
@@ -81,6 +145,69 @@ def _quote_line(quote: IndexQuote) -> str:
     if not quote.available:
         return f"{quote.name} ({quote.symbol}): datos no disponibles"
     return f"{quote.name} ({quote.symbol}): {_num(quote.price, 2)} {quote.currency} {_pct(quote.change_pct)}"
+
+
+def _broker_status(opportunity: Opportunity) -> str:
+    if opportunity.asset.trade_republic == "yes":
+        return "AVAILABLE"
+    if opportunity.asset.trade_republic == "no":
+        return "UNAVAILABLE"
+    return "UNVERIFIED"
+
+
+def _setup_status(opportunity: Opportunity) -> str:
+    if opportunity.setup_accion == ACCION_COMPRAR:
+        return "VÁLIDO"
+    reason = opportunity.setup_reasons[0] if opportunity.setup_reasons else "sin motivo registrado"
+    return f"INVÁLIDO — {reason}"
+
+
+def _execution_status(opportunity: Opportunity) -> str:
+    execution = opportunity.execution
+    if execution.executable:
+        return "EJECUTABLE"
+    return f"ESPERAR — código: {execution.reason}"
+
+
+def _data_quality_status(opportunity: Opportunity, freshness: DataFreshness) -> str:
+    data_quality = opportunity.data_quality or freshness.data_quality
+    codes = ", ".join(reason.code for reason in data_quality.reasons) if data_quality is not None else ""
+    suffix = f" — código: {codes}" if codes else ""
+    return f"{freshness.quality}{suffix}"
+
+
+def _entry_max_driver(opportunity: Opportunity) -> str:
+    levels = opportunity.levels
+    if levels.entry_max_rr is None:
+        return "no hay precio compatible con el RR mínimo"
+    if levels.entry_max_tecnica is None:
+        return "desconocido"
+    if math.isclose(levels.entry_max, levels.entry_max_rr, rel_tol=1e-9):
+        return "manda el RR mínimo"
+    if math.isclose(levels.entry_max, levels.entry_max_tecnica, rel_tol=1e-9):
+        return "manda la técnica (ATR)"
+    return "manda el mínimo publicado"
+
+
+def _operational_wait_message(opportunity: Opportunity, money: MoneyFormatter) -> Optional[str]:
+    if opportunity.execution.executable:
+        return None
+    if opportunity.execution.reason not in {ABOVE_MAX_ENTRY, RR_TOO_LOW}:
+        return None
+    return (
+        "No perseguir precio. Si cotiza > "
+        f"{money(opportunity.execution.entry_max)}, la operación deja de cumplir el RR mínimo configurado."
+    )
+
+
+def _position_limit_label(reason: Optional[str]) -> str:
+    if reason == POSITION_LIMIT_MAX_POSITION_PCT:
+        return "manda el tope máximo por posición"
+    if reason == POSITION_LIMIT_RISK_BUDGET:
+        return "manda el presupuesto de riesgo"
+    if reason:
+        return f"manda {reason}"
+    return "tope dominante desconocido"
 
 
 def _price_reference_line(opportunity: Opportunity, money: MoneyFormatter, reference: datetime) -> str:
@@ -126,6 +253,7 @@ def format_opportunity(
     asset = opportunity.asset
     levels = opportunity.levels
     score = opportunity.score
+    execution = opportunity.execution
     money = MoneyFormatter(fx, asset.currency)
 
     target_pcts = levels.target_pcts
@@ -145,12 +273,18 @@ def format_opportunity(
     lines.append("")
     lines.append(_price_reference_line(opportunity, money, reference))
     lines.append(f"**Tipo de operación:** {opportunity.tipo_operacion}")
+    freshness = _freshness_for_opportunity(opportunity, reference)
+    lines.append(f"Score: {score.value:.0f}/100 ({score.grade})")
+    lines.append(f"Setup: {_setup_status(opportunity)}")
+    lines.append(f"Ejecución: {_execution_status(opportunity)}")
+    lines.append(f"Dato: {_data_quality_status(opportunity, freshness)}")
+    lines.append(f"Broker: {_broker_status(opportunity)}")
     lines.append(f"**Señal:** {opportunity.signal_label}")
     lines.append(f"**Ejecutabilidad en broker:** {opportunity.broker_execution_label}")
-    freshness = _freshness_for_opportunity(opportunity, reference)
     lines.append(
-        f"**Datos de mercado:** {freshness.quality}; última barra {freshness.last_bar_date.isoformat()} "
-        f"({freshness.label})"
+        "**Datos de mercado:** "
+        f"{freshness.quality}; última barra {freshness.last_bar_date.isoformat()} ({freshness.label}); "
+        f"histórico {freshness.data_quality.historical_completeness.value if freshness.data_quality else 'N/D'}"
     )
     if freshness.session_close_status:
         lines.append(f"**Cierre de sesión:** {freshness.session_close_status}")
@@ -162,7 +296,7 @@ def format_opportunity(
     if freshness.absent_recent_sessions:
         lines.append(
             "⚠️ Calidad INCOMPLETO: faltan sesiones recientes del calendario "
-            f"{freshness.calendar}: {_dates_label(freshness.absent_recent_sessions)}."
+            f"{freshness.calendar}: {_dates_label_limited(freshness.absent_recent_sessions, limit=1)}."
         )
     for reason in freshness.quality_reasons:
         if reason.startswith("INCOMPLETO"):
@@ -198,8 +332,13 @@ def format_opportunity(
     lines.append("")
 
     lines.append("### Entrada")
-    lines.append(f"Zona de entrada ideal: {money(levels.entry_ideal_low)} — {money(levels.entry_ideal_high)}")
-    lines.append(f"Entrada máxima aceptable: {money(levels.entry_max)}")
+    lines.append(f"Entrada ideal: {money(levels.entry_ideal_low)} — {money(levels.entry_ideal_high)}")
+    lines.append(f"Entrada máxima por técnica (ATR): {money(levels.entry_max_tecnica)}")
+    if levels.entry_max_rr is None:
+        lines.append("Entrada máxima por RR mínimo: N/D — la geometría no admite ningún precio con el RR mínimo.")
+    else:
+        lines.append(f"Entrada máxima por RR mínimo ({_num(levels.min_rr_ratio, 1)}): {money(levels.entry_max_rr)}")
+    lines.append(f"Entrada máxima aplicada: {money(levels.entry_max)} — {_entry_max_driver(opportunity)}")
     if levels.chase:
         lines.append("⚠️ ESPERAR PULLBACK / NO PERSEGUIR PRECIO — el precio está extendido sobre su media rápida.")
     lines.append("")
@@ -210,7 +349,7 @@ def format_opportunity(
         lines.append(f"Invalidación de la tesis: {money(levels.invalidation_level)} — {levels.invalidation_reason}")
     else:
         lines.append(f"Invalidación de la tesis: {levels.invalidation_reason}")
-    lines.append(f"Pérdida máxima estimada desde el precio actual: {_pct(-levels.risk_pp)}")
+    lines.append(f"Pérdida máxima estimada desde el precio de referencia: {_pct(-levels.risk_pp)}")
     lines.append("")
 
     lines.append("### Objetivos")
@@ -224,6 +363,10 @@ def format_opportunity(
     lines.append(f"### Riesgo\n{_pct(-levels.risk_pp)} hasta el stop")
     lines.append("")
     lines.append(f"### Ratio beneficio/riesgo\n{_num(levels.rr_ratio, 1)} : 1")
+    lines.append(f"RR a {money(execution.entry_price)}: {_num(execution.rr, 2)}")
+    wait_message = _operational_wait_message(opportunity, money)
+    if wait_message is not None:
+        lines.append(wait_message)
     lines.append("")
     lines.append(f"### Horizonte temporal\n{opportunity.duracion}")
     lines.append("")
@@ -275,7 +418,6 @@ def format_opportunity(
 
     lines.append("### Dimensionamiento sugerido")
     sizing = opportunity.sizing
-    execution = opportunity.execution
     lines.append(
         f"{sizing.label}: {_num(sizing.position_pct)}% de la cartera, arriesgando "
         f"{_num(sizing.risk_pct, 2)}% si salta el stop."
@@ -285,6 +427,7 @@ def format_opportunity(
             f"El {sizing.capped_by} limita la posición; sin tope serían "
             f"{_num(sizing.uncapped_position_pct)}% de la cartera."
         )
+    lines.append(f"Restricción dominante: {_position_limit_label(sizing.position_limit_reason)}.")
     if portfolio is not None and portfolio.capital is not None:
         capital_native = fx.from_base(portfolio.capital, asset.currency)
         if capital_native is None:
@@ -570,10 +713,10 @@ def format_report(
     lines.append("## 🔴 DESCARTADOS")
     lines.append("")
     if descartar:
-        lines.append(f"{len(descartar)} activos descartados por código:")
+        lines.append(f"{len(descartar)} activos descartados por grupo:")
         for code, grouped in _group_discarded_by_code(descartar).items():
-            symbols = ", ".join(opportunity.asset.symbol for opportunity in grouped)
-            lines.append(f"  - {code}: {len(grouped)} activos — {symbols}")
+            suffix = f" — {', '.join(opportunity.asset.symbol for opportunity in grouped)}" if grouped else ""
+            lines.append(f"  - {code}: {len(grouped)} activos{suffix}")
     else:
         lines.append("Ninguno.")
     if result.skipped:
@@ -626,21 +769,27 @@ def _conclusion(result: AnalysisResult, operar: List[Opportunity]) -> str:
     lines = [
         f"Mejor oportunidad ({tipo}): {best.asset.symbol} — score {best.score.value:.0f}, "
         f"ratio {best.levels.rr_ratio:.1f}:1.",
-        f"Principal riesgo del mercado: {result.context.reason}.",
+        f"Régimen: {result.context.label} — {result.context.reason}.",
     ]
 
     comprar = [o for o in operar if o.accion == ACCION_COMPRAR]
     if not comprar:
         lines.append(
-            "Liquidez recomendada: 100% — hay señales con setup válido, pero ninguna queda en COMPRAR "
-            "por ejecutabilidad o verificación de broker."
+            "Capital asignado a señales actuales: 0% · Capital no asignado: 100%. "
+            "No es una política de asignación a efectivo: solo resta la exposición de las señales actuales. "
+            "Hay señales con setup válido, pero ninguna queda en COMPRAR por ejecutabilidad o verificación de broker."
         )
         return "\n".join(lines)
     exposure = sum(o.sizing.position_pct for o in comprar[:3])
-    liquidez = max(0.0, 100.0 - exposure)
+    no_asignado = max(0.0, 100.0 - exposure)
+    limits = sorted({_position_limit_label(o.sizing.position_limit_reason) for o in comprar[:3]})
     lines.append(
-        f"Liquidez recomendada: {liquidez:.0f}% — suma de las {min(len(comprar), 3)} mejores ideas "
-        "por señal en su dimensionamiento máximo. La disponibilidad del broker se informa aparte."
+        f"Capital asignado a señales actuales: {exposure:.0f}% · Capital no asignado: {no_asignado:.0f}%. "
+        f"Suma de las {min(len(comprar), 3)} mejores ideas por señal en su dimensionamiento máximo. "
+        "No es una política de asignación a efectivo. "
+        f"Topes dominantes: {', '.join(limits)}. "
+        "Cuando manda el tope máximo por posición, el riesgo efectivo es menor que el configurado. "
+        "La disponibilidad del broker se informa aparte."
     )
     return "\n".join(lines)
 
@@ -799,11 +948,12 @@ def _code_marker(code: str | None) -> str:
 
 
 def _group_discarded_by_code(opportunities: List[Opportunity]) -> dict[str, List[Opportunity]]:
-    grouped: dict[str, List[Opportunity]] = {}
+    grouped: dict[str, List[Opportunity]] = {group: [] for group in _DISCARD_GROUPS}
     for opportunity in opportunities:
         code = opportunity.discard_code or opportunity.execution_code or "SIN_CODIGO"
-        grouped.setdefault(code, []).append(opportunity)
-    return dict(sorted(grouped.items()))
+        group = _DISCARD_CODE_GROUP.get(code, "otros")
+        grouped[group].append(opportunity)
+    return grouped
 
 
 def _dates_label(values: tuple[date, ...]) -> str:
