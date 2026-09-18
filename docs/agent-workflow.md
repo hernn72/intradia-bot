@@ -14,7 +14,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## Dónde está todo
 
     main / origin/main    bde784d    CI verde, branch protection activa (OA-02 HECHA)
-    la Pi                 894fa75                  CUATRO entregas por detrás: T-007, T-008, T-009, T-010
+    la Pi                 c2ff1d7                  AL DÍA (desplegada 2026-09-18 12:30 BST, OA-04 hecha)
     graphify-out/         sin seguimiento, ignorar
 
 Desde OA-02 **todo entra por PR**: push de la rama → PR → dos checks → merge
@@ -33,8 +33,7 @@ con rebase. El push directo a `main` está bloqueado también para el propietari
 
 ## Por dónde seguir, en orden
 
-1. **OA-04 (propietario):** desplegar en la Pi. No hay motivo para esperar y
-   la Pi lleva cuatro entregas sin la capa de ejecución honesta.
+1. ~~OA-04~~ **hecha**: la Pi corre `c2ff1d7`, evidencia en `evidence/2026-09-18-despliegue-pi/`.
 2. **T-016** (Codex → Opus) — el centinela `(0.0, 1.0)` de
    `bootstrap_block_mean_interval` lo consume `capacity.py`, que emite el
    veredicto de P2.5. **Va antes de A-02.** Hay que contar cuántas celdas de ese
@@ -49,7 +48,6 @@ con rebase. El push directo a `main` está bloqueado también para el propietari
 
 ## Decisiones del propietario pendientes
 
-- **OA-04** — desplegar la línea 0 en la Pi (ver arriba).
 - **OD-09** y **OD-10** — esperan la cifra de T-012.
 - ~~`SAN.MC`, `005930.KS`, `UCG.MI`, `1211.HK`~~ — **resuelto (D-31)**: baja por no estar en el broker. Universo: 103 analizables, vintage `c8496446…`.
 

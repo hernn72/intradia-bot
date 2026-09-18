@@ -37,7 +37,7 @@ leído en documentos:
 | Universo | **103 analizables** + 19 contexto + 4 dados de baja el 2026-09-18 (D-31); 92 ISIN verificados; 95 disponibles, 10 `no` analizables, 0 sin comprobar; seleccionado el 2026-08-27/29 |
 | Cosecha | `071ddb2b…`, 126 símbolos, 5 años, solo en el portátil (`data/vintages/` ignorado, 18 MB); manifiesto 87 KB |
 | LLM | `claude-sonnet-5` vía `advisor/ai/`; prompt sin versión; narrativa **no** se persiste |
-| Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): **desplegada `main` `a8a70e2` el 2026-09-16**, con PR 1, T-001 y T-003. Base migrada a v3 con backup previo verificado; 432 tests + 3 saltados; `verificar-systemd` alineadas; `frescura-datos` y una pasada real con código 0; 107/107 mediciones con calendario; timers vivos y reloj sincronizado. Evidencia en `evidence/2026-09-16-despliegue-pi/` |
+| Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): **desplegada `main` `c2ff1d7` el 2026-09-18** con la línea 0 completa (GATE L0) y el universo de 103. Sin migración (v4). 547 tests + 3 saltados en la Pi; `verificar-systemd` alineadas; pasada supervisada con código 0; manifiesto con vintage `c8496446…`; `BROKER_UNVERIFIED` 57 → 0, `EXECUTABLE` 0 → 49. Evidencia en `evidence/2026-09-18-despliegue-pi/` |
 | Línea base real | `evidence/2026-09-14-L0-baseline/`: 107 activos; calidad OK 59 / INCOMPLETO 30 / DEGRADADO 18; 43 con «sesiones ausentes»; 1 OPERAR (`EXH1.DE`), 10 RADAR, 90 DESCARTADOS |
 | Efecto de T-003 sobre esa base | OK 63 / INCOMPLETO 28 / DEGRADADO 16; 44 con ausencias, todas reales; **0 activos cambian de radar o de acción** (recalculado el 2026-09-16) |
 
