@@ -18,6 +18,7 @@ from advisor.analysis.levels import compute_levels
 from advisor.analysis.opportunity import ACCION_COMPRAR, ACCION_VERIFICAR_BROKER, classify
 from advisor.backtest.engine import (
     ACCIONES_OPERABLES,
+    ENTRY_OPEN_AT_OPEN,
     EXIT_FINAL,
     EXIT_STOP,
     EXIT_TARGET,
@@ -25,6 +26,7 @@ from advisor.backtest.engine import (
     POLICY_OPERAR,
     POLICY_TODAS,
     BacktestTrade,
+    ExecutionRejectedSignal,
     simulate_asset,
 )
 from advisor.backtest.report import format_backtest_report
@@ -173,6 +175,66 @@ class TestEntries:
         trades = simulate(df, config, asset_eur)
         assert trades == []
 
+    def test_senal_rechazada_por_entrada_queda_registrada(self, config, asset_eur) -> None:
+        # Señal en WARMUP: precio 100, ATR 2, stop 98,5 y objetivo 106.
+        # La entrada máxima por RR coincide con la técnica: 101,5.
+        df = make_flat_df(WARMUP + 2, {WARMUP + 1: (103.0, 107.0, 102.0, 106.0)})
+        rejected: list[ExecutionRejectedSignal] = []
+
+        trades = simulate(df, config, asset_eur, rejected_signals=rejected)
+
+        assert trades == []
+        assert len(rejected) == 1
+        lost = rejected[0]
+        assert lost.symbol == "SAP.DE"
+        assert lost.signal_id == f"SAP.DE|swing|{df.index[WARMUP].isoformat().replace('+00:00', 'Z')}"
+        assert lost.signal_date == df.index[WARMUP]
+        assert lost.open_date == df.index[WARMUP + 1]
+        assert lost.open_price == pytest.approx(103.0)
+        assert lost.entry_max == pytest.approx(101.5)
+        assert lost.entry_max_tecnica == pytest.approx(101.5)
+        assert lost.entry_max_rr == pytest.approx(101.5)
+        assert lost.stop == pytest.approx(98.5)
+        assert lost.target2 == pytest.approx(106.0)
+        assert lost.execution_reason == "ABOVE_MAX_ENTRY"
+        assert lost.rr_at_open == pytest.approx((106.0 - 103.0) / (103.0 - 98.5))
+
+    def test_contrafactual_entra_a_la_apertura_real_y_respeta_el_stop(self, config, asset_eur) -> None:
+        # Mismos niveles que el test anterior, pero la disciplina contrafactual
+        # abre a 103 aunque el filtro real la rechazaría. En la misma vela toca
+        # el objetivo 106: R bruto = (106 - 103) / (103 - 98,5) = 2/3.
+        df = make_flat_df(WARMUP + 2, {WARMUP + 1: (103.0, 107.0, 102.0, 106.0)})
+
+        trades = simulate(df, config, asset_eur, entry_discipline=ENTRY_OPEN_AT_OPEN)
+
+        assert len(trades) == 1
+        trade = trades[0]
+        assert trade.entry_price == pytest.approx(103.0)
+        assert trade.stop == pytest.approx(98.5)
+        assert trade.exit_reason == EXIT_TARGET
+        assert trade.exit_price == pytest.approx(106.0)
+        assert trade.gross_r_multiple == pytest.approx(2 / 3)
+        assert trade.net_r_multiple == pytest.approx(((106.0 / 103.0 - 1) * 100 - 0.2) / ((103.0 - 98.5) / 103.0 * 100))
+        assert trade.execution_reason == "ABOVE_MAX_ENTRY"
+
+    def test_el_backtest_por_defecto_no_cambia_ni_una_operacion(self, config, asset_eur) -> None:
+        df = make_flat_df(30, {22: (100.0, 107.0, 99.0, 106.5), 26: (100.0, 101.0, 90.0, 91.0)})
+
+        before = simulate(df, config, asset_eur)
+        rejected: list[ExecutionRejectedSignal] = []
+        after = simulate(df, config, asset_eur, rejected_signals=rejected)
+
+        assert after == before
+
+    def test_el_filtro_de_ejecucion_no_toca_el_score(self, config, asset_eur) -> None:
+        df = make_flat_df(WARMUP + 2, {WARMUP + 1: (103.0, 107.0, 102.0, 106.0)})
+        rejected: list[ExecutionRejectedSignal] = []
+        simulate(df, config, asset_eur, rejected_signals=rejected)
+
+        same_signal = simulate(df, config, asset_eur, entry_discipline=ENTRY_OPEN_AT_OPEN)[0]
+
+        assert rejected[0].score == pytest.approx(same_signal.score)
+
     def test_apertura_por_debajo_del_stop_no_entra(self, config, asset_eur) -> None:
         overrides = dict.fromkeys(range(WARMUP + 1, WARMUP + 4), (94.0, 95.0, 93.0, 94.0))
         df = make_flat_df(WARMUP + 4, overrides)
@@ -303,6 +365,26 @@ class TestPoblacionDeOperarYBroker:
         assert acciones["unknown"] == ACCION_VERIFICAR_BROKER
         # Lo que no puede cambiar: si una entra en la población medida, la otra también.
         assert all(accion in ACCIONES_OPERABLES for accion in acciones.values())
+
+    def test_laboratorio_broker_neutral_incluye_no_sin_cambiar_default(self, config) -> None:
+        asset_no = Asset(
+            symbol="LRCX",
+            name="Lam Research",
+            asset_class="stock",
+            region="USA",
+            market="NASDAQ",
+            currency="USD",
+            timezone="America/New_York",
+            trade_republic="no",
+        )
+        df = make_flat_df(24, {22: (100.0, 107.0, 99.0, 106.5)})
+
+        default = simulate(df, config, asset_no, policy=POLICY_OPERAR)
+        neutral = simulate(df, config, asset_no, policy=POLICY_OPERAR, broker_neutral=True)
+
+        assert default == []
+        assert len(neutral) == 1
+        assert neutral[0].accion == "DESCARTAR"
 
     def test_el_informe_del_backtest_no_esconde_las_operaciones_sin_verificar(self) -> None:
         """Una operación ``VERIFICAR_BROKER`` tiene fila propia en el informe."""

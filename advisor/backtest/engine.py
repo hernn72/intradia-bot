@@ -23,17 +23,24 @@ Limitaciones asumidas (y declaradas en el informe):
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
 
 import pandas as pd
 
 from advisor.analysis.execution import evaluate_trade_at_entry
 from advisor.analysis.levels import compute_levels
 from advisor.analysis.market_context import build_market_context
-from advisor.analysis.opportunity import ACCION_COMPRAR, ACCION_VERIFICAR_BROKER, classify
+from advisor.analysis.opportunity import (
+    ACCION_COMPRAR,
+    ACCION_VERIFICAR_BROKER,
+    RADAR_OPERAR,
+    classify,
+    classify_setup,
+)
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import SnapshotSeries, build_snapshot, build_snapshot_series, snapshot_from_series
 from advisor.config import AdvisorConfig
+from advisor.research.event_study import score_band
 from advisor.research.observations import build_signal_observation
 from advisor.universe.models import Asset
 
@@ -41,8 +48,11 @@ from advisor.universe.models import Asset
 #   operar → solo las señales que el asesor habría marcado COMPRAR (su política real)
 #   todas  → cualquier vela con niveles válidos, registrando qué habría dicho
 #            el asesor; sirve para comparar tramos de puntuación y vetos.
+EntryDiscipline = Literal["respetar_entry_max", "abrir_a_la_apertura"]
 POLICY_OPERAR = "operar"
 POLICY_TODAS = "todas"
+ENTRY_RESPECT_ENTRY_MAX: EntryDiscipline = "respetar_entry_max"
+ENTRY_OPEN_AT_OPEN: EntryDiscipline = "abrir_a_la_apertura"
 
 # El estado del broker no forma parte de la señal (D-04, INV-04): un activo
 # sin verificar en Trade Republic produce la misma señal que uno verificado,
@@ -77,6 +87,8 @@ class BacktestTrade:
     exit_reason: str
     bars_held: int
     cost_pct: float
+    signal_id: str = ""
+    execution_reason: str = ""
 
     @property
     def gross_return_pp(self) -> float:
@@ -111,6 +123,33 @@ class BacktestTrade:
         return self.net_return_pp > 0
 
 
+@dataclass(frozen=True)
+class ExecutionRejectedSignal:
+    """Señal aprobada por la política pero rechazada por ejecución."""
+
+    signal_id: str
+    symbol: str
+    signal_date: pd.Timestamp
+    open_date: pd.Timestamp
+    score: float
+    score_band: str
+    radar: str
+    accion: str
+    setup_radar: str
+    setup_accion: str
+    broker_status: str
+    entry_max: float
+    entry_max_tecnica: Optional[float]
+    entry_max_rr: Optional[float]
+    open_price: float
+    execution_reason: str
+    stop: float
+    target1: float
+    target2: float
+    target3: float
+    rr_at_open: Optional[float]
+
+
 def _signal_from_snapshot(
     asset: Asset,
     snapshot,
@@ -133,12 +172,15 @@ def _signal_from_snapshot(
         config.market_context,
     )
     score = compute_score(snapshot, levels, context, config.scoring, min_bars)
+    setup_radar, setup_accion, _ = classify_setup(score, levels, context, config.scoring, config.risk, horizonte)
     radar, accion, _ = classify(score, levels, context, config.scoring, config.risk, asset, horizonte)
 
     return {
         "score": score.value,
         "radar": radar,
         "accion": accion,
+        "setup_radar": setup_radar,
+        "setup_accion": setup_accion,
         "stop": levels.stop,
         "target": levels.target2,
         "entry_max": levels.entry_max,
@@ -232,6 +274,9 @@ def simulate_asset(
     trend_price_at: Optional[Sequence[Optional[float]]] = None,
     trend_sma_at: Optional[Sequence[Optional[float]]] = None,
     min_bars: Optional[int] = None,
+    entry_discipline: EntryDiscipline = ENTRY_RESPECT_ENTRY_MAX,
+    rejected_signals: Optional[List[ExecutionRejectedSignal]] = None,
+    broker_neutral: bool = False,
 ) -> List[BacktestTrade]:
     """Simula todas las operaciones de ``asset`` sobre su histórico.
 
@@ -244,6 +289,8 @@ def simulate_asset(
         raise ValueError(f"política desconocida: '{policy}'")
     if horizonte not in MAX_HOLD_BARS:
         raise ValueError(f"horizonte sin backtest: '{horizonte}' (solo swing y medio)")
+    if entry_discipline not in (ENTRY_RESPECT_ENTRY_MAX, ENTRY_OPEN_AT_OPEN):
+        raise ValueError(f"disciplina de entrada desconocida: '{entry_discipline}'")
 
     window = config.horizonte(horizonte)
     warmup = min_bars if min_bars is not None else window.min_bars
@@ -273,6 +320,8 @@ def simulate_asset(
             exit_reason=reason,
             bars_held=j - position["entry_index"],
             cost_pct=cost_pct,
+            signal_id=position["observation"].signal_id,
+            execution_reason=position["execution_reason"],
         )
 
     for j in range(warmup, len(df)):
@@ -297,8 +346,20 @@ def simulate_asset(
             )
             # Disciplina de entrada del asesor: la apertura debe ser ejecutable
             # con el mismo RR, stop y tamaño que se usarían en producción.
-            if execution.executable:
-                position = dict(pending, entry_index=j, entry_price=bar_open)
+            if not execution.executable and rejected_signals is not None:
+                rejected_signals.append(_rejected_signal(asset, df, pending, j, bar_open, execution.reason, execution.rr))
+            can_open = execution.executable or (
+                entry_discipline == ENTRY_OPEN_AT_OPEN
+                and execution.reason not in ("INVALID_STOP", "INVALID_TARGET")
+                and pending["stop"] < bar_open < pending["target"]
+            )
+            if can_open:
+                position = dict(
+                    pending,
+                    entry_index=j,
+                    entry_price=bar_open,
+                    execution_reason=execution.reason,
+                )
                 exit_price, reason = _check_exit(bar, position["stop"], position["target"], entry_bar=True)
                 if exit_price is not None and reason is not None:
                     trades.append(close_position(j, exit_price, reason))
@@ -310,7 +371,11 @@ def simulate_asset(
                 asset, snapshot_series, j, config, horizonte, warmup,
                 vix_at, trend_price_at, trend_sma_at,
             )
-            if signal is not None and (policy == POLICY_TODAS or signal["accion"] in ACCIONES_OPERABLES):
+            if signal is not None and (
+                policy == POLICY_TODAS
+                or signal["accion"] in ACCIONES_OPERABLES
+                or (broker_neutral and signal["setup_radar"] == RADAR_OPERAR and signal["setup_accion"] == ACCION_COMPRAR)
+            ):
                 pending = signal
 
     if position is not None:
@@ -318,3 +383,39 @@ def simulate_asset(
         trades.append(close_position(last, float(df.iloc[last]["Close"]), EXIT_FINAL))
 
     return trades
+
+
+def _rejected_signal(
+    asset: Asset,
+    df: pd.DataFrame,
+    pending: Dict[str, Any],
+    open_index: int,
+    open_price: float,
+    execution_reason: str,
+    rr_at_open: Optional[float],
+) -> ExecutionRejectedSignal:
+    levels = pending["levels"]
+    observation = pending["observation"]
+    return ExecutionRejectedSignal(
+        signal_id=observation.signal_id,
+        symbol=asset.symbol,
+        signal_date=df.index[observation.signal_idx],
+        open_date=df.index[open_index],
+        score=pending["score"],
+        score_band=score_band(pending["score"]),
+        radar=pending["radar"],
+        accion=pending["accion"],
+        setup_radar=pending["setup_radar"],
+        setup_accion=pending["setup_accion"],
+        broker_status=asset.trade_republic,
+        entry_max=levels.entry_max,
+        entry_max_tecnica=levels.entry_max_tecnica,
+        entry_max_rr=levels.entry_max_rr,
+        open_price=open_price,
+        execution_reason=execution_reason,
+        stop=levels.stop,
+        target1=levels.target1,
+        target2=levels.target2,
+        target3=levels.target3,
+        rr_at_open=rr_at_open,
+    )

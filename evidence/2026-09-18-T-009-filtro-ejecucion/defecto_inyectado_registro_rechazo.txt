@@ -1,0 +1,25 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ TestEntries.test_senal_rechazada_por_entrada_queda_registrada _________
+
+self = <tests.test_backtest.TestEntries object at 0x10acfcb90>
+config = AdvisorConfig(base_currency='EUR', universe_path='universe.yaml', db_path='intradia.db', request_min_interval_seconds=...s=EventsConfig(enabled=True, path='events.yaml', pasada_evento_hora='22:30', ventana_dias=30, aviso_resultados_dias=7))
+asset_eur = Asset(symbol='SAP.DE', name='SAP', asset_class='stock', region='EUROPA', market='XETRA', currency='EUR', economic_curr...sin_source=None, trade_republic_checked_at=None, requires_isin=True, trade_republic='yes', analizable=True, notes=None)
+
+    def test_senal_rechazada_por_entrada_queda_registrada(self, config, asset_eur) -> None:
+        # Señal en WARMUP: precio 100, ATR 2, stop 98,5 y objetivo 106.
+        # La entrada máxima por RR coincide con la técnica: 101,5.
+        df = make_flat_df(WARMUP + 2, {WARMUP + 1: (103.0, 107.0, 102.0, 106.0)})
+        rejected: list[ExecutionRejectedSignal] = []
+    
+        trades = simulate(df, config, asset_eur, rejected_signals=rejected)
+    
+        assert trades == []
+>       assert len(rejected) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_backtest.py:187: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_backtest.py::TestEntries::test_senal_rechazada_por_entrada_queda_registrada
+1 failed in 0.05s

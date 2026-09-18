@@ -1,0 +1,51 @@
+# Filtro de ejecución
+
+data_vintage_id=071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+universe_vintage_id=894ce776ff8572b3a9dfc97a724f96789122e0dd2c46eef55045d4968e0b5fb0
+git_sha=6fbeed03a2f87a1e3a4c3a59d7822250a2804a33
+config_hash=271d46b2affe7e74fb99a99052e39fbf494ffcce7a18407b6c668448b810ccf4
+horizonte=swing coste=0.20%
+activos_evaluados=107 señales_ejecutadas=994 perdidas_por_entrada=1189 contrafactuales=879
+
+## Tabla por banda y población
+| banda | población | n | estado | win | objetivo | stop | expectancy_pool_R | expectancy_bloque_R | IC95_bloque | mediana_R | p10_R | p90_R | PF | payoff |
+|---|---|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|
+| <50 | TODAS_SCORE | 0 | INSUFICIENTE (<10) | 0/0 | 0/0 | 0/0 |  |  |  |  |  |  |  |  |
+| <50 | EJECUTADAS | 0 | INSUFICIENTE (<10) | 0/0 | 0/0 | 0/0 |  |  |  |  |  |  |  |  |
+| <50 | PERDIDAS_POR_ENTRADA | 0 | INSUFICIENTE (<10) | 0/0 | 0/0 | 0/0 |  |  |  |  |  |  |  |  |
+| 50-60 | TODAS_SCORE | 0 | INSUFICIENTE (<10) | 0/0 | 0/0 | 0/0 |  |  |  |  |  |  |  |  |
+| 50-60 | EJECUTADAS | 0 | INSUFICIENTE (<10) | 0/0 | 0/0 | 0/0 |  |  |  |  |  |  |  |  |
+| 50-60 | PERDIDAS_POR_ENTRADA | 0 | INSUFICIENTE (<10) | 0/0 | 0/0 | 0/0 |  |  |  |  |  |  |  |  |
+| 60-70 | TODAS_SCORE | 0 | INSUFICIENTE (<10) | 0/0 | 0/0 | 0/0 |  |  |  |  |  |  |  |  |
+| 60-70 | EJECUTADAS | 0 | INSUFICIENTE (<10) | 0/0 | 0/0 | 0/0 |  |  |  |  |  |  |  |  |
+| 60-70 | PERDIDAS_POR_ENTRADA | 0 | INSUFICIENTE (<10) | 0/0 | 0/0 | 0/0 |  |  |  |  |  |  |  |  |
+| 70-80 | TODAS_SCORE | 1812 | OK | 889/1812 | 849/1812 | 887/1812 | 0.1781 | 0.1550 | [0.0080, 0.3062] | -0.3408 | -1.1210 | 1.8324 | 1.3185 | 1.3689 |
+| 70-80 | EJECUTADAS | 966 | OK | 417/966 | 393/966 | 535/966 | 0.2226 | 0.2111 | [0.0414, 0.4002] | -1.0299 | -1.1652 | 2.1405 | 1.3458 | 1.7718 |
+| 70-80 | PERDIDAS_POR_ENTRADA | 846 | OK | 472/846 | 456/846 | 352/846 | 0.1273 | 0.1221 | [-0.0008, 0.2309] | 0.5367 | -1.0801 | 1.3776 | 1.2751 | 1.0103 |
+| 80+ | TODAS_SCORE | 61 | SIN INTERVALO | 30/61 | 30/61 | 31/61 | 0.2474 | 0.2474 | N/D (menos de 2 bloques) | -1.0193 | -1.1183 | 1.9908 | 1.4327 | 1.4804 |
+| 80+ | EJECUTADAS | 28 | SIN INTERVALO | 13/28 | 13/28 | 15/28 | 0.4391 | 0.4391 | N/D (menos de 2 bloques) | -1.0234 | -1.0817 | 2.4108 | 1.7197 | 1.9842 |
+| 80+ | PERDIDAS_POR_ENTRADA | 33 | SIN INTERVALO | 17/33 | 17/33 | 16/33 | 0.0847 | 0.0847 | N/D (menos de 2 bloques) | 0.9160 | -1.1346 | 1.3536 | 1.1570 | 1.0890 |
+
+## Desglose por motivo
+| motivo | n | porcentaje |
+|---|---:|---:|
+| ABOVE_MAX_ENTRY | 1146 | 96.38% (1146/1189) |
+| INVALID_STOP | 31 | 2.61% (31/1189) |
+| INVALID_TARGET | 12 | 1.01% (12/1189) |
+
+## Broker neutral: activos trade_republic=no
+| activo | estricto | broker_neutral | entra/sale |
+|---|---:|---:|---|
+| 000660.KS | 0 | 14 | +14 |
+| 4GLD.DE | 0 | 11 | +11 |
+| 9984.T | 0 | 16 | +16 |
+| DFEN.DE | 0 | 11 | +11 |
+| GE | 0 | 10 | +10 |
+| JPM | 0 | 4 | +4 |
+| LRCX | 0 | 9 | +9 |
+| NOVO-B.CO | 0 | 6 | +6 |
+| RHM.DE | 0 | 4 | +4 |
+| RTX | 0 | 10 | +10 |
+
+## D-29
+ABOVE_MAX_ENTRY=1146; RR_TOO_LOW=0. No se cambia el orden de evaluación.

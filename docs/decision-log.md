@@ -365,10 +365,38 @@ En T-008 se revirtió al orden que respeta D-06 (`ABOVE_MAX_ENTRY` primero),
 porque `execution_code` se persiste y cambiar su significado a mitad de camino
 rompe la reconstrucción que exige GATE PROD.
 
-**Se decide en T-009**, que mide las dos poblaciones por separado y es la única
-que puede decir cuál de las dos etiquetas informa mejor. Hasta entonces, la
-línea del caso EXH1 de `docs/plan-ejecucion.md` es la única de sus 27 casillas
-que no se cumple, y T-010 la encontrará declarada, no por sorpresa.
+**Medido en T-009 (2026-09-18), y la respuesta es contundente.** Sobre la
+cosecha `071ddb2b…`, de las 1.189 señales perdidas en swing y las 962 en medio:
+
+    ABOVE_MAX_ENTRY   1146/1189  (96,4 %)      926/962  (96,3 %)
+    INVALID_STOP        31/1189                 25/962
+    INVALID_TARGET      12/1189                 11/962
+    RR_TOO_LOW           0/1189                  0/962
+
+`RR_TOO_LOW` es **inalcanzable**: 0 de 2.151. Con `entry_max` definido como la
+rotura del RR, ningún precio que respete la máxima puede incumplir el ratio. Los
+dos códigos no reparten un espacio: uno está muerto, y cuál de ellos lo esté
+depende solo del orden de dos ramas.
+
+**Queda por decidir en T-010**, con estos números delante, entre: (a) mantener
+el orden actual, que respeta D-06, y retirar `RR_TOO_LOW` del vocabulario de
+ejecución por inalcanzable, documentándolo; o (b) invertir el orden, cumplir la
+línea del plan y asumir que el muerto pasa a ser `ABOVE_MAX_ENTRY`, lo que
+obliga a un punto de corte declarado porque `execution_code` se persiste.
+Mientras no se decida, la línea del caso EXH1 de `docs/plan-ejecucion.md` es la
+única de sus 27 casillas que no se cumple.
+
+**Medición T-009, 2026-09-18, sin decisión de política.** Con la cosecha
+`071ddb2b…`, horizonte `swing`, la población perdida por ejecución contiene
+`ABOVE_MAX_ENTRY=1146`, `RR_TOO_LOW=0`, `INVALID_STOP=31` e
+`INVALID_TARGET=12`. En `medio`: `ABOVE_MAX_ENTRY=926`, `RR_TOO_LOW=0`,
+`INVALID_STOP=25`, `INVALID_TARGET=11`. Esto describe el orden actual
+(`ABOVE_MAX_ENTRY` antes que `RR_TOO_LOW`); no resuelve D-29 ni cambia
+`evaluate_trade_at_entry`. La decisión sigue pendiente para P4/A-04.
+
+La misma entrega constata que no se cambia la política de entrada: no hay
+holgura nueva, no se mueve `entry_max`, no se toca el score y el
+contrafactual se etiqueta como medición, no recomendación.
 
 ## OWNER_DECISION_REQUIRED
 

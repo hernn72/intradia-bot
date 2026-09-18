@@ -55,6 +55,7 @@ from advisor.research.capacity import (
     preregistered_estimators,
 )
 from advisor.research.event_study import format_event_study_report, run_event_study
+from advisor.research.execution_filter import format_execution_filter_report, run_execution_filter_study
 from advisor.research.uncertainty import compare_target_geometry, format_paired_comparison
 from advisor.research.vintage import freeze_vintage, select_symbols
 from advisor.run.manifest import RunManifest, build_run_manifest, format_manifest_footer
@@ -507,6 +508,22 @@ def cmd_event_study(args: argparse.Namespace, config: AdvisorConfig, universe: U
     return 0
 
 
+def cmd_filtro_ejecucion(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    data_vintage_id = args.data_vintage_id_flag or args.data_vintage_id
+    if data_vintage_id is None:
+        raise ValueError("filtro-ejecucion requiere una cosecha: usa --vintage <id>")
+    result = run_execution_filter_study(
+        config,
+        universe,
+        data_vintage_id,
+        horizonte=args.horizonte,
+        cost_pct=args.coste_pct,
+        root_dir=args.data_dir,
+    )
+    print(format_execution_filter_report(result))
+    return 0
+
+
 def cmd_verificar_backup(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     del universe
     ok = verify_backup(config.db_path, args.ruta)
@@ -570,6 +587,7 @@ def cmd_capacidad_estadistica(args: argparse.Namespace, config: AdvisorConfig, u
         cost_pct=args.coste_pct,
         root_dir=args.data_dir,
     )
+    print(f"Cosecha: {result.data_vintage_id}\nUniverso: {result.universe_vintage_id}\n")
     print(format_capacity_report(assess_capacity(result, universe=universe)))
     return 0
 
@@ -926,6 +944,15 @@ def build_parser() -> argparse.ArgumentParser:
                              help="coste de ida y vuelta en %%")
     event_study.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
     event_study.set_defaults(func=cmd_event_study)
+
+    filtro = sub.add_parser("filtro-ejecucion", help="mide el filtro de ejecución aparte del score")
+    filtro.add_argument("data_vintage_id", nargs="?", help="identificador de la cosecha congelada")
+    filtro.add_argument("--vintage", dest="data_vintage_id_flag", help="alias explícito para la cosecha congelada")
+    filtro.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
+    filtro.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
+                        help="coste de ida y vuelta en %%")
+    filtro.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
+    filtro.set_defaults(func=cmd_filtro_ejecucion)
 
     capacidad = sub.add_parser("capacidad-estadistica", help="evalúa el gate P2.5 sobre una cosecha congelada")
     capacidad.add_argument("data_vintage_id", help="identificador de la cosecha congelada")
