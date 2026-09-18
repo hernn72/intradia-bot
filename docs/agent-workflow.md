@@ -9,17 +9,29 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-18 (GATE L0 cruzado y desplegado)
+# START HERE — actualizado 2026-09-18 (tarde: la Pi corre un release, no `main`)
 
 ## Dónde está todo
 
-    main / origin/main    14fa732    CI verde
-    la Pi                 14fa732    AL DÍA, desplegada hoy (OA-04 hecha)
+    main / origin/main    este commit    CI verde
+    la Pi                 v0.2.0 = 785daf4    esquema v5
     graphify-out/         sin seguimiento, ignorar
 
-Las tres puntas alineadas. Desde OA-02 **todo entra por PR**: rama → push →
-PR → dos checks → `gh pr merge --rebase`. El push directo a `main` está
-bloqueado también para el propietario, y `enforce_admins` está activo.
+**Lo que cambió hoy y cambia cómo se opera: la Pi ya no corre `main`, corre un
+tag.** Desde T-011, `main` puede ir por delante sin que eso signifique que
+producción está desactualizada: lo que responde a «qué corre la Pi» es
+`verificar-release`, que debe decir `EN_TAG` con código 0. Si dice
+`FUERA_DE_TAG`, alguien hizo `git pull` donde tocaba `git checkout <tag>`.
+
+Desplegar y volver atrás están escritos, con comandos literales, en
+**`docs/despliegue-y-rollback.md`**. La regla que no se puede olvidar: **el
+rollback de código no deshace migraciones** (D-32); si entre los dos tags hubo
+una, se restaura el backup previo y se acepta lo que se pierde, contándolo antes.
+
+Desde OA-02 **todo entra por PR**: rama → push → PR → dos checks →
+`gh pr merge --rebase`. El push directo a `main` está bloqueado también para el
+propietario, y `enforce_admins` está activo. Un tag `vX.Y.Z` empujado dispara
+`release.yml`, que corre los mismos checks y publica el release.
 
 ## Lo que entró el 2026-09-18, de abajo arriba
 
@@ -33,29 +45,32 @@ bloqueado también para el propietario, y `enforce_admins` está activo.
     c2ff1d7  baja de SAN.MC, UCG.MI, 005930.KS y 1211.HK (D-31)
     6902d3d  despliegue en la Pi (OA-04)
     14fa732  auditoría del centinela: T-016 deja de bloquear A-02
+    11efae8  punto de retomada  ·  etiquetado después como v0.1.0
+    ba034d4  T-011 + T-017 en una sola migración v4→v5
+    785daf4  corrección: un tag anotado daba FUERA_DE_TAG  ·  v0.2.0
 
 **GATE L0 CRUZADO** (D-30), evidencia en `evidence/2026-09-18-L0-cierre/`.
 **Universo: 126 activos, 103 analizables**, vintage `c8496446…`.
 
+**T-011 y T-017 ACEPTADAS**, con el ensayo de OA-04 hecho sobre la base real:
+`evidence/2026-09-18-OA-04-ensayo-release/`. La Pi migró a esquema v5
+conservando sus 25 manifiestos con `config_hash_version = 1`, y el rollback se
+ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
+`v0.2.0`).
+
 ## Por dónde seguir, en orden
 
-1. **T-011 + T-017 juntas** (Codex → Opus). Una sola migración v4→v5: release
-   por tag, `verificar-release` y rollback probado de verdad, más `git_dirty`
-   nullable, `config_hash` sin rutas, `backup_log` migrado y vintage por grupo.
-   Van juntas **para no migrar dos veces** la base de producción.
-   T-011 lleva un requisito que salió del despliegue de hoy: `verificar-backup`
-   llama «inválido» a una copia manual íntegra porque solo mira `backup_log`.
-2. **T-015** backtest sobre cosecha congelada. Conviene **antes** de A-02 si
+1. **T-015** backtest sobre cosecha congelada. Conviene **antes** de A-02 si
    A-02 va a comparar poblaciones, porque hoy el backtest en vivo da 891, 893 y
    890 operaciones en tres pasadas del mismo commit.
-3. **T-012** (Codex → Opus → propietario): la cifra que cierra OD-02, OD-09 y OD-10.
-4. **T-013 (A-02)** → GATE P2. **Desbloqueada.** Dos avisos: la población pasa
+2. **T-012** (Codex → Opus → propietario): la cifra que cierra OD-02, OD-09 y OD-10.
+3. **T-013 (A-02)** → GATE P2. **Desbloqueada.** Dos avisos: la población pasa
    de 107 a 103 (D-31) y la comparación con lo publicado debe declararlo; y
    D-29 quedó cerrada, así que `RR_TOO_LOW` sigue existiendo como guarda de P4
    aunque hoy sea inalcanzable.
-5. **T-016** higiene del centinela, sin urgencia: la auditoría midió 0 celdas
+4. **T-016** higiene del centinela, sin urgencia: la auditoría midió 0 celdas
    afectadas en el veredicto de P2.5.
-6. **T-014 (B-00)** contrato point-in-time, y **C-04** alertas, cuando toque.
+5. **T-014 (B-00)** contrato point-in-time, y **C-04** alertas, cuando toque.
 
 ## Decisiones del propietario pendientes
 
@@ -75,6 +90,20 @@ bloqueado también para el propietario, y `enforce_admins` está activo.
 - **`RR_TOO_LOW` es inalcanzable: 0 de 2.151** señales perdidas (D-29).
 - En producción, **`BROKER_UNVERIFIED` pasó de 57 a 0 y `EXECUTABLE` de 0 a 49**
   tras OA-03 y la baja.
+
+## Codex también sirve para lo contrario: desmentir, no implementar
+
+El 2026-09-18 por la tarde se invirtieron los papeles —Opus implementa, Codex
+revisa en solo lectura— y funcionó mejor que las tres entregas de la mañana. En
+T-011 encontró un BLOCKER que la suite verde no veía (`verificar-release`
+aceptaba cualquier tag, no solo `vX.Y.Z`) y tres defectos más; y **supervisando
+el plan de despliegue antes de ejecutarlo** evitó un paso que era teatro: correr
+el código viejo contra la base ya migrada demuestra compatibilidad accidental,
+no rollback.
+
+Cómo se le pasa: exportar el diff a un fichero, decirle que **no escriba nada**
+—hay un supervisor en el mismo árbol— y pedirle casos límite concretos, no una
+opinión general.
 
 ## Cómo se le encarga una ficha a Codex (contexto operativo, no lo reinventes)
 

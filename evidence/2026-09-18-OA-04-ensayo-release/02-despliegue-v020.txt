@@ -1,0 +1,23 @@
+=== 4. Traer el tag y ponerse en el ===
+785daf4 fix(release): un tag anotado no puede salir FUERA_DE_TAG por comparar dos SHA suyos
+
+=== 5. Dependencias ===
+dependencias al dia
+
+=== 6. verificar-systemd ===
+Unidades systemd alineadas con las plantillas versionadas.
+codigo: 0
+
+=== 7. verificar-release ===
+HEAD               785daf40ca3943b4bf4c2d739812f59ee0f1472a
+tag exacto         v0.2.0
+SHA del tag        785daf40ca3943b4bf4c2d739812f59ee0f1472a
+árbol modificado   no
+origin             COINCIDE (785daf40ca3943b4bf4c2d739812f59ee0f1472a)
+veredicto          EN_TAG
+codigo: 0
+
+=== 8. Comparacion del SHA a mano (lo que pide la ficha) ===
+git rev-list -n 1 v0.2.0 : 785daf40ca3943b4bf4c2d739812f59ee0f1472a
+HEAD                     : 785daf40ca3943b4bf4c2d739812f59ee0f1472a
+IDENTICOS caracter a caracter

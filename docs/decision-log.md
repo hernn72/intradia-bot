@@ -539,9 +539,15 @@ en `universe.yaml` (campos que añade A-00). No modifica la señal.
 ### OA-04 — Desplegar en la Pi cada tag aceptado y ejecutar la verificación en la Pi
 Hecha el 2026-09-16 para `a8a70e2` (evidencia en `evidence/2026-09-16-despliegue-pi/`).
 Queda como acción recurrente para las siguientes entregas.
-Hasta que C-03 automatice el despliegue por tag, el propietario ejecuta en la
-Pi: `git fetch && git checkout <tag> && pip install -r requirements.txt &&
-python -m pytest -q && python -m advisor.main verificar-systemd`.
+
+**Al 2026-09-18 el despliegue ya es por tag y el rollback está probado**
+(evidencia en `evidence/2026-09-18-OA-04-ensayo-release/`). La Pi corre
+**`v0.2.0` = `785daf4`**, esquema v5, con `verificar-release` dando `EN_TAG` y
+código 0. El ensayo completo —desplegar, migrar v4→v5 con la base real,
+restaurar el backup previo, volver a `v0.1.0`, ejecutar una pasada con el código
+viejo y regresar— se hizo con los timers parados y con red de seguridad en cada
+paso. El procedimiento vive en `docs/despliegue-y-rollback.md` y sustituye a la
+receta manual de arriba.
 
 ### D-26 — 2026-09-17 — OA-03, tercera tanda: el universo queda cubierto
 El propietario completó la tabla. Se aplican **40 ISIN más y 57 cambios de
@@ -648,3 +654,14 @@ Alcanza también a los informes de investigación: `filtro-ejecucion` imprime
 `config_hash` en su cabecera, así que los publicados hasta hoy —T-009 entre
 ellos— llevan el hash de la regla 1. No se recalculan por el mismo motivo; al
 compararlos con uno nuevo hay que declarar que son de reglas distintas.
+
+**Corrección medida el 2026-09-18, el mismo día, en el ensayo de OA-04.** El
+motivo que daba T-017 —«la misma configuración en el portátil y en la Pi da
+hashes distintos»— **no era cierto en este despliegue**: las dos máquinas dan
+`271d46b2` con la regla 1 y `1294c526` con la regla 2, porque las dos usan las
+mismas rutas relativas (`intradia.db`, `universe.yaml`) y la cadena que entra en
+el hash es idéntica. La decisión se mantiene por la otra mitad del argumento —la
+identidad de una configuración no puede depender de dónde están los ficheros, y
+en cuanto aparece una ruta absoluta, como la que introduce el propio
+procedimiento de rollback, los hashes se separarían—, pero conviene no repetir
+el motivo falso: ese criterio de aceptación ya se cumplía antes del cambio.

@@ -1,0 +1,41 @@
+=== Esquema y conteos DESPUES de migrar ===
+esquema v 5
+  analysis_run                   26
+  recommendation                 5272
+  data_freshness_measurement     3947
+  backup_log                     23
+
+Manifiestos por version de la regla del hash:
+  version 1: 25 manifiestos
+  version 2: 1 manifiestos
+
+El manifiesto nuevo:
+  run_id               630b77a2-43ce-443f-822b-a3ecf66911b9
+  git_sha              785daf40ca3943b4bf4c2d739812f59ee0f1472a
+  git_dirty            0
+  git_dirty_reason     None
+  release_tag          v0.2.0
+  config_hash          1294c526cd64a9acd62cc81de98ae5cf791c57bd9fc1c83d320d6bb77d7f3fa0
+  config_hash_version  2
+  groups               None
+  schema_version       5
+  environment          pi
+
+Uno de los viejos, para ver que no se toco:
+  run_id               e777e161-8a88-47d2-8bd7-725ca3e0afce
+  config_hash          d359c8d3bf39fd24e3ec2e588d7fac94bfac77ea5576b2de25d15e392e62886f
+  config_hash_version  1
+  release_tag          None
+  groups               None
+  git_dirty            1
+
+=== Backup automatico previo a la migracion ===
+-rw-r--r-- 1 fer fer 3080192 Sep 18 15:37 intradia.db.bak-20260918-143726-pre-v5
+fichero            intradia.db.bak-20260918-143726-pre-v5
+integridad         ok
+esquema            v4
+registro           registrado en backup_log
+filas en la copia  analysis_run=25, data_freshness_measurement=3844, event_pass=1, position=0, position_review=0, recommendation=5169
+filas en la viva   analysis_run=26, data_freshness_measurement=3947, event_pass=1, position=0, position_review=0, recommendation=5272
+veredicto          VALIDO
+codigo: 0

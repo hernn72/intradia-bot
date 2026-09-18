@@ -1,0 +1,43 @@
+=== manifiesto de la pasada real ===
+{
+  "analysis_timestamp": "2026-09-18T14:37:26.480504+00:00",
+  "clock_drift_seconds": 0.000236,
+  "clock_status": "CLOCK_OK",
+  "command": "analizar",
+  "config_hash": "1294c526cd64a9acd62cc81de98ae5cf791c57bd9fc1c83d320d6bb77d7f3fa0",
+  "config_hash_version": 2,
+  "context_model_version": null,
+  "data_vintage_id": null,
+  "environment": "pi",
+  "git_dirty": false,
+  "git_dirty_reason": null,
+  "git_sha": "785daf40ca3943b4bf4c2d739812f59ee0f1472a",
+  "groups": null,
+  "provider_versions": {
+    "exchange_calendars": "4.13.2",
+    "exchange_overrides_hash": "b17cb2eba2f17dab8e3a7ca03fb259cf0c66f2cb128ec83ad4d4c2632b4c7f6b",
+    "pandas": "3.0.5",
+    "yfinance": "1.7.0"
+  },
+  "python_version": "3.13.5",
+  "release_tag": "v0.2.0",
+  "run_id": "630b77a2-43ce-443f-822b-a3ecf66911b9",
+  "schema_version": 5,
+  "score_model_version": "1.0",
+  "universe_vintage_id": "c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132"
+}
+
+Recomendaciones:
+- AMD · OPERAR · COMPRAR · score 74.12
+- 9984.T · DESCARTAR · DESCARTAR · score 73.50
+- SOL-EUR · VIGILAR · ESPERAR · score 69.49
+
+=== Comprobacion a mano: los tres SHA ===
+git rev-list -n 1 v0.2.0        : 785daf40ca3943b4bf4c2d739812f59ee0f1472a
+verificar-release (HEAD)        : 785daf40ca3943b4bf4c2d739812f59ee0f1472a
+git_sha del manifiesto          : git_sha:785daf40ca3943b4bf4c2d739812f59ee0f1472a
+
+=== Que se perderia al restaurar el pre-v5 (Codex, riesgo 3) ===
+  analysis_run                   viva=    26  copia=    25  se perderian 1
+  recommendation                 viva=  5272  copia=  5169  se perderian 103
+  data_freshness_measurement     viva=  3947  copia=  3844  se perderian 103
