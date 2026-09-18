@@ -665,3 +665,47 @@ identidad de una configuración no puede depender de dónde están los ficheros,
 en cuanto aparece una ruta absoluta, como la que introduce el propio
 procedimiento de rollback, los hashes se separarían—, pero conviene no repetir
 el motivo falso: ese criterio de aceptación ya se cumplía antes del cambio.
+
+### D-34 — 2026-09-18 — Las cifras de backtest en vivo no son reproducibles, y lo que se hace con las publicadas
+Medido tres veces seguidas sobre el mismo commit, el mismo universo y la misma
+configuración, con minutos de diferencia: **869, 862 y 867 operaciones**, y R
+total de 149,19 a 157,10 (un 5 % de diferencia entre dos pasadas que solo se
+distinguen en la hora). La causa es estructural: el periodo es relativo a
+*ahora*, el proveedor revisa barras y la última vela se mueve dentro de la
+sesión. Tres pasadas sobre la cosecha congelada `071ddb2b…` dan 866 y son el
+mismo fichero byte a byte.
+
+**Decisión.** Cualquier cifra de backtest que se publique, se compare o sostenga
+un criterio de aceptación se produce con `backtest --vintage <id>`. El modo en
+vivo sigue existiendo para mirar el día de hoy y **declara en su cabecera que no
+es reproducible**; no se le permite fingir determinismo (INV-16).
+
+**Qué pasa con lo ya publicado.** Las cifras anteriores a esta ficha se hicieron
+en vivo: la línea base de la línea 0 (`evidence/2026-09-14-L0-baseline/`) y las
+tablas de T-007 a T-009 entre ellas. **No se rehacen ahora y no se borran**; se
+etiquetan como no reproducibles allí donde se citen. Rehacerlas sobre la cosecha
+es trabajo de A-02 (T-013), que ya va a repetir P2.3, P2.4 y P2.5 una sola vez
+sobre `071ddb2b…`, y no tiene sentido hacerlo dos veces. Lo que **sí** cambia
+desde hoy: ninguna comparación nueva puede apoyarse en dos pasadas en vivo.
+
+**Tres consecuencias medidas que hay que declarar al comparar cosecha y vivo**,
+y que el informe imprime antes de cualquier cifra:
+
+1. Las fechas: la cosecha acaba el 2026-08-30 y el vivo, hoy.
+2. La cosecha se congeló con 5 años para todos los símbolos, así que no lleva el
+   histórico previo que el modo en vivo descarga para la media de tendencia: las
+   primeras 199 sesiones del índice corren sin ese contexto.
+3. **Los precios no son los mismos números.** `get_history` (vivo) llama a
+   `ticker.history(...)` sin `auto_adjust`, que en yfinance 1.7.0 devuelve
+   precios **ajustados** por dividendo; la cosecha se congeló con
+   `get_raw_history(..., auto_adjust=False, actions=True)`, que conserva el
+   material **bruto**. En la cosecha real `SAP.DE` acumula 5 dividendos que suman
+   11,55 y `AAPL` 20 que suman 4,90: para esos activos el `Close` difiere entre
+   modos y con él ATR, niveles y salidas. Lo encontró la revisión independiente
+   de Codex; sin declararlo, alguien leería la diferencia 866 vs 862-869 como
+   una discrepancia del sistema en vez de como dos mediciones distintas.
+
+No se unifica el ajuste: cambiar el modo en vivo está fuera del alcance de la
+ficha, y reajustar la cosecha rompería sus hashes (INV-13) y la convención
+pre-registrada de P2, que trabaja con material bruto y trata el dividendo aparte
+en `gap_for_catalyst`. Lo que se hace es **declararlo en cada informe**.

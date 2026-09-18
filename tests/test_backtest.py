@@ -9,6 +9,8 @@ test mueve una única vela para provocar la salida que quiere comprobar.
 
 from __future__ import annotations
 
+import math
+from datetime import datetime, timezone
 from typing import ClassVar, Dict, Optional, Tuple
 
 import pandas as pd
@@ -418,3 +420,307 @@ class TestPoblacionDeOperarYBroker:
 
         informe = format_backtest_report(result)
         assert ACCION_VERIFICAR_BROKER in informe
+
+
+class TestCosechaCongelada:
+    """T-015: el backtest deja de depender del minuto en que se ejecuta."""
+
+    class RawProvider:
+        """Proveedor doble por la ruta bruta, la que congela la cosecha."""
+
+        def __init__(self, histories: dict) -> None:
+            self.histories = histories
+
+        def get_raw_history(self, symbol: str, period: str = "5y", interval: str = "1d"):
+            if symbol not in self.histories:
+                raise ValueError(f"sin datos para '{symbol}'")
+            return self.histories[symbol].copy()
+
+    @staticmethod
+    def _serie(n: int, start: float, drift: float, amplitud: float, periodo: int, fase: float = 0.0):
+        """Tendencia con retrocesos: una recta no genera ni una señal.
+
+        `make_ohlcv` sube en línea recta, y con eso el precio nunca vuelve por
+        debajo de la entrada máxima: el backtest sale con cero operaciones y un
+        test de reproducibilidad sobre cero operaciones no prueba nada.
+        """
+
+        index = pd.date_range(start="2026-01-01", periods=n, freq="D", tz="UTC")
+        filas = []
+        for i in range(n):
+            base = start + drift * i + amplitud * math.sin(2 * math.pi * (i + fase) / periodo)
+            apertura = base * 0.997
+            filas.append({
+                "Open": apertura,
+                "High": max(apertura, base) * 1.01,
+                "Low": min(apertura, base) * 0.99,
+                "Close": base,
+                "Volume": 1_000_000.0,
+                "Dividends": 0.0,
+                "Stock Splits": 0.0,
+            })
+        return pd.DataFrame(filas, index=index)
+
+    @pytest.fixture
+    def cosecha(self, tmp_path):
+        """Cosecha congelada en disco, con los dos activos y el contexto."""
+
+        from advisor.research.vintage import freeze_vintage
+
+        histories = {
+            "SAP.DE": self._serie(400, 200.0, 0.25, 15.0, 30),
+            "AAPL": self._serie(400, 150.0, 0.2, 10.0, 30, fase=7),
+            "^STOXX50E": self._serie(400, 4500.0, 1.0, 50.0, 60),
+            "^VIX": self._serie(400, 15.0, 0.0, 2.0, 35),
+        }
+        resultado = freeze_vintage(
+            list(histories),
+            self.RawProvider(histories),
+            period="5y",
+            interval="1d",
+            root_dir=tmp_path,
+            downloaded_at=datetime(2026, 8, 30, 9, 41, tzinfo=timezone.utc),
+        )
+        return resultado.data_vintage_id, tmp_path
+
+    def test_backtest_sobre_cosecha_es_reproducible(self, config, universe, cosecha) -> None:
+        """Dos cargas independientes de la misma cosecha dan las mismas operaciones.
+
+        No se comparan totales sino operación por operación y campo por campo:
+        dos pasadas pueden sumar lo mismo con operaciones distintas.
+        """
+
+        from advisor.research.vintage import load_vintage
+
+        vintage_id, root = cosecha
+        primera = run_backtest(
+            config, universe, None, horizonte="swing",
+            vintage=load_vintage(vintage_id, root_dir=root),
+        )
+        segunda = run_backtest(
+            config, universe, None, horizonte="swing",
+            vintage=load_vintage(vintage_id, root_dir=root),
+        )
+
+        # Sin operaciones el test no probaría nada. La política real puede quedar
+        # vacía con datos sintéticos —el score rara vez llega a COMPRAR—, así que
+        # la guarda mira el censo completo; la cobertura de POLICY_OPERAR la da
+        # `tests/test_backtest_real_vintage.py` sobre la cosecha de verdad.
+        assert primera.trades_todas
+        assert len(primera.trades_operar) == len(segunda.trades_operar)
+        for a, b in zip(primera.trades_operar, segunda.trades_operar):
+            assert a == b
+        for a, b in zip(primera.trades_todas, segunda.trades_todas):
+            assert a == b
+        assert primera.buy_hold_pct == segunda.buy_hold_pct
+        assert primera.evaluated == segunda.evaluated
+
+    def test_backtest_con_vintage_declara_el_data_vintage_id(self, config, universe, cosecha) -> None:
+        from advisor.research.vintage import load_vintage
+
+        vintage_id, root = cosecha
+        result = run_backtest(
+            config, universe, None, horizonte="swing",
+            vintage=load_vintage(vintage_id, root_dir=root),
+        )
+
+        assert result.data_vintage_id == vintage_id
+        assert result.reproducible is True
+        assert result.data_range is not None and result.data_range[0] < result.data_range[1]
+        informe = format_backtest_report(result)
+        assert vintage_id[:12] in informe
+        assert "resultado reproducible" in informe
+
+    def test_backtest_en_vivo_declara_que_no_es_reproducible(self, config, universe) -> None:
+        histories = {
+            "SAP.DE": make_ohlcv(n=300, start=200.0, drift=0.3),
+            "AAPL": make_ohlcv(n=300, start=150.0, drift=0.2),
+            "^STOXX50E": make_ohlcv(n=400, start=4500.0, drift=1.0),
+            "^VIX": make_ohlcv(n=400, start=15.0, drift=0.0),
+        }
+        result = run_backtest(config, universe, FakeProvider(histories), horizonte="swing", period="2y")
+
+        assert result.data_vintage_id is None
+        assert result.reproducible is False
+        informe = format_backtest_report(result)
+        assert "NO es reproducible" in informe
+        assert "--vintage" in informe
+
+    def test_las_operaciones_cerradas_no_cambian_al_quitar_el_futuro(self, config, universe, cosecha) -> None:
+        """Estabilidad de prefijo: lo ya cerrado no cambia porque después haya más datos.
+
+        Se simula sobre la cosecha entera y sobre la misma cosecha cortada. Toda
+        operación **cerrada** antes del corte debe salir idéntica en las dos.
+
+        **Qué caza y qué no, medido inyectando el defecto** (evidencia en
+        `evidence/2026-09-18-T-015-backtest-reproducible/inyeccion-de-defectos.txt`):
+
+        - Caza un look-ahead ancho: con la media de tendencia centrada
+          (`center=True`, que usa 100 barras futuras) el test falla.
+        - **No caza un look-ahead de una barra**: si el VIX se alineara con
+          `shift(-1)` en vez de `shift(1)`, este test pasa igual. Es una
+          limitación estructural, no un descuido: cualquier corte posterior a la
+          barra espiada la deja presente en las dos series. Contra ese caso la
+          guarda es el `shift(1)` explícito del runner, y la definitiva será el
+          contrato point-in-time de INV-09, que es trabajo de T-014 (B-00).
+        """
+
+        from advisor.research.vintage import VintageLoad, build_views, load_vintage
+
+        vintage_id, root = cosecha
+        completa = load_vintage(vintage_id, root_dir=root)
+        corte = next(iter(completa.by_symbol.values())).raw.index[320]
+        truncada = VintageLoad(
+            data_vintage_id=completa.data_vintage_id,
+            manifest=completa.manifest,
+            by_symbol={
+                symbol: build_views(views.raw.loc[:corte])
+                for symbol, views in completa.by_symbol.items()
+            },
+        )
+
+        con_futuro = run_backtest(config, universe, None, horizonte="swing", vintage=completa)
+        sin_futuro = run_backtest(config, universe, None, horizonte="swing", vintage=truncada)
+
+        cerradas_antes = [t for t in con_futuro.trades_todas if str(t.exit_date) <= str(corte)]
+        assert cerradas_antes, "el corte debe dejar operaciones cerradas a la izquierda"
+        equivalentes = {(t.symbol, str(t.entry_date)): t for t in sin_futuro.trades_todas}
+        for trade in cerradas_antes:
+            gemela = equivalentes.get((trade.symbol, str(trade.entry_date)))
+            assert gemela is not None, f"{trade.symbol} {trade.entry_date} desaparece al quitar el futuro"
+            assert gemela == trade
+
+    def test_una_cosecha_sin_tendencia_lo_dice(self, config, universe, cosecha) -> None:
+        """Faltar TODO el contexto no puede parecerse a no faltar nada (INV-16).
+
+        `context_sin_sma` cuenta sesiones sin media. Si la cosecha ni siquiera
+        trae el índice de tendencia, ese contador vale 0 —no falta ninguna
+        sesión: faltan todas—, y sin un aviso propio el informe diría que no
+        pasa nada.
+        """
+
+        from advisor.research.vintage import VintageLoad, load_vintage
+
+        vintage_id, root = cosecha
+        original = load_vintage(vintage_id, root_dir=root)
+        sin_tendencia = VintageLoad(
+            data_vintage_id=original.data_vintage_id,
+            manifest=original.manifest,
+            by_symbol={s: v for s, v in original.by_symbol.items() if s != "^STOXX50E"},
+        )
+
+        result = run_backtest(config, universe, None, horizonte="swing", vintage=sin_tendencia)
+
+        assert result.context_sin_tendencia is True
+        assert result.context_sin_sma == 0  # no falta "alguna" sesión: falta la serie entera
+        assert "AVISO GRAVE" in format_backtest_report(result)
+
+    def test_una_decision_no_puede_depender_de_la_barra_siguiente(self, config, universe, cosecha) -> None:
+        """Look-ahead de UNA barra, cazado perturbando el futuro en vez de truncarlo.
+
+        Truncar no sirve: cualquier corte posterior a la barra espiada la deja
+        presente en las dos series. Perturbar sí. Se cambia el VIX **solo** en la
+        vela en la que una operación entra —cuya decisión se tomó en la vela
+        anterior— y esa operación tiene que salir idéntica: con `shift(1)` la
+        decisión usa el VIX de dos velas antes y no puede verla.
+
+        Con `shift(-1)` inyectado, este test falla; comprobado en
+        `evidence/2026-09-18-T-015-backtest-reproducible/inyeccion-de-defectos.txt`.
+        """
+
+        from advisor.research.vintage import VintageLoad, build_views, load_vintage
+
+        vintage_id, root = cosecha
+        original = load_vintage(vintage_id, root_dir=root)
+        base = run_backtest(config, universe, None, horizonte="swing", vintage=original)
+        assert base.trades_todas
+
+        operacion = base.trades_todas[len(base.trades_todas) // 2]
+        vix_raw = original.by_symbol["^VIX"].raw
+        posicion = list(pd.to_datetime(vix_raw.index)).index(pd.Timestamp(operacion.entry_date))
+
+        perturbado = vix_raw.copy()
+        columna = perturbado.columns.get_loc("Close")
+        # Un VIX de 80 vuelve el contexto hostil: si la decisión lo viera, cambiaría.
+        perturbado.iloc[posicion, columna] = 80.0
+        futuro_cambiado = VintageLoad(
+            data_vintage_id=original.data_vintage_id,
+            manifest=original.manifest,
+            by_symbol={
+                symbol: (build_views(perturbado) if symbol == "^VIX" else views)
+                for symbol, views in original.by_symbol.items()
+            },
+        )
+
+        con_perturbacion = run_backtest(config, universe, None, horizonte="swing", vintage=futuro_cambiado)
+        gemela = next(
+            (t for t in con_perturbacion.trades_todas
+             if t.symbol == operacion.symbol and t.entry_date == operacion.entry_date),
+            None,
+        )
+        assert gemela is not None, "la operación desaparece al tocar el VIX de su propia vela de entrada"
+        assert gemela == operacion
+
+    def test_las_fechas_se_fechan_igual_en_los_dos_modos(self, config, universe, cosecha) -> None:
+        """La misma operación tiene que poder compararse entre cosecha y vivo.
+
+        La cosecha guarda sus marcas de tiempo como texto —es lo que hace
+        estables los hashes de INV-13—, así que sin convertir el índice
+        `entry_date` sería un `str` sobre cosecha y un `Timestamp` en vivo. El
+        informe ordena por ese campo.
+        """
+
+        from advisor.research.vintage import load_vintage
+
+        vintage_id, root = cosecha
+        sobre_cosecha = run_backtest(
+            config, universe, None, horizonte="swing",
+            vintage=load_vintage(vintage_id, root_dir=root),
+        )
+        en_vivo = run_backtest(
+            config, universe,
+            FakeProvider({
+                "SAP.DE": self._serie(400, 200.0, 0.25, 15.0, 30),
+                "AAPL": self._serie(400, 150.0, 0.2, 10.0, 30, fase=7),
+                "^STOXX50E": self._serie(400, 4500.0, 1.0, 50.0, 60),
+                "^VIX": self._serie(400, 15.0, 0.0, 2.0, 35),
+            }),
+            horizonte="swing", period="2y",
+        )
+
+        assert sobre_cosecha.trades_todas and en_vivo.trades_todas
+        for trade in sobre_cosecha.trades_todas + en_vivo.trades_todas:
+            assert isinstance(trade.entry_date, pd.Timestamp)
+            assert isinstance(trade.exit_date, pd.Timestamp)
+
+    def test_el_backtest_sin_proveedor_y_sin_cosecha_falla(self, config, universe) -> None:
+        with pytest.raises(ValueError, match="proveedor de datos o una cosecha"):
+            run_backtest(config, universe, None, horizonte="swing")
+
+
+class TestBacktestCLI:
+    """El comando: cómo se pide una cosecha y qué combinaciones no valen."""
+
+    def test_el_parser_no_impone_periodo_por_defecto(self) -> None:
+        """`--period` nace vacío para poder distinguir «no lo pidió» de «pidió 5y»."""
+
+        from advisor.main import build_parser
+
+        args = build_parser().parse_args(["backtest"])
+        assert args.period is None
+        assert args.vintage is None
+
+    def test_periodo_y_cosecha_juntos_se_rechazan(self, config, universe, capsys) -> None:
+        """Recortar una cosecha por periodo devolvería la dependencia del reloj.
+
+        Un periodo es relativo a *ahora*; una cosecha es un rango fijo. Mezclarlos
+        volvería a hacer que el resultado dependiera del minuto de la ejecución,
+        que es justo lo que esta ficha quita.
+        """
+
+        from advisor.main import build_parser, cmd_backtest
+
+        args = build_parser().parse_args(["backtest", "--vintage", "071ddb2b", "--period", "2y"])
+
+        assert cmd_backtest(args, config, universe) == 2
+        assert "--period no se puede usar con --vintage" in capsys.readouterr().err

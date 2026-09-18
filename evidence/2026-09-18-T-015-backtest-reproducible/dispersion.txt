@@ -1,0 +1,22 @@
+MODO EN VIVO — tres ejecuciones seguidas del mismo commit, 2026-09-18
+ejecucion    operaciones  expectancy R   R total  profit factor
+vivo-1               869          0.17    149.19           1.26
+vivo-2               862          0.18    157.10           1.28
+vivo-3               867          0.18    153.92           1.27
+dispersion             7                    7.91
+
+MODO COSECHA — tres ejecuciones seguidas sobre 071ddb2b
+ejecucion    operaciones  expectancy R   R total  profit factor
+cosecha-a             866          0.17    145.10           1.25
+cosecha-b             866          0.17    145.10           1.25
+cosecha-c             866          0.17    145.10           1.25
+dispersion             0
+
+Las tres del modo cosecha son el MISMO fichero byte a byte (mismo md5).
+
+Comparacion cosecha vs vivo: NO tienen por que coincidir y no coinciden.
+La cosecha es del 2026-08-30 y cubre 2021-08-29 -> 2026-08-30; el vivo
+es de hoy y cubre hasta la sesion en curso. Ademas la cosecha no lleva
+el historico previo que el modo en vivo descarga para la media de
+tendencia, asi que sus primeras 199 sesiones corren sin ese contexto.
+Lo que importa es que una de las dos se puede repetir y la otra no.

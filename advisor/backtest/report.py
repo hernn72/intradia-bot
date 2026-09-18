@@ -118,13 +118,54 @@ def _exit_census(trades: List[BacktestTrade]) -> str:
     return ", ".join(f"{k} {v}" for k, v in sorted(reasons.items(), key=lambda kv: -kv[1]))
 
 
+def _procedencia(result: BacktestResult) -> List[str]:
+    """De dónde salen los datos, y si el resultado se puede repetir.
+
+    Va antes que cualquier cifra a propósito: una tabla de expectancy sin esta
+    línea invita a comparar dos pasadas que no son comparables.
+    """
+
+    rango = f" | {result.data_range[0]} → {result.data_range[1]}" if result.data_range else ""
+    if result.data_vintage_id is None:
+        return [
+            f"DATOS EN VIVO{rango} — este resultado NO es reproducible.",
+            "El proveedor revisa barras y la última vela se mueve dentro de la sesión: repetir",
+            "este comando dentro de unos minutos dará otras cifras. Para cualquier número que",
+            "se vaya a publicar o comparar, usar --vintage <id> sobre una cosecha congelada.",
+            "",
+        ]
+    lineas = [
+        f"Cosecha congelada {result.data_vintage_id[:12]}…{rango} — resultado reproducible.",
+        "El rango es el de los datos realmente usados (fecha UTC de la barra), no el de la cosecha entera.",
+        "Precios SIN ajustar por dividendos: la cosecha guarda el material bruto, mientras que el",
+        "modo en vivo descarga precios ajustados. Las cifras de los dos modos no son comparables",
+        "activo a activo si reparte dividendos.",
+    ]
+    if result.context_sin_tendencia:
+        lineas.append(
+            "AVISO GRAVE: la cosecha no trae la serie de tendencia, así que TODAS las señales se han "
+            "simulado sin contexto de tendencia, no solo las primeras."
+        )
+    elif result.context_sin_sma:
+        lineas.append(
+            f"Aviso: las primeras {result.context_sin_sma} sesiones del índice de tendencia no tienen "
+            "media (la cosecha no lleva el histórico previo que el modo en vivo descarga), así que en "
+            "esas fechas el contexto de tendencia puntúa como desconocido. El número de velas afectadas "
+            "por activo depende de su calendario."
+        )
+    lineas.append("")
+    return lineas
+
+
 def format_backtest_report(result: BacktestResult) -> str:
+    periodo = f"cosecha {result.data_vintage_id[:8]}…" if result.data_vintage_id else f"periodo {result.period}"
     lines: List[str] = [
         _LINE,
-        f"BACKTEST — horizonte {result.horizonte} | periodo {result.period} | velas 1d | "
+        f"BACKTEST — horizonte {result.horizonte} | {periodo} | velas 1d | "
         f"{len(result.evaluated)} activos | coste {_n(result.cost_pct, 2)}% ida y vuelta",
         _LINE,
         "",
+        *_procedencia(result),
         "Advertencias: una posición por activo (las señales con posición abierta se pierden);",
         "sin deslizamiento; con stop y objetivo en la misma vela se asume stop (caso peor);",
         "sin señal asiática histórica (esa parte del contexto puntúa neutra);",

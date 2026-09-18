@@ -1,7 +1,7 @@
 # T-015 — El backtest deja de depender del minuto en que se ejecuta
 
-Estado: PENDIENTE
-Agente: Opus (ficha) → Codex (implementación) → Opus (revisión)
+Estado: EN_REVISION (2026-09-18)
+Agente: Opus (ficha e implementación) → Codex (revisión independiente)
 Línea / fase: Línea C (ingeniería) con efecto directo sobre la línea A
 Gate al que contribuye: GATE P2 (requisito 2: cosecha fijada) y GATE PROD
 (requisito 4: reconstrucción probada)
@@ -128,5 +128,95 @@ Rama `feat/reproducible-backtest`. Mensaje:
 anteriores a esta ficha no son reproducibles, y qué se hace con la línea base
 de la línea 0 (rehacerla sobre cosecha o etiquetarla como no reproducible).
 
+## Qué se implementó
+
+1. **`backtest --vintage <id>`** (y `--data-dir`). Con cosecha, los precios
+   salen de `views.signal_prices` y el contexto —VIX, tendencia, benchmarks— de
+   `frozen_close`. Sin ella, se descarga como siempre.
+2. **El informe declara la procedencia antes de cualquier cifra**: con cosecha,
+   el identificador y el rango; en vivo, «este resultado **NO** es reproducible»
+   y cómo obtener uno que sí lo sea.
+3. **`--period` ya no tiene valor por defecto en el parser**, para poder
+   distinguir «no lo pidió» de «pidió 5y». Combinarlo con `--vintage` devuelve
+   código 2: recortar una cosecha por un periodo relativo a *ahora* devolvería
+   justo la dependencia del reloj que esta ficha quita.
+4. **Una sola forma de cargar una cosecha** (INV-06): `resolve_vintage_id` y
+   `frozen_close` pasan a ser públicos en `advisor/research/vintage.py` y
+   `execution_filter` borra sus copias privadas.
+5. **`context_sin_sma`**: la cosecha no lleva el histórico previo que el modo en
+   vivo descarga para la media de tendencia, así que sus primeras sesiones
+   corren sin ese contexto. Se cuentan y se avisan (199 en la cosecha real), en
+   vez de disimularlo.
+
+## Invariantes ejercitadas
+
+- **INV-06**: una sola implementación de `resolve_vintage_id`/`frozen_close`,
+  compartida por el estudio del filtro de ejecución y el backtest.
+- **INV-16**: el modo en vivo no finge determinismo; lo dice en la cabecera, y
+  hay test que falla si el aviso desaparece (verificado por inyección).
+- INV-09 (point-in-time): **no** queda cubierta aquí; ver la limitación de abajo.
+
+## El test de point-in-time: por qué son dos, y no uno
+
+La ficha pedía `test_la_cosecha_no_contiene_barras_posteriores_a_la_senal`. Se
+entregan **dos** tests, cada uno con el nombre de lo que prueba, porque uno solo
+no llega. Medido inyectando el defecto, no razonado:
+
+| Defecto inyectado | truncamiento | perturbación |
+|---|---|---|
+| Media de tendencia centrada (100 barras futuras) | **lo caza** | — |
+| VIX con `shift(-1)`: look-ahead de **una** barra | no lo caza | **lo caza** |
+
+El truncamiento no puede ver un look-ahead de una barra: cualquier corte
+posterior a la barra espiada la deja presente en las dos series. La perturbación
+sí —se cambia el VIX **solo** en la vela en la que una operación entra, cuya
+decisión se tomó en la anterior, y se exige que la operación salga idéntica—, y
+esa vía la propuso la revisión de Codex. Con las dos, el hueco queda cerrado
+para el caso de una barra y para el ancho.
+
+## Medición del impacto
+
+- **Dispersión del modo en vivo**, medida hoy: 869 / 862 / 867 operaciones y R
+  total de 149,19 a 157,10, tres pasadas del mismo commit separadas por minutos.
+- **Modo cosecha**: 866 operaciones, tres veces, el mismo fichero byte a byte.
+- **Cosecha frente a vivo**: no coinciden ni tienen por qué (poblaciones y
+  fechas distintas, más las 199 sesiones sin media de tendencia). Declarado en
+  el informe y en D-34.
+- **Recomendaciones**: ninguna. Esta ficha no toca el análisis ni el asesor.
+- **Tercer motivo por el que cosecha y vivo difieren, y el más estructural**: el
+  modo en vivo descarga precios **ajustados** por dividendo y la cosecha guarda
+  el material **bruto** (`auto_adjust=False`). En la cosecha real `SAP.DE` suma
+  11,55 en dividendos y `AAPL` 4,90, así que su `Close` no es el mismo número en
+  los dos modos. Se declara en cada informe y en D-34; no se unifica, porque
+  reajustar la cosecha rompería sus hashes y la convención de P2.
+
+## Revisión independiente de Codex
+
+Sin BLOCKER. Cuatro hallazgos útiles, los cuatro atendidos:
+
+- **El más valioso**: `views.signal_prices` y `provider.get_history` **no** son
+  intercambiables, porque el vivo ajusta por dividendos y la cosecha no. No
+  invalida nada, pero sí la afirmación de comparabilidad: ahora está declarado.
+- `context_sin_sma` valía 0 cuando la cosecha **no traía** el índice de
+  tendencia, así que faltar todo el contexto parecía no faltar nada (INV-16).
+  Se añade `context_sin_tendencia` con su aviso propio y su test.
+- Quedaba una segunda copia de `frozen_close` en `advisor/research/event_study.py`
+  (INV-06): borrada, ahora importa la de `vintage.py`.
+- El rango de datos podía leerse como «el de la cosecha entera» cuando es el de
+  los datos usados, con fecha UTC de barra: el informe lo dice literalmente.
+
+Y una idea que cerró un hueco que yo había dado por estructural: cazar el
+look-ahead de una barra **perturbando** el futuro en vez de truncarlo.
+
 ## Handoff al siguiente agente
-Pendiente de escribir al terminar.
+
+- **D-34** fija que cualquier cifra publicable sale de `--vintage`, y que las
+  cifras en vivo anteriores quedan etiquetadas como no reproducibles en vez de
+  rehacerse ahora: **A-02 (T-013) ya va a repetir P2.3/P2.4/P2.5 sobre
+  `071ddb2b…` una sola vez**, y ese es el momento de rehacerlas.
+- **A-02 puede ahora apoyar un criterio de aceptación en el backtest**, que era
+  imposible cuando Codex bloqueó T-009 con razón.
+- Queda abierto, menor: la cosecha vigente se congeló con 5 años para todos los
+  símbolos, así que el contexto de tendencia arranca 199 sesiones tarde. Si A-02
+  necesita esas sesiones, hay que congelar el contexto con más histórico —es una
+  cosecha nueva, con su identificador, no un parche al cargarla.

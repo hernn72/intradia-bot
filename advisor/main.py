@@ -271,13 +271,30 @@ def _build_calendar(config: AdvisorConfig) -> Optional[EventCalendar]:
 def cmd_backtest(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     from advisor.backtest.report import format_backtest_report
     from advisor.backtest.runner import run_backtest
+    from advisor.research.vintage import load_vintage, resolve_vintage_id
 
-    provider = MarketDataProvider(config.request_min_interval_seconds)
     groups: Optional[List[str]] = args.grupos.split(",") if args.grupos else None
+    vintage = None
+    provider = None
+    if args.vintage:
+        if args.period is not None:
+            # Recortar una cosecha por periodo relativo devolvería el problema
+            # que esta ficha quita: el resultado volvería a depender de cuándo
+            # se ejecuta el comando.
+            print(
+                "--period no se puede usar con --vintage: una cosecha es el rango que es.",
+                file=sys.stderr,
+            )
+            return 2
+        vintage = load_vintage(resolve_vintage_id(args.vintage, args.data_dir), root_dir=args.data_dir)
+    else:
+        provider = MarketDataProvider(config.request_min_interval_seconds)
+
     result = run_backtest(
         config, universe, provider,
         horizonte=args.horizonte, groups=groups,
-        period=args.period, cost_pct=args.coste_pct,
+        period=args.period or "5y", cost_pct=args.coste_pct,
+        vintage=vintage,
     )
     print(format_backtest_report(result))
     return 0
@@ -902,7 +919,11 @@ def build_parser() -> argparse.ArgumentParser:
     backtest = sub.add_parser("backtest", help="simula las señales del asesor sobre el pasado y mide si tienen ventaja")
     backtest.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
     backtest.add_argument("--grupos", help="grupos del universo separados por comas (por defecto, todos)")
-    backtest.add_argument("--period", default="5y", help="histórico a simular (2y, 5y...); validar siempre en más de uno")
+    backtest.add_argument("--period", default=None,
+                          help="histórico a simular en vivo (2y, 5y...; por defecto 5y); validar siempre en más de uno")
+    backtest.add_argument("--vintage", help="id (o prefijo) de una cosecha congelada: hace el resultado reproducible")
+    backtest.add_argument("--data-dir", default="data/vintages", dest="data_dir",
+                          help="directorio raíz de cosechas versionadas")
     backtest.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
                           help="coste de ida y vuelta en %% (Trade Republic: ~1 EUR por orden)")
     backtest.set_defaults(func=cmd_backtest)
