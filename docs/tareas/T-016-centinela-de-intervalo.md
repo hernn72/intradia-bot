@@ -1,9 +1,9 @@
 # T-016 — El centinela `(0.0, 1.0)` deja de publicarse como intervalo
 
-Estado: PENDIENTE
+Estado: PENDIENTE (auditoría hecha el 2026-09-18: **0 celdas afectadas**; deja de ser previa a A-02)
 Agente: Codex (implementación) → Opus (revisión)
 Línea / fase: Línea A, higiene del laboratorio
-Gate al que contribuye: **GATE P2** — debe estar hecho antes de A-02 (T-013)
+Gate al que contribuye: higiene del laboratorio. **Ya no bloquea A-02**: la auditoría del 2026-09-18 midió 0 celdas afectadas en el veredicto de P2.5 (evidencia en `evidence/2026-09-18-T-016-auditoria/`)
 
 ## Objetivo
 Que ninguna salida del laboratorio publique como intervalo de confianza un
@@ -64,13 +64,19 @@ vive en un solo sitio).
 2. **Todos los consumidores lo declaran.** `capacity.py` y
    `execution_filter.py` imprimen «N/D (menos de 2 bloques)» y marcan el estado
    de la celda, como ya hace `execution_filter` tras T-009.
-3. **Auditar hacia atrás, que es la parte que importa.** Reejecutar
-   `capacidad-estadistica` sobre la cosecha `071ddb2b…` y **contar cuántas
-   celdas caían en el centinela**. Si alguna del veredicto de P2.5 lo hacía, se
-   dice en el decision log y se marca ese veredicto como no concluyente hasta
-   que A-02 lo rehaga. Este recuento es el entregable principal de la ficha: si
-   sale cero, la deuda era teórica; si no sale cero, GATE P2 arrastra un
-   resultado inválido.
+3. ~~**Auditar hacia atrás**~~ **HECHO el 2026-09-18, antes de implementar.**
+   Resultado: **0 celdas afectadas**. El mínimo de bloques en todo el veredicto
+   de P2.5 son 4 (medio, banda 80+) y el centinela solo salta por debajo de 2.
+   La deuda era teórica: GATE P2 no arrastra ningún resultado inválido por esta
+   causa, y por eso la ficha deja de ser previa a A-02. Evidencia y tabla
+   completa en `evidence/2026-09-18-T-016-auditoria/`. La conclusión no depende
+   del cambio de universo de D-31: el número de bloques sale de la ventana
+   temporal, no del número de activos.
+
+4. **Unificar cómo se pide la cosecha.** `capacidad-estadistica` exige el id
+   completo como posicional; `filtro-ejecucion` acepta el prefijo con
+   `--vintage`. Dejar una sola convención (prefijo admitido, resuelto contra
+   `data/vintages/`), sin romper la forma actual de ninguno.
 4. **No cambiar ningún cálculo.** Las celdas con dos o más bloques deben dar
    exactamente el mismo intervalo que hoy, comprobado cifra a cifra.
 

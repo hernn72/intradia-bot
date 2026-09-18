@@ -34,17 +34,17 @@ con rebase. El push directo a `main` está bloqueado también para el propietari
 ## Por dónde seguir, en orden
 
 1. ~~OA-04~~ **hecha**: la Pi corre `c2ff1d7`, evidencia en `evidence/2026-09-18-despliegue-pi/`.
-2. **T-016** (Codex → Opus) — el centinela `(0.0, 1.0)` de
-   `bootstrap_block_mean_interval` lo consume `capacity.py`, que emite el
-   veredicto de P2.5. **Va antes de A-02.** Hay que contar cuántas celdas de ese
-   veredicto lo llevaban.
+2. **T-013 (A-02)** → GATE P2. **Desbloqueada**: la auditoría de T-016
+   (2026-09-18) midió **0 celdas afectadas** por el centinela en el veredicto de
+   P2.5, así que no arrastra nada inválido. Ojo al cambio de población: 107 → 103
+   por D-31, y la comparación con lo ya publicado debe declararlo.
 3. **T-011 + T-017** juntas (Codex → Opus), una sola migración v4→v5:
    release por tag y rollback probado, más `git_dirty` nullable,
    `config_hash` sin rutas, `backup_log` migrado y vintage por grupo.
 4. **T-012** (Codex → Opus → propietario): la cifra de OD-02/OD-09/OD-10.
-5. **T-015**: backtest sobre cosecha congelada. Antes de A-02 si A-02 va a
+5. **T-015**: backtest sobre cosecha congelada. Conviene antes de A-02 si va a
    comparar poblaciones.
-6. **T-013 (A-02)** → GATE P2. Ya no está bloqueada.
+6. **T-016**: higiene del centinela, ya sin urgencia.
 
 ## Decisiones del propietario pendientes
 
