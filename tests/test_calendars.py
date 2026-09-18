@@ -14,7 +14,11 @@ from advisor.universe.models import Asset
 
 
 def _ohlcv_for_dates(values: list[date]) -> pd.DataFrame:
-    index = pd.DatetimeIndex([pd.Timestamp(value, tz="UTC") for value in values])
+    # Marcas **sin zona**, que es como sirve el proveedor el histórico diario en
+    # vivo. Con `tz="UTC"` una barra de NYSE a las 00:00Z serían las 20:00 del
+    # día anterior en Nueva York y pertenecería a otra sesión: la misma serie no
+    # puede valer para dos plazas si lleva zona.
+    index = pd.DatetimeIndex([pd.Timestamp(value) for value in values])
     return pd.DataFrame(
         {
             "Open": [100.0 + i for i in range(len(values))],

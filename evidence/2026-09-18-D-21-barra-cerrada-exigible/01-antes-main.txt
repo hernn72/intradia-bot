@@ -1,0 +1,235 @@
+==========================================================================================
+ASESOR DE INVERSIÓN — 2026-09-18 16:13 UTC  |  horizonte: swing  |  velas: 1d
+==========================================================================================
+
+## 🌍 SITUACIÓN GLOBAL
+
+Asia:
+  - CSI 300 (vía ETF China AMC) (510300.SS): 4,55 CNY +0,6%
+  - Hang Seng (^HSI): 24604,29 HKD -0,4%
+  - KOSPI (^KS11): 6715,41 KRW -0,0%
+  - Nikkei 225 (^N225): 64136,25 JPY +0,3%
+  - Taiwan Weighted (^TWII): 46288,00 TWD +1,0%
+Europa:
+  - CAC 40 (^FCHI): 8065,02 EUR -1,5%
+  - DAX (^GDAXI): 25304,06 EUR -1,6%
+  - STOXX Europe 600 (^STOXX): 635,45 EUR -1,1%
+  - Euro Stoxx 50 (^STOXX50E): 6236,20 EUR -1,4%
+EE. UU.:
+  - S&P 500 (^GSPC): 7621,71 USD -0,2%
+  - Nasdaq 100 (^NDX): 29427,02 USD -0,1%
+  - Russell 2000 (^RUT): 2849,48 USD -0,9%
+  - Philadelphia Semiconductor (^SOX): 11711,54 USD +1,0%
+  - Treasury 10 años (^TNX): 5,00 USD +1,1%
+  - VIX (^VIX): 15,40 USD -0,3%
+Global:
+  - WTI (CL=F): 96,74 USD -5,1%
+  - Dollar Index (DX-Y.NYB): 100,39 USD +0,2%
+  - EUR/USD (EURUSD=X): 1,15 USD +0,0%
+  - Oro (GC=F): 4394,20 USD -0,1%
+
+Volatilidad: VIX 15,4 (umbral 25,0)  |  Contexto: RISK_ON — tendencia alcista del índice de referencia y volatilidad contenida
+
+**Frescura de datos:** 93 activos analizados con snapshot.
+  - Calidad: INCOMPLETO=41, OK=52.
+  - 0 sesiones cerradas perdidas: 93 activos; última barra 2026-09-18 (XETRA (28), PAR (6), CRYPTO (3), MCE (3), AMS (2), MIL (2)); 2026-09-17 (NASDAQ (24), NYSE (16), JPX (6), HKG (3)).
+  - 1 sesión cerrada perdida: 0 activos.
+  - 2 o más sesiones cerradas perdidas: 0 activos.
+⚠️ Sesiones ausentes frente al calendario de su plaza: 41 activos.
+  - IFX.DE: faltan 2026-09-17 en XETR.
+  - EQQQ.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - TTE.PA: faltan 2026-09-17 en XPAR.
+  - IBE.MC: faltan 2026-09-17 en XMAD.
+  - EUNN.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - SIE.DE: faltan 2026-09-17 en XETR.
+  - OR.PA: faltan 2026-09-17 en XPAR.
+  - SU.PA: faltan 2026-09-17 en XPAR.
+  - BBVA.MC: faltan 2026-09-17 en XMAD.
+  - ENI.MI: faltan 2026-09-17 en XMIL.
+  - DBK.DE: faltan 2026-09-17 en XETR.
+  - IQQT.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - EXH1.DE: faltan 2026-09-17 en XETR.
+  - ALV.DE: faltan 2026-09-17 en XETR.
+  - VVSM.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - SAF.PA: faltan 2026-09-17 en XPAR.
+  - MUV2.DE: faltan 2026-09-17 en XETR.
+  - SAP.DE: faltan 2026-09-17 en XETR.
+  - MC.PA: faltan 2026-09-17 en XPAR.
+  - ITX.MC: faltan 2026-09-17 en XMAD.
+  - SXR8.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - AIR.PA: faltan 2026-09-17 en XPAR.
+  - MBG.DE: faltan 2026-09-17 en XETR.
+  - R6C0.DE: faltan 2026-09-17 en XETR.
+  - RACE.MI: faltan 2026-09-17 en XMIL.
+  - ASML.AS: faltan 2026-09-17 en XAMS.
+  - EXV1.DE: faltan 2026-09-17 en XETR.
+  - IQQK.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - IS3N.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - ZPRR.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - Q8Y0.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - RRU.DE: faltan 2026-09-17 en XETR.
+  - ENR.DE: faltan 2026-09-17 en XETR.
+  - ADYEN.AS: faltan 2026-09-17 en XAMS.
+  - EUNH.DE: faltan 2026-09-17 en XETR.
+  - BSP.DE: faltan 2026-09-17 en XETR.
+  - DTE.DE: faltan 2026-09-17 en XETR.
+  - EUNL.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - EXSA.DE: faltan 2026-09-17 en XETR.
+  - QDV5.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+  - ICGA.DE: faltan 2026-03-06, 2026-09-17 en XETR.
+⚠️ Barra potencialmente parcial: última barra fechada hoy, puede no ser cierre de sesión.
+  - SOL-EUR
+  - BTC-EUR
+  - ETH-EUR
+Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre de la sesión local + 20 min. Las ausencias se validan contra el calendario de plaza con festivos; cripto no tiene sesión de cierre.
+
+## 🔥 OPORTUNIDADES DETECTADAS
+
+| Activo     | Tipo                   |           Precio |     Entrada máx. |       Objetivo 2 |             Stop |  Potenc. |   Riesgo | Score |
+|------------|------------------------|------------------|------------------|------------------|------------------|----------|----------|-------|
+| AMD        | 🚀 Swing / corto plazo  |         475,15 € |         475,15 € |         532,63 € |         436,84 € |   +12,1% |    -8,1% |    73 |
+
+------------------------------------------------------------------------------------------
+## AMD
+
+**Ticker:** AMD
+**ISIN:** US0079031078
+**Mercado de datos:** NASDAQ (EE. UU.)
+**Divisa de cotización:** USD
+**Exposición económica:** USD
+**Broker / ejecución:** trade_republic / best_price
+**Disponible en Trade Republic:** Sí
+
+**Precio actual:** 545,09 USD (≈ 475,15 €) · Sesión: 2026-09-17 · Mercado: OPEN
+**Tipo de operación:** 🚀 Swing / corto plazo
+Score: 73/100 (Interesante)
+Setup: VÁLIDO
+Ejecución: EJECUTABLE
+Dato: OK
+Broker: AVAILABLE
+**Señal:** 🟢 OPERAR
+**Ejecutabilidad en broker:** ✅ disponible verificado
+**Datos de mercado:** OK; última barra 2026-09-17 (hace 1 día natural; al día); histórico OK
+**Cierre de sesión:** barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+**Puntuación:** 73/100 (Interesante) — calculada sobre 80 puntos evaluables
+
+### Tesis
+el activo mantiene estructura alcista (EMA rápida sobre la lenta y precio sobre la SMA larga) con el RSI en 67 y por delante de su índice de referencia (+17.8 pp). El planteamiento arriesga un 8.1% para buscar un 12.1%, un ratio de 1.5:1
+
+### Catalizador
+Huella en el precio: volumen 1.6× la media; hueco alcista +4.1%. El bot no consulta noticias ni resultados, así que la causa de fondo no está verificada.
+
+### Entrada
+Entrada ideal: 534,10 USD (≈ 465,58 €) — 545,09 USD (≈ 475,15 €)
+Entrada máxima por técnica (ATR): 561,57 USD (≈ 489,52 €)
+Entrada máxima por RR mínimo (1,5): 545,09 USD (≈ 475,15 €)
+Entrada máxima aplicada: 545,09 USD (≈ 475,15 €) — manda el RR mínimo
+⚠️ ESPERAR PULLBACK / NO PERSEGUIR PRECIO — el precio está extendido sobre su media rápida.
+
+### Stop / invalidación
+Stop de precio: 501,14 USD (≈ 436,84 €) (2·ATR por debajo del precio)
+Invalidación de la tesis: 488,87 USD (≈ 426,15 €) — cierre por debajo de la EMA lenta: la tendencia que sostiene la tesis desaparece
+Pérdida máxima estimada desde el precio de referencia: -8,1%
+
+### Objetivos
+Objetivo 1: 578,05 USD (≈ 503,89 €)  (+6,0%)
+Objetivo 2: 611,02 USD (≈ 532,63 €)  (+12,1%)
+Objetivo 3: 654,97 USD (≈ 570,94 €)  (+20,2%)
+
+### Potencial
++12,1% hasta el objetivo 2 (escenario principal)
+
+### Riesgo
+-8,1% hasta el stop
+
+### Ratio beneficio/riesgo
+1,5 : 1
+RR a 545,09 USD (≈ 475,15 €): 1,50
+
+### Horizonte temporal
+de 2 días a 8 semanas
+
+### Confianza
+Media
+
+### Próximo evento importante
+Ninguno con fecha conocida en la ventana consultada.
+
+### Escenarios
+Alcista: el precio alcanza el objetivo 3 (654,97 USD (≈ 570,94 €), +20,2%).
+Base: el precio alcanza el objetivo 2 (611,02 USD (≈ 532,63 €), +12,1%).
+Bajista: se activa el stop en 501,14 USD (≈ 436,84 €) (-8,1%).
+Sin datos de probabilidad histórica de cada escenario: el bot no estima probabilidades que no ha medido.
+
+### Qué podría salir mal
+  - Volatilidad elevada (ATR = 4.0% del precio): el stop puede activarse por ruido.
+  - Análisis sin dimensión fundamental: la puntuación no recoge ese factor.
+
+### Dimensionamiento sugerido
+Convicción media: 6,2% de la cartera, arriesgando 0,50% si salta el stop.
+Restricción dominante: manda el presupuesto de riesgo.
+Cálculo hecho con entrada de referencia 545,09 USD (≈ 475,15 €); si introduces otro precio en Trade Republic, recalcula el tamaño.
+
+### Desglose de la puntuación
+  - catalizador: 11.0/20
+      · volumen: volumen 1.6× la media
+      · hueco: hueco alcista +4.1%
+      · ruptura: a -6.8% del máximo de la ventana
+  - fundamental: excluida — sin fuente de datos fundamentales configurada
+  - tecnico: 20.0/20
+      · cruce de medias: EMA rápida por encima de la lenta
+      · tendencia de fondo: precio por encima de la SMA larga
+      · RSI: RSI 67, en zona de entrada
+      · MACD: histograma MACD positivo
+      · fortaleza relativa: bate a su índice en +17.8 pp
+  - beneficio_riesgo: 10.0/20
+      · ratio B/R: ratio 1.5:1 — aceptable
+  - contexto: 7.8/10
+      · régimen: RISK_ON: tendencia alcista del índice de referencia y volatilidad contenida
+  - conviccion: 9.5/10
+      · histórico: 251 velas (100% de lo requerido)
+      · indicadores: 6/6 disponibles
+      · estabilidad: ATR 4.0% del precio
+
+### Acción
+**COMPRAR**
+**Señal:** 🟢 OPERAR
+**Disponibilidad:** ✅ disponible verificado
+  ⚠️ precio extendido 2.2·ATR sobre su media rápida: no persigas, prioriza la zona de entrada ideal o un pullback
+
+## 👀 RADAR
+
+  - IFX.DE (Infineon) — score 70, ratio 2,3:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-17 [MISSING_RECENT_DATA] — INCOMPLETO: faltan sesiones cerradas recientes frente al calendario de la plaza 2026-09-17 (ventana de veto: 20 sesiones)
+  - SOL-EUR (Solana) — score 68, ratio 1,5:1 [LOW_SCORE] — puntuación 68, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - EQQQ.DE (Invesco EQQQ Nasdaq-100) — score 67, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-03-06, 2026-09-17 [LOW_SCORE] — puntuación 67, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - TTE.PA (TotalEnergies) — score 67, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-17 [LOW_SCORE] — puntuación 67, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - IBE.MC (Iberdrola) — score 67, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-09-17 [LOW_SCORE] — puntuación 67, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - ARM (Arm Holdings) — score 67, ratio 1,5:1 [LOW_SCORE] — puntuación 67, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - INTC (Intel) — score 67, ratio 1,5:1 [LOW_SCORE] — puntuación 67, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - TSM (TSMC ADR) — score 66, ratio 1,5:1 [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - EUNN.DE (iShares Core MSCI Japan IMI) — score 65, ratio 1,5:1 calidad INCOMPLETO; ⚠️ falta sesión 2026-03-06, 2026-09-17 [LOW_SCORE] — puntuación 65, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - BRK-B (Berkshire Hathaway) — score 65, ratio 1,5:1 [LOW_SCORE] — puntuación 65, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+
+## 🔴 DESCARTADOS
+
+64 activos descartados por grupo:
+  - score insuficiente: 64 activos — VVSM.DE, SAF.PA, MUV2.DE, AMAT, SAP.DE, MC.PA, ITX.MC, CAT, SXR8.DE, AIR.PA, MBG.DE, R6C0.DE, RACE.MI, PANW, ASML.AS, AMZN, EXV1.DE, MSFT, GOOGL, NVDA, CVX, TSLA, NOW, XOM, IQQK.DE, IS3N.DE, ZPRR.DE, Q8Y0.DE, GS, 6501.T, RRU.DE, AZN, APP, ENR.DE, ADYEN.AS, EUNH.DE, BSP.DE, 6758.T, V, COIN, DTE.DE, EUNL.DE, 8035.T, PLTR, CRM, 6857.T, AVGO, ORCL, EXSA.DE, MA, VRTX, 7203.T, 7011.T, LLY, NFLX, ADBE, LMT, QDV5.DE, ICGA.DE, 0700.HK, 9988.HK, UBER, 1810.HK, INFY
+  - RR/ejecución: 0 activos
+  - datos: 0 activos
+  - tendencia: 0 activos
+  - sobreextensión: 0 activos
+  - broker: 0 activos
+  - otros: 0 activos
+
+## 🎯 CONCLUSIÓN
+
+Mejor oportunidad (🚀 Swing / corto plazo): AMD — score 73, ratio 1.5:1.
+Régimen: RISK_ON — tendencia alcista del índice de referencia y volatilidad contenida.
+Capital asignado a señales actuales: 6% · Capital no asignado: 94%. Suma de las 1 mejores ideas por señal en su dimensionamiento máximo. No es una política de asignación a efectivo. Topes dominantes: manda el presupuesto de riesgo. Cuando manda el tope máximo por posición, el riesgo efectivo es menor que el configurado. La disponibilidad del broker se informa aparte.
+
+------------------------------------------------------------------------------------------
+Conversión a euros aproximada (cierre del 2026-09-18) — 1 USD ≈ 0,8717 EUR. El importe que aplicará Trade Republic al ejecutar puede diferir.
+------------------------------------------------------------------------------------------
+Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
+==========================================================================================
+run 1c7a1174-7947-41cb-a447-48c536a7765d · 3d0e611b360a · config 1294c526 · universo 237b0056

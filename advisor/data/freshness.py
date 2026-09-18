@@ -10,6 +10,7 @@ import pandas as pd
 
 from advisor.data.calendars import calendar_mic, closed_sessions_between, expected_sessions, missing_sessions
 from advisor.data.quality import DataQuality, Severity, build_data_quality
+from advisor.data.sessions import latest_expected_closed_session, session_date_of
 from advisor.universe.models import Asset
 
 QUALITY_OK = "OK"
@@ -40,6 +41,7 @@ class DataFreshness:
     reference_sessions_checked: int = 0
     veto_window_sessions: int = 0
     session_close_status: str = ""
+    latest_expected_closed_session: Optional[date] = None
     quality: str = QUALITY_OK
     quality_reasons: tuple[str, ...] = field(default_factory=tuple)
     data_quality: DataQuality | None = None
@@ -95,23 +97,51 @@ def calcular_frescura_dato(
     last_bar_timestamp: object,
     reference: datetime,
     market: str,
+    settlement_minutes: int = 0,
 ) -> DataFreshness:
-    """Calcula antigüedad natural y en sesiones aproximadas de una última barra.
+    """Cuántas barras que ya deberían estar cerradas faltan.
 
-    La antigüedad en sesiones cerradas perdidas usa el calendario de la plaza.
+    ``sessions_approx`` cuenta sesiones **exigibles**: las que hay entre la
+    última barra recibida y la última sesión cuyo cierre ya pasó (D-36). Cero
+    significa que el proveedor ha entregado todo lo que podía entregar; uno o
+    más, que el dato está retrasado y D-21 veta.
+
+    Lo que hace genérica la regla es que la frontera no es «hoy», sino el
+    cierre de cada plaza: a las 07:00 la sesión europea de ayer ya cerró y su
+    barra es exigible, mientras que la estadounidense de hoy ni siquiera ha
+    abierto. Una barra posterior a esa frontera está en curso: se ignora y no
+    veta (D-37).
     """
 
-    last_bar_date = _fecha(last_bar_timestamp)
+    # La barra se fecha en la zona de su plaza, igual que al recortarla: en UTC
+    # una sesión europea del día 18 parece del 17 y saldría vetada teniendo su
+    # dato al día. Sin plaza declarada se cae a la fecha tal cual, que es lo que
+    # se hacía antes, y el veredicto quedará como desconocido más abajo.
+    last_bar_date = session_date_of(last_bar_timestamp, market) or _fecha(last_bar_timestamp)
     reference_date = reference.date()
     natural_days = max(0, (reference_date - last_bar_date).days)
-    sessions_approx = closed_sessions_between(last_bar_date, reference_date, market)
+    ultima_cerrada = latest_expected_closed_session(
+        market, reference, settlement_minutes=settlement_minutes
+    )
+    if ultima_cerrada is None:
+        # Plaza sin calendario declarado: no se puede saber qué era exigible, así
+        # que se mantiene la cuenta antigua y se dirá que no hay calendario, en
+        # vez de suponer que no falta nada (INV-16).
+        sessions_approx = closed_sessions_between(last_bar_date, reference_date, market)
+        barra_abierta = last_bar_date > reference_date
+    else:
+        sessions_approx = len(
+            expected_sessions(market, last_bar_date + timedelta(days=1), ultima_cerrada)
+        )
+        barra_abierta = last_bar_date > ultima_cerrada
     return DataFreshness(
         last_bar_date=last_bar_date,
         natural_days=natural_days,
         sessions_approx=sessions_approx,
         label=_freshness_label(natural_days, sessions_approx),
-        may_be_partial_current_session=_may_be_partial_current_session(last_bar_date, reference, market, 0),
+        may_be_partial_current_session=barra_abierta,
         calendar=calendar_mic(market),
+        latest_expected_closed_session=ultima_cerrada,
     )
 
 
@@ -151,7 +181,7 @@ def calcular_frescura_serie(
     if history.empty:
         raise ValueError("el histórico está vacío")
 
-    freshness = calcular_frescura_dato(history.index[-1], reference, market)
+    freshness = calcular_frescura_dato(history.index[-1], reference, market, settlement_minutes)
 
     asset_dates = _fechas_indice(history.index, asset_timezone)
     if not asset_dates:
@@ -177,12 +207,11 @@ def calcular_frescura_serie(
     # después, porque la calidad se construye en esta misma función: corregir
     # el campo a posteriori dejaba una DataQuality calculada con el valor viejo
     # y vetaba a los asiáticos por una sesión que llevaba horas cerrada.
-    freshness_values["may_be_partial_current_session"] = False if barra_actual_cerrada else _may_be_partial_current_session(
-        last_asset_date,
-        reference,
-        market,
-        settlement_minutes,
-    )
+    # Tras recortar, la última barra nunca es posterior a la última cerrada
+    # exigible, así que este campo queda en False por el camino normal. Se
+    # respeta el aviso de quien recortó por si la serie llega sin recortar.
+    if barra_actual_cerrada:
+        freshness_values["may_be_partial_current_session"] = False
     return classify_data_quality(DataFreshness(
         **freshness_values,
         strength_benchmark=strength_benchmark,
@@ -333,6 +362,7 @@ def _freshness_kwargs(freshness: DataFreshness) -> dict:
         "may_be_partial_current_session": freshness.may_be_partial_current_session,
         "calendar": freshness.calendar,
         "session_close_status": freshness.session_close_status,
+        "latest_expected_closed_session": freshness.latest_expected_closed_session,
     }
 
 def _freshness_label(natural_days: int, sessions_approx: int) -> str:

@@ -296,8 +296,16 @@ class TestRunAnalysis:
         assert opportunity.data_freshness.calendar == "XNYS"
         assert opportunity.data_freshness.absent_reference_sessions == ()
 
-    def test_cripto_declara_la_barra_del_dia_en_curso_como_parcial(self, config, benign_context) -> None:
-        """Cripto no cierra: la barra de hoy es parcial hasta UTC 00:00 + settlement."""
+    def test_cripto_ignora_la_barra_en_curso_y_no_queda_vetada(self, config, benign_context) -> None:
+        """D-37: una barra abierta se ignora, no veta.
+
+        Antes, la barra del día en curso marcaba `PARTIAL_BAR` y con ella
+        `execution_readiness=False`, así que cripto no era recomendable **nunca**:
+        no hay ningún instante en que su barra del día esté cerrada y siga siendo
+        la última. Ahora la barra en curso se recorta —como en cualquier plaza,
+        solo que aquí la sesión cierra a las 00:00 UTC— y lo que se evalúa es la
+        última cerrada exigible, que sí está.
+        """
 
         asset = _cripto()
         fechas = pd.date_range(end="2026-09-16", periods=300, freq="D", tz="UTC")
@@ -313,10 +321,16 @@ class TestRunAnalysis:
             now=datetime(2026, 9, 16, 8, 0, tzinfo=timezone.utc),
         )
 
-        assert opportunity.data_freshness is not None
-        assert opportunity.data_freshness.calendar == "CRYPTO_24_7"
-        assert opportunity.data_freshness.session_close_status == "sin sesión de cierre"
-        assert opportunity.data_freshness.may_be_partial_current_session is True
+        frescura = opportunity.data_freshness
+        assert frescura is not None
+        assert frescura.calendar == "CRYPTO_24_7"
+        # La barra del 16 está en curso: se recorta y la exigible es la del 15.
+        assert frescura.latest_expected_closed_session == date(2026, 9, 15)
+        assert frescura.last_bar_date == date(2026, 9, 15)
+        assert frescura.may_be_partial_current_session is False
+        assert frescura.sessions_approx == 0
+        assert frescura.data_quality is not None
+        assert frescura.data_quality.execution_readiness is True
 
     def test_cripto_no_declara_parcial_una_barra_ya_liquidada(self, config, benign_context) -> None:
         asset = _cripto()

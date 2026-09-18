@@ -658,15 +658,18 @@ class TestFormatReport:
     ) -> None:
         config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
         no_disponible = asset_usd.model_copy(update={"trade_republic": "no"})
+        # Marcas sin zona, como sirve el proveedor el diario en vivo: con
+        # `tz="UTC"` la barra de NASDAQ serían las 20:00 del día anterior en
+        # Nueva York y el informe la fecharía en otra sesión.
         radar_viejo = _opportunity(
             asset_eur,
             hostile_context,
-            timestamp=pd.Timestamp("2026-08-25", tz="UTC"),
+            timestamp=pd.Timestamp("2026-08-25"),
         )
         descartado_al_dia = _opportunity(
             no_disponible,
             benign_context,
-            timestamp=pd.Timestamp("2026-08-27", tz="UTC"),
+            timestamp=pd.Timestamp("2026-08-27"),
         )
 
         informe = format_report(

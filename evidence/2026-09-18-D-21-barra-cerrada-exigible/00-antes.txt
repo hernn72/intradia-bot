@@ -1,0 +1,26 @@
+ahora son las 16:00 UTC
+| ^GDAXI | ^GDAXI | XETRA | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XETR | sin sesiones ausentes recientes |
+| ^FCHI | ^FCHI | PAR | 2026-09-18 | hoy; al día; barra de hoy posiblemente parcial | XPAR | sin sesiones ausentes recientes |
+| ^N225 | ^N225 | OSA | N/D | error | N/D | N/D |
+| ^HSI | ^HSI | HKG | 2026-09-17 | hace 1 día natural; al día | XHKG | sin sesiones ausentes recientes |
+| 510300.SS | 510300.SS | SHH | 2026-09-16 | hace 2 días naturales; 1 sesión | XSHG | sin sesiones ausentes recientes |
+| ^KS11 | ^KS11 | KSC | 2026-09-17 | hace 1 día natural; al día | XKRX | sin sesiones ausentes recientes |
+| ^TWII | ^TWII | TAI | 2026-09-17 | hace 1 día natural; al día | XTAI | sin sesiones ausentes recientes |
+| EURUSD=X | EURUSD=X | CCY | N/D | error | N/D | N/D |
+| DX-Y.NYB | DX-Y.NYB | NYB | N/D | error | N/D | N/D |
+| ^TNX | ^TNX | CGI | N/D | error | N/D | N/D |
+| CL=F | CL=F | NYM | N/D | error | N/D | N/D |
+| GC=F | GC=F | CMX | N/D | error | N/D | N/D |
+
+Símbolos sin datos:
+- ^VIX (^VIX, CBOE): plaza 'CBOE' sin calendario declarado
+- ^GSPC (^GSPC, SNP): plaza 'SNP' sin calendario declarado
+- ^RUT (^RUT, WCB): plaza 'WCB' sin calendario declarado
+- ^STOXX (^STOXX, ZRH): plaza 'ZRH' sin calendario declarado
+- ^STOXX50E (^STOXX50E, ZRH): plaza 'ZRH' sin calendario declarado
+- ^N225 (^N225, OSA): plaza 'OSA' sin calendario declarado
+- EURUSD=X (EURUSD=X, CCY): plaza 'CCY' sin calendario declarado
+- DX-Y.NYB (DX-Y.NYB, NYB): plaza 'NYB' sin calendario declarado
+- ^TNX (^TNX, CGI): plaza 'CGI' sin calendario declarado
+- CL=F (CL=F, NYM): plaza 'NYM' sin calendario declarado
+- GC=F (GC=F, CMX): plaza 'CMX' sin calendario declarado
