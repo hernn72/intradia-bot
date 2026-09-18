@@ -1,0 +1,24 @@
+1) Copia hecha por una migracion (registrada en backup_log):
+fichero            intradia.db.bak-20260917-095333-pre-v4
+integridad         ok
+esquema            v3
+registro           registrado en backup_log
+filas en la copia  analysis_run=0, data_freshness_measurement=107, event_pass=0, position=0, position_review=0, recommendation=214
+filas en la viva   analysis_run=0, data_freshness_measurement=107, event_pass=0, position=0, position_review=0, recommendation=214
+veredicto          VALIDO
+codigo: 0
+
+2) Copia manual del 2026-09-02, la que el comando antiguo llamaba invalida:
+fichero            intradia.db.bak-20260902-181458
+integridad         ok
+esquema            v0
+registro           no registrado (copia manual)
+filas en la copia  data_freshness_measurement=0, event_pass=0, position=0, position_review=0, recommendation=107
+filas en la viva   analysis_run=0, data_freshness_measurement=107, event_pass=0, position=0, position_review=0, recommendation=214
+veredicto          VALIDO
+  - no figura en backup_log: copia manual, no la hizo una migración
+codigo: 0
+
+=== ANTES (codigo de main, 11efae8) sobre los mismos dos ficheros ===
+intradia.db.bak-20260917-095333-pre-v4: Backup verificado
+intradia.db.bak-20260902-181458: Backup invalido

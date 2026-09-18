@@ -197,8 +197,8 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | C-01 | Migraciones `user_version`, backup pre-migración, `verificar-backup` | HECHO (T-002, revisión independiente aplicada; ver evidencia) | C-00 | T-002 |
 | C-02 | Manifiesto de ejecución (`run_id`, SHA, config hash, vintages, versiones, reloj) | HECHO (T-002; reloj medido vía `timesync-status`/`chronyc`/SNTP UDP; alerta Telegram pendiente en C-04) | C-01 | T-002 |
 | C-07 | Backtest reproducible sobre cosecha congelada; el modo en vivo declara que no lo es | PENDIENTE, **ficha escrita** (2026-09-18). Medido: tres pasadas del mismo commit dan 891, 893 y 890 operaciones. Afecta a la línea base de la línea 0 | — | **T-015** |
-| C-08 | Higiene del manifiesto y del esquema: `git_dirty` nullable, `config_hash` sin rutas, `backup_log` migrado, vintage por grupo — una sola migración, junto con T-011 | PENDIENTE, **ficha escrita** (2026-09-18) | C-01, C-02 | **T-017** |
-| C-03 | Release por tag, `verificar-release` en la Pi, despliegue y rollback documentados y probados | PENDIENTE, **ficha escrita** (2026-09-18) | C-00 | **T-011** |
+| C-08 | Higiene del manifiesto y del esquema: `git_dirty` nullable, `config_hash` sin rutas, `backup_log` migrado, vintage por grupo — una sola migración, junto con T-011 | **EN_REVISION** (2026-09-18). Implementada con T-011 en una sola migración v4→v5 | C-01, C-02 | **T-017** |
+| C-03 | Release por tag, `verificar-release` en la Pi, despliegue y rollback documentados y probados | **EN_REVISION** (2026-09-18). Código, CI de release y `docs/despliegue-y-rollback.md` hechos; **falta el ensayo real en la Pi (OA-04)**, sin el que la ficha no se acepta | C-00 | **T-011** |
 | C-04 | Logs rotados, alertas Telegram (pasada fallida, proveedor caído, reloj > 60 s, `events.yaml` caduca), timeouts y reintentos por proveedor, degradación sin red probada | PENDIENTE | C-02 | por escribir |
 | C-05 | Persistir narrativa LLM con provider/model/prompt_version/input_hash (D-12) | PENDIENTE | C-01 | por escribir |
 | C-06 | Backup programado en la Pi + simulacro de restauración trimestral | PENDIENTE | C-01, C-03 | por escribir |

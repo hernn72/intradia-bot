@@ -1,0 +1,7 @@
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+574 passed, 3 warnings in 90.56s (0:01:30)
+--- ruff ---
+All checks passed!
+--- mypy ---
+Success: no issues found in 64 source files

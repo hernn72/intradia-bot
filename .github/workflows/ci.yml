@@ -3,6 +3,10 @@ name: CI
 on:
   push:
   pull_request:
+  # Reutilizable: el flujo de release ejecuta estos mismos checks sobre el tag,
+  # para que «el tag pasó la CI» sea literalmente la misma comprobación y no
+  # una copia que se desincroniza.
+  workflow_call:
 
 jobs:
   checks:

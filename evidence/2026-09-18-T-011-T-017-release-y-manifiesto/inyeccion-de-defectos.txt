@@ -1,0 +1,22 @@
+Cada bloque inyecta en una COPIA del arbol el defecto que la correccion elimina,
+y ejecuta el test que deberia cazarlo. Si pasara, el test no probaria nada.
+
+=== A) verificar-release vuelve a aceptar cualquier tag ===
+=========================== short test summary info ============================
+FAILED tests/test_release.py::test_verificar_release_ignora_un_tag_que_no_es_release
+1 failed in 0.28s
+
+=== B) verificar-backup deja de exigir las tablas del asesor ===
+=========================== short test summary info ============================
+FAILED tests/test_release.py::test_verificar_backup_rechaza_una_base_sin_las_tablas_del_asesor
+1 failed in 0.05s
+
+=== C) el respaldo previo vuelve a quedarse sin registrar ===
+=========================== short test summary info ============================
+FAILED tests/test_migrations.py::test_el_backup_previo_a_v5_queda_registrado_aunque_no_hubiera_backup_log
+1 failed in 0.08s
+
+=== D) git_dirty vuelve a devolver False cuando no puede comprobarlo (INV-16) ===
+=========================== short test summary info ============================
+FAILED tests/test_manifest.py::test_git_dirty_es_null_cuando_git_status_falla
+1 failed in 0.07s

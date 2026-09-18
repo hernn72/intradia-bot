@@ -23,14 +23,26 @@ import json
 import logging
 import sqlite3
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
 from advisor.run.manifest import RunManifest
-from advisor.storage.migrations import MIGRATIONS, run_migration, table_exists
+from advisor.storage.migrations import (
+    ANALYSIS_RUN_COLUMNS,
+    BACKUP_LOG_STATEMENTS,
+    MIGRATIONS,
+    run_migration,
+    table_exists,
+)
 
 VERDICTS = ("REFUERZA", "NO CAMBIA", "DEBILITA", "INVALIDA")
+
+_ANALYSIS_RUN_INSERT = (
+    f"INSERT INTO analysis_run ({', '.join(ANALYSIS_RUN_COLUMNS)}) "
+    f"VALUES ({', '.join(f':{column}' for column in ANALYSIS_RUN_COLUMNS)})"
+)
 logger = logging.getLogger(__name__)
 
 _SCHEMA = """
@@ -187,8 +199,13 @@ class AdvisorDB:
     def _init_schema(self) -> None:
         with self._connect() as connection:
             existing_file = self._is_existing_file()
-            self._ensure_backup_log(connection)
             current = self._mark_or_create_base_schema(connection)
+            if existing_file and not table_exists(connection, "backup_log"):
+                # Una base anterior a `backup_log` (v2, v3 o v4 sin ella) migra
+                # con respaldo previo, y el respaldo necesita dónde anotarse.
+                # Es la misma DDL de la migración, no una definición aparte.
+                for statement in BACKUP_LOG_STATEMENTS:
+                    connection.execute(statement)
             for version, description, migrate in MIGRATIONS:
                 if version <= current:
                     continue
@@ -203,33 +220,23 @@ class AdvisorDB:
         path = Path(self.path)
         return path.exists() and path.stat().st_size > 0
 
-    def _ensure_backup_log(self, connection: sqlite3.Connection) -> None:
-        connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS backup_log (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                backup_path     TEXT NOT NULL,
-                created_at      TEXT NOT NULL,
-                target_version  INTEGER NOT NULL,
-                table_name      TEXT NOT NULL,
-                row_count       INTEGER NOT NULL
-            )
-            """
-        )
-        connection.execute(
-            "CREATE INDEX IF NOT EXISTS idx_backup_log_path ON backup_log(backup_path, table_name)"
-        )
-
     def _mark_or_create_base_schema(self, connection: sqlite3.Connection) -> int:
+        """Lleva una base sin versionar a la v1, creando el esquema si hace falta.
+
+        `backup_log` forma parte de la v1 porque el respaldo previo a la
+        primera migración necesita dónde anotarse. Las bases que ya pasaron de
+        ahí la reciben en la migración v5, que es idempotente.
+        """
+
         current = int(connection.execute("PRAGMA user_version").fetchone()[0])
-        if current == 0 and table_exists(connection, "recommendation"):
-            connection.execute("PRAGMA user_version = 1")
-            return 1
-        if current == 0:
+        if current != 0:
+            return current
+        if not table_exists(connection, "recommendation"):
             connection.executescript(_SCHEMA)
-            connection.execute("PRAGMA user_version = 1")
-            return 1
-        return current
+        for statement in BACKUP_LOG_STATEMENTS:
+            connection.execute(statement)
+        connection.execute("PRAGMA user_version = 1")
+        return 1
 
     def _backup_before_migration(
         self,
@@ -249,6 +256,16 @@ class AdvisorDB:
         finally:
             backup.close()
         created_at = datetime.now(timezone.utc).isoformat()
+        if not table_exists(connection, "backup_log"):
+            # Una base anterior a `backup_log` sigue mereciendo su copia: lo que
+            # se pierde es el registro, y `verificar-backup` ya sabe comprobar
+            # una copia no registrada por integridad y conteos.
+            logger.warning(
+                "Backup previo a v%d sin registrar: la base no tiene backup_log (%s)",
+                target_version,
+                backup_path,
+            )
+            return backup_path
         connection.executemany(
             """
             INSERT INTO backup_log (backup_path, created_at, target_version, table_name, row_count)
@@ -297,14 +314,7 @@ class AdvisorDB:
 
     def insert_analysis_run(self, manifest: RunManifest) -> None:
         row = manifest.to_row()
-        columns = [
-            "run_id", "command", "git_sha", "git_dirty", "config_hash", "universe_vintage_id",
-            "data_vintage_id", "score_model_version", "context_model_version", "schema_version",
-            "analysis_timestamp", "environment", "python_version", "provider_versions",
-            "clock_drift_seconds", "clock_status",
-        ]
-        placeholders = ", ".join(f":{column}" for column in columns)
-        sql = f"INSERT INTO analysis_run ({', '.join(columns)}) VALUES ({placeholders})"
+        sql = _ANALYSIS_RUN_INSERT
         with self._connect() as connection:
             connection.execute(sql, row)
 
@@ -327,14 +337,7 @@ class AdvisorDB:
 
     def _insert_analysis_run(self, connection: sqlite3.Connection, manifest: RunManifest) -> None:
         row = manifest.to_row()
-        columns = [
-            "run_id", "command", "git_sha", "git_dirty", "config_hash", "universe_vintage_id",
-            "data_vintage_id", "score_model_version", "context_model_version", "schema_version",
-            "analysis_timestamp", "environment", "python_version", "provider_versions",
-            "clock_drift_seconds", "clock_status",
-        ]
-        placeholders = ", ".join(f":{column}" for column in columns)
-        sql = f"INSERT INTO analysis_run ({', '.join(columns)}) VALUES ({placeholders})"
+        sql = _ANALYSIS_RUN_INSERT
         connection.execute(sql, row)
 
     def _insert_recommendations(
@@ -733,45 +736,205 @@ def _decode_date_list(raw: str) -> tuple[date, ...]:
     return tuple(dates)
 
 
-def verify_backup(db_path: str | Path, backup_path: str | Path) -> bool:
-    """Comprueba integridad y conteos registrados para un backup."""
+# Una copia sin esto no puede sustituir a `intradia.db`: un fichero SQLite
+# íntegro pero vacío pasa `integrity_check` y no restaura nada. `recommendation`
+# existe desde la v1, así que sirve de marca para cualquier esquema al que se
+# pueda volver.
+TABLAS_ESENCIALES = ("recommendation",)
+
+BACKUP_VALIDO = "VALIDO"
+BACKUP_INVALIDO = "INVALIDO"
+
+REGISTRO_EN_LOG = "REGISTRADO"
+REGISTRO_COPIA_MANUAL = "NO_REGISTRADO"
+REGISTRO_DESCONOCIDO = "DESCONOCIDO"
+
+
+@dataclass(frozen=True)
+class BackupCheck:
+    """Qué se sabe de un fichero de copia, punto por punto.
+
+    El veredicto no sustituye a la materia prima: «no registrado» es un dato
+    sobre el origen de la copia, no un defecto de la copia. Confundirlos costó
+    el 2026-09-18 llamar «inválida» a una copia manual íntegra, que es
+    exactamente lo que no puede pasar en un rollback de madrugada.
+    """
+
+    path: Path
+    exists: bool
+    integrity_ok: bool
+    schema_version: Optional[int]
+    counts: Dict[str, int] = field(default_factory=dict)
+    registration: str = REGISTRO_DESCONOCIDO
+    logged_counts: Dict[str, int] = field(default_factory=dict)
+    live_counts: Optional[Dict[str, int]] = None
+    live_reason: Optional[str] = None
+    verdict: str = BACKUP_INVALIDO
+    reasons: List[str] = field(default_factory=list)
+
+    @property
+    def restorable(self) -> bool:
+        return self.verdict == BACKUP_VALIDO
+
+
+def check_backup(db_path: str | Path, backup_path: str | Path) -> BackupCheck:
+    """Integridad, esquema y conteos de **cualquier** fichero SQLite.
+
+    El registro en ``backup_log`` se informa aparte porque solo existe para las
+    copias que hizo una migración: una copia hecha con ``cp`` nunca estará ahí
+    y sigue siendo perfectamente restaurable.
+    """
 
     backup = Path(backup_path)
     if not backup.is_file():
-        return False
+        return BackupCheck(
+            path=backup,
+            exists=False,
+            integrity_ok=False,
+            schema_version=None,
+            reasons=[f"no existe el fichero {backup}"],
+        )
+
     try:
         with sqlite3.connect(f"file:{backup}?mode=ro", uri=True) as backup_conn:
             integrity = backup_conn.execute("PRAGMA integrity_check").fetchone()
             if integrity is None or integrity[0] != "ok":
-                return False
+                detalle = "sin respuesta" if integrity is None else str(integrity[0])
+                return BackupCheck(
+                    path=backup,
+                    exists=True,
+                    integrity_ok=False,
+                    schema_version=None,
+                    reasons=[f"integrity_check: {detalle}"],
+                )
+            schema_version = int(backup_conn.execute("PRAGMA user_version").fetchone()[0])
             backup_counts = _table_counts(backup_conn)
-    except sqlite3.DatabaseError:
-        return False
+    except sqlite3.DatabaseError as exc:
+        return BackupCheck(
+            path=backup,
+            exists=True,
+            integrity_ok=False,
+            schema_version=None,
+            reasons=[f"no se puede leer como base SQLite: {exc}"],
+        )
 
     # La base viva se abre en solo lectura: verificar un backup no puede
     # migrar producción ni crear una base vacía si la ruta está mal.
+    live_counts: Optional[Dict[str, int]] = None
+    live_reason: Optional[str] = None
+    logged_rows: List[Any] = []
     try:
         live = AdvisorDB(db_path, readonly=True)
         with live._connect() as live_conn:
-            if not table_exists(live_conn, "backup_log"):
-                return False
-            logged_rows = live_conn.execute(
-                "SELECT backup_path, table_name, row_count FROM backup_log"
-            ).fetchall()
-    except (sqlite3.DatabaseError, FileNotFoundError):
-        return False
+            live_counts = _table_counts(live_conn)
+            if table_exists(live_conn, "backup_log"):
+                logged_rows = live_conn.execute(
+                    "SELECT backup_path, table_name, row_count FROM backup_log"
+                ).fetchall()
+            else:
+                live_reason = "la base viva no tiene backup_log"
+    except (sqlite3.DatabaseError, FileNotFoundError) as exc:
+        live_reason = f"no se puede leer la base viva: {exc}"
 
     # Las rutas se comparan resueltas: el registro puede ser relativo (config
     # con ``db_path: intradia.db``) y el operador pasar la absoluta, o al revés.
     target = backup.resolve()
-    expected = {
+    logged = {
         row["table_name"]: int(row["row_count"])
         for row in logged_rows
         if Path(row["backup_path"]).resolve() == target
     }
-    if not expected:
-        return False
-    return all(backup_counts.get(table_name, -1) >= row_count for table_name, row_count in expected.items())
+
+    reasons: List[str] = []
+    verdict = BACKUP_VALIDO
+
+    ausentes = [table for table in TABLAS_ESENCIALES if table not in backup_counts]
+    if ausentes:
+        verdict = BACKUP_INVALIDO
+        reasons.append(
+            f"la copia no contiene {', '.join(ausentes)}: no es una base del asesor"
+        )
+
+    if logged:
+        registration = REGISTRO_EN_LOG
+        faltan = {
+            table_name: (backup_counts.get(table_name, 0), row_count)
+            for table_name, row_count in logged.items()
+            if backup_counts.get(table_name, -1) < row_count
+        }
+        if faltan:
+            verdict = BACKUP_INVALIDO
+            for table_name, (encontradas, esperadas) in sorted(faltan.items()):
+                reasons.append(
+                    f"{table_name}: {encontradas} filas en la copia, {esperadas} registradas en backup_log"
+                )
+        # Más filas de las registradas no impide restaurar, pero significa que el
+        # fichero no es exactamente el que anotó la migración: se dice, y quien
+        # decide el rollback lo sabe.
+        sobran = {
+            table_name: (backup_counts[table_name], row_count)
+            for table_name, row_count in logged.items()
+            if backup_counts.get(table_name, 0) > row_count
+        }
+        for table_name, (encontradas, esperadas) in sorted(sobran.items()):
+            reasons.append(
+                f"{table_name}: {encontradas} filas en la copia frente a {esperadas} registradas; "
+                "la copia ha cambiado desde que se registró"
+            )
+    elif live_reason is not None:
+        registration = REGISTRO_DESCONOCIDO
+        reasons.append(f"no se ha podido consultar el registro de copias ({live_reason})")
+    else:
+        registration = REGISTRO_COPIA_MANUAL
+        reasons.append("no figura en backup_log: copia manual, no la hizo una migración")
+
+    return BackupCheck(
+        path=backup,
+        exists=True,
+        integrity_ok=True,
+        schema_version=schema_version,
+        counts=backup_counts,
+        registration=registration,
+        logged_counts=logged,
+        live_counts=live_counts,
+        live_reason=live_reason,
+        verdict=verdict,
+        reasons=reasons,
+    )
+
+
+def verify_backup(db_path: str | Path, backup_path: str | Path) -> bool:
+    """¿Se puede restaurar esta copia? Resumen booleano de :func:`check_backup`."""
+
+    return check_backup(db_path, backup_path).restorable
+
+
+def format_backup_check(check: BackupCheck) -> str:
+    """Cada punto por separado, en el orden en que lo necesita un rollback."""
+
+    registro = {
+        REGISTRO_EN_LOG: "registrado en backup_log",
+        REGISTRO_COPIA_MANUAL: "no registrado (copia manual)",
+        REGISTRO_DESCONOCIDO: "desconocido",
+    }[check.registration]
+    lines = [
+        f"fichero            {check.path}",
+        f"integridad         {'ok' if check.integrity_ok else 'FALLA'}",
+        f"esquema            {'desconocido' if check.schema_version is None else f'v{check.schema_version}'}",
+        f"registro           {registro}",
+    ]
+    if check.counts:
+        detalle = ", ".join(f"{table}={count}" for table, count in sorted(check.counts.items()))
+        lines.append(f"filas en la copia  {detalle}")
+    if check.live_counts is not None:
+        detalle = ", ".join(f"{table}={count}" for table, count in sorted(check.live_counts.items()))
+        lines.append(f"filas en la viva   {detalle}")
+    elif check.live_reason:
+        lines.append(f"filas en la viva   desconocidas ({check.live_reason})")
+    lines.append(f"veredicto          {check.verdict}")
+    for reason in check.reasons:
+        lines.append(f"  - {reason}")
+    return "\n".join(lines)
 
 
 def _table_counts(connection: sqlite3.Connection) -> dict[str, int]:

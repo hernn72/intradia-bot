@@ -612,3 +612,39 @@ Consecuencia medida con `exchange_calendars==4.13.2` entre 2025-11-01 y
 2026-12-31: XETRA tiene 2 cierres a las 14:00, NYSE 4 cierres a las 13:00 y PAR
 4 cierres a las 14:05. La primera fecha futura que muerde al bot es
 2026-11-27 para NYSE/NASDAQ.
+
+### D-32 — 2026-09-18 — El rollback de código no deshace migraciones
+Una migración de esquema no se revierte sola, y un tag anterior no sabe leer un
+esquema posterior. La regla, escrita antes de necesitarla: **volver a un tag
+anterior no toca la base**. Si entre los dos tags hubo migración, se restaura el
+backup previo a esa migración —`intradia.db.bak-<fecha>-pre-vN`, que la propia
+migración crea— y se acepta explícitamente la pérdida de las pasadas guardadas
+desde entonces. El procedimiento literal está en `docs/despliegue-y-rollback.md`.
+
+Consecuencia para `verificar-backup`: si la copia que sostiene el rollback puede
+ser una copia manual, el comando no puede llamarla «inválida» solo porque no
+esté en `backup_log`. Desde T-011 informa por separado integridad, esquema,
+conteos y registro, y reserva `INVALIDO` para lo que de verdad no se puede
+restaurar. El caso que lo motivó ocurrió el 2026-09-18: una copia `cp` íntegra,
+con `integrity_check = ok`, esquema 4 y los mismos recuentos que la base viva,
+salía como «Backup inválido» en pleno despliegue.
+
+### D-33 — 2026-09-18 — `config_hash` identifica la configuración lógica, y se versiona
+`config_hash` incluía `db_path` y `universe_path`, así que la misma
+configuración en el portátil y en la Pi daba hashes distintos y la
+reconstrucción de D-10 no podía decir «misma config» comparándolos. Las dos
+claves salen del hash: describen dónde está cada fichero, no qué decide el
+asesor.
+
+**Los manifiestos anteriores no se recalculan.** Su hash se calculó con las
+rutas dentro y recalcularlo sería inventar un dato que nadie midió. Para que la
+reconstrucción sepa con qué regla se calculó cada uno, el manifiesto guarda
+`config_hash_version`: las filas que ya existían quedan en `1` (la migración v5
+las marca así) y las nuevas nacen con `2`. Comparar dos manifiestos exige
+comparar también su versión: dos hashes de versiones distintas no son
+comparables aunque coincidieran por azar.
+
+Alcanza también a los informes de investigación: `filtro-ejecucion` imprime
+`config_hash` en su cabecera, así que los publicados hasta hoy —T-009 entre
+ellos— llevan el hash de la regla 1. No se recalculan por el mismo motivo; al
+compararlos con uno nuevo hay que declarar que son de reglas distintas.

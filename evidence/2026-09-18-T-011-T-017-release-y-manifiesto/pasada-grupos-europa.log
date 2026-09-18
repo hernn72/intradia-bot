@@ -1,0 +1,31 @@
+2026-09-18 14:55:31 [INFO] advisor.analysis.analyzer: Analizando 28 activos (horizonte swing, velas de 1d)
+2026-09-18 14:55:52 [INFO] advisor.analysis.analyzer: ^STOXX benchmark: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:55:53 [INFO] advisor.analysis.analyzer: SAP.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:55:54 [INFO] advisor.analysis.analyzer: SIE.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:55:55 [INFO] advisor.analysis.analyzer: ALV.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:55:56 [INFO] advisor.analysis.analyzer: MBG.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:55:57 [INFO] advisor.analysis.analyzer: RHM.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:55:58 [INFO] advisor.analysis.analyzer: ENR.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:55:59 [INFO] advisor.analysis.analyzer: DTE.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:56:00 [INFO] advisor.analysis.analyzer: DBK.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:56:01 [INFO] advisor.analysis.analyzer: MUV2.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:56:02 [INFO] advisor.analysis.analyzer: IFX.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:56:03 [INFO] advisor.analysis.analyzer: ASML.AS: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-18 14:56:04 [INFO] advisor.analysis.analyzer: ADYEN.AS: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Amsterdam + 20 min no alcanzado
+2026-09-18 14:56:05 [INFO] advisor.analysis.analyzer: MC.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 14:56:06 [INFO] advisor.analysis.analyzer: AIR.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 14:56:07 [INFO] advisor.analysis.analyzer: SU.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 14:56:08 [INFO] advisor.analysis.analyzer: SAF.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 14:56:09 [INFO] advisor.analysis.analyzer: TTE.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 14:56:10 [INFO] advisor.analysis.analyzer: OR.PA: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Paris + 20 min no alcanzado
+2026-09-18 14:56:11 [INFO] advisor.analysis.analyzer: IBE.MC: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-18 14:56:12 [INFO] advisor.analysis.analyzer: ITX.MC: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-18 14:56:13 [INFO] advisor.analysis.analyzer: BBVA.MC: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Madrid + 20 min no alcanzado
+2026-09-18 14:56:14 [INFO] advisor.analysis.analyzer: RACE.MI: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-18 14:56:15 [INFO] advisor.analysis.analyzer: ENI.MI: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Rome + 20 min no alcanzado
+2026-09-18 14:56:16 [INFO] advisor.analysis.analyzer: NOVO-B.CO: barra 2026-09-18 recortada: cierre de sesión 17:00 Europe/Copenhagen + 20 min no alcanzado
+2026-09-18 14:56:17 [INFO] advisor.analysis.analyzer: RRU.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:56:18 [INFO] advisor.analysis.analyzer: BSP.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+2026-09-18 14:56:19 [INFO] advisor.analysis.analyzer: AZN: barra 2026-09-18 recortada: cierre de sesión 16:00 America/New_York + 20 min no alcanzado
+2026-09-18 14:56:20 [INFO] advisor.analysis.analyzer: R6C0.DE: barra 2026-09-18 recortada: cierre de sesión 17:30 Europe/Berlin + 20 min no alcanzado
+CODIGO: 0

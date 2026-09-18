@@ -1,0 +1,29 @@
+ANTES   esquema v4
+  analysis_run                     0
+  backup_log                       17
+  data_freshness_measurement       107
+  event_pass                       0
+  position                         0
+  position_review                  0
+  recommendation                   214
+
+DESPUES esquema v5
+  analysis_run                     0
+  backup_log                       23   <-- ANTES 17
+  data_freshness_measurement       107
+  event_pass                       0
+  position                         0
+  position_review                  0
+  recommendation                   214
+
+Columnas de analysis_run: run_id, command, git_sha, git_dirty, git_dirty_reason, release_tag, config_hash, config_hash_version, universe_vintage_id, groups, data_vintage_id, score_model_version, context_model_version, schema_version, analysis_timestamp, environment, python_version, provider_versions, clock_drift_seconds, clock_status
+git_dirty NOT NULL: False (debe ser False)
+
+Backup previo a la migración: ['intradia.db.bak-20260918-135219-pre-v5']
+fichero            /private/tmp/claude-501/-Users-fer-Desktop-Trading-bot/6e207cf7-a498-44db-b0f9-92e1171a0f5b/scratchpad/migracion/intradia.db.bak-20260918-135219-pre-v5
+integridad         ok
+esquema            v4
+registro           registrado en backup_log
+filas en la copia  analysis_run=0, data_freshness_measurement=107, event_pass=0, position=0, position_review=0, recommendation=214
+filas en la viva   analysis_run=0, data_freshness_measurement=107, event_pass=0, position=0, position_review=0, recommendation=214
+veredicto          VALIDO

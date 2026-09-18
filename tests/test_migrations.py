@@ -6,7 +6,14 @@ import sqlite3
 
 import pytest
 
-from advisor.storage.db import AdvisorDB, verify_backup
+from advisor.storage.db import (
+    REGISTRO_DESCONOCIDO,
+    REGISTRO_EN_LOG,
+    AdvisorDB,
+    check_backup,
+    verify_backup,
+)
+from advisor.storage.migrations import BACKUP_LOG_STATEMENTS, LATEST_VERSION, table_exists
 from advisor.storage.migrations import MIGRATIONS as _REAL_MIGRATIONS
 
 _SCHEMA_V1 = """
@@ -78,7 +85,7 @@ def _create_v1_db(path) -> None:
 def test_migrations_base_nueva_llega_a_ultima_version() -> None:
     db = AdvisorDB(":memory:")
 
-    assert db.schema_version() == 4
+    assert db.schema_version() == LATEST_VERSION
     with db._connect() as conn:
         tables = {
             row["name"]
@@ -94,7 +101,7 @@ def test_migrations_base_v1_existente_se_marca_y_migra(tmp_path) -> None:
 
     db = AdvisorDB(path)
 
-    assert db.schema_version() == 4
+    assert db.schema_version() == LATEST_VERSION
     with db._connect() as conn:
         assert conn.execute("SELECT count(*) FROM recommendation").fetchone()[0] == 3
         assert conn.execute("SELECT count(*) FROM recommendation WHERE run_id IS NULL").fetchone()[0] == 3
@@ -154,7 +161,7 @@ def test_migracion_que_falla_a_mitad_no_deja_esquema_a_medias(tmp_path, monkeypa
     # Con la migración buena, la misma base abre y migra sin tropezar con restos.
     monkeypatch.setattr(db_module, "MIGRATIONS", _REAL_MIGRATIONS)
     monkeypatch.setattr(migrations, "MIGRATIONS", _REAL_MIGRATIONS)
-    assert AdvisorDB(path).schema_version() == 4
+    assert AdvisorDB(path).schema_version() == LATEST_VERSION
 
 
 def test_segunda_apertura_es_idempotente(tmp_path) -> None:
@@ -164,10 +171,11 @@ def test_segunda_apertura_es_idempotente(tmp_path) -> None:
     AdvisorDB(path)
     AdvisorDB(path)
 
-    assert len(list(tmp_path.glob("intradia.db.bak-*"))) == 3
+    esperados = LATEST_VERSION - 1  # una copia por migración pendiente: v2, v3, v4, v5
+    assert len(list(tmp_path.glob("intradia.db.bak-*"))) == esperados
     with sqlite3.connect(path) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
-        assert conn.execute("SELECT count(DISTINCT backup_path) FROM backup_log").fetchone()[0] == 3
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == LATEST_VERSION
+        assert conn.execute("SELECT count(DISTINCT backup_path) FROM backup_log").fetchone()[0] == esperados
 
 
 def test_migracion_v4_anade_codigos_calidad_y_ventana(tmp_path) -> None:
@@ -231,15 +239,18 @@ def test_verify_backup_no_escribe_en_la_base_viva(tmp_path) -> None:
     AdvisorDB(migrated)
     backup = next(tmp_path.glob("migrada.db.bak-*-pre-v2"))
 
-    # Base v1 sin backup_log: la verificación falla, pero no la toca.
-    assert verify_backup(path, backup) is False
+    # Base v1 sin backup_log: no se puede consultar el registro, y eso se
+    # declara como desconocido en vez de tomarse por un defecto de la copia.
+    check = check_backup(path, backup)
+    assert check.integrity_ok is True
+    assert check.registration == REGISTRO_DESCONOCIDO
     with sqlite3.connect(path) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 0
     assert list(tmp_path.glob("intradia.db.bak-*")) == []
 
     # Ruta inexistente: no se crea nada.
     missing = tmp_path / "no-existe.db"
-    assert verify_backup(missing, backup) is False
+    assert check_backup(missing, backup).live_reason is not None
     assert not missing.exists()
 
 
@@ -264,3 +275,172 @@ def test_readonly_no_crea_ni_migra(tmp_path) -> None:
     with pytest.raises(FileNotFoundError):
         AdvisorDB(tmp_path / "no-existe.db", readonly=True)
     assert not (tmp_path / "no-existe.db").exists()
+
+
+_ANALYSIS_RUN_V2 = """
+CREATE TABLE analysis_run (
+    run_id                  TEXT PRIMARY KEY,
+    command                 TEXT NOT NULL,
+    git_sha                 TEXT NOT NULL,
+    git_dirty               INTEGER NOT NULL,
+    config_hash             TEXT NOT NULL,
+    universe_vintage_id     TEXT NOT NULL,
+    data_vintage_id         TEXT,
+    score_model_version     TEXT NOT NULL,
+    context_model_version   TEXT,
+    schema_version          INTEGER NOT NULL,
+    analysis_timestamp      TEXT NOT NULL,
+    environment             TEXT NOT NULL,
+    python_version          TEXT NOT NULL,
+    provider_versions       TEXT NOT NULL,
+    clock_drift_seconds     REAL,
+    clock_status            TEXT NOT NULL
+);
+"""
+
+
+def _create_v4_db(path, *, con_backup_log: bool = True, pasadas: int = 2) -> None:
+    """Base con la forma que tiene hoy la Pi: esquema v4 y manifiestos guardados."""
+
+    with sqlite3.connect(path) as conn:
+        conn.executescript(_SCHEMA_V1)
+        conn.executescript(_ANALYSIS_RUN_V2)
+        for index in range(pasadas):
+            conn.execute(
+                """
+                INSERT INTO analysis_run (
+                    run_id, command, git_sha, git_dirty, config_hash, universe_vintage_id,
+                    data_vintage_id, score_model_version, context_model_version, schema_version,
+                    analysis_timestamp, environment, python_version, provider_versions,
+                    clock_drift_seconds, clock_status
+                ) VALUES (?, 'analizar', 'ae39c6c', ?, ?, 'universo-103', NULL, 'v3', NULL, 4,
+                    ?, 'pi', '3.11.2', '{"yfinance": "0.2.65"}', 0.001, 'CLOCK_OK')
+                """,
+                (f"run-{index}", index % 2, f"hash-viejo-{index}", f"2026-09-1{index}T09:00:00+00:00"),
+            )
+        if con_backup_log:
+            for statement in BACKUP_LOG_STATEMENTS:
+                conn.execute(statement)
+        conn.execute("PRAGMA user_version = 4")
+
+
+def test_manifiestos_antiguos_conservan_su_hash_y_su_version(tmp_path) -> None:
+    """El hash viejo se calculó con las rutas dentro; recalcularlo sería inventarlo (D-33)."""
+
+    path = tmp_path / "intradia.db"
+    _create_v4_db(path)
+
+    db = AdvisorDB(path)
+
+    assert db.schema_version() == LATEST_VERSION
+    with db._connect() as conn:
+        filas = {row["run_id"]: row for row in conn.execute("SELECT * FROM analysis_run ORDER BY run_id")}
+    assert set(filas) == {"run-0", "run-1"}
+    assert filas["run-0"]["config_hash"] == "hash-viejo-0"
+    assert filas["run-1"]["config_hash"] == "hash-viejo-1"
+    assert filas["run-0"]["config_hash_version"] == 1
+    assert filas["run-1"]["config_hash_version"] == 1
+    # Lo que ya se sabía se conserva; lo que nadie midió entonces queda NULL.
+    assert filas["run-0"]["git_dirty"] == 0
+    assert filas["run-1"]["git_dirty"] == 1
+    assert filas["run-0"]["release_tag"] is None
+    assert filas["run-0"]["groups"] is None
+    assert filas["run-0"]["git_dirty_reason"] is None
+    assert filas["run-0"]["universe_vintage_id"] == "universo-103"
+
+
+def test_git_dirty_desconocido_se_guarda_como_null(tmp_path) -> None:
+    """La columna es nullable para esto: `0` significaría «lo comprobé y estaba limpio»."""
+
+    from datetime import datetime, timezone
+
+    from advisor.run.manifest import RunManifest
+
+    path = tmp_path / "intradia.db"
+    db = AdvisorDB(path)
+    manifiesto = RunManifest(
+        run_id="run-sin-git",
+        command="analizar",
+        git_sha="unknown",
+        git_dirty=None,
+        git_dirty_reason="git no está instalado",
+        release_tag=None,
+        config_hash="hash",
+        config_hash_version=2,
+        universe_vintage_id="universo-103",
+        groups=None,
+        data_vintage_id=None,
+        score_model_version="v3",
+        context_model_version=None,
+        schema_version=db.schema_version(),
+        analysis_timestamp=datetime(2026, 9, 18, tzinfo=timezone.utc).isoformat(),
+        environment="pi",
+        python_version="3.11.2",
+        provider_versions={},
+        clock_drift_seconds=None,
+        clock_status="CLOCK_UNKNOWN",
+    )
+
+    db.insert_analysis_run(manifiesto)
+
+    fila = db.get_analysis_run("run-sin-git")
+    assert fila is not None
+    assert fila["git_dirty"] is None
+    assert fila["git_dirty_reason"] == "git no está instalado"
+    assert fila["config_hash_version"] == 2
+
+
+def test_backup_log_la_crea_la_migracion_y_es_idempotente(tmp_path) -> None:
+    """Deja de crearse en cada apertura: ahora es esquema versionado (INV-17)."""
+
+    path = tmp_path / "intradia.db"
+    _create_v4_db(path, con_backup_log=False)
+
+    db = AdvisorDB(path)
+
+    with db._connect() as conn:
+        assert table_exists(conn, "backup_log")
+    # Segunda apertura: la migración ya está aplicada y no vuelve a intentarse.
+    otra = AdvisorDB(path)
+    assert otra.schema_version() == LATEST_VERSION
+    with otra._connect() as conn:
+        assert table_exists(conn, "backup_log")
+
+    # Y una base que ya la tenía migra igual, sin chocar con la tabla existente.
+    con_tabla = tmp_path / "con-tabla.db"
+    _create_v4_db(con_tabla, con_backup_log=True)
+    assert AdvisorDB(con_tabla).schema_version() == LATEST_VERSION
+
+
+def test_la_migracion_v5_hace_backup_previo(tmp_path) -> None:
+    path = tmp_path / "intradia.db"
+    _create_v4_db(path)
+
+    AdvisorDB(path)
+
+    copias = list(tmp_path.glob("intradia.db.bak-*-pre-v5"))
+    assert len(copias) == 1
+    check = check_backup(path, copias[0])
+    assert check.restorable is True
+    assert check.registration == REGISTRO_EN_LOG
+    assert check.schema_version == 4  # la copia es de ANTES de migrar
+    assert check.counts["analysis_run"] == 2
+
+
+def test_el_backup_previo_a_v5_queda_registrado_aunque_no_hubiera_backup_log(tmp_path) -> None:
+    """Una base v4 sin `backup_log` migra igual, y su copia previa es trazable.
+
+    Sin esto la copia se hacía pero no se anotaba, y en un rollback nadie podría
+    demostrar de qué momento era.
+    """
+
+    path = tmp_path / "intradia.db"
+    _create_v4_db(path, con_backup_log=False)
+
+    AdvisorDB(path)
+
+    copias = list(tmp_path.glob("intradia.db.bak-*-pre-v5"))
+    assert len(copias) == 1
+    check = check_backup(path, copias[0])
+    assert check.registration == REGISTRO_EN_LOG
+    assert check.restorable is True

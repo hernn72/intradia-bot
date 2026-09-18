@@ -279,3 +279,14 @@ Commit/handoff para Claude Code:
   las dos filas C-01/C-02 del roadmap.
 - Mensaje propuesto:
   `feat(storage): migraciones versionadas con backup verificado y manifiesto de ejecución por pasada`.
+
+---
+
+## Nota posterior — 2026-09-18
+
+Los cuatro FOLLOW_UP que dejó la revisión independiente de esta ficha se cierran
+en **T-017**, juntos y con una sola migración (v4→v5), porque los cuatro tocaban
+el manifiesto o el esquema: `git_dirty` que mentía por omisión, `config_hash`
+con rutas dentro, `backup_log` creada fuera de la lista de migraciones y
+`--grupos` declarando el vintage del universo entero. Las decisiones que salen
+de ahí son D-33 (regla del hash y su versión) y, del lado de T-011, D-32.

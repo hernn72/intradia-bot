@@ -1,0 +1,10 @@
+ANTES: 3 manifiestos en esquema v4
+DESPUES: esquema v5
+manifiestos conservados: 3 de 3
+  run-real-0: config_hash intacto · git_dirty 0 (era 0) · config_hash_version 1 · release_tag None · groups None
+  run-real-1: config_hash intacto · git_dirty 1 (era 1) · config_hash_version 1 · release_tag None · groups None
+  run-real-2: config_hash intacto · git_dirty 0 (era 0) · config_hash_version 1 · release_tag None · groups None
+
+Todo conservado y marcado con la regla vieja: True
+Backup previo: ['intradia.db.bak-20260918-135231-pre-v5']
+Manifiestos dentro del backup previo: 3
