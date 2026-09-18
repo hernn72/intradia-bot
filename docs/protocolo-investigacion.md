@@ -1,6 +1,6 @@
 # Protocolo de investigación
 
-**Estado: acordado, sin implementar.** Este documento fija *cómo* se mide,
+**Estado: implementado parcialmente en P2.0-P2.6 y usado por T-009.** Este documento fija *cómo* se mide,
 antes de medir. Se escribe ahora a propósito: un protocolo redactado después
 de ver resultados no es un protocolo, es una justificación.
 

@@ -1,0 +1,13 @@
+signal_id=AAPL|swing|2023-12-13T05:00:00Z
+activo=AAPL
+fecha_senal=2023-12-13T05:00:00Z
+fecha_apertura=2023-12-14T05:00:00Z
+cierre_senal=197.960007
+apertura_siguiente=198.020004
+stop=192.234290
+target2=206.548582
+entry_max_tecnica=200.107150
+entry_max_rr=(206.548582 + 1.5 * 192.234290) / (1 + 1.5) = 197.960007
+entry_max=min(200.107150, 197.960007) = 197.960007
+motivo=ABOVE_MAX_ENTRY: apertura_siguiente 198.020004 > entry_max 197.960007
+rr_apertura=(206.548582 - 198.020004) / (198.020004 - 192.234290) = 1.474075

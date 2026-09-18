@@ -1,6 +1,6 @@
 # T-009 — El filtro de ejecución, medido aparte del score (PR 5, fase 14)
 
-Estado: PENDIENTE
+Estado: BLOQUEADA
 Agente: Opus (ficha) → Codex (implementación del instrumento) → Opus (medición y lectura)
 Línea / fase: L0 PR 5, fase 14 de `docs/plan-ejecucion.md`
 Gate al que contribuye: GATE L0 (requisito 5)
@@ -172,7 +172,13 @@ operaciones y la misma expectancy que `antes.txt`, cifra a cifra.
 - expectancy neta en R por bloque de `EJECUTADAS` vs `PERDIDAS_POR_ENTRADA`,
   con su intervalo.
 - cuántas de las perdidas habrían terminado en objetivo y cuántas en stop.
-- cambio en las cifras del backtest actual: **debe ser cero**.
+- cambio en las cifras del backtest actual: **debe ser cero**, y se demuestra
+  de forma **determinista** —misma serie fija, mismo código antes y después—,
+  **no** comparando dos ejecuciones de `backtest --period Ny`. Corrección de la
+  propia ficha, hecha en la revisión del 2026-09-18: el backtest en vivo
+  descarga datos y no es reproducible ni consigo mismo (tres pasadas del mismo
+  commit dan 891, 893 y 890 operaciones), así que ese criterio era
+  inverificable por construcción. Ver T-015.
 
 ## Criterio de aceptación
 - El comando existe, es reproducible y publica los dos vintages.
@@ -207,4 +213,133 @@ diciendo «acordado, sin implementar» (hallazgo abierto del roadmap), ya que
 esta entrega toca `advisor/research/`.
 
 ## Handoff al siguiente agente
-Pendiente de escribir al terminar.
+Implementación Codex 2026-09-18:
+
+- `simulate_asset` conserva su comportamiento por defecto y añade
+  instrumentación opcional de señales rechazadas (`ExecutionRejectedSignal`) y
+  `entry_discipline="abrir_a_la_apertura"` para el contrafactual. No se copió
+  el motor: el contrafactual reutiliza el mismo bucle y `_check_exit`.
+- `filtro-ejecucion --horizonte <swing|medio> --vintage <id>` publica
+  `data_vintage_id`, `universe_vintage_id`, `git_sha`, `config_hash`, tabla por
+  banda/población, desglose por motivo y población broker-neutral para los
+  activos `trade_republic="no"`.
+- `capacidad-estadistica` imprime también cosecha y universo.
+- `docs/protocolo-investigacion.md` deja de decir que P2 está sin implementar.
+
+Evidencia:
+
+- Directorio: `evidence/2026-09-18-T-009-filtro-ejecucion/`.
+- Pre-registro copiado antes de medir en `README.md`.
+- Línea base previa: `antes.txt` con 533 tests, `ruff`, `mypy` y backtest live.
+- Verificación posterior: `despues.txt` con 540 tests, `ruff`, `mypy` y
+  backtest live.
+- Medición congelada: `filtro_swing.txt`, `filtro_medio.txt`,
+  `tabla_banda_poblacion_swing.md`, `tabla_banda_poblacion_medio.md`,
+  `desglose_motivo_swing.md`, `desglose_motivo_medio.md`,
+  `hashes_tablas.txt`.
+- Defecto inyectado: `defecto_inyectado_registro_rechazo.txt` demuestra que el
+  test de registro falla si la señal rechazada vuelve a perderse.
+- Verificación manual: `AAPL|swing|2023-12-13T05:00:00Z`, cierre 197,960007,
+  apertura 198,020004, `entry_max=min(200,107150, 197,960007)=197,960007`;
+  la apertura supera `entry_max` y el RR a la apertura cae a 1,474075.
+
+Medición publicada:
+
+- Swing: 994 ejecutadas, 1189 perdidas por ejecución, 879 contrafactuales
+  simulables. Motivos perdidos: `ABOVE_MAX_ENTRY` 1146/1189, `INVALID_STOP`
+  31/1189, `INVALID_TARGET` 12/1189, `RR_TOO_LOW` 0/1189.
+- Medio: 792 ejecutadas, 962 perdidas por ejecución, 716 contrafactuales
+  simulables. Motivos perdidos: `ABOVE_MAX_ENTRY` 926/962, `INVALID_STOP`
+  25/962, `INVALID_TARGET` 11/962, `RR_TOO_LOW` 0/962.
+- Broker neutral, `trade_republic="no"`: swing añade 85 señales de laboratorio
+  (por activo: 14, 11, 16, 11, 10, 4, 9, 6, 4, 10); medio añade 74 señales
+  (14, 3, 16, 3, 8, 3, 9, 6, 4, 8).
+
+Invariantes ejercitadas:
+
+- INV-03: `test_el_filtro_de_ejecucion_no_toca_el_score`.
+- INV-04: `test_laboratorio_broker_neutral_incluye_no_sin_cambiar_default`.
+- INV-06: el contrafactual usa `simulate_asset`; no hay copia del motor.
+- Muestra mínima: `test_celda_con_muestra_insuficiente_se_declara_insuficiente`.
+- Vintages en salida: `test_la_salida_declara_los_dos_vintages`.
+
+Bloqueo:
+
+- El criterio “backtest por defecto no cambia ni una operación contra
+  `antes.txt`” no queda satisfecho en la evidencia live. `antes.txt` mide 891
+  operaciones y expectancy 0,21 R; `despues.txt` mide 893 y 0,20 R. Una
+  repetición posterior inmediata (`backtest_repetido_post.txt`) vuelve a mover
+  cifras (890 operaciones), por lo que el comando live no es estable en esta
+  ventana. El código por defecto queda cubierto por regresión sintética, pero
+  la aceptación pedía comparación cifra a cifra contra `antes.txt`: queda
+  BLOQUEADA hasta repetir esa comparación sobre entrada congelada o estabilizar
+  el proveedor/ventana.
+
+Hallazgos:
+
+- BLOCKER: la verificación live del backtest por defecto no permite certificar
+  cambio cero contra `antes.txt`; no se corrige aquí porque implicaría cambiar
+  el procedimiento de aceptación o congelar la entrada del backtest.
+- OBSERVATION: con el orden actual de `evaluate_trade_at_entry`, D-29 mide
+  `ABOVE_MAX_ENTRY` 1146 (swing) / 926 (medio) y `RR_TOO_LOW` 0 / 0 en las
+  señales perdidas. No se decide la etiqueta.
+
+Decisiones pendientes:
+
+- DECISIÓN PENDIENTE D-29: mantener `ABOVE_MAX_ENTRY` como etiqueta prioritaria
+  cuando `entry_price > entry_max`, o cambiar a `RR_TOO_LOW` cuando el
+  incumplimiento de `entry_max` viene del límite por RR. La medición de T-009
+  solo aporta poblaciones; no decide.
+Resumen de verificación final:
+
+- `python -m pytest -q`: 540 passed.
+- `ruff check .`: limpio.
+- `mypy advisor`: limpio.
+
+
+---
+
+## Revisión independiente — 2026-09-18 — VEREDICTO: CORREGIR → corregido
+
+Evidencia completa en `evidence/2026-09-18-T-009-revision/README.md`.
+
+**El bloqueo era correcto y el criterio era mío.** Codex se negó a certificar
+«cero cambios en el backtest» porque las pasadas no coincidían, e hizo bien en
+no maquillarlo. La causa no era su cambio: `backtest --period 5y` descarga
+datos en vivo y **no es reproducible ni consigo mismo** —tres pasadas del mismo
+commit dan 891, 893 y 890 operaciones, y el ruido (−3) es mayor que el efecto
+atribuido al cambio (+2)—. El criterio que escribí era inverificable por
+construcción. Sustituido por una comparación determinista: el código de `main` y
+el del árbol sobre una serie sintética con semilla fija, dos horizontes y dos
+políticas, **idénticos byte a byte** (134 operaciones). Salvedad declarada: esa
+serie no produce señales `COMPRAR`, así que la ruta `POLICY_OPERAR` no queda
+ejercitada.
+
+**Defecto corregido: se publicaba un centinela como intervalo.** El tramo `80+`
+salía con `IC95 [0.0000, 1.0000]` y estado `OK`. Eso no es un intervalo: es lo
+que `bootstrap_block_mean_interval` devuelve con menos de dos bloques, y en
+unidades de R se lee como una afirmación fuerte y falsa. Ahora dice
+`SIN INTERVALO` y `N/D (menos de 2 bloques)`. Medición regenerada y hashes
+rehechos. Test de regresión que falla contra el código sin corregir.
+
+**D-29 queda respondida con datos:** `RR_TOO_LOW` es **0 de 2.151** señales
+perdidas, y `ABOVE_MAX_ENTRY` el 96 %. Uno de los dos códigos está muerto. La
+decisión se toma en T-010 con estos números delante; la revisión no la toma.
+
+**Dos hallazgos con ficha propia:** T-015 (el backtest en vivo no es
+reproducible, y eso afecta a la línea base de la línea 0) y T-016 (el centinela
+también lo consume `capacity.py`, que es quien emite el veredicto de P2.5, del
+que depende GATE P2).
+
+**Lo que la entrega hace bien:** INV-06 respetada —el contrafactual reutiliza
+`simulate_asset`, no lo copia—; el defecto inyectado es esta vez una ejecución
+real guardada, corrigiendo el reproche de T-008; el pre-registro está copiado
+antes de medir; y no decidió D-29 pese a tener los números, porque la ficha se
+lo prohibía.
+
+**Y el resultado de fondo, que es para lo que existía la ficha:** en la banda
+70-80, lo ejecutado rinde 0,2111 R por bloque [0,0414, 0,4002] y lo rechazado
+0,1221 R [−0,0008, 0,2309]. El filtro **parece proteger**, con intervalos que se
+solapan: compatible con que ayude, no prueba de que ayude. Las señales
+rechazadas aciertan más veces (56 %) y ganan menos por acierto (payoff 1,01
+frente a 1,77), que es exactamente lo que produce perseguir un hueco al alza.

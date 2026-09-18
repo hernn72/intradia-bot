@@ -1,0 +1,177 @@
+UTC 2026-09-18T09:54:43Z
+6fbeed03a2f87a1e3a4c3a59d7822250a2804a33
+........................................................................ [ 13%]
+........................................................................ [ 26%]
+........................................................................ [ 40%]
+........................................................................ [ 53%]
+........................................................................ [ 66%]
+........................................................................ [ 80%]
+........................................................................ [ 93%]
+....................................                                     [100%]
+=============================== warnings summary ===============================
+tests/test_freshness.py::TestPersistenciaEnLaPasadaReal::test_guarda_frescura_con_la_ia_activada
+  /Users/fer/Desktop/Trading bot/intradia-bot/.venv/lib/python3.12/site-packages/pydantic/main.py:475: UserWarning: Pydantic serializer warnings:
+    PydanticSerializationUnexpectedValue(Expected `str` - serialized value may not be as expected [field_name='db_path', input_value=PosixPath('/private/var/f...a_con_la_ia0/pasada.db'), input_type=PosixPath])
+    return self.__pydantic_serializer__.to_python(
+
+tests/test_freshness.py::TestUniversoRealCompleto::test_activo_de_contexto_sin_calendario_degrada_su_fila_no_la_medicion
+tests/test_freshness.py::TestUniversoRealCompleto::test_activo_de_contexto_sin_calendario_degrada_su_fila_no_la_medicion
+  /Users/fer/Desktop/Trading bot/intradia-bot/.venv/lib/python3.12/site-packages/exchange_calendars/exchange_calendar_xhkg.py:363: DeprecationWarning: The 'generic' unit for NumPy timedelta is deprecated, and will raise an error in the future. This includes implicit conversion of bare integers (e.g. `+ 1`).Please use a specific unit instead.
+    easter_monday = EasterMonday.dates(years[0], years[-1] + 1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+540 passed, 3 warnings in 91.09s (0:01:31)
+All checks passed!
+Success: no issues found in 62 source files
+2026-09-18 10:56:15 [INFO] advisor.backtest.runner: Backtest de 107 activos (horizonte swing, periodo 5y, coste 0.20% ida y vuelta)
+==========================================================================================
+BACKTEST — horizonte swing | periodo 5y | velas 1d | 107 activos | coste 0,20% ida y vuelta
+==========================================================================================
+
+Advertencias: una posición por activo (las señales con posición abierta se pierden);
+sin deslizamiento; con stop y objetivo en la misma vela se asume stop (caso peor);
+sin señal asiática histórica (esa parte del contexto puntúa neutra);
+los niveles se fijan al entrar y no se recalculan, como indica el asesor.
+
+## POLÍTICA REAL (solo señales COMPRAR)
+  893 operaciones | win rate 43% | expectancy R 0,20 | profit factor 1,31 | payoff 1,75 | R mediana -1,03 | R total 181,15 | desv. R 1,71 | P10/P25/P50/P75/P90 -1,16/-1,06/-1,03/1,68/2,19 | 10 velas de media
+  Salidas: stop 502, objetivo 365, tiempo 17, final 9
+
+  Activo          n    Compuesto   Comprar y mantener
+  AAPL            7        23,5%               116,6%
+  MSFT            9        15,0%                79,2%
+  GOOGL           8       -20,0%               162,5%
+  AMZN            9       -11,9%                67,7%
+  META            8         3,7%               257,1%
+  TSLA            3       -18,9%                30,6%
+  ORCL            4         0,8%               108,3%
+  CRM             8        -2,5%                20,7%
+  NOW            10       -21,9%                27,4%
+  ADBE            2         4,6%               -42,7%
+  NFLX           10         2,5%               108,3%
+  NVDA            8        -2,5%               856,5%
+  AVGO           13        30,7%               535,5%
+  AMD             9        26,8%               403,9%
+  MU              7       102,4%              1204,2%
+  QCOM            8       -17,5%                31,9%
+  MRVL           16       -40,9%               271,0%
+  INTC           12       135,7%               146,7%
+  AMAT           11       -22,8%               233,3%
+  LRCX            0            —               451,8%
+  ARM             8        12,2%                89,0%
+  PLTR           12        54,7%              1385,8%
+  PANW           11        -7,0%               302,2%
+  CRWD           10        -9,2%               414,0%
+  UBER           10        14,4%               126,2%
+  APP            10        60,5%               576,1%
+  JPM             0            —               195,0%
+  GS              6         8,2%               217,5%
+  V               3        -3,9%                90,5%
+  MA             11        -5,9%                75,9%
+  BRK-B           1         3,9%                55,7%
+  LLY             9         2,2%               351,4%
+  ABBV            5         8,2%               107,5%
+  VRTX            8        -5,2%               112,6%
+  GE              0            —               453,7%
+  RTX             0            —               115,5%
+  LMT             2         1,3%                36,9%
+  CAT            10        35,0%               305,5%
+  XOM             7         2,2%               125,6%
+  CVX             6         3,0%                52,3%
+  COIN            9        25,8%                -1,0%
+  SAP.DE         10        14,2%               104,8%
+  SIE.DE          9         0,6%               145,7%
+  ALV.DE         11         8,8%               189,5%
+  MBG.DE          4       -15,6%                12,2%
+  RHM.DE          0            —               630,1%
+  ENR.DE         10        87,2%               558,6%
+  DTE.DE          5        -1,6%               105,3%
+  DBK.DE         10        10,3%               302,6%
+  MUV2.DE         8        -0,2%               169,4%
+  IFX.DE         10         6,5%               110,1%
+  ASML.AS        13        39,9%               188,7%
+  ADYEN.AS        5       -29,3%               -40,8%
+  MC.PA           6        14,6%               -19,7%
+  AIR.PA          9         5,0%               134,1%
+  SU.PA          10       -11,4%               153,6%
+  SAF.PA          6        16,8%               269,1%
+  TTE.PA          1         4,4%               132,0%
+  OR.PA           4        -8,4%                25,8%
+  IBE.MC          8        17,1%               152,0%
+  ITX.MC         11        -1,1%               178,6%
+  SAN.MC          9        15,7%               433,2%
+  BBVA.MC        12        79,5%               601,1%
+  RACE.MI         6        17,6%               119,0%
+  UCG.MI          6        21,7%              1022,5%
+  ENI.MI          4         2,6%               133,1%
+  NOVO-B.CO       0            —                -8,9%
+  RRU.DE         27        49,1%              1423,0%
+  BSP.DE         10       -12,6%               183,2%
+  AZN            10        -4,6%                48,5%
+  R6C0.DE        10        -6,0%               102,4%
+  7203.T          9         5,9%                72,0%
+  6758.T         13       -26,5%                55,0%
+  7011.T         17       -16,9%              1050,9%
+  6501.T         15        -8,9%               420,1%
+  9984.T          0            —               443,7%
+  6857.T         14        31,4%              1394,5%
+  8035.T         15       -32,7%               206,9%
+  TSM            15        38,8%               340,4%
+  005930.KS       7        76,7%               304,7%
+  000660.KS       0            —              1460,5%
+  0700.HK         4        10,2%                14,4%
+  9988.HK         6       -17,1%                 5,7%
+  1810.HK        12        74,3%                81,9%
+  1211.HK         5        -1,2%                15,6%
+  INFY            9        -8,9%               -48,1%
+  EUNL.DE         9         2,0%                77,3%
+  SXR8.DE         8        -1,5%                82,1%
+  EQQQ.DE         9        -2,3%               113,5%
+  EXSA.DE         7         0,8%                71,6%
+  IS3N.DE        15        -8,8%                65,5%
+  EUNN.DE        14        -7,9%                76,1%
+  ICGA.DE        12        31,4%                 8,9%
+  QDV5.DE         7         4,9%                16,3%
+  IQQT.DE        20        25,8%               170,7%
+  IQQK.DE        16        28,5%               170,5%
+  VVSM.DE        20         2,2%               320,4%
+  DFEN.DE         0            —               141,9%
+  Q8Y0.DE         7        -9,7%                37,5%
+  4GLD.DE         0            —               103,5%
+  EUNH.DE         8        -2,4%               -11,0%
+  ZPRR.DE        14        -8,4%                44,3%
+  EXV1.DE        16        19,8%               330,6%
+  EXH1.DE        13         6,0%               106,0%
+  BTC-EUR         4         0,1%                79,7%
+  ETH-EUR         3         8,9%               -25,4%
+  SOL-EUR         6        52,7%               -28,7%
+
+## ¿ORDENA LA PUNTUACIÓN? (todas las señales, sin filtros)
+  Tramo        n     Win   Expect.      PF   Payoff   Mediana   Total R   Desv.
+  < 50      3853     37%      0,23    1,30     2,23     -1,04    869,06    2,80
+  50-59     3656     37%      0,14    1,18     2,03     -1,04    510,66    2,40
+  60-69     2297     42%      0,15    1,22     1,68     -1,03    339,43    1,68
+  70-79      526     46%      0,30    1,48     1,77     -1,03    155,48    1,73
+  ≥ 80        18     50%      0,69    2,33     2,33      0,51     12,38    1,80
+
+  Tramo        n    P10 R    P25 R    P50 R    P75 R    P90 R
+  < 50      3853    -1,27    -1,09    -1,04     1,69     2,61
+  50-59     3656    -1,26    -1,09    -1,04     1,63     2,42
+  60-69     2297    -1,20    -1,08    -1,03     1,65     2,14
+  70-79      526    -1,12    -1,06    -1,03     1,71     2,20
+  ≥ 80        18    -1,06    -1,05     0,51     2,00     2,72
+
+## ¿APORTAN LOS VETOS? (mismas señales, agrupadas por la decisión del asesor)
+  COMPRAR    478 operaciones | win rate 46% | expectancy R 0,30 | profit factor 1,49 | payoff 1,78 | R mediana -1,02 | R total 143,43 | desv. R 1,74 | P10/P25/P50/P75/P90 -1,12/-1,06/-1,02/1,71/2,22 | 10 velas de media
+  VERIFICAR_BROKER 7 operaciones | muestra insuficiente para evidencia económica | 9 velas de media
+  ESPERAR    2298 operaciones | win rate 42% | expectancy R 0,15 | profit factor 1,22 | payoff 1,68 | R mediana -1,03 | R total 338,38 | desv. R 1,68 | P10/P25/P50/P75/P90 -1,20/-1,08/-1,03/1,65/2,14 | 11 velas de media
+  DESCARTAR  7567 operaciones | win rate 37% | expectancy R 0,19 | profit factor 1,25 | payoff 2,13 | R mediana -1,04 | R total 1404,58 | desv. R 2,61 | P10/P25/P50/P75/P90 -1,26/-1,09/-1,04/1,66/2,53 | 10 velas de media
+
+## LECTURA (reglas sobre lo medido, sin IA)
+  - Esperanza media por operación COMPRAR: 0,20 R — positiva.
+  - Compuesto medio por activo 9,1% frente a 239,1% de comprar y mantener: la política queda por debajo de la referencia en este periodo.
+  - La puntuación ordena: los tramos ≥70 rinden de media 0,30 R frente a 0,18 R de los tramos <60.
+  - Los vetos aportan: lo que el asesor habría comprado rinde 0,30 R frente a 0,17 R de lo vetado.
+------------------------------------------------------------------------------------------
+Resultados pasados sobre este grupo y periodo: no garantizan nada y con pocas operaciones el azar pesa más que el criterio.
+==========================================================================================
