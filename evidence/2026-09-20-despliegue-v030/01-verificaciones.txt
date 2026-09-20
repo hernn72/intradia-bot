@@ -1,0 +1,37 @@
+$ git rev-parse HEAD
+03e1ec37e59e645164ac48779e169fc58a4bcc2b
+
+$ git rev-list -n 1 v0.3.0
+03e1ec37e59e645164ac48779e169fc58a4bcc2b
+
+$ .venv/bin/python -m advisor.main verificar-systemd
+Unidades systemd alineadas con las plantillas versionadas.
+rc=0
+
+$ .venv/bin/python -m advisor.main verificar-release
+HEAD               03e1ec37e59e645164ac48779e169fc58a4bcc2b
+tag exacto         v0.3.0
+SHA del tag        03e1ec37e59e645164ac48779e169fc58a4bcc2b
+árbol modificado   no
+origin             COINCIDE (03e1ec37e59e645164ac48779e169fc58a4bcc2b)
+veredicto          EN_TAG
+rc=0
+
+$ .venv/bin/python -m advisor.main verificar-backup --ruta intradia.db.bak-manual-20260920-160526
+fichero            intradia.db.bak-manual-20260920-160526
+integridad         ok
+esquema            v5
+registro           no registrado (copia manual)
+filas en la copia  analysis_run=27, data_freshness_measurement=4050, event_pass=1, position=0, position_review=0, recommendation=5375
+filas en la viva   analysis_run=28, data_freshness_measurement=4143, event_pass=1, position=0, position_review=0, recommendation=5468
+veredicto          VALIDO
+  - no figura en backup_log: copia manual, no la hizo una migración
+rc=0
+
+$ systemctl list-timers 'intradia-bot*'
+NEXT                            LEFT LAST                               PASSED UNIT                     ACTIVATES
+Mon 2026-09-21 07:00:00 BST      13h Fri 2026-09-18 21:00:08 BST 1 day 20h ago intradia-bot.timer       intradia-bot.service
+Mon 2026-09-21 22:30:00 BST 1 day 5h Fri 2026-09-18 22:30:04 BST 1 day 18h ago intradia-bot-event.timer intradia-bot-event.service
+
+2 timers listed.
+Pass --all to see loaded but inactive timers, too.

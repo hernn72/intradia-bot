@@ -477,9 +477,18 @@ demás**.
   histórico de frescura de la Pi, que acumula desde el 2 de septiembre)
   produce la cifra de recurrencia; decidir con ella. Umbral propuesto para
   reabrir: > 2 sesiones perdidas por mes en más de 10 activos.
+- **Criterio fijado por el propietario el 2026-09-20 (sigue abierta):** T-012
+  debe decir **cuánto falla y cuánto se retrasa `yfinance` en nuestras plazas
+  europeas**, y con esa cifra se decide si hace falta una segunda fuente **para
+  todo el universo o solo para determinados mercados o tickers**. La alternativa
+  (c) «segunda fuente parcial» pasa a ser explícita y es la que hay que medir:
+  T-012 tiene que publicar el retraso **por plaza y por símbolo**, no solo un
+  agregado. El despliegue de `v0.3.0` da el primer dato con la regla nueva: los
+  25 vetos por dato de la pasada del 2026-09-20 son **todos** europeos, 21
+  `STALE_DATA` y 4 `MISSING_RECENT_DATA`, y ninguno de otra plaza.
 - **Bloquea:** nada hoy.
 
-### OD-03 — Presupuesto de llamadas LLM para contexto
+### OD-03 — Presupuesto de llamadas LLM para contexto · CERRADA en D-38
 - **Pregunta:** ¿Cuántas llamadas/mes (o euros/mes) se admiten para relevancia
   de noticias, sentimiento y Context Analyst en shadow?
 - **Alternativas:** (a) solo por informe, top 5 (coste actual); (b) por activo
@@ -487,7 +496,8 @@ demás**.
 - **Recomendación técnica:** (b) con tope 50 llamadas/día y filtro previo por
   reglas (símbolo/emisor, deduplicación por `content_hash`, fuente).
 - **Bloquea:** B-03 (sentimiento con LLM) y B-06 (Context Analyst). No
-  bloquea la captura y almacenamiento de datos.
+  bloquea la captura y almacenamiento de datos. **Desbloqueadas en D-38**, que
+  fija un tope en euros en vez de en llamadas.
 
 ### OD-08 — Duración de la validación forward (P10)
 - **Pregunta:** ¿Cuánto dura P10 con configuración congelada?
@@ -497,6 +507,24 @@ demás**.
   el mínimo para un intervalo útil; 12 cubre más regímenes.
 - **Recomendación técnica:** 6 meses; si no hay respuesta al llegar a GATE P7,
   se usa 6 meses.
+- **Orientación del propietario, 2026-09-20 (sigue abierta hasta GATE P7):** no
+  fijarla solo por calendario, sino **por tiempo y por número de señales
+  cerradas a la vez**. Punto de partida: **mínimo 8 semanas y al menos 100
+  señales cerradas**; si al cumplirse las 8 semanas no se han alcanzado las 100,
+  se continúa hasta alcanzarlas. 12 semanas se considera mejor para una
+  validación sólida.
+- **Consecuencia medida sobre el backtest (2026-09-20), que conviene tener
+  delante al cerrarla:** la cosecha `071ddb2b…` da **866 operaciones en 5 años**
+  sobre el universo de entonces, es decir ~3,3 señales cerradas por semana, y
+  ~2,9 al reescalar a los 93 analizables de hoy. Con ese ritmo, **100 señales
+  cerradas piden entre 30 y 35 semanas**: el que manda es el número de señales,
+  no las 8 ni las 12 semanas, y P10 duraría del orden de siete u ocho meses. La
+  cifra es la tasa del backtest sobre la cosecha, no la de producción, así que
+  se recalcula con el ritmo real antes de fijar el número.
+- **Condición metodológica:** la regla de parada se fija **antes** de empezar y
+  se para en el primer instante en que se cumplen las dos condiciones. Parar
+  «cuando la cifra se ve bien» invalida P10, que es justo la prueba que no está
+  condicionada.
 - **Bloquea:** solo la fecha de fin de P10.
 
 ---
@@ -548,6 +576,14 @@ restaurar el backup previo, volver a `v0.1.0`, ejecutar una pasada con el códig
 viejo y regresar— se hizo con los timers parados y con red de seguridad en cada
 paso. El procedimiento vive en `docs/despliegue-y-rollback.md` y sustituye a la
 receta manual de arriba.
+
+**Al 2026-09-20 la Pi corre `v0.3.0` = `03e1ec3`**, esquema v5 sin migración
+(entre los dos tags no hay ninguna), `verificar-release` en `EN_TAG` con código
+0 y el manifiesto persistido llevando `release_tag v0.3.0`. Es el primer
+despliegue que aplica el procedimiento sin ensayo previo, y se pudo porque el
+salto no toca el esquema. Evidencia en `evidence/2026-09-20-despliegue-v030/`,
+incluida la primera medición de a quién veta D-21 en producción: 68
+`EXECUTABLE`, 21 `STALE_DATA` y 4 `MISSING_RECENT_DATA`, los 25 europeos.
 
 ### D-26 — 2026-09-17 — OA-03, tercera tanda: el universo queda cubierto
 El propietario completó la tabla. Se aplican **40 ISIN más y 57 cambios de
@@ -798,3 +834,39 @@ cerrada y siga siendo la última. Medido hoy: los tres pasan de la lista de
 declarado— no se recorta y no se supone que el dato está al día: se declara
 desconocido (INV-16). El veto residual por `PARTIAL_BAR` sobrevive solo para ese
 caso, y hoy no alcanza a ningún analizable.
+
+### D-38 — 2026-09-20 — OD-03 cerrada: 10 €/mes, con caché y solo sobre candidatos
+
+Decisión del propietario. El presupuesto de LLM para contexto se fija **en euros
+y no en llamadas**: **máximo 10 €/mes al principio**, con **caché** y con las
+llamadas restringidas al **contexto de los candidatos que ya han pasado los
+filtros cuantitativos**. Queda excluido explícitamente pasar el LLM por el
+universo entero.
+
+**Por qué en euros.** La recomendación técnica anterior proponía un tope de 50
+llamadas/día, que no acota el gasto: el coste depende del tamaño del prompt y
+del modelo, y una llamada con el contexto entero de un activo no vale lo mismo
+que una de relevancia. Un tope en euros es el que el propietario puede vigilar.
+
+**Qué ya se cumple y qué no.** La narrativa de producción **ya** llama solo a
+las oportunidades `OPERAR` del top 5 (`advisor/main.py`, `max_opportunities: 5`
+en `config.yaml`), así que la parte de «no indiscriminadamente» está hecha desde
+antes de esta decisión. **No existen** hoy ni la caché ni la contabilidad del
+gasto: nada mide cuánto se lleva gastado en el mes ni corta al llegar al tope.
+Eso es trabajo nuevo, y es lo que esta decisión encarga.
+
+**Qué queda vinculado para B-03 y B-06**, que quedan desbloqueadas:
+
+- el filtro previo es **por reglas**, no por LLM: símbolo o emisor,
+  deduplicación por `content_hash` y fuente, antes de gastar una llamada;
+- **caché por `input_hash`**: el mismo contexto no se paga dos veces, lo que
+  encaja con C-05, que ya exige persistir `provider/model/prompt_version/
+  input_hash`;
+- **contador de gasto mensual persistido** y degradación limpia al llegar al
+  tope: sin contexto y declarado, nunca un contexto inventado ni silencio;
+- el tope es de contexto (B-03, B-06). La narrativa del informe ya existe y se
+  contabiliza dentro del mismo presupuesto.
+
+**Lo que esta decisión no dice.** No fija el modelo ni el número de llamadas: si
+10 €/mes dan de sí o no, se mide cuando B-02 tenga volumen real de noticias, y
+entonces se revisa el número, no la regla.

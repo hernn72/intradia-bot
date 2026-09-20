@@ -9,34 +9,34 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-18 (cierre de jornada)
+# START HERE — actualizado 2026-09-20
 
 ## Dónde está todo
 
     main / origin/main    este commit    CI verde
-    la Pi                 v0.2.0 = 785daf4    esquema v5  ← TRES ENTREGAS POR DETRÁS
+    la Pi                 v0.3.0 = 03e1ec3    esquema v5    EN_TAG  ← AL DÍA
     graphify-out/         sin seguimiento, ignorar
 
-## Lo primero de mañana: etiquetar v0.3.0 y desplegar
+## Lo primero: T-012
 
-`main` lleva tres entregas que la Pi no tiene, y **una de ellas cambia a quién
-recomienda el bot**:
+El despliegue ya no está pendiente. **`v0.3.0` se etiquetó y se desplegó el
+2026-09-20**, con release publicado por CI y las tres verificaciones en verde en
+la Pi; evidencia en `evidence/2026-09-20-despliegue-v030/`. No hubo migración:
+entre `v0.2.0` y `v0.3.0` el esquema sigue en v5, así que un rollback sería solo
+de código.
 
-    fe684e9  T-015 backtest sobre cosecha congelada
-    3d0e611  D-35 baja de los diez marcados `no` → 93 analizables
-    042b9de  D-36 y D-37: el veto contra la última barra cerrada exigible
+**La primera medición de D-21 en producción ya está hecha**, y es la que faltaba:
+sobre 93 analizables, **68 `EXECUTABLE`, 21 `STALE_DATA` y 4
+`MISSING_RECENT_DATA`**, y los 25 vetados son **todos europeos**. Japón y Hong
+Kong no quedaron vetados en esa pasada, al contrario que el 18: era domingo y no
+había sesión que reclamar. Lo que sigue sin medirse es el reparto **en cada una
+de las cuatro pasadas diarias**, que necesita días de mercado y es material de
+T-012.
 
 El propietario autorizó desplegar sin preguntar cada vez: **la Pi está en fase de
-pruebas y lo que recomiende es parte del desarrollo**. El procedimiento está en
-`docs/despliegue-y-rollback.md`; no hay migración de esquema en estas tres, así
-que el rollback es solo de código.
+pruebas y lo que recomiende es parte del desarrollo**.
 
-Al desplegar, comprobar en la Pi lo que aquí no se puede medir: cuántos activos
-quedan vetados por dato retrasado en cada una de las cuatro pasadas, que es lo
-que ahora decide D-21.
-
-**Lo que cambió hoy y cambia cómo se opera: la Pi ya no corre `main`, corre un
-tag.** Desde T-011, `main` puede ir por delante sin que eso signifique que
+**Cómo se opera desde T-011: la Pi no corre `main`, corre un tag.** Desde T-011, `main` puede ir por delante sin que eso signifique que
 producción está desactualizada: lo que responde a «qué corre la Pi» es
 `verificar-release`, que debe decir `EN_TAG` con código 0. Si dice
 `FUERA_DE_TAG`, alguien hizo `git pull` donde tocaba `git checkout <tag>`.
@@ -81,8 +81,7 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 
 ## Por dónde seguir, en orden
 
-**0. Etiquetar `v0.3.0` y desplegar** (arriba). Hasta entonces la Pi corre un
-universo de 103 y el veto viejo.
+**0.** ~~Etiquetar `v0.3.0` y desplegar~~ **HECHO** el 2026-09-20 (arriba).
 
 1. ~~**T-015** backtest sobre cosecha congelada~~ **HECHA** (D-34): 866
    operaciones idénticas byte a byte frente a 869/862/867 en vivo el mismo día. Conviene **antes** de A-02 si
@@ -106,7 +105,19 @@ universo de 103 y el veto viejo.
   D-21 actúa por activo contra la última barra cerrada exigible, y una barra
   abierta se ignora en vez de vetar. T-012 sigue siendo útil para saber **con
   qué frecuencia** llega tarde cada plaza, pero ya no bloquea nada.
-- **OD-01** (proveedor de fundamentales) y **OD-03** (presupuesto LLM), abiertas.
+- ~~**OD-03** (presupuesto LLM)~~ **cerrada el 2026-09-20** en D-38: **10 €/mes**
+  al principio, con caché y llamadas solo sobre los candidatos que ya pasaron los
+  filtros cuantitativos. Desbloquea B-03 y B-06. Ojo a lo que **no** existe hoy:
+  ni caché ni contador de gasto; la parte de «no indiscriminadamente» sí estaba
+  hecha ya, porque la narrativa solo se pide para el top 5 de `OPERAR`.
+- **OD-01** (proveedor de fundamentales), abierta.
+- **OD-02** (segunda fuente europea), abierta **con criterio fijado**: lo decide
+  la cifra de T-012, y T-012 tiene que darla **por plaza y por símbolo**, porque
+  la elección real es entre segunda fuente para todo el universo o solo para
+  ciertos mercados o tickers.
+- **OD-08** (duración de P10), abierta con orientación: parar por tiempo **y**
+  por señales cerradas (≥ 8 semanas y ≥ 100). Medido sobre la cosecha, 100
+  señales cerradas piden 30-35 semanas: manda el número, no el calendario.
 - ~~Los 10 activos marcados `no` en el broker~~ **decidido el 2026-09-18**:
   dados de baja (D-35). El universo analizable queda en **93** y ya no hay
   ningún analizable con `trade_republic: "no"`.

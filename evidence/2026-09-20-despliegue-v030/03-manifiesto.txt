@@ -1,0 +1,122 @@
+{
+  "analysis_timestamp": "2026-09-20T16:08:43.395383+00:00",
+  "clock_drift_seconds": 0.000954,
+  "clock_status": "CLOCK_OK",
+  "command": "analizar",
+  "config_hash": "1294c526cd64a9acd62cc81de98ae5cf791c57bd9fc1c83d320d6bb77d7f3fa0",
+  "config_hash_version": 2,
+  "context_model_version": null,
+  "data_vintage_id": null,
+  "environment": "pi",
+  "git_dirty": false,
+  "git_dirty_reason": null,
+  "git_sha": "03e1ec37e59e645164ac48779e169fc58a4bcc2b",
+  "groups": null,
+  "provider_versions": {
+    "exchange_calendars": "4.13.2",
+    "exchange_overrides_hash": "b17cb2eba2f17dab8e3a7ca03fb259cf0c66f2cb128ec83ad4d4c2632b4c7f6b",
+    "pandas": "3.0.5",
+    "yfinance": "1.7.0"
+  },
+  "python_version": "3.13.5",
+  "release_tag": "v0.3.0",
+  "run_id": "8609b81b-30d1-4a95-b43f-59c7d7bfb257",
+  "schema_version": 5,
+  "score_model_version": "1.0",
+  "universe_vintage_id": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19"
+}
+
+Recomendaciones:
+- COIN · OPERAR · COMPRAR · score 77.50
+- QCOM · OPERAR · COMPRAR · score 75.62
+- AAPL · OPERAR · COMPRAR · score 73.75
+- BRK-B · OPERAR · COMPRAR · score 73.75
+- ABBV · OPERAR · COMPRAR · score 72.50
+- IFX.DE · VIGILAR · ESPERAR · score 70.62
+- PANW · OPERAR · COMPRAR · score 70.62
+- GOOGL · OPERAR · COMPRAR · score 70.00
+- 6501.T · OPERAR · COMPRAR · score 70.00
+- CRWD · VIGILAR · ESPERAR · score 69.38
+- EUNN.DE · VIGILAR · ESPERAR · score 67.50
+- EXH1.DE · VIGILAR · ESPERAR · score 67.50
+- CVX · VIGILAR · ESPERAR · score 67.50
+- EQQQ.DE · VIGILAR · ESPERAR · score 67.50
+- MU · VIGILAR · ESPERAR · score 66.88
+- TTE.PA · VIGILAR · ESPERAR · score 66.25
+- SXR8.DE · VIGILAR · ESPERAR · score 66.25
+- ALV.DE · VIGILAR · ESPERAR · score 66.25
+- APP · VIGILAR · ESPERAR · score 65.62
+- AMD · VIGILAR · ESPERAR · score 65.62
+- ARM · VIGILAR · ESPERAR · score 65.62
+- IQQT.DE · VIGILAR · ESPERAR · score 65.00
+- XOM · VIGILAR · ESPERAR · score 65.00
+- META · VIGILAR · ESPERAR · score 64.38
+- CAT · VIGILAR · ESPERAR · score 63.75
+- IBE.MC · VIGILAR · ESPERAR · score 63.75
+- ENI.MI · VIGILAR · ESPERAR · score 63.75
+- TSM · VIGILAR · ESPERAR · score 63.75
+- SOL-EUR · VIGILAR · ESPERAR · score 63.12
+- NVDA · VIGILAR · ESPERAR · score 62.50
+- BBVA.MC · VIGILAR · ESPERAR · score 62.50
+- V · VIGILAR · ESPERAR · score 62.50
+- BTC-EUR · VIGILAR · ESPERAR · score 61.62
+- ITX.MC · VIGILAR · ESPERAR · score 61.25
+- GS · VIGILAR · ESPERAR · score 61.25
+- ETH-EUR · VIGILAR · ESPERAR · score 60.99
+- VVSM.DE · VIGILAR · ESPERAR · score 60.00
+- VRTX · VIGILAR · ESPERAR · score 60.00
+- MA · VIGILAR · ESPERAR · score 60.00
+- RACE.MI · VIGILAR · ESPERAR · score 60.00
+- MSFT · VIGILAR · ESPERAR · score 60.00
+- MRVL · DESCARTAR · DESCARTAR · score 59.38
+- 6857.T · DESCARTAR · DESCARTAR · score 59.38
+- INTC · DESCARTAR · DESCARTAR · score 59.38
+- R6C0.DE · DESCARTAR · DESCARTAR · score 58.75
+- IQQK.DE · DESCARTAR · DESCARTAR · score 58.12
+- 8035.T · DESCARTAR · DESCARTAR · score 58.12
+- IS3N.DE · DESCARTAR · DESCARTAR · score 57.87
+- EUNL.DE · DESCARTAR · DESCARTAR · score 57.50
+- DTE.DE · DESCARTAR · DESCARTAR · score 57.50
+- CRM · DESCARTAR · DESCARTAR · score 56.88
+- NOW · DESCARTAR · DESCARTAR · score 56.88
+- ZPRR.DE · DESCARTAR · DESCARTAR · score 56.25
+- SIE.DE · DESCARTAR · DESCARTAR · score 56.25
+- DBK.DE · DESCARTAR · DESCARTAR · score 56.25
+- SAP.DE · DESCARTAR · DESCARTAR · score 56.25
+- EXV1.DE · DESCARTAR · DESCARTAR · score 56.25
+- AMZN · DESCARTAR · DESCARTAR · score 56.25
+- PLTR · DESCARTAR · DESCARTAR · score 55.62
+- AMAT · DESCARTAR · DESCARTAR · score 55.62
+- TSLA · DESCARTAR · DESCARTAR · score 55.62
+- OR.PA · DESCARTAR · DESCARTAR · score 55.00
+- MBG.DE · DESCARTAR · DESCARTAR · score 55.00
+- 7203.T · DESCARTAR · DESCARTAR · score 55.00
+- MUV2.DE · DESCARTAR · DESCARTAR · score 55.00
+- ENR.DE · DESCARTAR · DESCARTAR · score 54.38
+- ADYEN.AS · DESCARTAR · DESCARTAR · score 54.38
+- EUNH.DE · DESCARTAR · DESCARTAR · score 53.75
+- AZN · DESCARTAR · DESCARTAR · score 52.50
+- MC.PA · DESCARTAR · DESCARTAR · score 51.25
+- 0700.HK · DESCARTAR · DESCARTAR · score 51.25
+- Q8Y0.DE · DESCARTAR · DESCARTAR · score 51.25
+- ADBE · DESCARTAR · DESCARTAR · score 50.62
+- EXSA.DE · DESCARTAR · DESCARTAR · score 50.00
+- LLY · DESCARTAR · DESCARTAR · score 50.00
+- 6758.T · DESCARTAR · DESCARTAR · score 50.00
+- RRU.DE · DESCARTAR · DESCARTAR · score 50.00
+- BSP.DE · DESCARTAR · DESCARTAR · score 50.00
+- SU.PA · DESCARTAR · DESCARTAR · score 50.00
+- ASML.AS · DESCARTAR · DESCARTAR · score 49.38
+- LMT · DESCARTAR · DESCARTAR · score 48.75
+- ORCL · DESCARTAR · DESCARTAR · score 48.12
+- 7011.T · DESCARTAR · DESCARTAR · score 48.12
+- SAF.PA · DESCARTAR · DESCARTAR · score 47.50
+- NFLX · DESCARTAR · DESCARTAR · score 46.88
+- AVGO · DESCARTAR · DESCARTAR · score 46.88
+- AIR.PA · DESCARTAR · DESCARTAR · score 43.75
+- 9988.HK · DESCARTAR · DESCARTAR · score 40.62
+- QDV5.DE · DESCARTAR · DESCARTAR · score 38.75
+- ICGA.DE · DESCARTAR · DESCARTAR · score 38.75
+- INFY · DESCARTAR · DESCARTAR · score 38.12
+- UBER · DESCARTAR · DESCARTAR · score 38.12
+- 1810.HK · DESCARTAR · DESCARTAR · score 38.12
