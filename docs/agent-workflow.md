@@ -25,13 +25,17 @@ una pasada la necesita, aunque llegue después, contada una vez por activo y
 sesión—, así que 47 activos cruzan el umbral de 10 y **sí hace falta respaldo,
 solo para Europa**. Eso abre **C-09**, sin ficha todavía.
 
-**Antes de escribir esa ficha, leer D-40 entero**, porque el mecanismo medido
-cambia cuál es la solución barata: el proveedor **retira por la noche una barra
-que ya había servido**. `SAP.DE` el 14 a las 20:02 tiene la barra del 14; a las
-06:02 del 15 vuelve a la del 11; al mediodía reaparece. El bot **ya vio** el
-dato la tarde anterior, así que una caché local de barras consolidadas puede
-resolver las pasadas de la mañana sin pagar proveedor. Las dos opciones van
-sobre la mesa en la ficha.
+**La ficha de C-09 ya está escrita: `docs/tareas/T-018-cache-de-barras-validadas.md`**,
+con las cinco reglas del propietario (D-41). El orden quedó decidido: **caché
+local primero, segunda fuente condicionada**, porque el proveedor **retira por la
+noche una barra que ya había servido** —`SAP.DE` el 14 a las 20:02 tiene la barra
+del 14; a las 06:02 del 15 vuelve a la del 11; al mediodía reaparece— y el bot ya
+vio ese dato la tarde anterior. T-018 produce además la cifra que decide si
+encima se compra EODHD para precios: `sesión exigible + nunca observada + no
+entregada`.
+
+**Las dos van en paralelo y no se estorban:** T-013 es laboratorio y T-018 es
+producción. Si hay que elegir una, T-013, porque es la que abre GATE P2.
 
 **Lo siguiente que no depende de nadie es T-013 (A-02)**: rehacer P2.3, P2.4 y
 P2.5 sobre la cosecha `071ddb2b…` → GATE P2. **La ficha no está escrita**; es lo
