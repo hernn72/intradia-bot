@@ -119,7 +119,10 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
   responde con la misma clave, así que el límite es del plan—, pero el token
   público `demo` dejó ver el JSON real de `AAPL.US` y **`filing_date` está, por
   línea, en los tres estados financieros**. Falta lo único que decide: que venga
-  **relleno para un europeo**, que pide un mes de plan de pago.
+  **relleno para un europeo**, que pide un mes de plan de pago. **Ese gasto
+  espera a T-012** (propietario, 2026-09-20): el EOD europeo de EODHD ya
+  responde en el plan gratuito, así que un mismo plan podría cubrir OD-01 y
+  OD-02 a la vez. Las dos se evalúan juntas con la cifra de T-012 delante.
 - **OD-02** (segunda fuente europea), abierta **con criterio fijado**: lo decide
   la cifra de T-012, y T-012 tiene que darla **por plaza y por símbolo**, porque
   la elección real es entre segunda fuente para todo el universo o solo para
