@@ -232,3 +232,18 @@ def test_el_resumen_declara_las_versiones_de_codigo() -> None:
     assert len(summary.versions) == 2
     assert "bbbbbbbbbbbb (v0.3.0)" in output
     assert "AVISO: la ventana cruza 2 versiones de codigo" in output
+
+
+def test_el_porcentaje_declara_cuantas_pasadas_lo_generan() -> None:
+    """D-41 / INV-22: 30 filas de una sola pasada son un evento, no 30 observaciones."""
+    rows = [
+        _row(symbol=f"SYM{index}.DE", measured_at="2026-09-03T06:00:00+00:00", sessions_approx=1)
+        for index in range(30)
+    ]
+
+    summary = summarize_freshness_history(rows, _universe(*[_asset(f"SYM{i}.DE") for i in range(30)]))
+    output = format_freshness_history_summary(summary)
+
+    assert summary.market_hour[("XETRA", 6)].passes == 1
+    assert "100.0% (30/30) en 1 pasadas" in output
+    assert "NO independiente: 1 pasadas" in output

@@ -1068,3 +1068,54 @@ de integrar nada). Y, junto con D-39, evaluar si un mismo plan de EODHD cubre
 los dos usos: fundamentales point-in-time (OD-01) y EOD europeo de respaldo
 (OD-02). El sondeo de hoy ya midió que su EOD europeo responde incluso en el
 plan gratuito.
+
+### D-41 — 2026-09-20 — C-09: la caché va primero; la segunda fuente queda condicionada
+
+Decisión del propietario, tomada sobre el mecanismo que destapó D-40.
+
+**El razonamiento, que es el que manda:** el fallo dominante no es «el proveedor
+nunca entregó la barra», sino **«la entregó, el bot la vio, y después dejó de
+devolverla temporalmente»**. Pagar otra fuente para reconstruir algo que ya
+tuvimos sería innecesario. Así que C-09 se implementa como **caché local
+primero**, y la segunda fuente pasa a ser **respaldo condicionado** a una cifra
+que hoy no existe.
+
+**Las cinco reglas de la caché**, que la ficha T-018 no puede reinterpretar:
+
+1. Una barra de sesión cerrada y **ya validada** se persiste localmente y **no
+   desaparece porque el proveedor deje de devolverla**.
+2. La caché **nunca crea** una barra que el bot no haya observado.
+3. Si una sesión nueva **todavía no se ha recibido nunca** cuando resulta
+   exigible, sigue siendo `MISSING_RECENT_DATA`. **Ahí sí** puede entrar una
+   segunda fuente.
+4. Si el proveedor devuelve después una versión distinta de una barra ya
+   guardada, **no se sobrescribe en silencio**: se registra como revisión,
+   conservando valor anterior, valor nuevo, instante y proveedor.
+5. Producción puede usar la barra local validada cuando la API «retrocede», pero
+   **debe dejar trazabilidad** de que la fuente viva no la estaba sirviendo en
+   esa pasada.
+
+**Lo que esto arregla además, y no es menor:** hoy **el histórico del bot cambia
+retrospectivamente** según lo que `yfinance` decida devolver esa mañana. Con la
+caché, una medición de investigación repetida en otro momento deja de depender
+de eso.
+
+**El criterio para decidir después si además se compra EODHD como segunda fuente
+de precios**, fijado antes de medir: una vez implantada la caché, contar durante
+varias semanas cuántas veces ocurre
+
+> sesión exigible **+** nunca observada previamente **+** el proveedor principal
+> no la entrega.
+
+Esa es la cifra que mide el **valor marginal** de una segunda fuente. **Si sale
+cercana a cero, EODHD se queda solo para fundamentales** (OD-01). Si sigue siendo
+material, se justifica también pagar precios europeos. Queda como **OD-02 bis**,
+abierta.
+
+**Y una corrección de método que el propietario impone sobre las cifras de
+T-012:** las 329 mediciones europeas de una franja **no son 329 experimentos
+independientes**. En términos del comportamiento del proveedor hay unos **7
+eventos matinales**, cada uno afectando a la vez a decenas de símbolos. Los
+intervalos binomiales por activo **no se usan para afirmar una precisión que no
+tenemos**. El resumen se corrige para publicar el número de pasadas de cada celda
+y marcar el intervalo como no independiente.

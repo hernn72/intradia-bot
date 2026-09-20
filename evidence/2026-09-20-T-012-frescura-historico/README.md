@@ -21,7 +21,15 @@ En las cuatro pasadas programadas, mediciones con retraso ≥ 1 sesión:
 | 20 | **0/327 = 0,0 %** | **0/397 = 0,0 %** |
 
 «Resto del mundo» son NASDAQ, NYSE, JPX, HKG y KSC. **Ni una sola medición
-retrasada fuera de Europa en las 39 pasadas.** Confirma la medición de 21
+retrasada fuera de Europa en las 39 pasadas.**
+
+**Cómo NO leer estos porcentajes** (D-41): las mediciones de una misma pasada no
+son independientes. Cada una de esas franjas sale de **7 pasadas**, y un fallo
+del proveedor afecta a la vez a decenas de símbolos, así que 329 filas son ~7
+eventos matinales, no 329 experimentos. Los intervalos binomiales que publica la
+tabla son por eso demasiado estrechos, y van marcados como tales. La dirección
+del hallazgo aguanta —el patrón se repite en cuatro días distintos—; la precisión
+no. Confirma la medición de 21
 pasadas del 2026-09-16 con una muestra quince veces mayor, y la afina: la de las
 20:02 UTC no tiene retraso ninguno.
 

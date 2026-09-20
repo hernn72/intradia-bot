@@ -6,7 +6,7 @@
 ........................................................................ [ 71%]
 ........................................................................ [ 83%]
 ........................................................................ [ 95%]
-............................                                             [100%]
+.............................                                            [100%]
 =============================== warnings summary ===============================
 tests/test_freshness.py::TestPersistenciaEnLaPasadaReal::test_guarda_frescura_con_la_ia_activada
   /Users/fer/Desktop/Trading bot/intradia-bot/.venv/lib/python3.12/site-packages/pydantic/main.py:475: UserWarning: Pydantic serializer warnings:
@@ -19,6 +19,6 @@ tests/test_freshness.py::TestUniversoRealCompleto::test_activo_de_contexto_sin_c
     easter_monday = EasterMonday.dates(years[0], years[-1] + 1)
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-604 passed, 3 warnings in 101.65s (0:01:41)
+605 passed, 3 warnings in 103.00s (0:01:42)
 All checks passed!
 Success: no issues found in 65 source files
