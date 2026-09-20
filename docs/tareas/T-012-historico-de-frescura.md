@@ -1,6 +1,6 @@
 # T-012 — Interpretar el histórico de frescura de la Pi (A-01)
 
-Estado: EN_REVISION
+Estado: ACEPTADA (2026-09-20) — OD-02 cerrada con su cifra en D-40
 Agente: Opus (ficha y lectura) → Codex (agregación) → propietario (OD-02, OD-01)
 Línea / fase: Línea A, A-01
 Gate al que contribuye: ninguno directamente; **produce la cifra con la que se
@@ -292,3 +292,16 @@ Si alguien retoma T-012: `--resumen` no está en la Pi todavía, porque producci
 corre el tag `v0.3.0` y el comando entró después; llegará con el próximo
 release. La copia de la Pi se rehace con el API de backup de SQLite, nunca
 copiando el fichero vivo.
+
+## Cierre — 2026-09-20
+
+**ACEPTADA.** El propietario eligió la lectura (c) y cerró OD-02 en D-40: hace
+falta respaldo del EOD europeo, solo para Europa. Antes de cerrar pidió descartar
+el efecto fin de semana, y se descartó midiendo: **no hay ninguna pasada de fin
+de semana a las 06 UTC**, las siete son laborables, y el patrón se repite martes,
+miércoles, jueves y viernes entre el 97,9 % y el 100 %.
+
+El lunes (0 %) no es una excepción sino la confirmación: ese día la sesión
+exigible es la del viernes, ya consolidada. Y el mecanismo real, verificado
+siguiendo `SAP.DE` pasada a pasada, es que **el proveedor retira por la noche una
+barra que ya había servido**. Todo en D-40.
