@@ -1,47 +1,75 @@
 # Sondeo del plan gratuito de EODHD — OD-01 (D-39)
 
-**Estado: preparado, sin ejecutar.** Falta la cuenta gratuita y la API key, que
-son trabajo del propietario.
+Ejecutado el **2026-09-20** con la clave gratuita del propietario. Salida literal
+en `resultado.md`; el recorte publicable del JSON, en `extracto-AAPL-US.json`.
 
-## Qué pregunta responde
+## Las dos respuestas, que no son la misma
 
-Una sola, y no la del precio: **si el JSON real de EODHD trae `filing_date`**,
-es decir fecha de publicación por línea y no solo periodo fiscal. De eso depende
-la alternativa de OD-01:
+**1. El plan gratuito NO sirve para fundamentales.** Ni europeos ni de EE. UU.:
 
-- **con `filing_date`** → point-in-time posible → alternativa (a), P8 viable;
-- **sin `filing_date`** → alternativa (b): solo producción con etiqueta «no
-  point-in-time», y P8 imposible con esta fuente.
+    fundamentals SAP.XETRA   →  HTTP 403  "Only EOD data allowed for free users"
+    fundamentals ASML.AS     →  HTTP 403  "Only EOD data allowed for free users"
+    fundamentals AAPL.US     →  HTTP 403  "Only EOD data allowed for free users"
+    eod SAP.XETRA            →  HTTP 200, 656 bytes
 
-Además comprueba estados financieros (balance, resultados, flujo de caja), ISIN,
-EPS, deuda y flujo de caja libre, sobre dos valores europeos del universo
-(`SAP.XETRA` y `ASML.AS`).
+La cuarta línea es la que da sentido a las tres primeras: **la clave es válida y
+el acceso funciona**; lo que no incluye el plan es el producto de fundamentales,
+y no tiene nada que ver con la plaza. Es exactamente la distinción que D-39
+exigía separar: **«este plan no lo da», no «el proveedor no lo da»**.
 
-## Cómo se ejecuta
+**2. La forma del JSON sí se pudo ver, con el token público `demo`.** EODHD
+publica un token de demostración que sirve fundamentales de `AAPL.US` —y solo de
+unos pocos símbolos: con `SAP.XETRA` devuelve 403—. Sobre ese JSON real, 1.005 KB:
 
-1. Crear la cuenta gratuita en EODHD y obtener la API key.
-2. Añadirla a `.env` como `EODHD_API_KEY=...`. **Nunca al repositorio**: `.env`
-   está en `.gitignore` y el sondeo registra la URL con la clave recortada.
-3. Ejecutar:
+| Campo | Resultado |
+|---|---|
+| **`filing_date`** | **PRESENTE, 594 apariciones**, una por línea de cada estado financiero: `Financials.Balance_Sheet.quarterly.2026-06-30.filing_date` = `2026-07-31` para un periodo cerrado el `2026-06-30` |
+| `ISIN` | presente en `General.ISIN` (`US0378331005`) |
+| Balance, resultados y flujo de caja | los tres, en `Financials`, con 164 periodos trimestrales y 41 anuales (hasta 1985) |
+| EPS | dos formas: `Highlights.EarningsShare` (instantánea, **sin** fecha) y `Earnings.History.<periodo>.epsActual` con `reportDate` al lado, que sí es utilizable point-in-time |
+| Deuda | **no hay `totalDebt`**; hay `netDebt`, `shortTermDebt`, `shortLongTermDebt`, `shortLongTermDebtTotal` y `longTermDebt`. Se deriva en Python, que es lo que el roadmap ya exige para los ratios |
+| Flujo de caja libre | `Cash_Flow.<periodicidad>.<periodo>.freeCashFlow`, con su `filing_date` |
 
-       .venv/bin/python evidence/2026-09-20-OD-01-eodhd-free/sondeo_eodhd.py
+## Qué decide esto para OD-01
 
-Deja `crudo-<simbolo>.json` con la respuesta tal cual y `resultado.md` con el
-inventario de campos. Se comprueba contra el JSON crudo, no contra la
-documentación del proveedor.
+**El esquema de EODHD sí es point-in-time.** `filing_date` viene por línea y
+separado del cierre del periodo, que es justo lo que hace falta para que los
+fundamentales puedan entrar en un backtest sin look-ahead. Eso mueve a EODHD a
+la alternativa **(a)** de OD-01 en cuanto a forma del dato, y quita de en medio
+la objeción que tenía a `yfinance`.
 
-## Lo que hay que distinguir al leerlo
+**Lo que este sondeo NO demuestra, y no se debe dar por supuesto:**
 
-Un campo ausente puede significar dos cosas opuestas, y la conclusión cambia:
+- **Cobertura europea.** Todo lo verificado es `AAPL.US`. Que el esquema traiga
+  `filing_date` para una empresa de EE. UU. **no prueba** que lo traiga relleno
+  para `SAP.XETRA`, `ASML.AS` o el resto del universo. Es la pregunta que queda
+  abierta y la única que justifica pagar un mes para comprobarla.
+- **Calidad del relleno.** Hay campos a `null` incluso en el ejemplo de demo
+  (`longTermDebtTotal`, `earningAssets`). Cuántos van vacíos en un europeo es
+  parte de la misma comprobación.
+- **Revisiones.** No se ha visto si una magnitud republicada conserva la fecha
+  original o se sobrescribe, que es lo que distingue un point-in-time de verdad
+  de una foto fechada.
 
-- **el proveedor no lo da** → descarta a EODHD para ese uso;
-- **este plan no lo da** → no dice nada del proveedor, solo del plan gratuito.
+## Lo que hace falta para cerrar OD-01
 
-El sondeo separa las dos: un `HTTP 402` o un `403` se informan como restricción
-de plan, y un `429` como cuota diaria agotada, no como ausencia del dato.
+Un mes del plan de pago más barato que incluya fundamentales, con dos o tres
+europeos del universo, comprobando: `filing_date` relleno en los tres estados,
+porcentaje de campos nulos, y qué pasa con una magnitud revisada. Decisión del
+propietario: es gasto.
 
-## Lo que este sondeo no hace
+## Cómo se reproduce
 
-No toca `advisor/`. B-00 (GATE B0) exige la ficha de proveedor antes de que
-ninguna fuente externa entre en el sistema, y esta prueba es el material con el
-que se escribe esa ficha.
+    .venv/bin/python evidence/2026-09-20-OD-01-eodhd-free/sondeo_eodhd.py
+
+Los pasos con el token `demo` corren sin clave ninguna. Los tres primeros
+necesitan `EODHD_API_KEY` en `.env`, que **no** está en el repositorio; el
+sondeo registra las URL con la clave recortada y nunca la escribe en la
+evidencia. El JSON completo no se commitea —pasa del megabyte— y se regenera
+ejecutando el script.
+
+## Lo que este sondeo no toca
+
+No entra en `advisor/`. B-00 (GATE B0) exige la ficha de proveedor antes de que
+ninguna fuente externa forme parte del sistema, y esto es el material con el que
+se escribe esa ficha.

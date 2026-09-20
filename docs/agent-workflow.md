@@ -113,9 +113,13 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 - **OD-01** (proveedor de fundamentales), abierta **con un paso decidido**
   (D-39): se prueba **EODHD en su plan gratuito** con uno o dos valores europeos
   antes de pagar nada, y lo que decide entre (a) y (b) es si el JSON trae
-  `filing_date`. El sondeo está escrito y listo en
-  `evidence/2026-09-20-OD-01-eodhd-free/`; **falta la API key**, que es trabajo
-  del propietario.
+  `filing_date`. **Sondeo ejecutado el 2026-09-20**
+  (`evidence/2026-09-20-OD-01-eodhd-free/`): el plan gratuito **no** da
+  fundamentales —403 en europeos y en EE. UU., mientras el EOD europeo sí
+  responde con la misma clave, así que el límite es del plan—, pero el token
+  público `demo` dejó ver el JSON real de `AAPL.US` y **`filing_date` está, por
+  línea, en los tres estados financieros**. Falta lo único que decide: que venga
+  **relleno para un europeo**, que pide un mes de plan de pago.
 - **OD-02** (segunda fuente europea), abierta **con criterio fijado**: lo decide
   la cifra de T-012, y T-012 tiene que darla **por plaza y por símbolo**, porque
   la elección real es entre segunda fuente para todo el universo o solo para
