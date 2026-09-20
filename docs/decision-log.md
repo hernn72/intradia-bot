@@ -486,6 +486,23 @@ demás**.
   podría cubrir la segunda fuente de precios y los fundamentales point-in-time,
   y su EOD europeo ya responde en el plan gratuito (ver D-39). Ninguna de las dos
   se decide hasta tener la cifra de T-012.
+- **T-012 ENTREGADA el 2026-09-20: la cifra ya existe, falta que el propietario
+  elija una definición.** Sobre 4.143 mediciones y 39 pasadas de la Pi
+  (`evidence/2026-09-20-T-012-frescura-historico/`):
+  **el retraso es exclusivamente europeo**. A las 06 y 07 UTC, 278/329 y 277/328
+  mediciones europeas llegan con retraso ≥ 1 sesión, frente a **0 de 399** de
+  NASDAQ, NYSE, JPX, HKG y KSC. A las 13 UTC, 135/327 en Europa y 0/397 fuera. A
+  las 20 UTC, **0 en todas partes**.
+  La respuesta al umbral —más de 2 sesiones perdidas por mes en más de 10
+  activos— **depende de qué sea una «sesión perdida», que el pre-registro no
+  definió**: (a) si el hueco debe seguir ausente al final, **0 activos** lo
+  superan y el umbral NO se alcanza; (b) si basta con que faltara en alguna
+  pasada, 18; (c) contando además los retrasos que luego llegan, 47. La
+  diferencia es la conclusión entera: casi todo lo que parece hueco es retraso
+  que acaba llegando. **Decisión pendiente: qué lectura vale.**
+  Dos avisos que van con la cifra: la ventana cruza **14 versiones de código** y
+  solo una pasada usa la regla vigente de D-36/D-37; y son 18 días sin vacaciones
+  ni cierres largos, así que toda tasa mensual es provisional.
 - **Criterio fijado por el propietario el 2026-09-20 (sigue abierta):** T-012
   debe decir **cuánto falla y cuánto se retrasa `yfinance` en nuestras plazas
   europeas**, y con esa cifra se decide si hace falta una segunda fuente **para

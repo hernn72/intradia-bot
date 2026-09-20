@@ -9,7 +9,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-20
+# START HERE — actualizado 2026-09-20 (cierre de jornada)
 
 ## Dónde está todo
 
@@ -17,7 +17,31 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
     la Pi                 v0.3.0 = 03e1ec3    esquema v5    EN_TAG  ← AL DÍA
     graphify-out/         sin seguimiento, ignorar
 
-## Lo primero: T-012
+## Lo primero de mañana: T-013 (A-02), y una pregunta al propietario
+
+**T-012 está hecha y EN_REVISION**, pendiente solo de una decisión suya: qué
+cuenta como «sesión perdida» para el umbral de OD-02. Las tres lecturas están
+publicadas y dan respuestas opuestas (0, 18 y 47 activos). No la decidas tú.
+
+**Lo siguiente que no depende de nadie es T-013 (A-02)**: rehacer P2.3, P2.4 y
+P2.5 sobre la cosecha `071ddb2b…` → GATE P2. **La ficha no está escrita**; es lo
+primero que hay que hacer. Tres avisos que ya se saben: la población pasa de 107
+a 103 y a 93 (hay que declarar las tres), el backtest ya es reproducible con
+`--vintage` (T-015) y D-29 quedó cerrada.
+
+**Lo que T-012 dejó medido y cambia cómo se lee todo lo demás:** el retraso del
+proveedor es **exclusivamente europeo** —278/329 mediciones europeas retrasadas a
+las 06 UTC frente a **0/399** del resto del mundo, y 0 en todas partes a las 20
+UTC—, y **la mayoría de los «huecos» son retrasos que acaban llegando**: al final
+de la ventana solo quedan 9 activos con un hueco cada uno.
+
+**Trampa nueva, para cualquier medición sobre el histórico de la Pi:** la ventana
+cruza **14 versiones de código** y 1.177 mediciones no tienen manifiesto. Solo
+una pasada usa la regla vigente de D-36/D-37. Agregar todo en una sola tasa
+mezcla definiciones distintas de la métrica. `frescura-historico --resumen` ya lo
+declara solo.
+
+## Lo de ayer: el despliegue de v0.3.0
 
 El despliegue ya no está pendiente. **`v0.3.0` se etiquetó y se desplegó el
 2026-09-20**, con release publicado por CI y las tres verificaciones en verde en
@@ -83,11 +107,13 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 
 **0.** ~~Etiquetar `v0.3.0` y desplegar~~ **HECHO** el 2026-09-20 (arriba).
 
+0b. ~~**T-012** histórico de frescura~~ **HECHA y EN_REVISION** (2026-09-20),
+   pendiente solo de que el propietario elija la lectura de «sesión perdida».
 1. ~~**T-015** backtest sobre cosecha congelada~~ **HECHA** (D-34): 866
    operaciones idénticas byte a byte frente a 869/862/867 en vivo el mismo día. Conviene **antes** de A-02 si
    A-02 va a comparar poblaciones, porque hoy el backtest en vivo da 891, 893 y
    890 operaciones en tres pasadas del mismo commit.
-2. **T-012** (Codex → Opus → propietario): la cifra de OD-02. Ya **no** decide
+2. ~~**T-012**~~ **HECHA** (2026-09-20). La cifra de OD-02. Ya **no** decide
    OD-09 ni OD-10 —cerradas en D-36 y D-37—, pero sigue diciendo con qué
    frecuencia llega tarde cada plaza, que es lo que ahora determina el veto.
 3. **T-013 (A-02)** → GATE P2. **Desbloqueada.** Dos avisos: la población pasa

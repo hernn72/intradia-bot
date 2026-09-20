@@ -454,6 +454,27 @@ class AdvisorDB:
                 )
             return cursor.fetchall()
 
+    def get_all_freshness_measurements(self) -> List[sqlite3.Row]:
+        """Todas las mediciones de frescura persistidas, en orden cronológico.
+
+        Trae el ``git_sha`` y el ``release_tag`` del manifiesto de su pasada
+        porque una ventana larga puede cruzar varias versiones de código, y una
+        de ellas (D-36 y D-37) cambió qué cuenta como sesión exigible: agregar
+        las dos definiciones en una sola tasa mezclaría métricas distintas. Las
+        pasadas anteriores a C-02 no tienen manifiesto y llegan con ``NULL``.
+        """
+
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                SELECT f.*, a.git_sha AS run_git_sha, a.release_tag AS run_release_tag
+                FROM data_freshness_measurement f
+                LEFT JOIN analysis_run a ON a.run_id = f.run_id
+                ORDER BY f.measured_at ASC, f.symbol ASC, f.id ASC
+                """
+            )
+            return cursor.fetchall()
+
     def latest_freshness_measured_at(self) -> Optional[str]:
         """Marca temporal de la última pasada de frescura guardada, si hay alguna."""
 

@@ -1,0 +1,431 @@
+# Resumen historico de frescura
+
+Mediciones: 4143; pasadas: 39; simbolos: 107.
+Ventana: 2026-09-02T17:24:51.715970+00:00 a 2026-09-20T16:11:02.874968+00:00.
+Poblacion declarada: 107 analizables hasta 2026-09-18 antes de D-31; 103 analizables tras D-31 el 2026-09-18; 93 analizables tras D-35 el 2026-09-18.
+Cada activo declara sus pasadas posibles; si `valid_to` existe se usa, si no se deriva de su ventana real observada.
+Ventana corta: 18 dias de historico, sin vacaciones ni cierres largos; las tasas mensuales son extrapolaciones provisionales.
+OD-09 y OD-10 ya estan cerradas (D-36 y D-37); este resumen alimenta OD-02 y, por D-39, OD-01.
+
+OD-02 depende de que se llame 'sesion perdida', y el pre-registro no lo fijo. El umbral son 10 activos con mas de 2 sesiones perdidas. Las tres lecturas posibles, todas sobre sesiones DISTINTAS por activo:
+- (a) HUECO QUE PERSISTE al final de la ventana: 0 activos superan el umbral (9 tienen algun hueco). UMBRAL NO ALCANZADO.
+- (b) sesion ausente del historico en alguna pasada, aunque llegara despues: 18 activos. Umbral superado.
+- (c) lo anterior mas las sesiones que solo llegaban con retraso: 47 activos. Umbral superado.
+Extrapolado a 30,44 dias con la lectura (b), PROVISIONAL: 49 activos.
+La diferencia entre (a) y (c) es la conclusion entera: casi todo lo que parece hueco es retraso que acaba llegando. Contar una misma sesion una vez por pasada multiplicaria el hueco por el numero de pasadas, y por eso no se hace. QUE LECTURA VALE PARA OD-02 ES DECISION DEL PROPIETARIO.
+
+Causas excluyentes, en ausencias distintas (activo, fecha):
+- plaza cerrada: n=88; proveedor con plaza abierta: n=182; barra parcial por sesion en curso: n=42; total clasificado: n=312.
+- las mismas causas contadas por aparicion en cada pasada, que NO son ausencias distintas: plaza cerrada n=1682; proveedor n=2446; parcial n=42.
+
+## Plaza x hora UTC
+| Plaza | Hora UTC | Mediciones | Retraso >= 1 sesion | IC 95% |
+|---|---:|---:|---|---|
+| AMS | 06 | n=14 | insuficiente (12/14; n=14<30) | N/D |
+| AMS | 07 | n=14 | insuficiente (12/14; n=14<30) | N/D |
+| AMS | 08 | n=4 | insuficiente (4/4; n=4<30) | N/D |
+| AMS | 09 | n=2 | insuficiente (0/2; n=2<30) | N/D |
+| AMS | 11 | n=4 | insuficiente (2/4; n=4<30) | N/D |
+| AMS | 12 | n=6 | insuficiente (0/6; n=6<30) | N/D |
+| AMS | 13 | n=14 | insuficiente (2/14; n=14<30) | N/D |
+| AMS | 14 | n=2 | insuficiente (2/2; n=2<30) | N/D |
+| AMS | 16 | n=2 | insuficiente (1/2; n=2<30) | N/D |
+| AMS | 17 | n=2 | insuficiente (0/2; n=2<30) | N/D |
+| AMS | 20 | n=14 | insuficiente (0/14; n=14<30) | N/D |
+| CPH | 06 | n=7 | insuficiente (6/7; n=7<30) | N/D |
+| CPH | 07 | n=7 | insuficiente (6/7; n=7<30) | N/D |
+| CPH | 08 | n=2 | insuficiente (2/2; n=2<30) | N/D |
+| CPH | 09 | n=1 | insuficiente (0/1; n=1<30) | N/D |
+| CPH | 11 | n=2 | insuficiente (1/2; n=2<30) | N/D |
+| CPH | 12 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| CPH | 13 | n=7 | insuficiente (1/7; n=7<30) | N/D |
+| CPH | 14 | n=1 | insuficiente (1/1; n=1<30) | N/D |
+| CPH | 17 | n=1 | insuficiente (0/1; n=1<30) | N/D |
+| CPH | 20 | n=7 | insuficiente (0/7; n=7<30) | N/D |
+| CRYPTO | 06 | n=21 | insuficiente (0/21; n=21<30) | N/D |
+| CRYPTO | 07 | n=21 | insuficiente (0/21; n=21<30) | N/D |
+| CRYPTO | 08 | n=6 | insuficiente (0/6; n=6<30) | N/D |
+| CRYPTO | 09 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| CRYPTO | 11 | n=6 | insuficiente (0/6; n=6<30) | N/D |
+| CRYPTO | 12 | n=9 | insuficiente (0/9; n=9<30) | N/D |
+| CRYPTO | 13 | n=21 | insuficiente (0/21; n=21<30) | N/D |
+| CRYPTO | 14 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| CRYPTO | 16 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| CRYPTO | 17 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| CRYPTO | 20 | n=21 | insuficiente (0/21; n=21<30) | N/D |
+| HKG | 06 | n=28 | insuficiente (0/28; n=28<30) | N/D |
+| HKG | 07 | n=28 | insuficiente (0/28; n=28<30) | N/D |
+| HKG | 08 | n=8 | insuficiente (0/8; n=8<30) | N/D |
+| HKG | 09 | n=4 | insuficiente (0/4; n=4<30) | N/D |
+| HKG | 11 | n=7 | insuficiente (0/7; n=7<30) | N/D |
+| HKG | 12 | n=12 | insuficiente (0/12; n=12<30) | N/D |
+| HKG | 13 | n=27 | insuficiente (0/27; n=27<30) | N/D |
+| HKG | 14 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| HKG | 16 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| HKG | 17 | n=4 | insuficiente (0/4; n=4<30) | N/D |
+| HKG | 20 | n=27 | insuficiente (0/27; n=27<30) | N/D |
+| JPX | 06 | n=49 | 0.0% (0/49) | 0.0%-7.3% (n=49) |
+| JPX | 07 | n=49 | 0.0% (0/49) | 0.0%-7.3% (n=49) |
+| JPX | 08 | n=14 | insuficiente (0/14; n=14<30) | N/D |
+| JPX | 09 | n=7 | insuficiente (0/7; n=7<30) | N/D |
+| JPX | 11 | n=14 | insuficiente (0/14; n=14<30) | N/D |
+| JPX | 12 | n=21 | insuficiente (0/21; n=21<30) | N/D |
+| JPX | 13 | n=49 | 0.0% (0/49) | 0.0%-7.3% (n=49) |
+| JPX | 14 | n=7 | insuficiente (0/7; n=7<30) | N/D |
+| JPX | 16 | n=6 | insuficiente (0/6; n=6<30) | N/D |
+| JPX | 17 | n=7 | insuficiente (0/7; n=7<30) | N/D |
+| JPX | 20 | n=49 | 0.0% (0/49) | 0.0%-7.3% (n=49) |
+| KSC | 06 | n=14 | insuficiente (0/14; n=14<30) | N/D |
+| KSC | 07 | n=14 | insuficiente (0/14; n=14<30) | N/D |
+| KSC | 08 | n=4 | insuficiente (0/4; n=4<30) | N/D |
+| KSC | 09 | n=2 | insuficiente (0/2; n=2<30) | N/D |
+| KSC | 11 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| KSC | 12 | n=6 | insuficiente (0/6; n=6<30) | N/D |
+| KSC | 13 | n=13 | insuficiente (0/13; n=13<30) | N/D |
+| KSC | 14 | n=1 | insuficiente (0/1; n=1<30) | N/D |
+| KSC | 17 | n=2 | insuficiente (0/2; n=2<30) | N/D |
+| KSC | 20 | n=13 | insuficiente (0/13; n=13<30) | N/D |
+| MCE | 06 | n=28 | insuficiente (20/28; n=28<30) | N/D |
+| MCE | 07 | n=28 | insuficiente (20/28; n=28<30) | N/D |
+| MCE | 08 | n=8 | insuficiente (8/8; n=8<30) | N/D |
+| MCE | 09 | n=4 | insuficiente (0/4; n=4<30) | N/D |
+| MCE | 11 | n=7 | insuficiente (3/7; n=7<30) | N/D |
+| MCE | 12 | n=12 | insuficiente (0/12; n=12<30) | N/D |
+| MCE | 13 | n=27 | insuficiente (3/27; n=27<30) | N/D |
+| MCE | 14 | n=3 | insuficiente (3/3; n=3<30) | N/D |
+| MCE | 16 | n=3 | insuficiente (2/3; n=3<30) | N/D |
+| MCE | 17 | n=4 | insuficiente (0/4; n=4<30) | N/D |
+| MCE | 20 | n=27 | insuficiente (0/27; n=27<30) | N/D |
+| MIL | 06 | n=21 | insuficiente (18/21; n=21<30) | N/D |
+| MIL | 07 | n=21 | insuficiente (18/21; n=21<30) | N/D |
+| MIL | 08 | n=6 | insuficiente (6/6; n=6<30) | N/D |
+| MIL | 09 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| MIL | 11 | n=5 | insuficiente (2/5; n=5<30) | N/D |
+| MIL | 12 | n=9 | insuficiente (0/9; n=9<30) | N/D |
+| MIL | 13 | n=20 | insuficiente (2/20; n=20<30) | N/D |
+| MIL | 14 | n=2 | insuficiente (2/2; n=2<30) | N/D |
+| MIL | 16 | n=2 | insuficiente (1/2; n=2<30) | N/D |
+| MIL | 17 | n=3 | insuficiente (0/3; n=3<30) | N/D |
+| MIL | 20 | n=20 | insuficiente (0/20; n=20<30) | N/D |
+| NASDAQ | 06 | n=175 | 0.0% (0/175) | 0.0%-2.1% (n=175) |
+| NASDAQ | 07 | n=175 | 0.0% (0/175) | 0.0%-2.1% (n=175) |
+| NASDAQ | 08 | n=50 | 0.0% (0/50) | 0.0%-7.1% (n=50) |
+| NASDAQ | 09 | n=25 | insuficiente (0/25; n=25<30) | N/D |
+| NASDAQ | 11 | n=50 | 0.0% (0/50) | 0.0%-7.1% (n=50) |
+| NASDAQ | 12 | n=75 | 0.0% (0/75) | 0.0%-4.9% (n=75) |
+| NASDAQ | 13 | n=175 | 0.0% (0/175) | 0.0%-2.1% (n=175) |
+| NASDAQ | 14 | n=25 | insuficiente (0/25; n=25<30) | N/D |
+| NASDAQ | 16 | n=24 | insuficiente (0/24; n=24<30) | N/D |
+| NASDAQ | 17 | n=25 | insuficiente (0/25; n=25<30) | N/D |
+| NASDAQ | 20 | n=175 | 0.0% (0/175) | 0.0%-2.1% (n=175) |
+| NYSE | 06 | n=133 | 0.0% (0/133) | 0.0%-2.8% (n=133) |
+| NYSE | 07 | n=133 | 0.0% (0/133) | 0.0%-2.8% (n=133) |
+| NYSE | 08 | n=38 | 0.0% (0/38) | 0.0%-9.2% (n=38) |
+| NYSE | 09 | n=19 | insuficiente (0/19; n=19<30) | N/D |
+| NYSE | 11 | n=38 | 0.0% (0/38) | 0.0%-9.2% (n=38) |
+| NYSE | 12 | n=57 | 0.0% (0/57) | 0.0%-6.3% (n=57) |
+| NYSE | 13 | n=133 | 0.0% (0/133) | 0.0%-2.8% (n=133) |
+| NYSE | 14 | n=19 | insuficiente (0/19; n=19<30) | N/D |
+| NYSE | 16 | n=16 | insuficiente (0/16; n=16<30) | N/D |
+| NYSE | 17 | n=19 | insuficiente (0/19; n=19<30) | N/D |
+| NYSE | 20 | n=133 | 0.0% (0/133) | 0.0%-2.8% (n=133) |
+| PAR | 06 | n=42 | 85.7% (36/42) | 72.2%-93.3% (n=42) |
+| PAR | 07 | n=42 | 85.7% (36/42) | 72.2%-93.3% (n=42) |
+| PAR | 08 | n=12 | insuficiente (12/12; n=12<30) | N/D |
+| PAR | 09 | n=6 | insuficiente (0/6; n=6<30) | N/D |
+| PAR | 11 | n=12 | insuficiente (6/12; n=12<30) | N/D |
+| PAR | 12 | n=18 | insuficiente (0/18; n=18<30) | N/D |
+| PAR | 13 | n=42 | 14.3% (6/42) | 6.7%-27.8% (n=42) |
+| PAR | 14 | n=6 | insuficiente (6/6; n=6<30) | N/D |
+| PAR | 16 | n=6 | insuficiente (6/6; n=6<30) | N/D |
+| PAR | 17 | n=6 | insuficiente (0/6; n=6<30) | N/D |
+| PAR | 20 | n=42 | 0.0% (0/42) | 0.0%-8.4% (n=42) |
+| XETRA | 06 | n=217 | 85.7% (186/217) | 80.4%-89.7% (n=217) |
+| XETRA | 07 | n=217 | 85.3% (185/217) | 79.9%-89.4% (n=217) |
+| XETRA | 08 | n=62 | 100.0% (62/62) | 94.2%-100.0% (n=62) |
+| XETRA | 09 | n=31 | 0.0% (0/31) | 0.0%-11.0% (n=31) |
+| XETRA | 11 | n=62 | 79.0% (49/62) | 67.4%-87.3% (n=62) |
+| XETRA | 12 | n=93 | 58.1% (54/93) | 47.9%-67.6% (n=93) |
+| XETRA | 13 | n=217 | 55.8% (121/217) | 49.1%-62.2% (n=217) |
+| XETRA | 14 | n=31 | 100.0% (31/31) | 89.0%-100.0% (n=31) |
+| XETRA | 16 | n=28 | insuficiente (11/28; n=28<30) | N/D |
+| XETRA | 17 | n=31 | 0.0% (0/31) | 0.0%-11.0% (n=31) |
+| XETRA | 20 | n=217 | 0.0% (0/217) | 0.0%-1.7% (n=217) |
+
+## Activo x mes
+| Simbolo | Mes | Pasadas posibles | Pasadas medidas | Sesiones distintas ausentes proveedor | Tasa mensual provisional | Racha maxima | Cierres reales | Barras parciales | Apariciones en pasadas | Ventana |
+|---|---|---:|---:|---:|---|---:|---:|---:|---:|---|
+| 000660.KS | 2026-09 | n=38 | n=38 | n=0 | 0.00/mes provisional (n=0, dias_activos=8) | 0 | n=0 | n=0 | n=0 | valid_to=2026-09-18 |
+| 005930.KS | 2026-09 | n=38 | n=34 | n=0 | 0.00/mes provisional (n=0, dias_activos=8) | 0 | n=0 | n=0 | n=0 | valid_to=2026-09-18 |
+| 0700.HK | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| 1211.HK | 2026-09 | n=38 | n=34 | n=0 | 0.00/mes provisional (n=0, dias_activos=8) | 0 | n=0 | n=0 | n=0 | valid_to=2026-09-18 |
+| 1810.HK | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| 4GLD.DE | 2026-09 | n=38 | n=38 | n=5 | 19.02/mes provisional (n=5, dias_activos=8) | 4 | n=0 | n=0 | n=71 | valid_to=2026-09-18 |
+| 6501.T | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| 6758.T | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| 6857.T | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| 7011.T | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| 7203.T | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| 8035.T | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| 9984.T | 2026-09 | n=38 | n=38 | n=0 | 0.00/mes provisional (n=0, dias_activos=8) | 0 | n=0 | n=0 | n=0 | valid_to=2026-09-18 |
+| 9988.HK | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| AAPL | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| ABBV | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| ADBE | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| ADYEN.AS | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=45 | historico observado |
+| AIR.PA | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| ALV.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| AMAT | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| AMD | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| AMZN | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| APP | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| ARM | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| ASML.AS | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=45 | historico observado |
+| AVGO | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| AZN | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=1 | n=0 | n=0 | historico observado |
+| BBVA.MC | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=44 | historico observado |
+| BRK-B | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| BSP.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| BTC-EUR | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 2 | n=0 | n=14 | n=4 | historico observado |
+| CAT | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| COIN | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| CRM | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| CRWD | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| CVX | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| DBK.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| DFEN.DE | 2026-09 | n=38 | n=38 | n=5 | 19.02/mes provisional (n=5, dias_activos=8) | 4 | n=0 | n=0 | n=71 | valid_to=2026-09-18 |
+| DTE.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| ENI.MI | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| ENR.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=45 | historico observado |
+| EQQQ.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+| ETH-EUR | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 2 | n=0 | n=14 | n=4 | historico observado |
+| EUNH.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=33 | historico observado |
+| EUNL.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=81 | historico observado |
+| EUNN.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+| EXH1.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=33 | historico observado |
+| EXSA.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=33 | historico observado |
+| EXV1.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=32 | historico observado |
+| GE | 2026-09 | n=38 | n=38 | n=0 | 0.00/mes provisional (n=0, dias_activos=8) | 0 | n=0 | n=0 | n=0 | valid_to=2026-09-18 |
+| GOOGL | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| GS | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| IBE.MC | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=42 | historico observado |
+| ICGA.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+| IFX.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| INFY | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| INTC | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| IQQK.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+| IQQT.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+| IS3N.DE | 2026-09 | n=39 | n=39 | n=3 | 10.15/mes provisional (n=3, dias_activos=9) | 3 | n=0 | n=0 | n=48 | historico observado |
+| ITX.MC | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=45 | historico observado |
+| JPM | 2026-09 | n=38 | n=38 | n=0 | 0.00/mes provisional (n=0, dias_activos=8) | 0 | n=0 | n=0 | n=0 | valid_to=2026-09-18 |
+| LLY | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| LMT | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| LRCX | 2026-09 | n=38 | n=38 | n=0 | 0.00/mes provisional (n=0, dias_activos=8) | 0 | n=0 | n=0 | n=0 | valid_to=2026-09-18 |
+| MA | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| MBG.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| MC.PA | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=45 | historico observado |
+| META | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| MRVL | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| MSFT | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| MU | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| MUV2.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| NFLX | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| NOVO-B.CO | 2026-09 | n=38 | n=38 | n=2 | 7.61/mes provisional (n=2, dias_activos=8) | 1 | n=0 | n=0 | n=81 | valid_to=2026-09-18 |
+| NOW | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| NVDA | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| OR.PA | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| ORCL | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| PANW | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| PLTR | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| Q8Y0.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+| QCOM | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| QDV5.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+| R6C0.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| RACE.MI | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=45 | historico observado |
+| RHM.DE | 2026-09 | n=38 | n=38 | n=2 | 7.61/mes provisional (n=2, dias_activos=8) | 1 | n=0 | n=0 | n=43 | valid_to=2026-09-18 |
+| RRU.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| RTX | 2026-09 | n=38 | n=38 | n=0 | 0.00/mes provisional (n=0, dias_activos=8) | 0 | n=0 | n=0 | n=0 | valid_to=2026-09-18 |
+| SAF.PA | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| SAN.MC | 2026-09 | n=38 | n=34 | n=0 | 0.00/mes provisional (n=0, dias_activos=8) | 0 | n=0 | n=0 | n=12 | valid_to=2026-09-18 |
+| SAP.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=45 | historico observado |
+| SIE.DE | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| SOL-EUR | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 2 | n=0 | n=14 | n=4 | historico observado |
+| SU.PA | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| SXR8.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+| TSLA | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| TSM | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=1 | n=0 | n=0 | historico observado |
+| TTE.PA | 2026-09 | n=39 | n=39 | n=2 | 6.76/mes provisional (n=2, dias_activos=9) | 1 | n=0 | n=0 | n=46 | historico observado |
+| UBER | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| UCG.MI | 2026-09 | n=38 | n=34 | n=1 | 3.80/mes provisional (n=1, dias_activos=8) | 1 | n=0 | n=0 | n=39 | valid_to=2026-09-18 |
+| V | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| VRTX | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| VVSM.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+| XOM | 2026-09 | n=39 | n=39 | n=0 | 0.00/mes provisional (n=0, dias_activos=9) | 0 | n=0 | n=0 | n=0 | historico observado |
+| ZPRR.DE | 2026-09 | n=39 | n=39 | n=5 | 16.91/mes provisional (n=5, dias_activos=9) | 4 | n=0 | n=0 | n=72 | historico observado |
+
+## Barras parciales por activo
+| Simbolo | Barras parciales |
+|---|---|
+| 000660.KS | 0.0% (0/38) |
+| 005930.KS | 0.0% (0/34) |
+| 0700.HK | 0.0% (0/39) |
+| 1211.HK | 0.0% (0/34) |
+| 1810.HK | 0.0% (0/39) |
+| 4GLD.DE | 0.0% (0/38) |
+| 6501.T | 0.0% (0/39) |
+| 6758.T | 0.0% (0/39) |
+| 6857.T | 0.0% (0/39) |
+| 7011.T | 0.0% (0/39) |
+| 7203.T | 0.0% (0/39) |
+| 8035.T | 0.0% (0/39) |
+| 9984.T | 0.0% (0/38) |
+| 9988.HK | 0.0% (0/39) |
+| AAPL | 0.0% (0/39) |
+| ABBV | 0.0% (0/39) |
+| ADBE | 0.0% (0/39) |
+| ADYEN.AS | 0.0% (0/39) |
+| AIR.PA | 0.0% (0/39) |
+| ALV.DE | 0.0% (0/39) |
+| AMAT | 0.0% (0/39) |
+| AMD | 0.0% (0/39) |
+| AMZN | 0.0% (0/39) |
+| APP | 0.0% (0/39) |
+| ARM | 0.0% (0/39) |
+| ASML.AS | 0.0% (0/39) |
+| AVGO | 0.0% (0/39) |
+| AZN | 0.0% (0/39) |
+| BBVA.MC | 0.0% (0/39) |
+| BRK-B | 0.0% (0/39) |
+| BSP.DE | 0.0% (0/39) |
+| BTC-EUR | 46.2% (18/39) |
+| CAT | 0.0% (0/39) |
+| COIN | 0.0% (0/39) |
+| CRM | 0.0% (0/39) |
+| CRWD | 0.0% (0/39) |
+| CVX | 0.0% (0/39) |
+| DBK.DE | 0.0% (0/39) |
+| DFEN.DE | 0.0% (0/38) |
+| DTE.DE | 0.0% (0/39) |
+| ENI.MI | 0.0% (0/39) |
+| ENR.DE | 0.0% (0/39) |
+| EQQQ.DE | 0.0% (0/39) |
+| ETH-EUR | 46.2% (18/39) |
+| EUNH.DE | 0.0% (0/39) |
+| EUNL.DE | 0.0% (0/39) |
+| EUNN.DE | 0.0% (0/39) |
+| EXH1.DE | 0.0% (0/39) |
+| EXSA.DE | 0.0% (0/39) |
+| EXV1.DE | 0.0% (0/39) |
+| GE | 0.0% (0/38) |
+| GOOGL | 0.0% (0/39) |
+| GS | 0.0% (0/39) |
+| IBE.MC | 0.0% (0/39) |
+| ICGA.DE | 0.0% (0/39) |
+| IFX.DE | 0.0% (0/39) |
+| INFY | 0.0% (0/39) |
+| INTC | 0.0% (0/39) |
+| IQQK.DE | 0.0% (0/39) |
+| IQQT.DE | 0.0% (0/39) |
+| IS3N.DE | 0.0% (0/39) |
+| ITX.MC | 0.0% (0/39) |
+| JPM | 0.0% (0/38) |
+| LLY | 0.0% (0/39) |
+| LMT | 0.0% (0/39) |
+| LRCX | 0.0% (0/38) |
+| MA | 0.0% (0/39) |
+| MBG.DE | 0.0% (0/39) |
+| MC.PA | 0.0% (0/39) |
+| META | 0.0% (0/39) |
+| MRVL | 0.0% (0/39) |
+| MSFT | 0.0% (0/39) |
+| MU | 0.0% (0/39) |
+| MUV2.DE | 0.0% (0/39) |
+| NFLX | 0.0% (0/39) |
+| NOVO-B.CO | 0.0% (0/38) |
+| NOW | 0.0% (0/39) |
+| NVDA | 0.0% (0/39) |
+| OR.PA | 0.0% (0/39) |
+| ORCL | 0.0% (0/39) |
+| PANW | 0.0% (0/39) |
+| PLTR | 0.0% (0/39) |
+| Q8Y0.DE | 0.0% (0/39) |
+| QCOM | 0.0% (0/39) |
+| QDV5.DE | 0.0% (0/39) |
+| R6C0.DE | 0.0% (0/39) |
+| RACE.MI | 0.0% (0/39) |
+| RHM.DE | 0.0% (0/38) |
+| RRU.DE | 0.0% (0/39) |
+| RTX | 0.0% (0/38) |
+| SAF.PA | 0.0% (0/39) |
+| SAN.MC | 0.0% (0/34) |
+| SAP.DE | 0.0% (0/39) |
+| SIE.DE | 0.0% (0/39) |
+| SOL-EUR | 46.2% (18/39) |
+| SU.PA | 0.0% (0/39) |
+| SXR8.DE | 0.0% (0/39) |
+| TSLA | 0.0% (0/39) |
+| TSM | 0.0% (0/39) |
+| TTE.PA | 0.0% (0/39) |
+| UBER | 0.0% (0/39) |
+| UCG.MI | 0.0% (0/34) |
+| V | 0.0% (0/39) |
+| VRTX | 0.0% (0/39) |
+| VVSM.DE | 0.0% (0/39) |
+| XOM | 0.0% (0/39) |
+| ZPRR.DE | 0.0% (0/39) |
+
+## Huecos historicos heredados (fuera de la ventana observada)
+`absent_reference_sessions` mira 200 sesiones hacia atras, asi que una pasada de hoy reporta huecos de meses anteriores. No son sesiones perdidas durante la ventana y no alimentan ninguna tasa de arriba.
+| Simbolo | Sesiones | Muestra |
+|---|---:|---|
+| 4GLD.DE | n=2 | 2026-03-06, 2026-09-01 |
+| DFEN.DE | n=2 | 2026-03-06, 2026-09-01 |
+| EQQQ.DE | n=2 | 2026-03-06, 2026-09-01 |
+| EUNH.DE | n=1 | 2026-09-01 |
+| EUNL.DE | n=3 | 2026-03-06, 2026-08-31, 2026-09-01 |
+| EUNN.DE | n=2 | 2026-03-06, 2026-09-01 |
+| EXH1.DE | n=1 | 2026-09-01 |
+| EXSA.DE | n=1 | 2026-09-01 |
+| EXV1.DE | n=1 | 2026-09-01 |
+| ICGA.DE | n=2 | 2026-03-06, 2026-09-01 |
+| IQQK.DE | n=2 | 2026-03-06, 2026-09-01 |
+| IQQT.DE | n=2 | 2026-03-06, 2026-09-01 |
+| IS3N.DE | n=1 | 2026-03-06 |
+| NOVO-B.CO | n=1 | 2026-03-23 |
+| Q8Y0.DE | n=2 | 2026-03-06, 2026-09-01 |
+| QDV5.DE | n=2 | 2026-03-06, 2026-09-01 |
+| SXR8.DE | n=2 | 2026-03-06, 2026-09-01 |
+| VVSM.DE | n=2 | 2026-03-06, 2026-09-01 |
+| ZPRR.DE | n=2 | 2026-03-06, 2026-09-01 |
+
+## Version de codigo de cada medicion
+D-36 y D-37 cambiaron que cuenta como ultima sesion cerrada exigible, que es la definicion de la metrica primaria. Las mediciones tomadas con reglas distintas NO se pueden agregar en una sola tasa.
+| Version | Mediciones | Pasadas | Desde | Hasta |
+|---|---:|---:|---|---|
+| sin manifiesto | n=1177 | n=11 | 2026-09-02T17:24:51.715970+00:00 | 2026-09-14T07:32:30.441539+00:00 |
+| 7d450ad9646e | n=107 | n=1 | 2026-09-14T09:38:43.168854+00:00 | 2026-09-14T09:38:43.168854+00:00 |
+| 1c76add47c9e | n=856 | n=8 | 2026-09-14T13:32:29.840812+00:00 | 2026-09-16T07:32:28.923122+00:00 |
+| a8a70e286c75 | n=107 | n=1 | 2026-09-16T08:24:39.214161+00:00 | 2026-09-16T08:24:39.214161+00:00 |
+| c581fb1c3542 | n=428 | n=4 | 2026-09-16T13:32:43.592198+00:00 | 2026-09-17T07:32:41.044241+00:00 |
+| 572192ce7157 | n=107 | n=1 | 2026-09-17T08:31:39.861978+00:00 | 2026-09-17T08:31:39.861978+00:00 |
+| 4f0782954dab | n=107 | n=1 | 2026-09-17T11:34:13.666516+00:00 | 2026-09-17T11:34:13.666516+00:00 |
+| 5125e90c88e8 | n=107 | n=1 | 2026-09-17T12:04:28.419053+00:00 | 2026-09-17T12:04:28.419053+00:00 |
+| 54ac004020f7 | n=107 | n=1 | 2026-09-17T12:09:21.019360+00:00 | 2026-09-17T12:09:21.019360+00:00 |
+| 894fa750988e | n=535 | n=5 | 2026-09-17T12:54:19.560855+00:00 | 2026-09-18T07:32:39.345768+00:00 |
+| c2ff1d717a21 | n=103 | n=1 | 2026-09-18T11:29:07.179786+00:00 | 2026-09-18T11:29:07.179786+00:00 |
+| 11efae8c3d85 | n=103 | n=1 | 2026-09-18T13:32:40.296119+00:00 | 2026-09-18T13:32:40.296119+00:00 |
+| 785daf40ca39 (v0.2.0) | n=206 | n=2 | 2026-09-18T14:39:47.895807+00:00 | 2026-09-18T20:02:34.715155+00:00 |
+| 03e1ec37e59e (v0.3.0) | n=93 | n=1 | 2026-09-20T16:11:02.874968+00:00 | 2026-09-20T16:11:02.874968+00:00 |
+
+AVISO: la ventana cruza 14 versiones de codigo. Las tasas agregadas de arriba describen mayoritariamente la regla anterior a D-36 y D-37; leerlas como la regla vigente seria un error.
+
+## Dia de la semana
+| Dia | Mediciones | Retraso >= 1 sesion | IC 95% |
+|---|---:|---|---|
+| lunes | n=535 | 0.0% (0/535) | 0.0%-0.7% (n=535) |
+| martes | n=428 | 26.2% (112/428) | 22.2%-30.5% (n=428) |
+| miercoles | n=749 | 21.1% (158/749) | 18.3%-24.2% (n=749) |
+| jueves | n=1391 | 24.4% (339/1391) | 22.2%-26.7% (n=1391) |
+| viernes | n=947 | 35.6% (337/947) | 32.6%-38.7% (n=947) |
+| sabado | n=0 | sin mediciones (n=0) | N/D |
+| domingo | n=93 | 22.6% (21/93) | 15.3%-32.1% (n=93) |
