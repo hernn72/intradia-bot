@@ -110,7 +110,12 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
   filtros cuantitativos. Desbloquea B-03 y B-06. Ojo a lo que **no** existe hoy:
   ni caché ni contador de gasto; la parte de «no indiscriminadamente» sí estaba
   hecha ya, porque la narrativa solo se pide para el top 5 de `OPERAR`.
-- **OD-01** (proveedor de fundamentales), abierta.
+- **OD-01** (proveedor de fundamentales), abierta **con un paso decidido**
+  (D-39): se prueba **EODHD en su plan gratuito** con uno o dos valores europeos
+  antes de pagar nada, y lo que decide entre (a) y (b) es si el JSON trae
+  `filing_date`. El sondeo está escrito y listo en
+  `evidence/2026-09-20-OD-01-eodhd-free/`; **falta la API key**, que es trabajo
+  del propietario.
 - **OD-02** (segunda fuente europea), abierta **con criterio fijado**: lo decide
   la cifra de T-012, y T-012 tiene que darla **por plaza y por símbolo**, porque
   la elección real es entre segunda fuente para todo el universo o solo para

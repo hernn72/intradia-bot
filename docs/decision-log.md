@@ -451,7 +451,7 @@ de cada una, recomendación técnica, trabajo bloqueado. Mientras no haya
 respuesta, la tarea afectada queda `BLOQUEADA_POR_OWNER` y **se hace todo lo
 demás**.
 
-### OD-01 — Proveedor de fundamentales y su coste
+### OD-01 — Proveedor de fundamentales y su coste · en prueba desde D-39
 - **Pregunta:** ¿Se contrata un proveedor de fundamentales point-in-time (con
   fecha de publicación y revisiones) y con qué presupuesto mensual?
 - **Alternativas:** (a) proveedor de pago con point-in-time (p. ej. datos con
@@ -464,6 +464,11 @@ demás**.
 - **Recomendación técnica:** (b) ahora para acumular en shadow con etiqueta
   «no point-in-time»; decidir (a) cuando P9 tenga muestra y se sepa si el
   contexto aporta algo.
+- **Paso intermedio decidido el 2026-09-20 (D-39):** antes de elegir entre (a),
+  (b) y (c) se prueba **EODHD en su plan gratuito** con uno o dos valores
+  europeos, para ver si el JSON real trae `filing_date`, estados financieros,
+  ISIN, EPS, deuda y FCF. La respuesta a `filing_date` es la que decide entre
+  (a) y (b).
 - **Bloquea:** P8. No bloquea B0, noticias, sentimiento ni macro.
 
 ### OD-02 — Segunda fuente de datos para las plazas europeas
@@ -855,18 +860,66 @@ antes de esta decisión. **No existen** hoy ni la caché ni la contabilidad del
 gasto: nada mide cuánto se lleva gastado en el mes ni corta al llegar al tope.
 Eso es trabajo nuevo, y es lo que esta decisión encarga.
 
-**Qué queda vinculado para B-03 y B-06**, que quedan desbloqueadas:
+**La decisión se reduce a dos reglas operativas**, y una tercera que ya regía:
 
-- el filtro previo es **por reglas**, no por LLM: símbolo o emisor,
-  deduplicación por `content_hash` y fuente, antes de gastar una llamada;
-- **caché por `input_hash`**: el mismo contexto no se paga dos veces, lo que
-  encaja con C-05, que ya exige persistir `provider/model/prompt_version/
-  input_hash`;
-- **contador de gasto mensual persistido** y degradación limpia al llegar al
-  tope: sin contexto y declarado, nunca un contexto inventado ni silencio;
-- el tope es de contexto (B-03, B-06). La narrativa del informe ya existe y se
-  contabiliza dentro del mismo presupuesto.
+1. **Tope de gasto: 10 €/mes** al principio, contado en euros y no en llamadas.
+   Hace falta un **contador de gasto mensual persistido** y una degradación
+   limpia al llegar al tope: sin contexto y declarado, nunca un contexto
+   inventado ni un silencio que parezca ausencia de noticias. El tope cubre
+   también la narrativa del informe, que ya existe y gasta.
+2. **Caché: 24 horas por activo.** El contexto LLM de un activo se reutiliza
+   durante 24 h **salvo que cambie materialmente la entrada con la que se
+   generó**. La clave es el `input_hash` que C-05 ya exige persistir: si el hash
+   cambia, la caché no vale aunque no hayan pasado las 24 h; si no cambia, no se
+   vuelve a pagar dentro de la ventana. Queda por definir, al implementarlo, qué
+   entra en ese hash —conjunto de noticias, fundamentales, precio de
+   referencia—, que es lo que decide qué significa «materialmente».
+3. **Selección: ya está como debe estar** y no cambia. El LLM se pide solo para
+   las **5 mejores señales de `OPERAR`** (`max_opportunities: 5`), nunca para el
+   universo. Se escribe aquí para que quede fijado como regla, no como detalle
+   de configuración que alguien pueda subir sin darse cuenta.
+
+**Y el filtro previo sigue siendo por reglas, no por LLM**: símbolo o emisor,
+deduplicación por `content_hash` y fuente, antes de gastar una llamada.
 
 **Lo que esta decisión no dice.** No fija el modelo ni el número de llamadas: si
 10 €/mes dan de sí o no, se mide cuando B-02 tenga volumen real de noticias, y
 entonces se revisa el número, no la regla.
+
+### D-39 — 2026-09-20 — OD-01: se prueba EODHD en su plan gratuito antes de pagar
+
+Decisión del propietario. No se contrata todavía ningún proveedor de
+fundamentales: primero se usa el **plan gratuito de EODHD** para una sola cosa,
+**probar la integración antes de pagar**. Crear la cuenta gratuita, obtener la
+API key y comprobar con **uno o dos valores europeos** si el JSON trae
+exactamente los campos que hacen falta: `filing_date`, estados financieros,
+ISIN, EPS, deuda y flujo de caja libre.
+
+**Qué decide esta prueba y qué no.** No decide OD-01, la deja medida: dice si el
+proveedor sirve, y solo entonces tiene sentido discutir el precio. Lo que
+responde es la pregunta que ninguna página de marketing contesta: si el JSON
+real, para un valor europeo concreto, trae fecha de publicación por línea y no
+solo el periodo fiscal.
+
+**El campo que manda es `filing_date`.** Sin fecha de publicación por magnitud
+no hay point-in-time, y sin point-in-time los fundamentales **no pueden entrar
+en un backtest** (principio del roadmap, GATE B0). Un proveedor que dé el resto
+impecable y no dé `filing_date` cae en la alternativa (b) de OD-01: solo
+producción, con etiqueta, y P8 imposible. Por eso la prueba se declara **contra
+el dato crudo**, guardando el JSON tal cual, no contra el resumen de la
+documentación.
+
+**Qué hace falta que no se puede hacer aquí.** La cuenta y la API key son
+trabajo del propietario: alta con su correo y aceptación de condiciones. La
+clave va en `.env`, nunca en el repositorio ni en la evidencia; el sondeo se
+guarda con la clave recortada.
+
+**Límite del plan gratuito, a comprobar en la propia prueba.** EODHD limita las
+llamadas diarias y restringe parte del catálogo según el plan: si un campo falta,
+hay que distinguir **«el proveedor no lo da»** de **«este plan no lo da»**, que
+son dos conclusiones distintas y llevan a decisiones opuestas. La evidencia debe
+decir cuál de las dos es.
+
+**No se integra nada todavía.** El sondeo no toca `advisor/`: B-00 exige la
+ficha de proveedor antes de que ninguna fuente externa entre en el sistema, y
+esta prueba es precisamente el material con el que se escribe esa ficha.
