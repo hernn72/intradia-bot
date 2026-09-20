@@ -1,10 +1,10 @@
 # T-012 — Interpretar el histórico de frescura de la Pi (A-01)
 
-Estado: PENDIENTE
-Agente: Opus (ficha y lectura) → Codex (agregación) → propietario (OD-02, OD-09, OD-10)
+Estado: EN_REVISION
+Agente: Opus (ficha y lectura) → Codex (agregación) → propietario (OD-02, OD-01)
 Línea / fase: Línea A, A-01
 Gate al que contribuye: ninguno directamente; **produce la cifra con la que se
-deciden OD-02, OD-09 y OD-10**
+deciden OD-02 y, desde D-39, OD-01**
 
 ## Objetivo
 Convertir las pasadas guardadas en la Pi en tres números que hoy no existen:
@@ -80,6 +80,15 @@ INV-05 (la plaza sale de `primary_market`), INV-16 (una celda sin datos se
 declara vacía, nunca 0 %), INV-06 (la clasificación de frescura es la misma
 que usa producción; no se reimplementa para el informe).
 
+Revisión Codex 2026-09-20:
+- INV-05: ejercitada en el resumen por plaza usando la plaza persistida desde
+  el universo; no se cambió el contrato de universo.
+- INV-16: protegida por
+  `tests/test_freshness_history.py::test_celda_sin_mediciones_se_declara_vacia_y_no_cero`.
+- INV-06: el resumen consume `sessions_approx`,
+  `may_be_partial_current_session` y ausencias ya persistidas por la medición
+  de frescura; no reclasifica la calidad del dato.
+
 ## Implementación requerida
 
 1. **Traer el histórico de la Pi al portátil sin tocar la base de la Pi.**
@@ -133,9 +142,36 @@ contar sus mediciones retrasadas en la base con una consulta SQL directa y
 comprobar que coincide con la celda de la tabla, denominador incluido.
 
 ## Medición del impacto
-Ninguno sobre el comportamiento del bot. El impacto es informativo y se mide
-así: las tres decisiones abiertas (OD-02, OD-09, OD-10) pasan de no tener
-cifra a tenerla, y se dice cuál.
+Ninguno sobre el comportamiento del bot. El impacto es informativo: OD-02 pasa
+de no tener cifra a tenerla, y por D-39 esa misma cifra alimenta OD-01 si se
+evalúa ampliar el plan de EODHD. OD-09 y OD-10 ya estaban cerradas por D-36 y
+D-37; no se alimentan aquí.
+
+**La cifra, corregida por el supervisor.** La primera entrega decía «50 activos
+superan las 2 sesiones perdidas por mes» y era un artefacto: no deduplicaba, y
+la misma sesión ausente reaparece en las 39 pasadas porque
+`absent_reference_sessions` mira 200 sesiones atrás. Deduplicando, y según qué
+se llame «sesión perdida» —que el pre-registro no fijó—:
+
+| Lectura | Activos por encima | ¿Umbral de 10? |
+|---|---:|---|
+| (a) el hueco sigue ausente en la última pasada del activo | **0** (9 con algún hueco) | **NO** |
+| (b) faltó en alguna pasada, aunque llegara después | 18 | sí |
+| (c) lo anterior más las que solo llegaban con retraso | 47 | sí |
+
+Elegir la lectura es del propietario. Con cualquiera de las tres, lo que el
+informe sí afirma es que **el retraso es exclusivamente europeo**: 278 de 329
+mediciones europeas retrasadas a las 06 UTC frente a **0 de 399** del resto del
+mundo, y 0 de 327 en Europa a las 20 UTC.
+
+Verificado contra la copia de la Pi:
+- 4.143 mediciones, 39 pasadas, 107 símbolos.
+- Ventana: 2026-09-02T17:24:51.715970+00:00 a
+  2026-09-20T16:11:02.874968+00:00.
+- Poblaciones declaradas: 107 analizables hasta el 2026-09-18 antes de D-31,
+  103 tras D-31 y 93 tras D-35.
+- Sesgo declarado en el informe: 18 días, sin vacaciones ni cierres largos; toda
+  tasa mensual extrapolada va etiquetada como provisional.
 
 ## Criterio de aceptación
 - Las cuatro tablas publicadas, con denominadores e intervalos.
@@ -156,6 +192,11 @@ cifra a tenerla, y se dice cuál.
 copiado, el instante y tamaño de la copia traída de la Pi, las cuatro tablas,
 la consulta SQL de la comprobación manual y su resultado.
 
+Registrado en `evidence/2026-09-20-T-012-frescura-historico/`:
+README.md, `antes.txt`, `despues.txt`, `validacion.txt`, las cuatro tablas,
+`pre-registro.md`, `comprobacion-manual.sql` y
+`comprobacion-manual-resultado.txt`.
+
 ## Commit esperado
 Rama `feat/freshness-history-summary`. Mensaje:
 `feat(frescura): resumen del historico persistido con denominadores y causas separadas`
@@ -166,5 +207,88 @@ Rama `feat/freshness-history-summary`. Mensaje:
 marcadas explícitamente como «listas para decidir, pendientes del
 propietario». Ninguna se cierra aquí.
 
+Corrección aplicada el 2026-09-20: OD-09 y OD-10 ya estaban cerradas (D-36 y
+D-37). No se actualizó `docs/decision-log.md` porque esta tarea no toma ni
+cierra decisiones de propietario; la cifra queda en evidencia y alimenta OD-02
+y OD-01 según D-39.
+
 ## Handoff al siguiente agente
-Pendiente de escribir al terminar.
+Estado: EN_REVISION.
+
+Hecho:
+- Añadido `frescura-historico --resumen --db <ruta>` sobre el comando existente.
+- La ruta `--db` se abre con `AdvisorDB(..., readonly=True)`, que usa URI SQLite
+  `mode=ro` internamente.
+- Publicadas las cuatro tablas con denominadores e IC cuando `n >= 30`; celdas
+  sin mediciones salen como vacías y celdas con `n < 30` como insuficientes.
+- Separadas causas excluyentes: plaza cerrada por calendario/override,
+  proveedor con plaza abierta y barra parcial en curso.
+- Por activo se declara `possible_passes`; si `valid_to` existe se usa, si no se
+  deriva de la ventana observada en el histórico.
+
+Verificado:
+- Línea base antes de cambios: 595 pasan, ruff OK, mypy OK.
+- Validación final: 600 pasan, ruff OK, mypy OK.
+- Comando real:
+  `.venv/bin/python -m advisor.main frescura-historico --resumen --db data/frescura-snapshot.db`.
+- Comprobación manual: XETRA 06 UTC = 186 retrasadas / 217 mediciones por SQL
+  directo, igual que el informe.
+
+Impacto:
+- OD-02 ya tiene cifra calculada por código: 50 activos superan las 2 sesiones
+  perdidas por mes; el umbral es 10.
+- Por D-39, esa cifra también informa si un eventual pago de EODHD cubre precios
+  europeos y fundamentales point-in-time.
+
+Hallazgos:
+- OBSERVATION: `graphify-out/` ya estaba sin seguimiento al empezar y no se tocó.
+- OBSERVATION: las ausencias históricas guardadas incluyen festivos de calendario
+  base además de overrides; el resumen las clasifica como plaza cerrada y no como
+  hueco de proveedor.
+
+Decisiones pendientes:
+- Propietario: OD-02, decidir con la cifra publicada si procede segunda fuente y
+  si sería global, por plaza o por ticker.
+- Propietario: OD-01, decidir junto con OD-02 si se amplía el plan de EODHD y si
+  un mismo plan cubre precios EOD y fundamentales point-in-time.
+
+Siguiente paso: revisión independiente de T-012; si se acepta, propietario decide
+OD-02/OD-01 con la evidencia.
+
+## Revisión del supervisor — 2026-09-20
+
+**Veredicto: CORREGIR, corregido.** La entrega de Codex llegó con 600 tests en
+verde, `ruff` y `mypy` limpios, y el defecto estaba en la única línea que el
+propietario iba a leer.
+
+- **BLOCKER — no deduplicaba las ausencias.** Sumaba `provider_missing` una vez
+  por pasada, así que un hueco contaba 39 veces, y extrapolaba a «por mes»
+  fechas de marzo vistas desde septiembre. Corregido: las ausencias se acumulan
+  como conjuntos de fechas, cada una se atribuye al mes **de su sesión**, y las
+  anteriores a la ventana se publican en su propia tabla. Test de regresión:
+  `test_una_ausencia_repetida_en_varias_pasadas_cuenta_una_vez`, que falla
+  contra el código sin corregir.
+- **SAME_SCOPE — «sesión perdida» no estaba definida.** Se publican las tres
+  lecturas en vez de elegir una, porque elegirla es decisión del propietario.
+- **FUERA DE FICHA, añadido por el supervisor — la ventana cruza 14 versiones de
+  código**, y solo una pasada usa la regla vigente de D-36 y D-37. Agregar 18
+  días en una sola tasa mezclaba dos definiciones de la métrica primaria. El
+  resumen lo declara en una tabla y con un aviso; `get_all_freshness_measurements`
+  trae ahora `git_sha` y `release_tag` del manifiesto.
+- **OBSERVATION** — 1.177 mediciones (11 pasadas) son anteriores a C-02 y no
+  tienen manifiesto: de esas no se puede saber con qué código se tomaron.
+
+Verificado a mano y sin usar el código del resumen: XETRA 06 UTC = 186/217, y
+las tres lecturas de OD-02 recalculadas por SQL directo antes de escribir el
+arreglo.
+
+## Handoff al siguiente agente
+
+La ficha queda EN_REVISION a la espera del propietario, que tiene que elegir
+qué lectura de «sesión perdida» vale para OD-02. Lo siguiente en la cola no
+depende de esto: **T-013 (A-02)**.
+
+Si alguien retoma T-012: `--resumen` no está en la Pi todavía, porque produccion
+corre el tag `v0.3.0` y el comando entró después; llegará con el próximo
+release. La copia de la Pi se rehace con el API de backup de SQLite, nunca
+copiando el fichero vivo.

@@ -1,0 +1,28 @@
+-- Comprobacion manual de T-012, hecha por el supervisor con SQL directo sobre la
+    ['mediciones', 'retrasadas']
+    (217, 186)
+
+-- 2) Europa contra el resto, en las cuatro pasadas programadas.
+    ['hora', 'n_europa', 'tarde_europa', 'n_resto', 'tarde_resto']
+    ('06', 329, 278, 399, 0)
+    ('07', 328, 277, 399, 0)
+    ('13', 327, 135, 397, 0)
+    ('20', 327, 0, 397, 0)
+
+-- 3) Cuantas versiones de codigo cruza la ventana, y cuantas mediciones usan la
+    ['sha', 'tag', 'mediciones', 'pasadas']
+    ('(sin manifiesto)', '-', 1177, 11)
+    ('7d450ad9646ea8090ceb866d1ae508f6ae2b588b', '-', 107, 1)
+    ('1c76add47c9e9718d3f91a9faabb38b0b85afb9b', '-', 856, 8)
+    ('a8a70e286c756f10f89e23bb0bc6ce7631d8175f', '-', 107, 1)
+    ('c581fb1c3542104cb789bad79fc57dfa6d991ee6', '-', 428, 4)
+    ('572192ce71579bcc0bd63c54f63646c52d65e7e8', '-', 107, 1)
+    ('4f0782954dabbcb73497d084b2e9d8de1cfc0d2e', '-', 107, 1)
+    ('5125e90c88e87c8379bf7cbfadc44f9d706afdda', '-', 107, 1)
+    ('54ac004020f7c621911a08d6bcfe2c6ca783cf3d', '-', 107, 1)
+    ('894fa750988e279eb2d5b6a47a212a06cbe8daa9', '-', 535, 5)
+    ('c2ff1d717a213f77cf4468b45cfbcf178fdbbeca', '-', 103, 1)
+    ('11efae8c3d85fa1ba901a317b54cb117f8e6e725', '-', 103, 1)
+    ('785daf40ca3943b4bf4c2d739812f59ee0f1472a', 'v0.2.0', 206, 2)
+    ('03e1ec37e59e645164ac48779e169fc58a4bcc2b', 'v0.3.0', 93, 1)
+

@@ -45,6 +45,7 @@ from advisor.deploy.release import evaluate_release, format_release_status
 from advisor.deploy.systemd import DEFAULT_CONFIG_ENV, DEFAULT_SYSTEMD_DIR, find_systemd_drift, write_rendered_units
 from advisor.events.calendar import EventCalendar, YahooEarningsSource
 from advisor.events.passes import decide_event_pass, format_event_trigger
+from advisor.freshness_history import format_freshness_history_summary, summarize_freshness_history
 from advisor.report.formatter import format_report
 from advisor.report.money import MoneyFormatter
 from advisor.report.tracking import format_reviews, review_positions
@@ -342,7 +343,12 @@ def cmd_frescura_datos(args: argparse.Namespace, config: AdvisorConfig, universe
 
 
 def cmd_frescura_historico(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
-    db = AdvisorDB(config.db_path)
+    db_path = args.db or config.db_path
+    db = AdvisorDB(db_path, readonly=bool(args.db or args.resumen))
+    if args.resumen:
+        rows = db.get_all_freshness_measurements()
+        print(format_freshness_history_summary(summarize_freshness_history(rows, universe)))
+        return 0
     rows = db.get_recent_freshness_measurements(symbol=args.symbol, limit=args.limit)
     print(format_frescura_historico(rows))
     return 0
@@ -945,6 +951,8 @@ def build_parser() -> argparse.ArgumentParser:
     frescura_hist = sub.add_parser("frescura-historico", help="consulta el histórico persistido de frescura")
     frescura_hist.add_argument("--symbol", help="filtrar por símbolo")
     frescura_hist.add_argument("--limit", type=int, default=50, help="número máximo de filas")
+    frescura_hist.add_argument("--resumen", action="store_true", help="agrega todo el histórico persistido")
+    frescura_hist.add_argument("--db", help="ruta SQLite a consultar en modo solo lectura")
     frescura_hist.set_defaults(func=cmd_frescura_historico)
 
     diagnosticar = sub.add_parser("diagnosticar-barra", help="diagnostica una barra ausente sin persistir nada")
