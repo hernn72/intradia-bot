@@ -37,7 +37,7 @@ leído en documentos:
 | Universo | **103 analizables** + 19 contexto + 4 dados de baja el 2026-09-18 (D-31); 92 ISIN verificados; 95 disponibles, 10 `no` analizables, 0 sin comprobar; seleccionado el 2026-08-27/29 |
 | Cosecha | `071ddb2b…`, 126 símbolos, 5 años, solo en el portátil (`data/vintages/` ignorado, 18 MB); manifiesto 87 KB |
 | LLM | `claude-sonnet-5` vía `advisor/ai/`; prompt sin versión; narrativa **no** se persiste |
-| Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): **desplegada `main` `c2ff1d7` el 2026-09-18** con la línea 0 completa (GATE L0) y el universo de 103. Sin migración (v4). 547 tests + 3 saltados en la Pi; `verificar-systemd` alineadas; pasada supervisada con código 0; manifiesto con vintage `c8496446…`; `BROKER_UNVERIFIED` 57 → 0, `EXECUTABLE` 0 → 49. Evidencia en `evidence/2026-09-18-despliegue-pi/` |
+| Pi | `fer@Raspberry4` (192.168.1.113, clave `~/.ssh/id_ed25519_rpi_bot`): **corre el tag `v0.3.0` = `03e1ec3` desde el 2026-09-20**, esquema v5, `verificar-release` en `EN_TAG`; 93 analizables y 68 `EXECUTABLE` / 21 `STALE_DATA` / 4 `MISSING_RECENT_DATA` en la primera pasada con la regla nueva (`evidence/2026-09-20-despliegue-v030/`). Antes: **desplegada `main` `c2ff1d7` el 2026-09-18** con la línea 0 completa (GATE L0) y el universo de 103. Sin migración (v4). 547 tests + 3 saltados en la Pi; `verificar-systemd` alineadas; pasada supervisada con código 0; manifiesto con vintage `c8496446…`; `BROKER_UNVERIFIED` 57 → 0, `EXECUTABLE` 0 → 49. Evidencia en `evidence/2026-09-18-despliegue-pi/` |
 | Línea base real | `evidence/2026-09-14-L0-baseline/`: 107 activos; calidad OK 59 / INCOMPLETO 30 / DEGRADADO 18; 43 con «sesiones ausentes»; 1 OPERAR (`EXH1.DE`), 10 RADAR, 90 DESCARTADOS |
 | Efecto de T-003 sobre esa base | OK 63 / INCOMPLETO 28 / DEGRADADO 16; 44 con ausencias, todas reales; **0 activos cambian de radar o de acción** (recalculado el 2026-09-16) |
 
@@ -196,11 +196,11 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | C-00 | CI: pytest, ruff, mypy en push/PR; branch protection (OA-02) | HECHO y en `main` (`e5ed089`); OA-02 pendiente del propietario | — | T-001 |
 | C-01 | Migraciones `user_version`, backup pre-migración, `verificar-backup` | HECHO (T-002, revisión independiente aplicada; ver evidencia) | C-00 | T-002 |
 | C-02 | Manifiesto de ejecución (`run_id`, SHA, config hash, vintages, versiones, reloj) | HECHO (T-002; reloj medido vía `timesync-status`/`chronyc`/SNTP UDP; alerta Telegram pendiente en C-04) | C-01 | T-002 |
-| C-07 | Backtest reproducible sobre cosecha congelada; el modo en vivo declara que no lo es | **EN_REVISION** (2026-09-18). `backtest --vintage` da 866 operaciones idénticas byte a byte en tres pasadas; en vivo, 869/862/867 el mismo día (D-34). Las cifras publicadas antes quedan etiquetadas como no reproducibles y se rehacen en A-02 | — | **T-015** |
+| C-07 | Backtest reproducible sobre cosecha congelada; el modo en vivo declara que no lo es | **ACEPTADA**, en `main` y en la Pi desde `v0.3.0` (2026-09-20). `backtest --vintage` da 866 operaciones idénticas byte a byte en tres pasadas; en vivo, 869/862/867 el mismo día (D-34). Las cifras publicadas antes quedan etiquetadas como no reproducibles y se rehacen en A-02 | — | **T-015** |
 | C-08 | Higiene del manifiesto y del esquema: `git_dirty` nullable, `config_hash` sin rutas, `backup_log` migrado, vintage por grupo — una sola migración, junto con T-011 | **ACEPTADA** (2026-09-18, `v0.2.0`). Migración v4→v5 aplicada en la Pi: 25 manifiestos antiguos conservados con `config_hash_version = 1`. Revisión independiente de Codex aplicada | C-01, C-02 | **T-017** |
 | C-03 | Release por tag, `verificar-release` en la Pi, despliegue y rollback documentados y probados | **ACEPTADA** (2026-09-18). `v0.2.0` publicado por CI y desplegado; `verificar-release` da `EN_TAG` en la Pi; **rollback ejecutado de verdad** sobre la base real y documentado en `evidence/2026-09-18-OA-04-ensayo-release/` | C-00 | **T-011** |
 | C-04 | Logs rotados, alertas Telegram (pasada fallida, proveedor caído, reloj > 60 s, `events.yaml` caduca), timeouts y reintentos por proveedor, degradación sin red probada | PENDIENTE | C-02 | por escribir |
-| C-05 | Persistir narrativa LLM con provider/model/prompt_version/input_hash (D-12) | PENDIENTE | C-01 | por escribir |
+| C-05 | Persistir narrativa LLM con provider/model/prompt_version/input_hash (D-12); **y el mecanismo de presupuesto de D-38**: caché por `input_hash`, contador de gasto mensual persistido y degradación limpia al llegar al tope de 10 €/mes | PENDIENTE | C-01 | por escribir |
 | C-06 | Backup programado en la Pi + simulacro de restauración trimestral | PENDIENTE | C-01, C-03 | por escribir |
 
 ### Línea A — Modelo cuantitativo (arranca al cruzar GATE L0)
@@ -209,7 +209,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 |---|---|---|---|---|
 | A-00 | `universe_vintage_id` + identidad mínima (`issuer_id`, `instrument_id`, `added_at`…) | **ACEPTADA y en `main`** (2026-09-17). Revisión independiente CORREGIR: un BLOCKER de CI, la guarda de INV-08 que no escribía nadie y el vintage ciego al benchmark declarado; los tres corregidos. Vintage vigente `894ce776…`, que se mueve con cada tanda de OA-03 | C-02 | T-006 |
 | A-09 | El centinela `(0.0, 1.0)` deja de publicarse como intervalo | PENDIENTE, **ficha escrita y auditoría hecha** (2026-09-18): **0 celdas afectadas** en el veredicto de P2.5 (mínimo 4 bloques; el centinela salta por debajo de 2), así que **ya no bloquea A-02**. Queda como higiene: la función sigue pudiendo fabricar un valor | — | **T-016** |
-| A-01 | Interpretar el histórico de frescura de la Pi (recurrencia de huecos) → alimenta OD-02 | PENDIENTE, **ficha escrita** (2026-09-18); da también la cifra de OD-09 y OD-10 | acceso a la Pi | **T-012** |
+| A-01 | Interpretar el histórico de frescura de la Pi (recurrencia de huecos) → alimenta OD-02 | PENDIENTE, **ficha escrita** (2026-09-18); da también la cifra de OD-09 y OD-10. **Criterio del propietario (2026-09-20):** debe publicar el retraso **por plaza y por símbolo**, porque OD-02 decide entre segunda fuente para todo el universo o solo para ciertos mercados o tickers | acceso a la Pi | **T-012** |
 | A-02 | Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con RS alineada y línea 0; decidir el RR en el score → **GATE P2** | **PENDIENTE y desbloqueada** (GATE L0 cruzado el 2026-09-18; la auditoría de T-016 descartó que P2.5 arrastre un intervalo falso). Ojo: la población pasa de 107 a 103 activos (D-31) y la comparación con lo publicado debe declararlo | GATE L0 | T-013 |
 | A-03 | P3 Score v2: dimensiones, pesos, `score_model_version`, umbrales por horizonte, ¿`convicción` fuera del número? → **GATE P3** | BLOQUEADO(GATE P2) | A-02 | por escribir |
 | A-04 | P4 Geometría: stop/objetivo/entrada **incluida la holgura de entrada** (D-06), pareado + bootstrap por bloques, heterogeneidad → **GATE P4** | BLOQUEADO(GATE P3) | A-03 | por escribir |
@@ -225,10 +225,10 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | B-00 | Contrato point-in-time `advisor/context/models.py` + ficha de proveedor obligatoria → **GATE B0** | PENDIENTE | A-00 | T-014 |
 | B-01 | Identidad emisor/instrumento/listing (cubierta por A-00, D-20) | **HECHA con A-00** (2026-09-17). Aviso para la línea B: `issuer_id: ishares` se repite en 13 ETF, así que una noticia de BlackRock mapearía a trece productos cuyo precio lo mueve su índice, no el emisor | A-00 | T-006 |
 | B-02 | Collector de noticias (por emisor y macro), dedupe por `content_hash`, sin LLM | BLOQUEADO(B0) | B-00 | por escribir |
-| B-03 | Sentimiento: datos primero (conteos, fuente, timestamps); LLM solo con OD-03 | BLOQUEADO(B0, OD-03) | B-02 | por escribir |
+| B-03 | Sentimiento: datos primero (conteos, fuente, timestamps); LLM dentro del presupuesto de D-38 | BLOQUEADO(B0) — **OD-03 cerrada** el 2026-09-20 | B-02, C-05 | por escribir |
 | B-04 | Fundamentales: magnitudes primarias con fecha de publicación; ratios en Python | BLOQUEADO(B0, OD-01) | B-00 | por escribir |
 | B-05 | Macro: FRED/BCE/Eurostat con vintage y revisión | BLOQUEADO(B0) | B-00 | por escribir |
-| B-06 | Context Analyst (un agente, cinco preguntas, Pydantic) + **regresiones LLM**: no fabrica catalizadores, no usa información no suministrada, no confunde ausencia con neutralidad, no altera números | BLOQUEADO(B0, OD-03) | B-02, C-05 | por escribir |
+| B-06 | Context Analyst (un agente, cinco preguntas, Pydantic) + **regresiones LLM**: no fabrica catalizadores, no usa información no suministrada, no confunde ausencia con neutralidad, no altera números. Solo sobre candidatos que ya pasaron los filtros cuantitativos (D-38) | BLOQUEADO(B0) — **OD-03 cerrada** el 2026-09-20 | B-02, C-05 | por escribir |
 | B-07 | Shadow mode: `quant_decision` y `context_shadow_decision` persistidos en paralelo | BLOQUEADO | B-06 | por escribir |
 | B-08 | P8 Fundamentals Study | BLOQUEADO(OD-01) | B-04, GATE P3 | por escribir |
 | B-09 | P9 Context Study (misma disciplina que P2) → **GATE CONTEXT** | BLOQUEADO | B-07, muestra suficiente | por escribir |
@@ -239,14 +239,15 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | ID | Fase | Estado | Depende de |
 |---|---|---|---|
 | R-01 | Riesgo de cartera: límites diario/semanal, concentración, correlación, divisa → **GATE RISK** | BLOQUEADO(GATE P7) | A-06, A-07 |
-| V-01 | **P10 Forward Validation** con tag congelado, duración OD-08 → **GATE P10** | BLOQUEADO(GATE P7, GATE PROD) | R-01, C-03..C-06 |
+| V-01 | **P10 Forward Validation** con tag congelado, duración OD-08 → **GATE P10**. Orientación del propietario (2026-09-20): parar por tiempo **y** por señales cerradas (≥ 8 semanas y ≥ 100); medido sobre la cosecha, 100 señales piden 30-35 semanas, así que manda el número, no el calendario | BLOQUEADO(GATE P7, GATE PROD) | R-01, C-03..C-06 |
 | F-01 | Release final + paquete de revisión externa (`docs/gates.md`) | BLOQUEADO(GATE P10) | todo |
 
 ### Trabajo manual del propietario (sin atajo)
 
 OA-01 merge PR 1 · OA-02 branch protection · OA-03 89 ISIN y disponibilidad
 en Trade Republic de los 107 (con fecha y fuente; no cambia la señal) · OA-04
-desplegar tags en la Pi hasta que C-03 lo automatice. Símbolos europeos
+desplegar tags en la Pi hasta que C-03 lo automatice (`v0.3.0` desplegado el
+2026-09-20). Símbolos europeos
 (`european_symbol`): ninguno declarado; se verifica uno a uno cuando se
 necesite elegir plaza por sesión (no bloquea nada hoy).
 
