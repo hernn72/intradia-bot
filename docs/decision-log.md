@@ -914,6 +914,31 @@ trabajo del propietario: alta con su correo y aceptación de condiciones. La
 clave va en `.env`, nunca en el repositorio ni en la evidencia; el sondeo se
 guarda con la clave recortada.
 
+**Ejecutado el mismo día. Dos respuestas, y no dicen lo mismo**
+(`evidence/2026-09-20-OD-01-eodhd-free/`):
+
+1. **El plan gratuito no sirve para fundamentales**, ni europeos ni de EE. UU.:
+   `HTTP 403 — Only EOD data allowed for free users` en los tres símbolos. Que
+   el EOD de `SAP.XETRA` sí responda con la misma clave es lo que convierte eso
+   en una conclusión sobre **el plan** y no sobre el proveedor ni sobre la plaza.
+2. **El esquema sí es point-in-time**, visto sobre el JSON real que sirve el
+   token público `demo` para `AAPL.US`: **`filing_date` aparece 594 veces, una
+   por línea de cada estado financiero**, separada del cierre del periodo
+   (`2026-06-30` cierra, `2026-07-31` publica). Están también ISIN, los tres
+   estados con 164 periodos trimestrales, EPS fechado en `Earnings.History` con
+   `reportDate`, y flujo de caja libre. **No hay `totalDebt`**: hay `netDebt`,
+   `shortTermDebt` y `longTermDebt`, y la deuda total se deriva en Python, que
+   es lo que el roadmap ya exige para los ratios.
+
+**Consecuencia para OD-01.** La objeción de forma desaparece: EODHD **puede**
+dar point-in-time, cosa que `yfinance` no. Lo que el sondeo **no** demuestra, y
+no se va a suponer, es que `filing_date` venga **relleno para un europeo**: todo
+lo comprobado es `AAPL.US`, porque `demo` devuelve 403 para `SAP.XETRA`. Cerrar
+OD-01 pide un mes del plan de pago más barato con fundamentales, dos o tres
+europeos del universo, y mirar tres cosas: `filing_date` relleno en los tres
+estados, porcentaje de campos nulos, y qué ocurre con una magnitud revisada. Eso
+es gasto y lo decide el propietario.
+
 **Límite del plan gratuito, a comprobar en la propia prueba.** EODHD limita las
 llamadas diarias y restringe parte del catálogo según el plan: si un campo falta,
 hay que distinguir **«el proveedor no lo da»** de **«este plan no lo da»**, que
