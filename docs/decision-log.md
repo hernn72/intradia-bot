@@ -482,6 +482,10 @@ demás**.
   histórico de frescura de la Pi, que acumula desde el 2 de septiembre)
   produce la cifra de recurrencia; decidir con ella. Umbral propuesto para
   reabrir: > 2 sesiones perdidas por mes en más de 10 activos.
+- **Se decide junto con OD-01** (2026-09-20): el mismo plan de pago de EODHD
+  podría cubrir la segunda fuente de precios y los fundamentales point-in-time,
+  y su EOD europeo ya responde en el plan gratuito (ver D-39). Ninguna de las dos
+  se decide hasta tener la cifra de T-012.
 - **Criterio fijado por el propietario el 2026-09-20 (sigue abierta):** T-012
   debe decir **cuánto falla y cuánto se retrasa `yfinance` en nuestras plazas
   europeas**, y con esa cifra se decide si hace falta una segunda fuente **para
@@ -938,6 +942,23 @@ OD-01 pide un mes del plan de pago más barato con fundamentales, dos o tres
 europeos del universo, y mirar tres cosas: `filing_date` relleno en los tres
 estados, porcentaje de campos nulos, y qué ocurre con una magnitud revisada. Eso
 es gasto y lo decide el propietario.
+
+**Cuándo se decide ese gasto: después de T-012** (propietario, 2026-09-20). No
+se amplía el plan de EODHD hasta tener la cifra de retraso europeo, y el motivo
+no es solo el orden: **el mismo pago puede estar respondiendo a dos preguntas
+distintas**. OD-02 pregunta si hace falta una segunda fuente para las plazas
+europeas, y el sondeo de hoy ya midió, de paso, que **el EOD europeo de EODHD sí
+funciona incluso en el plan gratuito** (`SAP.XETRA`, HTTP 200). Si T-012
+demuestra retraso o huecos recurrentes, un solo plan de pago podría cubrir a la
+vez la segunda fuente de precios (OD-02) y los fundamentales point-in-time
+(OD-01); si no lo demuestra, el único motivo para pagar es P8 y la decisión es
+más pequeña. **Hay que comprobar en su catálogo que un mismo plan cubra los dos
+usos antes de contarlos como uno**, y la comparación de precio se hace entonces
+contra ese plan, no contra el más barato con fundamentales.
+
+**Consecuencia operativa:** OD-01 y OD-02 dejan de decidirse por separado y
+pasan a evaluarse juntas cuando T-012 publique el retraso por plaza y por
+símbolo.
 
 **Límite del plan gratuito, a comprobar en la propia prueba.** EODHD limita las
 llamadas diarias y restringe parte del catálogo según el plan: si un campo falta,
