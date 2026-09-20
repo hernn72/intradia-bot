@@ -19,9 +19,19 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 
 ## Lo primero de mañana: T-013 (A-02), y una pregunta al propietario
 
-**T-012 está hecha y EN_REVISION**, pendiente solo de una decisión suya: qué
-cuenta como «sesión perdida» para el umbral de OD-02. Las tres lecturas están
-publicadas y dan respuestas opuestas (0, 18 y 47 activos). No la decidas tú.
+**T-012 está ACEPTADA y OD-02 quedó cerrada el mismo día en D-40:** el
+propietario eligió la lectura (c) —sesión cerrada y exigible que no está cuando
+una pasada la necesita, aunque llegue después, contada una vez por activo y
+sesión—, así que 47 activos cruzan el umbral de 10 y **sí hace falta respaldo,
+solo para Europa**. Eso abre **C-09**, sin ficha todavía.
+
+**Antes de escribir esa ficha, leer D-40 entero**, porque el mecanismo medido
+cambia cuál es la solución barata: el proveedor **retira por la noche una barra
+que ya había servido**. `SAP.DE` el 14 a las 20:02 tiene la barra del 14; a las
+06:02 del 15 vuelve a la del 11; al mediodía reaparece. El bot **ya vio** el
+dato la tarde anterior, así que una caché local de barras consolidadas puede
+resolver las pasadas de la mañana sin pagar proveedor. Las dos opciones van
+sobre la mesa en la ficha.
 
 **Lo siguiente que no depende de nadie es T-013 (A-02)**: rehacer P2.3, P2.4 y
 P2.5 sobre la cosecha `071ddb2b…` → GATE P2. **La ficha no está escrita**; es lo
@@ -107,8 +117,8 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 
 **0.** ~~Etiquetar `v0.3.0` y desplegar~~ **HECHO** el 2026-09-20 (arriba).
 
-0b. ~~**T-012** histórico de frescura~~ **HECHA y EN_REVISION** (2026-09-20),
-   pendiente solo de que el propietario elija la lectura de «sesión perdida».
+0b. ~~**T-012** histórico de frescura~~ **ACEPTADA** (2026-09-20). OD-02 cerrada
+   en D-40; abre **C-09**, el respaldo del EOD europeo, sin ficha.
 1. ~~**T-015** backtest sobre cosecha congelada~~ **HECHA** (D-34): 866
    operaciones idénticas byte a byte frente a 869/862/867 en vivo el mismo día. Conviene **antes** de A-02 si
    A-02 va a comparar poblaciones, porque hoy el backtest en vivo da 891, 893 y
@@ -149,10 +159,11 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
   espera a T-012** (propietario, 2026-09-20): el EOD europeo de EODHD ya
   responde en el plan gratuito, así que un mismo plan podría cubrir OD-01 y
   OD-02 a la vez. Las dos se evalúan juntas con la cifra de T-012 delante.
-- **OD-02** (segunda fuente europea), abierta **con criterio fijado**: lo decide
-  la cifra de T-012, y T-012 tiene que darla **por plaza y por símbolo**, porque
-  la elección real es entre segunda fuente para todo el universo o solo para
-  ciertos mercados o tickers.
+- ~~**OD-02** (segunda fuente europea)~~ **cerrada el 2026-09-20** en D-40: hace
+  falta respaldo y **solo para Europa**. Los 47 activos cruzan el umbral pero
+  **no son una tasa fiable**: la ventana cruza 14 versiones de código y cada
+  celda de 47 mediciones sale de **una sola pasada**, así que son 47 activos
+  afectados por un mismo evento, no 47 observaciones independientes.
 - **OD-08** (duración de P10), abierta con orientación: parar por tiempo **y**
   por señales cerradas (≥ 8 semanas y ≥ 100). Medido sobre la cosecha, 100
   señales cerradas piden 30-35 semanas: manda el número, no el calendario.

@@ -471,7 +471,7 @@ demás**.
   (a) y (b).
 - **Bloquea:** P8. No bloquea B0, noticias, sentimiento ni macro.
 
-### OD-02 — Segunda fuente de datos para las plazas europeas
+### OD-02 — Segunda fuente de datos para las plazas europeas · CERRADA en D-40
 - **Pregunta:** ¿Se paga otra fuente para Xetra/Euronext si el histórico de
   frescura demuestra huecos recurrentes?
 - **Alternativas:** (a) sí, si la recurrencia supera un umbral; (b) no, se
@@ -986,3 +986,85 @@ decir cuál de las dos es.
 **No se integra nada todavía.** El sondeo no toca `advisor/`: B-00 exige la
 ficha de proveedor antes de que ninguna fuente externa entre en el sistema, y
 esta prueba es precisamente el material con el que se escribe esa ficha.
+
+### D-40 — 2026-09-20 — OD-02 cerrada: segunda fuente solo para Europa, y como respaldo
+
+Decisión del propietario, tomada sobre las cifras de T-012.
+
+**Primero, la definición que faltaba.** El pre-registro fijó el umbral pero no
+qué es una «sesión perdida», y de eso dependía la respuesta. Queda definida así:
+
+> **Sesión perdida (OD-02)** = sesión **ya cerrada y exigible** que no está
+> disponible cuando una pasada de producción necesita evaluarla, **aunque el dato
+> llegue después**. Cada par activo–sesión cuenta **una sola vez**.
+
+Incluye `MISSING_RECENT_DATA` y los retrasos que provocan `STALE_DATA`. Excluye
+sesiones abiertas, barras parciales, cierres reales de plaza y los duplicados
+entre pasadas. Es la lectura (c) de T-012.
+
+**Por qué esa y no la (a).** OD-02 no mide la integridad del archivo histórico,
+mide si el proveedor impide decidir cuando toca. Si la barra llega a las 20:00
+pero a las 07:00, 08:30 y 14:30 el activo queda vetado, esa oportunidad ya se
+perdió. La lectura (a) —«si acabó llegando no cuenta»— responde a otra pregunta.
+
+**Con esa definición: 47 activos superan las 2 sesiones perdidas por mes, frente
+al umbral pre-registrado de 10. OD-02 se activa: sí hace falta segunda fuente.**
+
+**Con dos límites que son parte de la decisión:**
+
+1. **Solo para Europa, y como respaldo.** T-012 midió 278/329 mediciones
+   europeas retrasadas a las 06 UTC frente a **0/399** fuera de Europa, y 0 a las
+   20 UTC. No hay ninguna evidencia que justifique pagar una segunda fuente para
+   EE. UU. ni Asia.
+2. **Los 47 no son una tasa fiable todavía.** La ventana cruza 14 versiones de
+   código. Sirven para cruzar el umbral y decidir arquitectura; la magnitud
+   estable habrá que volver a medirla con la regla vigente.
+
+La primera pasada de producción con `v0.3.0` apunta igual: 25 vetados, todos
+europeos, así que la conclusión no depende solo del histórico mezclado.
+
+**El efecto fin de semana, descartado antes de cerrar.** El propietario pidió
+separar laborables de fin de semana a las 06 UTC antes de decidir. Medido: **no
+hay ninguna pasada de fin de semana a las 06 UTC**. Las siete son jueves,
+viernes, lunes, martes, miércoles, jueves y viernes. El desglose por día:
+
+| Día | 06 UTC | 07 UTC | 13 UTC | 20 UTC |
+|---|---|---|---|---|
+| lunes | 0/47 | 0/47 | 0/47 | 0/47 |
+| martes | 47/47 | 47/47 | 18/47 | 0/47 |
+| miércoles | 47/47 | 46/46 | 18/47 | 0/94 |
+| jueves | 92/94 | 92/94 | 36/94 | 0/94 |
+| viernes | 92/94 | 92/94 | 63/92 | 0/45 |
+
+**El lunes no es una excepción, es la confirmación del mecanismo:** ese día la
+sesión exigible es la del viernes, cuya barra ya estaba consolidada. La única
+pasada de domingo del histórico es la de hoy, a las 16 UTC, y no entra en esas
+cifras.
+
+**Y el mecanismo, verificado sobre el dato crudo, es peor que un retraso: la
+barra aparece y desaparece.** Siguiendo `SAP.DE` pasada a pasada: el 2026-09-14
+a las 20:02 la última barra es la del 14; a las 06:02 del 15 vuelve a ser la del
+11; a las 13:32 del 15 reaparece la del 14. El patrón se repite todos los días:
+por la mañana el activo está **dos sesiones atrás**, al mediodía una, y por la
+tarde al día. No es solo que el proveedor publique tarde: **retira una barra que
+ya había servido**.
+
+**Consecuencia que hay que evaluar al diseñar la solución, y que esta decisión
+no cierra:** el bot **ya vio** esa barra la tarde anterior. Una caché local de
+barras consolidadas resolvería las pasadas de la mañana sin proveedor nuevo, y es
+más barata que una suscripción. No sustituye a la segunda fuente para un hueco
+real —cuando la barra no existe en ninguna parte—, pero cubre el caso que domina
+estas cifras. Se decide al escribir la ficha, con las dos opciones sobre la mesa.
+
+**Aviso estadístico que acompaña a cualquier cita de estos porcentajes:** cada
+celda de 47 mediciones europeas sale de **una sola pasada**, así que son 47
+activos afectados por un mismo evento del proveedor, no 47 observaciones
+independientes. La muestra efectiva son las 7 pasadas de mañana, no las 329
+mediciones, y los intervalos publicados son por tanto demasiado estrechos.
+
+**Qué se desbloquea:** escribir la ficha de la segunda fuente europea, que entra
+por B-00 como cualquier proveedor externo (ficha de proveedor obligatoria antes
+de integrar nada). Y, junto con D-39, evaluar si un mismo plan de EODHD cubre
+los dos usos: fundamentales point-in-time (OD-01) y EOD europeo de respaldo
+(OD-02). El sondeo de hoy ya midió que su EOD europeo responde incluso en el
+plan gratuito.
