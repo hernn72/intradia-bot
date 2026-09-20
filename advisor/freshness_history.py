@@ -24,6 +24,13 @@ WEEKDAYS = ("lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domi
 class RateCell:
     delayed: int = 0
     total: int = 0
+    passes: int = 0
+    """Pasadas distintas que generan esta celda.
+
+    Las mediciones de una misma pasada NO son independientes: un fallo del
+    proveedor afecta a la vez a decenas de símbolos, así que 47 filas de una
+    pasada son **un** evento, no 47 observaciones (D-41, INV-22).
+    """
 
 
 @dataclass(frozen=True)
@@ -134,7 +141,9 @@ def summarize_freshness_history(rows: Iterable[Any], universe: Universe) -> Fres
     window_end = last.date() if last else None
 
     market_hour_counts: dict[tuple[str, int], list[int]] = {}
+    market_hour_passes: dict[tuple[str, int], set[datetime]] = {}
     weekday_counts: dict[int, list[int]] = {}
+    weekday_passes: dict[int, set[datetime]] = {}
     partial_counts: dict[str, list[int]] = {}
     measured_by_symbol_month: dict[tuple[str, str], set[datetime]] = {}
     # Las ausencias se acumulan como CONJUNTOS de fechas y no como sumas: la
@@ -167,6 +176,8 @@ def summarize_freshness_history(rows: Iterable[Any], universe: Universe) -> Fres
         is_delayed = sessions_approx >= 1
         _increment_rate(market_hour_counts, (market, measured_at.hour), is_delayed)
         _increment_rate(weekday_counts, measured_at.weekday(), is_delayed)
+        market_hour_passes.setdefault((market, measured_at.hour), set()).add(measured_at)
+        weekday_passes.setdefault(measured_at.weekday(), set()).add(measured_at)
         _increment_rate(partial_counts, symbol, bool(row.get("may_be_partial_current_session")))
         measured_by_symbol_month.setdefault((symbol, month), set()).add(measured_at)
 
@@ -286,10 +297,16 @@ def summarize_freshness_history(rows: Iterable[Any], universe: Universe) -> Fres
         total_symbols=len(symbols),
         first_measured_at=first,
         last_measured_at=last,
-        market_hour={key: RateCell(delayed=value[0], total=value[1]) for key, value in market_hour_counts.items()},
+        market_hour={
+            key: RateCell(delayed=value[0], total=value[1], passes=len(market_hour_passes.get(key, set())))
+            for key, value in market_hour_counts.items()
+        },
         asset_months=sorted(asset_months, key=lambda item: (item.symbol, item.month)),
         asset_partials=asset_partials,
-        weekdays={key: RateCell(delayed=value[0], total=value[1]) for key, value in weekday_counts.items()},
+        weekdays={
+            key: RateCell(delayed=value[0], total=value[1], passes=len(weekday_passes.get(key, set())))
+            for key, value in weekday_counts.items()
+        },
         causes=distinct_causes,
         causes_appearances=total_appearances,
         od02_assets_over_threshold=over_threshold,
@@ -403,7 +420,13 @@ def format_freshness_history_summary(summary: FreshnessHistorySummary) -> str:
         ),
         "",
         "## Plaza x hora UTC",
-        "| Plaza | Hora UTC | Mediciones | Retraso >= 1 sesion | IC 95% |",
+        (
+            "NOTA: las mediciones de una misma pasada no son independientes. Un fallo del proveedor afecta a la "
+            "vez a decenas de simbolos, asi que la muestra efectiva son las PASADAS, no las filas. Los intervalos "
+            "de abajo estan calculados sobre filas y son por tanto demasiado estrechos (D-41)."
+        ),
+        "",
+        "| Plaza | Hora UTC | Mediciones | Retraso >= 1 sesion | IC 95% (demasiado estrecho) |",
         "|---|---:|---:|---|---|",
     ])
     for (market, hour), cell in sorted(summary.market_hour.items()):
@@ -479,7 +502,7 @@ def format_freshness_history_summary(summary: FreshnessHistorySummary) -> str:
     lines.extend([
         "",
         "## Dia de la semana",
-        "| Dia | Mediciones | Retraso >= 1 sesion | IC 95% |",
+        "| Dia | Mediciones | Retraso >= 1 sesion | IC 95% (demasiado estrecho) |",
         "|---|---:|---|---|",
     ])
     for weekday in range(7):
@@ -568,8 +591,15 @@ def _rate_label(cell: RateCell) -> tuple[str, str]:
         return "sin mediciones (n=0)", "N/D"
     if cell.total < MIN_SAMPLE_SIZE:
         return f"insuficiente ({cell.delayed}/{cell.total}; n={cell.total}<30)", "N/D"
+    # Las filas de una misma pasada son un solo evento del proveedor, no
+    # observaciones independientes, asi que el intervalo binomial sobre `total`
+    # es demasiado estrecho y se publica marcado (D-41, INV-22).
     low, high = _wilson_interval(cell.delayed, cell.total)
-    return _percent_label(cell.delayed, cell.total), f"{low:.1%}-{high:.1%} (n={cell.total})"
+    aviso = "" if cell.passes >= cell.total else f", NO independiente: {cell.passes} pasadas"
+    return (
+        f"{_percent_label(cell.delayed, cell.total)} en {cell.passes} pasadas",
+        f"{low:.1%}-{high:.1%} (n={cell.total}{aviso})",
+    )
 
 
 def _percent_label(count: int, total: int) -> str:
