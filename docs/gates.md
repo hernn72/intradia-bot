@@ -81,10 +81,17 @@ La revisión independiente del mismo día encontró el requisito 3 incompleto
 —faltaba copiar la declaración de sesgo— y quedó completado antes del cierre.
 
 **Lo que el gate NO autoriza a decir.** Con el estimador primario de INV-14
-ninguna de las cinco bandas es concluyente y el veredicto global es
-`INSUFICIENTE`/`LOW`. Este gate exige que los resultados **estén publicados**,
-no que sean favorables: se cruza con un resultado indeterminado, y P3 arranca
-sabiéndolo. Los nueve FOLLOW_UP abiertos están en
+ninguna de las cinco bandas es concluyente y el veredicto global de **swing** es
+`INSUFICIENTE`/`LOW`. El horizonte **medio** va más allá: queda **inválido**
+—`INSUFFICIENT`, no concluyente— porque su último bloque ocupado mide 102
+sesiones y `MAX_HOLD_BARS` vale 250, y P2.5 declara inválida por definición una
+ventana más corta. Sus números se publican por trazabilidad y quedan marcados
+**no utilizables para calibración ni conclusión**.
+
+Este gate exige que los resultados **estén publicados** y que la resolución
+experimental esté declarada, no que sean favorables: se cruza con un resultado
+indeterminado en swing y con medio declarado inválido, y P3 arranca sabiéndolo.
+Los FOLLOW_UP abiertos están en
 `evidence/2026-09-21-T-013-laboratorio-rehecho/follow-ups.md`.
 
 Requisitos:

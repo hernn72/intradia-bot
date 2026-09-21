@@ -21,22 +21,30 @@ una cosecha de 10 anos y se rehace el laboratorio sobre ella (con un
 mezclan), o si se corrige el protocolo para que la ventana pre-registrada sea la
 que de verdad se usa. Son decisiones distintas con consecuencias distintas.
 
-## FU-2 — El ultimo bloque de cada horizonte es mas corto que `MAX_HOLD_BARS`
+## FU-2 — El ultimo bloque de cada horizonte es mas corto que `MAX_HOLD_BARS` · **RESUELTO el 2026-09-21**
 
-`advisor/research/capacity.py::_protocol_block_length` valida la longitud
+`advisor/research/capacity.py::_protocol_block_length` validaba la longitud
 **nominal** del bloque, no la del ultimo bloque real. Con 1.302 sesiones:
 
-    swing   [60 x 21, 42]     ultimo bloque 42 < MAX_HOLD_BARS 40   (pasa por poco)
-    medio   [300 x 4, 102]    ultimo bloque 102 < MAX_HOLD_BARS 250 (no puede contener una operacion completa)
+    swing   [60 x 21, 42]     ultimo bloque  42 > MAX_HOLD_BARS  40  (lo supera, aunque por poco)
+    medio   [300 x 4, 102]    ultimo bloque 102 < MAX_HOLD_BARS 250  (no puede contener una operacion completa)
 
 El protocolo dice que una ventana mas corta que `MAX_HOLD_BARS` es invalida por
 definicion para ese horizonte. Como el primario es media **simple** entre
-bloques, ese bloque parcial aporta **1/5** del `+0.102 R` publicado para medio.
+bloques, ese bloque parcial aportaba **1/5** del `+0.102 R` publicado para medio.
 
-Es preexistente —la logica no cambia en este diff— pero ahora alimenta el
-estimador primario y el veredicto del gate, asi que deja de ser inocuo. **No se
-elige en silencio** entre descartar el bloque parcial o conservarlo: es una
-decision metodologica.
+**Resuelto con la salida conservadora, que no toma ninguna decision nueva sobre
+como tratar bloques parciales.** `TemporalBlockMap.sessions_in_block` calcula la
+longitud real de cada bloque y `_classify_capacity` invalida el horizonte
+—`INSUFFICIENT`, no concluyente— en cuanto un bloque **ocupado** tiene menos
+sesiones que `MAX_HOLD_BARS`, con el motivo explicito
+`bloque temporal parcial 102 sesiones < MAX_HOLD_BARS 250`. La materia prima
+numerica se conserva y se publica por trazabilidad, pero queda marcada como no
+utilizable para calibracion ni conclusion.
+
+No se amplio la cosecha, no se elimino el bloque, no se fusiono con otro, no se
+cambio su peso y no se cambio la longitud nominal de 300. Swing no se mueve:
+su ultimo bloque mide 42 y supera los 40 de `MAX_HOLD_BARS`.
 
 ## FU-3 — La atribucion poblacion / correccion de RS no es observable
 
@@ -104,3 +112,5 @@ editar esa declaracion.
 - Faltaba el test de integracion de las tres poblaciones que la ficha exige en
   su seccion «Tests de integracion». Anadido:
   `tests/test_population_real_vintage.py`.
+- **FU-2 (bloque temporal parcial)** se reclasifico a BLOCKER en la revision del
+  PR y quedo resuelto dentro de T-013; el detalle esta arriba.

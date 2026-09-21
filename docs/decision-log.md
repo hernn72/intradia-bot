@@ -494,6 +494,18 @@ ventana de 2.430 sesiones que el protocolo describía al pre-registrar la
 capacidad.** No se amplía la ventana ni se rehace la cosecha —T-013 lo prohíbe—
 y la discrepancia queda como FOLLOW_UP.
 
+**MEDIO queda invalidado, no solo con poca resolución (corregido el 2026-09-21
+tras la revisión del PR).** El resto de 102 sesiones es un bloque **ocupado** que
+no supera `MAX_HOLD_BARS` = 250, así que no puede contener una operación
+completa, y P2.5 declara inválida por definición una ventana más corta que
+`MAX_HOLD_BARS`. El horizonte se publica como **`INSUFFICIENT` / no concluyente**
+con el motivo `bloque temporal parcial 102 sesiones < MAX_HOLD_BARS 250`. Sus
+números se conservan por trazabilidad y quedan marcados **no utilizables para
+calibración ni conclusión**. **Swing no está afectado**: su último bloque mide 42
+y supera los 40, y su salida es idéntica byte a byte. La guarda vive en
+`_classify_capacity` y corta **antes** de mirar anchuras, para que un intervalo
+estrecho no la disimule.
+
 **No se adopta nada y no se ajusta nada.** No se toca `config.yaml`, ni los
 pesos, ni la geometría, ni los umbrales. Un resultado NO CONCLUYENTE es el
 resultado, y se publica con su resolución, su muestra, su número de bloques y su

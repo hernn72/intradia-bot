@@ -79,3 +79,24 @@ FAILED tests/test_capacity.py::test_intervalo_primario_por_banda_se_calcula_sobr
 restaurado; el test vuelve a verde:
 .                                                                        [100%]
 1 passed, 11 deselected in 0.03s
+
+############ DEFECTO 6: la guarda del bloque temporal parcial se desactiva ############
+P2.5 exige que el bloque SUPERE MAX_HOLD_BARS, y sobre la ventana REAL.
+Sin la guarda, el ultimo bloque de medio (102 sesiones < 250) entra en la
+media por bloque y el horizonte publica un veredicto apoyado en una ventana
+que no puede contener una operacion completa.
+
+>       assert resumen_medio.resolution == capacity.RESOLUTION_INSUFFICIENT
+E       AssertionError: assert 'LOW' == 'INSUFFICIENT'
+E         
+E         - INSUFFICIENT
+E         + LOW
+
+tests/test_capacity.py:196: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_capacity.py::test_un_bloque_temporal_parcial_invalida_la_capacidad_del_horizonte
+1 failed, 12 deselected in 0.09s
+
+restaurado; el test vuelve a verde:
+.                                                                        [100%]
+1 passed, 12 deselected in 0.06s

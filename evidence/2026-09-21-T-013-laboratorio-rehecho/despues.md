@@ -141,6 +141,26 @@ FOLLOW_UP, en `follow-ups.md`.
 Dentro de esta ventana la limitacion sigue siendo estadistica y ninguna cantidad
 de señales la arregla: lo que fija la precision es el numero de bloques.
 
+**Y en MEDIO el resto de 102 sesiones no es solo un bloque corto: lo invalida.**
+P2.5 exige que el bloque **supere** `MAX_HOLD_BARS`, que en medio vale 250. Un
+bloque de 102 sesiones no puede contener una operacion completa, asi que el
+horizonte entero se publica como **`INSUFFICIENT` / no concluyente**, con el
+motivo explicito:
+
+    bloque temporal parcial 102 sesiones < MAX_HOLD_BARS 250:
+    no utilizable para calibración ni conclusión
+
+Los numeros de medio (`+0.102 R`, IC95 `[-0.053, 0.203]`, 5 bloques) **se
+conservan y se publican por trazabilidad**, pero quedan marcados como **no
+utilizables para calibracion ni conclusion**. No se amplia la cosecha, no se
+elimina el bloque, no se fusiona con otro, no se cambia su peso y no se cambia
+la longitud nominal de 300: cualquiera de esas salidas seria tomar ahora, con
+los resultados delante, una decision metodologica nueva.
+
+**Swing no esta afectado**: su ultimo bloque mide 42 sesiones y supera los 40 de
+`MAX_HOLD_BARS`, aunque por poco. Su salida es identica byte a byte a la
+anterior a esta correccion.
+
 Esto es el resultado. No se ha ampliado la ventana, ni cambiado el estimador, ni
 movido la longitud de bloque, ni quitado activos.
 

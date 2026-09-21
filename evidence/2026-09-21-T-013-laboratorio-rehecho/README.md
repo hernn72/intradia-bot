@@ -69,6 +69,12 @@ dimension del score medida en P2.4, no se ensancha a «el RR no sirve».
    ~1.302 sesiones, frente a las 2.430 que el protocolo pre-registro.
 3. **Ninguna banda es concluyente**, y el IC95 del primario cruza el cero en
    todas menos en `<50`, que es la banda mas baja del score.
+4. **El horizonte MEDIO queda invalidado por completo**, no solo con poca
+   resolucion: su ultimo bloque mide 102 sesiones y `MAX_HOLD_BARS` vale 250,
+   asi que no puede contener una operacion entera. Se publica
+   `INSUFFICIENT` / no concluyente con el motivo explicito, y sus numeros
+   quedan marcados como **no utilizables para calibracion ni conclusion**.
+   Swing no esta afectado: su ultimo bloque mide 42 y supera los 40.
 
 ## Ficheros
 
@@ -84,7 +90,7 @@ dimension del score medida en P2.4, no se ensancha a «el RR no sirve».
 | `ablacion-score-vigente-{swing,medio}.txt` | P2.4 |
 | `capacidad-estadistica-vigente-{swing,medio}.txt` | P2.5 |
 | `produccion-backtest-RAMA.txt` | prueba de que produccion no se mueve |
-| `defectos-inyectados.txt` | los cuatro defectos inyectados y los tests fallando |
+| `defectos-inyectados.txt` | los seis defectos inyectados y los tests fallando |
 | `hashes-de-tablas.txt` | GATE P2 punto 7 |
 | `final-pytest-ruff-mypy.txt` | verificacion final |
 | `analizar-*.txt` | pasada de produccion (ver limitacion abajo) |
@@ -118,7 +124,7 @@ Como se generaron: `git stash` de los cambios para dejar el arbol en `main`,
 pasada, `git stash pop`, pasada. Un tercero puede reproducirlo extrayendo
 `main` y `HEAD` a dos arboles limpios con `git archive`.
 
-## Los cuatro defectos inyectados
+## Los seis defectos inyectados
 
 Ninguna invariante se acepta sin ver fallar su test. Salida completa en
 `defectos-inyectados.txt`:
@@ -130,6 +136,12 @@ Ninguna invariante se acepta sin ver fallar su test. Salida completa en
    el test da 1.0 donde espera 0.200. **Es exactamente el error historico.**
 4. El veredicto NO CONCLUYENTE comiendose el intervalo y los bloques → la fila
    se queda sin intervalo.
+5. El primario calculado como media **agrupada** en vez de media por bloque →
+   el test da 0.35 donde espera 0.200. Lo encontro la revision independiente:
+   el test anterior usaba bloques del mismo tamano y **no lo cazaba**.
+6. La guarda del **bloque temporal parcial** desactivada → medio publica `LOW`
+   en vez de `INSUFFICIENT` apoyandose en un bloque de 102 sesiones que no cabe
+   una operacion de 250 barras.
 
 ## Limitacion declarada
 
