@@ -240,6 +240,10 @@ D-21, la regla de barra abierta de D-37, `score_model_version`, el contenido de
 analizables vigente. Tampoco se toca producción: ni `analizar`, ni las pasadas
 de la Pi, ni el informe de usuario.
 
+Y tampoco **`docs/pendientes.md`**, **`docs/cobertura-especificacion.md`** ni
+**`docs/protocolo-investigacion.md`**: los dos primeros son históricos por D-16 y
+el tercero está pre-registrado. Ver «Actualización documental requerida».
+
 ## Tests unitarios
 Con números cerrados escritos en el test.
 - `test_poblacion_pre_d31_reconstruye_107_y_d31_reconstruye_103`: sobre
@@ -377,11 +381,28 @@ directo a `main` está bloqueado, `enforce_admins` incluido.
 - `docs/gates.md`: GATE P2 marcado como cruzado, con la fecha y la evidencia.
 - `docs/decision-log.md`: **D-42** con el veredicto del laboratorio rehecho y el
   cruce de GATE P2; **OD-11** abierta con la pregunta del RR.
-- `docs/pendientes.md`: §11, §14 y §15 quedan **etiquetadas como históricas**
-  (sobre 107, antes de la corrección de RS) y apuntan al resultado nuevo. **No
-  se borran**: `docs/metodo-trabajo.md` §3 dice que un resultado antiguo se
-  etiqueta, no se borra.
-- `docs/agent-workflow.md`: nuevo punto de retomada.
+- `docs/agent-workflow.md`: nuevo punto de retomada, apuntando al resultado
+  vigente.
+
+**`docs/pendientes.md` NO se toca.** `docs/metodo-trabajo.md` paso 9 lo dice
+expresamente: «No se actualiza `docs/pendientes.md` ni
+`docs/cobertura-especificacion.md`: son históricos», y **D-16** es la decisión
+que los declaró así. §11, §14 y §15 se quedan **intactas**, con sus cifras sobre
+107 y anteriores a la corrección de RS. No se editan, no se anotan y no se les
+añade un aviso.
+
+El antes/después no vive ahí, vive en la evidencia: las tablas históricas se
+**copian** a `evidence/<fecha>-T-013-laboratorio-rehecho/antes.md` y el resultado
+nuevo se publica en `despues.md`, en el mismo directorio. Quien quiera saber cuál
+es el resultado vigente lo encuentra por los documentos de **estado** —`roadmap`,
+`gates`, `decision-log` y `agent-workflow`—, que sí se actualizan y sí apuntan a
+la evidencia. `pendientes.md` es el registro de lo que se pensaba entonces, y por
+eso se lee pero no se reescribe.
+
+Tampoco se toca `docs/protocolo-investigacion.md`: es un documento pre-registrado
+y corregir en él la referencia a `_exit_census` sería una entrega aparte y
+explícita. La aclaración del punto 5 de esta ficha ya evita que el implementador
+siga la referencia equivocada, así que no bloquea nada.
 
 ## Riesgo operativo que conviene no ignorar
 La cosecha `071ddb2b…` está en `.gitignore` y **solo vive en el portátil**. Es la
