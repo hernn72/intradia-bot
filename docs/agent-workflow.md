@@ -9,7 +9,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-21
+# START HERE — actualizado 2026-09-21 (tras implementar y revisar T-013)
 
 ## Dónde está todo
 
@@ -17,7 +17,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
     la Pi                 v0.3.0 = 03e1ec3    esquema v5    EN_TAG  ← AL DÍA
     graphify-out/         sin seguimiento, ignorar
 
-## Lo primero: T-013 (A-02), ya con ficha, y una pregunta al propietario
+## Lo primero: responder OD-11, que es lo unico que bloquea GATE P2
 
 **T-012 está ACEPTADA y OD-02 quedó cerrada el mismo día en D-40:** el
 propietario eligió la lectura (c) —sesión cerrada y exigible que no está cuando
@@ -34,13 +34,29 @@ vio ese dato la tarde anterior. T-018 produce además la cifra que decide si
 encima se compra EODHD para precios: `sesión exigible + nunca observada + no
 entregada`.
 
-**Las dos van en paralelo y no se estorban:** T-013 es laboratorio y T-018 es
-producción. Si hay que elegir una, T-013, porque es la que abre GATE P2.
+**T-018 sigue pendiente y ya no compite con nada:** T-013 está hecha, así que
+T-018 (producción) es la única de las dos que queda por implementar.
 
-**Lo siguiente que no depende de nadie es T-013 (A-02)**: rehacer P2.3, P2.4 y
-P2.5 sobre la cosecha `071ddb2b…` → GATE P2. **La ficha ya está escrita**:
-`docs/tareas/T-013-rehacer-laboratorio-sobre-cosecha.md` (2026-09-21). Lo que
-midió al escribirse y conviene saber antes de abrirla:
+**T-013 (A-02) está IMPLEMENTADA y REVISADA**, en la rama
+`feat/a02-laboratorio-rehecho`, sin fusionar. No la reabras: lo que queda es una
+decisión del propietario, **OD-11**, que es el único requisito que le falta a
+GATE P2 (los otros seis están cumplidos). Veredicto en **D-42**, evidencia en
+`evidence/2026-09-21-T-013-laboratorio-rehecho/`.
+
+**Lo que midió, y hay que leer antes de tocar nada de P3:**
+
+- Con el estimador primario de INV-14 —media por bloque de la expectancy neta en
+  R— **ninguna de las cinco bandas es concluyente**, y el IC95 cruza el cero en
+  todas menos `<50`. El veredicto global es `INSUFICIENTE`/`LOW`. Con la tasa
+  TARGET_FIRST, que es la **secundaria**, salía `LIMITADA`/`MEDIUM`.
+- **Los 21 bloques de swing y los 5 de medio los explica la ventana**, no el
+  diseño: la cosecha es de 5 años (~1.302 sesiones) y el protocolo pre-registró
+  la capacidad sobre 2.430. Hay FOLLOW_UP abierto.
+- **La atribución entre población y corrección de RS no es observable** con los
+  artefactos de agosto, y así está declarado. No cites ningún número exacto de
+  señales migradas.
+
+Lo que midió la ficha al escribirse, que sigue siendo válido:
 
 - **El trabajo de código no es el que parecía.** `preregistered_estimators`
   devuelve el primario como **un número global sin intervalo**, y el intervalo
@@ -151,12 +167,9 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 2. ~~**T-012**~~ **HECHA** (2026-09-20). La cifra de OD-02. Ya **no** decide
    OD-09 ni OD-10 —cerradas en D-36 y D-37—, pero sigue diciendo con qué
    frecuencia llega tarde cada plaza, que es lo que ahora determina el veto.
-3. **T-013 (A-02)** → GATE P2. **Desbloqueada y con ficha escrita**
-   (2026-09-21). Tres avisos: la población pasa de 107 a 103 (D-31) y a 93
-   (D-35), y la comparación con lo publicado debe declarar las tres; D-29 quedó
-   cerrada, así que `RR_TOO_LOW` sigue existiendo como guarda de P4 aunque hoy
-   sea inalcanzable; y el estimador primario (INV-14) todavía no se publica por
-   banda, que es el trabajo de código real de la tarea.
+3. ~~**T-013 (A-02)** → GATE P2~~ **IMPLEMENTADA y REVISADA** el 2026-09-21, en
+   `feat/a02-laboratorio-rehecho`, sin fusionar. GATE P2 cumple seis de sus
+   siete requisitos; falta el 6, **OD-11**, que es del propietario.
 4. **T-016** higiene del centinela, sin urgencia: la auditoría midió 0 celdas
    afectadas en el veredicto de P2.5.
 5. **T-014 (B-00)** contrato point-in-time, y **C-04** alertas, cuando toque.

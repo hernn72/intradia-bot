@@ -1,6 +1,12 @@
 Hashes canonicos de las tablas publicadas — GATE P2 punto 7
 SHA-256 del fichero de salida literal, tal y como se publica.
 
+Para la prueba determinista de produccion, el hash NORMALIZADO (que es el
+que compara main con la rama) se obtiene con:
+    sed 's/^[0-9-]* [0-9:]* //' <fichero> | shasum -a 256
+y vale 49b12c855c2d2681d9ecd0f592248cd03b11cd8428273014238e04f0ddefbc3c
+para MAIN y para RAMA. Los hashes de abajo son los del fichero sin normalizar.
+
 f1262db77ef2d2131b41ac6e775bb2f0c9c75e8025c25700988d06cb8d210abb  ablacion-score-vigente-medio.txt
 b4a8dccedf0381938d9cd3f1f5bddf8c0ac3dd30b67486c0f5e2f72312ba4e9d  ablacion-score-vigente-swing.txt
 34661296f3dc245db9faeaaea63569f0156552809bb5884d1b8afe22888383b9  analizar-swing-sin-ia-sin-guardar.txt
@@ -11,13 +17,14 @@ b4a8dccedf0381938d9cd3f1f5bddf8c0ac3dd30b67486c0f5e2f72312ba4e9d  ablacion-score
 9f52c51e3f6a133a740416dbc84736998829dcac19a6df7ba3d1598ea822ad6d  baseline-pytest.txt
 08bc698f763f99cb4c7db0d867ef8ee940ee485c3c851b5d805a58a20d4819a3  capacidad-estadistica-vigente-medio.txt
 8c737c1b3de128f51c83e5828d68541c681f805795344bbca4e6c556c77078d5  capacidad-estadistica-vigente-swing.txt
-02d0a1ec7f200a822e83c113fa6bd1e7549958780d033ec417111c77447395e6  defectos-inyectados.txt
+a1a9d2d60eaddbb9e4dbf2eb0d111523a528e57faa2c01ad753705d491e12093  defectos-inyectados.txt
 294b5c65acc2ef6ab670953ef16f836dd2485c970806ab27825ea9c88bf06c03  event-study-d31-medio.txt
 949e00c1af06dca3a682f6e052a56b371909c0ca0ceff73b3891e089d30e7f13  event-study-d31-swing.txt
 48c84b7750e57a870cf8e277c6217208e73743a71cf38938ee946548e3ba4be4  event-study-pre-d31-medio.txt
 ffeffacf7ca6ecfc1e74c0a0829ae536908c470f693b32dcd67079ea82ab7746  event-study-pre-d31-swing.txt
 bc3876bee80764bf75a7dc09134000362d2eef9c5eedc0ccd8b7c7ee6038a157  event-study-vigente-medio.txt
 1e6927243cfb97fe181d2cceae8c285911843621cf1480022c5202abdd7135ba  event-study-vigente-swing.txt
-58f50d86d6d85de505e7eb73217fecc8e785d2fae58ff8719c13f8c103698bdd  final-pytest-ruff-mypy.txt
+9392430a109932800623177db2150038c8d959e50e2f5d6190ce96926b401cdc  final-pytest-ruff-mypy.txt
+c0ef5691a9bb0d6651178e19ae6dbfcc0d1eb46315750d82b7d0157bc4650ee1  produccion-backtest-MAIN.txt
 284b4157676322967c52e996b9094695a8d4607b904e2bd4d3132f74a0c9ebeb  produccion-backtest-RAMA.txt
 ffd2bc6ab5d83f7c9ce179254ff5d0acf44d2296366d47cd63b8f03113b29a1f  universo.txt

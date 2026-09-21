@@ -444,18 +444,32 @@ sobre los 103, y la comparación entre ambos debe declarar la diferencia de
 población. Quedan **10 activos** marcados `no` que siguen siendo analizables y
 vetados como `BROKER_UNAVAILABLE` (D-26); no se tocan aquí, es otra decisión.
 
-### D-42 — 2026-09-21 — El laboratorio rehecho (A-02): el diseño tiene menos resolución de la que aparentaba
+### D-42 — 2026-09-21 — El laboratorio rehecho (A-02): con el estimador pre-registrado, ninguna banda es concluyente
 T-013 rehace P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con la fortaleza
 relativa alineada y el estimador pre-registrado de INV-14 al frente. Evidencia
 en `evidence/2026-09-21-T-013-laboratorio-rehecho/`.
 
-**El control que separa las causas pasa exacto.** La población `pre-d31` (107
-activos) devuelve **121.786 señales**, la cifra publicada en agosto, y solo
-**194 de ellas (0,16 %) cambian de banda**. Es la huella completa de la
-corrección de fortaleza relativa del 2026-09-02, coherente con que solo 8 de los
-107 activos crucen continente. La geometría de la línea 0 no mueve nada. Por
-tanto **toda la diferencia entre lo publicado en agosto y las cifras vigentes es
-de población**: 107 → 103 (D-31) → 93 (D-35).
+**El control de la ficha pasa exacto.** La población `pre-d31` (107 activos)
+devuelve **121.786 señales**, la cifra publicada en agosto. Sobre la misma
+población el total no cambia, así que ni la corrección de fortaleza relativa ni
+la geometría de la línea 0 crean o destruyen señales.
+
+**Lo que NO se puede afirmar, y una primera redacción de esta decisión afirmaba
+por error.** Se publicó que «solo 194 señales (0,16 %) cambian de banda» y que
+«toda la diferencia es de población». **Las dos frases se retiran.** El 194 era
+la suma de las diferencias **netas** por banda, que no cuenta migraciones: si N
+señales entran en una banda y N salen, el neto es 0 y el movimiento real es 2N.
+El mínimo compatible con esos agregados es **97** y el máximo, acotado por las
+**10.228** señales de los **diez** pares que cruzan continente en `pre-d31`
+(`docs/pendientes.md` §16). De agosto solo se conservan los agregados por banda,
+no la salida por señal, así que **la atribución exacta entre población y
+corrección de RS no es observable con los artefactos disponibles, y se declara
+que no se puede separar** —la ficha lo contempla—. Queda FOLLOW_UP: rehacer
+`pre-d31` con la corrección de zona revertida y emparejar por `signal_id`.
+
+No confundir dos universos: los pares que cruzan continente son **diez** en
+`pre-d31`, que es donde se compara con agosto; **ocho** sobreviven en la
+población vigente de 93, porque `DFEN.DE` y `4GLD.DE` cayeron con D-35.
 
 **Lo que cambia el veredicto, y es el hallazgo de la tarea.** Con la tasa
 TARGET_FIRST —el estimador **secundario**— la capacidad global salía `LIMITADA`
@@ -470,8 +484,15 @@ global sin intervalo**; el intervalo que se venía leyendo por banda era el de l
 métrica secundaria. Esta tarea construye el primario por banda, por región y por
 activo, que es lo que GATE P2 punto 4 exigía.
 
-**Medio es peor de lo previsto**: el protocolo escribió «del orden de ocho
-bloques en diez años» y la medición da **5 bloques** de 300 sesiones.
+**De dónde salen 21 y 5 bloques.** No del diseño del bot: de la ventana. El
+protocolo pre-registró la capacidad sobre «Histórico útil: 2.430 sesiones» (40
+bloques en swing, 8 en medio), y la cosecha congelada que GATE P2 usa tiene
+`requested_range: "5y"` — rango efectivo 2021-08-30 → 2026-08-28, unas **1.302
+sesiones**, que dan 1302/60 ≈ 21 bloques en swing y 1302/300 ≈ 5 en medio.
+**La cosecha congelada que usa GATE P2 tiene aproximadamente la mitad de la
+ventana de 2.430 sesiones que el protocolo describía al pre-registrar la
+capacidad.** No se amplía la ventana ni se rehace la cosecha —T-013 lo prohíbe—
+y la discrepancia queda como FOLLOW_UP.
 
 **No se adopta nada y no se ajusta nada.** No se toca `config.yaml`, ni los
 pesos, ni la geometría, ni los umbrales. Un resultado NO CONCLUYENTE es el
