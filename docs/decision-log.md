@@ -510,6 +510,57 @@ cumplidos; falta el **6**, la decisión formal sobre el RR, que es del propietar
 y queda abierta como **OD-11** con los números nuevos. El gate se cruzará cuando
 OD-11 se responda.
 
+### D-43 — 2026-09-21 — OD-11 cerrada: el RR sale del score como dimensión, y GATE P2 queda cruzado
+Decisión del propietario, sobre P2.4 rehecho y revisado (D-42).
+
+**Qué se decide.** El ratio beneficio/riesgo **deja de ser una dimensión de
+puntuación de `compute_score`**, a partir de P3.
+
+**El alcance de la conclusión, que no se puede ensanchar.** Lo medido es que
+**el RR no sirve como dimensión de ordenación del score actual**, tal y como
+P2.4 lo midió. **No** se ha concluido, ni se sigue de aquí, que «el RR no
+sirve» en general: **sigue siendo una condición de ejecutabilidad y de riesgo**,
+y en esa función no se toca nada.
+
+**En qué se apoya.** Sobre la población vigente de 93 activos, cosecha
+`071ddb2b…`, swing, 106.363 señales sin pasar por `classify()`:
+- la dimensión reparte ~10 de sus 20 puntos a **casi todo el universo** (p10 =
+  p90 = 10,000 en cuatro de las cinco bandas);
+- el RR **bruto** tiene mediana **1,500 en las cinco bandas**;
+- no muestra capacidad discriminante útil entre bandas;
+- buena parte del cambio de nota al retirarlo es **normalización matemática**,
+  no información añadida: la contribución vale `−0,4167·T + 16,667`, función
+  solo de la nota total;
+- al retirarlo migran muchas señales (`70-80` pasa de 2.194 a 6.443 y `80+` de
+  65 a 1.032), así que **los umbrales actuales no se pueden reutilizar**.
+
+**Lo que NO cambia, y se mantiene intacto:**
+- `min_rr` y `entry_max_rr`;
+- la invariante de que **nunca** se recomiende una entrada que viole el RR
+  mínimo;
+- `RR_TOO_LOW` como guarda correspondiente (sigue siendo la guarda de P4 que
+  D-29 decidió conservar);
+- la geometría de stop, objetivos y entrada, que es P4;
+- `min_score_operar` y `min_score_vigilar`, que no se tocan ahora.
+
+**Lo que P3 (A-03) tendrá que hacer:**
+1. `score_model_version` **nuevo**;
+2. redefinir el score **sin** la dimensión RR;
+3. recalibrar los umbrales **por horizonte** con el estimador primario de
+   INV-14;
+4. **no asumir ninguna equivalencia** entre las bandas del score viejo y las
+   del nuevo.
+
+**Aviso que viaja con la decisión.** D-42 dejó medido que, con el estimador
+primario, **ninguna banda es concluyente**. Esta decisión **no** se apoya en que
+una banda rinda más que otra —eso no está medido con resolución suficiente—,
+sino en que la dimensión es **casi constante**, que es un hecho descriptivo
+independiente de la resolución.
+
+**GATE P2 queda CRUZADO el 2026-09-21.** Era el séptimo y último requisito: la
+decisión formal sobre el RR, salida de P2.4, en el decision log. Con ella,
+**T-013 / A-02 pasa a ACEPTADA** y **A-03 (P3) queda desbloqueada**.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
@@ -636,7 +687,7 @@ demás**.
   en ninguna pasada, porque su sesión 24/7 solo cierra a las 00:00 UTC.
 - **Bloquea:** nada; hoy cripto no ha generado ninguna señal OPERAR.
 
-### OD-11 — ¿Sale el RR del score? · ABIERTA el 2026-09-21 con los números de A-02
+### OD-11 — ¿Sale el RR del score? · **CERRADA el 2026-09-21 en D-43**
 - **Pregunta:** el ratio beneficio/riesgo pesa 20 de 100 puntos en
   `compute_score`. A la vista de la ablación rehecha, ¿se mantiene como
   dimensión, se retira del score, o se sustituye por otra formulación?
@@ -679,6 +730,8 @@ demás**.
   resolución suficiente. Lo que sí está medido, y con firmeza, es que la
   dimensión **es casi constante**, y eso no depende de la resolución.
 - **Bloquea:** A-03 (P3, score v2). No bloquea nada más.
+- **Respuesta del propietario, 2026-09-21:** el RR **sale del score como
+  dimensión de puntuación**. Registrada en **D-43**, que es el texto que manda.
 
 ---
 

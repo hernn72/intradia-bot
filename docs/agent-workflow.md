@@ -9,7 +9,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-21 (tras implementar y revisar T-013)
+# START HERE — actualizado 2026-09-21 (GATE P2 cruzado)
 
 ## Dónde está todo
 
@@ -17,7 +17,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
     la Pi                 v0.3.0 = 03e1ec3    esquema v5    EN_TAG  ← AL DÍA
     graphify-out/         sin seguimiento, ignorar
 
-## Lo primero: responder OD-11, que es lo unico que bloquea GATE P2
+## Lo primero: A-03 (P3), ya desbloqueada — pero leer antes lo que midió A-02
 
 **T-012 está ACEPTADA y OD-02 quedó cerrada el mismo día en D-40:** el
 propietario eligió la lectura (c) —sesión cerrada y exigible que no está cuando
@@ -37,11 +37,18 @@ entregada`.
 **T-018 sigue pendiente y ya no compite con nada:** T-013 está hecha, así que
 T-018 (producción) es la única de las dos que queda por implementar.
 
-**T-013 (A-02) está IMPLEMENTADA y REVISADA**, en la rama
-`feat/a02-laboratorio-rehecho`, sin fusionar. No la reabras: lo que queda es una
-decisión del propietario, **OD-11**, que es el único requisito que le falta a
-GATE P2 (los otros seis están cumplidos). Veredicto en **D-42**, evidencia en
-`evidence/2026-09-21-T-013-laboratorio-rehecho/`.
+**T-013 (A-02) está ACEPTADA y GATE P2 quedó CRUZADO el 2026-09-21.** La rama
+`feat/a02-laboratorio-rehecho` está **sin fusionar** a la espera de revisar el
+cierre. Veredicto del laboratorio en **D-42**; OD-11 cerrada en **D-43**.
+Evidencia en `evidence/2026-09-21-T-013-laboratorio-rehecho/`.
+
+**D-43 fija el punto de partida de P3 y no se reinterpreta:** el RR **sale del
+score como dimensión de puntuación**, y **sigue siendo condición de
+ejecutabilidad y de riesgo** —`min_rr`, `entry_max_rr`, la invariante de no
+recomendar una entrada que viole el RR mínimo y la guarda `RR_TOO_LOW` no se
+tocan—. P3 necesita `score_model_version` nuevo, umbrales recalibrados **por
+horizonte** con el estimador primario de INV-14, y **ninguna equivalencia**
+entre las bandas viejas y las nuevas.
 
 **Lo que midió, y hay que leer antes de tocar nada de P3:**
 
@@ -167,9 +174,10 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 2. ~~**T-012**~~ **HECHA** (2026-09-20). La cifra de OD-02. Ya **no** decide
    OD-09 ni OD-10 —cerradas en D-36 y D-37—, pero sigue diciendo con qué
    frecuencia llega tarde cada plaza, que es lo que ahora determina el veto.
-3. ~~**T-013 (A-02)** → GATE P2~~ **IMPLEMENTADA y REVISADA** el 2026-09-21, en
-   `feat/a02-laboratorio-rehecho`, sin fusionar. GATE P2 cumple seis de sus
-   siete requisitos; falta el 6, **OD-11**, que es del propietario.
+3. ~~**T-013 (A-02)** → GATE P2~~ **ACEPTADA** el 2026-09-21. **GATE P2
+   CRUZADO** (D-42 y D-43). La rama sigue sin fusionar.
+3b. **A-03 (P3, score v2)** → **DESBLOQUEADA**. Ficha por escribir. Arranca de
+   D-43 y del aviso de que ninguna banda es concluyente.
 4. **T-016** higiene del centinela, sin urgencia: la auditoría midió 0 celdas
    afectadas en el veredicto de P2.5.
 5. **T-014 (B-00)** contrato point-in-time, y **C-04** alertas, cuando toque.

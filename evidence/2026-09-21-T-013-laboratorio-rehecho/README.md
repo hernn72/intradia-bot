@@ -42,9 +42,13 @@ sin objetivo separado.
 publicada por corte, el numero de bloques, el minimo de observaciones por bloque
 y la tasa de censura `EXIT_FINAL`.
 
-**6. Decision formal sobre el RR.** No se toma aqui: se abre **OD-11** en
-`docs/decision-log.md` con los numeros nuevos. La ficha prohibe expresamente que
-la tome el implementador.
+**6. Decision formal sobre el RR.** **CUMPLIDO.** Se abrio como **OD-11** con
+los numeros nuevos y la cerro el propietario el 2026-09-21 en **D-43**: el RR
+sale del score como dimension de puntuacion y **sigue siendo condicion de
+ejecutabilidad y de riesgo**. La conclusion se limita a su funcion como
+dimension del score medida en P2.4, no se ensancha a «el RR no sirve».
+
+**Con este requisito, GATE P2 queda CRUZADO el 2026-09-21.**
 
 **7. Hashes de las tablas registrados.** En `hashes-de-tablas.txt`.
 

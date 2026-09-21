@@ -1,6 +1,6 @@
 # T-013 — Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…` (A-02)
 
-Estado: EN_REVISION
+Estado: ACEPTADA
 Agente: Opus (ficha) → Codex (implementación) → Opus (revisión) → propietario (OD-11)
 Línea / fase: Línea A, A-02
 Gate al que contribuye: **GATE P2** (es la tarea que lo cruza)
@@ -413,8 +413,9 @@ parte de esta ficha, pero sí es la decisión más barata de la semana.
 
 ## Handoff al siguiente agente
 
-**Estado:** implementada el 2026-09-21 en `feat/a02-laboratorio-rehecho`, a la
-espera de revisión independiente. **No fusionada, sin PR.**
+**Estado: ACEPTADA** el 2026-09-21. Implementada y revisada en
+`feat/a02-laboratorio-rehecho`. **No fusionada, sin PR**, a la espera de que el
+propietario revise el cierre. **GATE P2 CRUZADO** (D-42 y D-43).
 
 **Verificado:** 614 tests, `ruff` y `mypy` limpios. Pasó **revisión
 independiente** el 2026-09-21 (`CORREGIR_ANTES_DE_OD11`); sus cinco hallazgos
@@ -430,8 +431,10 @@ cuatro defectos inyectados hacen fallar su test, con la salida guardada.
 IC95 cruza el cero en todas menos `<50`. Medio da 5 bloques, no los 8 previstos.
 No se ajustó nada para mejorarlo.
 
-**Pendiente, y es lo que bloquea el gate:** **OD-11**, la decisión del
-propietario sobre el RR. GATE P2 tiene 6 de 7 requisitos cumplidos.
+**OD-11 cerrada** el 2026-09-21 en **D-43**: el RR sale del score como dimensión
+de puntuación y sigue siendo condición de ejecutabilidad y de riesgo. Con eso se
+cumple el séptimo requisito y **GATE P2 queda cruzado**; **A-03 (P3) queda
+desbloqueada**, con su ficha por escribir.
 
 **Hallazgos clasificados:**
 - SAME_SCOPE, corregido: la tabla de la ablación sustituía intervalo, media y
