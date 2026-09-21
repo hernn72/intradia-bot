@@ -31,12 +31,38 @@ Eso permite separar las causas, que era el objetivo:
 | 80+ | 78 | 77 | −1 |
 | **total** | **121.786** | **121.786** | **0** |
 
-**Atribucion medida.** Sobre la misma poblacion, el numero de señales no cambia
-y solo **194 de 121.786 (0,16 %)** se mueven de banda. Esa es la huella completa
-de la correccion de fortaleza relativa del 2026-09-02, coherente con que solo 8
-de los 107 activos cruzan continente. La geometria de la linea 0 no mueve nada.
-Por tanto **toda la diferencia entre lo publicado en agosto y las cifras
-vigentes es de poblacion**, no de metodo.
+**Lo que esta tabla permite afirmar, y lo que NO.**
+
+Permite afirmar que sobre la **misma poblacion** el numero total de señales es
+identico —121.786 en las dos— y que las diferencias **netas** por banda suman
+194 señales.
+
+**No permite afirmar cuantas señales cambian de banda.** Una diferencia neta no
+es un recuento de migraciones: si N señales entran en una banda y N salen, el
+neto es 0 y el movimiento real es 2N. Con estos agregados:
+
+    minimo compatible          Σ|Δ| / 2 = 97 señales
+    maximo acotado          10.228 señales
+
+El maximo sale de que la correccion de fortaleza relativa del 2026-09-02 solo
+puede alterar la nota de los **diez** pares que cruzan continente
+(`docs/pendientes.md` §16), y esos diez aportan 10.228 de las 121.786 señales de
+`pre-d31` (medido sobre la tabla «Primario por activo» de
+`event-study-pre-d31-swing.txt`).
+
+**La atribucion exacta entre poblacion y correccion de RS no es observable con
+los artefactos disponibles**, porque de agosto solo se conservan los agregados
+por banda (`docs/pendientes.md` §11) y no la salida por señal. La ficha
+contempla este caso expresamente: si no se puede separar, se dice que no se
+puede separar. **Se declara que no se puede separar.**
+
+Lo que si queda establecido es que el **numero total** de señales no cambia
+sobre la misma poblacion, asi que ni la correccion de RS ni la geometria de la
+linea 0 crean o destruyen señales: como mucho las mueven de banda.
+
+Una medicion que si cerraria el punto, y que queda como FOLLOW_UP: rehacer la
+pasada `pre-d31` con la correccion de zona de `relative_strength` revertida y
+emparejar por `signal_id`.
 
 ## 3. P2.3 con el estimador primario de INV-14 al frente
 
@@ -84,17 +110,36 @@ reves.
 secundario (tasa TARGET_FIRST) la capacidad global salia `LIMITADA` con
 resolucion `MEDIUM`. Con el primario que INV-14 declara, sale **`INSUFICIENTE`
 con resolucion `LOW`**, porque el intervalo mide 0.231 R de ancho frente al
-umbral de 0.200. **El disenno tiene menos resolucion de la que aparentaba**, y
-aparentaba mas solo porque se estaba mirando la metrica secundaria.
+umbral de 0.200. **La medicion tenia menos resolucion de la que aparentaba**, y
+aparentaba mas solo porque se estaba leyendo la metrica secundaria. Cuanto de
+ese deficit es de la ventana de la cosecha y cuanto del disenno, ver el punto
+siguiente: la ventana lo explica por completo en el numero de bloques.
 
 **Ninguna banda es concluyente.** Las cinco salen NO CONCLUYENTE, cada una con
 su motivo publicado: intervalo demasiado ancho en las tres bajas, bloque minimo
 de 2 observaciones en `70-80`, y en `80+` las tres cosas a la vez (bloque minimo
 1, n=65 < 100, intervalo 0.668).
 
-**Medio es peor de lo que el protocolo preveia.** El protocolo escribio «del
-orden de ocho bloques en diez anos»; la medicion da **5 bloques** de 300
-sesiones. La limitacion es estadistica y ninguna cantidad de señales la arregla.
+**De donde salen 21 y 5 bloques: la ventana de la cosecha, no el disenno.**
+El protocolo pre-registro la capacidad sobre «Historico util: 2.430 sesiones»,
+que da 40 bloques en swing y 8 en medio. La cosecha congelada que GATE P2 usa
+tiene `requested_range: "5y"`:
+
+    rango efectivo      2021-08-30 → 2026-08-28
+    sesiones            ~1.302
+    swing   1302 / 60   = 21 bloques con observaciones (+ un resto de 42 sesiones)
+    medio   1302 / 300  = 5 bloques (+ un resto de 102 sesiones)
+
+Es decir, **la cosecha congelada que usa GATE P2 tiene aproximadamente la mitad
+de la ventana de 2.430 sesiones que el protocolo describia al pre-registrar la
+capacidad**. El deficit de bloques se explica por completo asi.
+
+No se amplia la ventana ni se rehace la cosecha: T-013 lo prohibe expresamente.
+La discrepancia entre el documento pre-registrado y la cosecha queda como
+FOLLOW_UP, en `follow-ups.md`.
+
+Dentro de esta ventana la limitacion sigue siendo estadistica y ninguna cantidad
+de señales la arregla: lo que fija la precision es el numero de bloques.
 
 Esto es el resultado. No se ha ampliado la ventana, ni cambiado el estimador, ni
 movido la longitud de bloque, ni quitado activos.

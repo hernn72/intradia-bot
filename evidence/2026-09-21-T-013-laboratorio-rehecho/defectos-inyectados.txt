@@ -56,3 +56,26 @@ tests/test_ablation.py:162: AssertionError
 =========================== short test summary info ============================
 FAILED tests/test_ablation.py::test_una_banda_no_concluyente_publica_igualmente_primario_intervalo_y_bloques
 1 failed, 13 deselected in 0.10s
+
+############ DEFECTO 5: el primario se calcula como media AGRUPADA en vez de media por bloque ############
+Inyectado el 2026-09-21 tras la revision independiente, que demostro que el
+test anterior NO lo cazaba: usaba bloques del mismo tamano, donde las dos
+medias coinciden. Sobre la cosecha real la diferencia es +0,064 frente a
++0,103, que es justo el valor publicado como SECUNDARIO.
+
+        assert band.n_blocks == 2
+>       assert band.primary_expectancy_net_r == pytest.approx(0.200)
+E       assert 0.35 == 0.2 ± 2.0e-07
+E         
+E         comparison failed
+E         Obtained: 0.35
+E         Expected: 0.2 ± 2.0e-07
+
+tests/test_capacity.py:149: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_capacity.py::test_intervalo_primario_por_banda_se_calcula_sobre_bloques
+1 failed, 11 deselected in 0.07s
+
+restaurado; el test vuelve a verde:
+.                                                                        [100%]
+1 passed, 11 deselected in 0.03s

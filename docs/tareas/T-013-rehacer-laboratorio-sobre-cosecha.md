@@ -416,7 +416,10 @@ parte de esta ficha, pero sí es la decisión más barata de la semana.
 **Estado:** implementada el 2026-09-21 en `feat/a02-laboratorio-rehecho`, a la
 espera de revisión independiente. **No fusionada, sin PR.**
 
-**Verificado:** 613 tests, `ruff` y `mypy` limpios. Los tres
+**Verificado:** 614 tests, `ruff` y `mypy` limpios. Pasó **revisión
+independiente** el 2026-09-21 (`CORREGIR_ANTES_DE_OD11`); sus cinco hallazgos
+SAME_SCOPE están corregidos y los nueve FOLLOW_UP registrados en
+`evidence/.../follow-ups.md`. Los tres
 `universe_vintage_id` reproducen los del decision log. `pre-d31` devuelve las
 121.786 señales de agosto, exactas. Producción probada intacta de forma
 determinista con `backtest --vintage` (mismo SHA-256, 866 operaciones). Los
@@ -435,6 +438,19 @@ propietario sobre el RR. GATE P2 tiene 6 de 7 requisitos cumplidos.
   bloques por «NO CONCLUYENTE», incumpliendo `docs/metodo-trabajo.md` §3. Era
   anterior a esta tarea; el cambio de estimador lo dejó al descubierto porque
   la tabla entera se quedaba sin números.
+- SAME_SCOPE, corregido tras la revisión: el test del estimador primario usaba
+  bloques del **mismo tamaño**, donde la media por bloque y la media agrupada
+  coinciden, así que no protegía nada. Una mutación a media agrupada sobrevivía
+  los 613 tests. Corregido con bloques de tamaños distintos (0,200 frente a
+  0,350) y defecto inyectado.
+- SAME_SCOPE, corregido tras la revisión: se afirmaba que «194 señales (0,16 %)
+  cambian de banda» y que «toda la diferencia es de población». Era una suma de
+  diferencias **netas**, que no cuenta migraciones. Retirado de los cuatro
+  sitios; la atribución se declara **no observable** con los artefactos de
+  agosto, acotada en [97, 10.228].
+- SAME_SCOPE, corregido tras la revisión: faltaba la declaración de sesgo que
+  exige el requisito 3 de GATE P2, y faltaba el test de integración de las tres
+  poblaciones que esta misma ficha pide.
 - OBSERVATION: `_primary_rows_by_region` accede a `block_lookup._asset(...)`,
   un método privado desde fuera de su clase. Funciona y `ruff` lo acepta; queda
   anotado por higiene, no se tocó.

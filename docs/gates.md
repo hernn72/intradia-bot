@@ -71,7 +71,8 @@ línea 0 en la Pi.
 ## GATE P2 — Laboratorio corregido y congelado
 
 **Estado al 2026-09-21: SEIS de siete requisitos cumplidos, el gate NO está
-cruzado.** T-013 (A-02) rehizo P2.3, P2.4 y P2.5 y dejó todo publicado; falta el
+cruzado.** (Revisión independiente el mismo día: el requisito 3 estaba
+incompleto —faltaba la declaración de sesgo— y quedó completado.) T-013 (A-02) rehizo P2.3, P2.4 y P2.5 y dejó todo publicado; falta el
 requisito **6**, la decisión formal sobre el RR, que es del propietario y está
 abierta como **OD-11**. Evidencia y recorrido requisito a requisito en
 `evidence/2026-09-21-T-013-laboratorio-rehecho/README.md`. Veredicto en D-42.

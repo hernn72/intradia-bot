@@ -122,10 +122,21 @@ def test_capacidad_publica_estimador_primario_y_secundarios() -> None:
 
 
 def test_intervalo_primario_por_banda_se_calcula_sobre_bloques() -> None:
+    """El primario es la media SIMPLE entre bloques, no la media agrupada.
+
+    Los bloques llevan a proposito tamanos distintos —tres señales frente a
+    una—, porque con bloques del mismo tamano las dos medias coinciden y el
+    test no distinguiria el estimador pre-registrado de su sustituto:
+
+        media por bloque  = (0,50 + (-0,10)) / 2               = 0,200
+        media agrupada    = (0,50 + 0,50 + 0,50 - 0,10) / 4    = 0,350
+    """
+
     signals = [
-        _with_net_r(_with_day(_signal(score=55.0, status=TARGET_FIRST), 0), 0.50),
-        _with_net_r(_with_day(_signal(score=55.0, status=TARGET_FIRST), 61), -0.10),
+        _with_net_r(_with_day(_signal(score=55.0, status=TARGET_FIRST), day), 0.50)
+        for day in (0, 1, 2)
     ]
+    signals.append(_with_net_r(_with_day(_signal(score=55.0, status=TARGET_FIRST), 61), -0.10))
     result = _result(signals)
     result = replace(
         result,
@@ -135,7 +146,10 @@ def test_intervalo_primario_por_banda_se_calcula_sobre_bloques() -> None:
     band = {summary.label: summary for summary in report.bands}["50-60"]
 
     assert band.n_blocks == 2
-    assert band.primary_expectancy_net_r == pytest.approx(0.20)
+    assert band.primary_expectancy_net_r == pytest.approx(0.200)
+    # La media agrupada valdria 0,350: si alguien sustituye el estimador, aqui salta.
+    assert band.primary_expectancy_net_r != pytest.approx(0.350)
+    # Y tampoco puede ser la tasa TARGET_FIRST, que con estas señales vale 1,0.
     assert band.secondary_target_first_interval_lower == pytest.approx(1.0)
     assert band.primary_interval_lower != pytest.approx(band.secondary_target_first_interval_lower)
 

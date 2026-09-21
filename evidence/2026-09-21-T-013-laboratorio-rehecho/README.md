@@ -16,8 +16,12 @@ manifiesto valido, `series_hash` y `corporate_actions_hash` correctos en los 126
 activos, 126 series declaradas y 126 en disco, 0 fallidas. Existe ademas una
 copia local verificable fuera del repositorio.
 
-**3. `universe_vintage_id` calculado y registrado.** Los tres, y los tres
-reproducen exactamente los del decision log:
+**3. `universe_vintage_id` calculado y registrado, con la declaración de sesgo
+copiada.** La declaración de sesgo está en
+`declaracion-de-sesgo-del-universo.md`, copia literal de la sección «Universo:
+sesgo de supervivencia y de selección» de `docs/roadmap.md`, que **no se ha
+modificado**. Los tres identificadores reproducen exactamente los del decision
+log:
 
     vigente  93 activos   237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
     d31     103 activos   c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132
@@ -49,11 +53,16 @@ la tome el implementador.
 `despues.md`. Tres cosas que cambian como se lee todo lo demas:
 
 1. **El control principal pasa exacto**: `pre-d31` devuelve 121.786 señales, la
-   cifra de agosto. Solo 194 de ellas (0,16 %) cambian de banda. Toda la
-   diferencia con las cifras vigentes es **de poblacion**, no de metodo.
+   cifra de agosto, sobre la misma poblacion. Pero **la atribucion entre
+   poblacion y correccion de RS no es observable**: de agosto solo quedan los
+   agregados por banda, no la salida por señal. Las diferencias netas suman 194
+   señales, lo que acota las migraciones reales en **[97, 10.228]**. Se declara
+   que no se puede separar.
 2. **El veredicto global empeora al usar el estimador correcto**: de `LIMITADA`
    / `MEDIUM` con la tasa TARGET_FIRST a **`INSUFICIENTE` / `LOW`** con el
-   primario de INV-14. El disenno tenia menos resolucion de la que aparentaba.
+   primario de INV-14. La medicion tenia menos resolucion de la que aparentaba,
+   y el numero de bloques lo explica la **ventana de la cosecha**: 5 anos,
+   ~1.302 sesiones, frente a las 2.430 que el protocolo pre-registro.
 3. **Ninguna banda es concluyente**, y el IC95 del primario cruza el cero en
    todas menos en `<50`, que es la banda mas baja del score.
 
@@ -62,6 +71,9 @@ la tome el implementador.
 | Fichero | Que es |
 |---|---|
 | `antes.md` | copia literal de `docs/pendientes.md` §11, §14 y §15 (no modificados) |
+| `declaracion-de-sesgo-del-universo.md` | GATE P2 requisito 3, copia literal del roadmap |
+| `follow-ups.md` | los nueve FOLLOW_UP abiertos, no corregidos aquí |
+| `produccion-backtest-MAIN.txt` | la misma pasada sobre `main`, para comparar |
 | `despues.md` | el resultado nuevo y la atribucion por causa |
 | `baseline-*.txt` | linea base antes de tocar codigo |
 | `event-study-{vigente,d31,pre-d31}-{swing,medio}.txt` | P2.3, seis pasadas |
@@ -80,10 +92,27 @@ entre ejecuciones. Se uso la via determinista que dejo T-015: `backtest
 --vintage` recorre `classify()` y el score de produccion sobre la cosecha
 congelada y es reproducible byte a byte.
 
-Ejecutado en `main` y en la rama, la salida es **identica** salvo la marca de
-tiempo del log. Sin ella, las dos dan el mismo SHA-256
-`49b12c855c2d2681d9ecd0f592248cd03b11cd8428273014238e04f0ddefbc3c`, con 866
-operaciones, que es la cifra que D-34 registro.
+Las dos salidas estan comprometidas aqui: `produccion-backtest-MAIN.txt` y
+`produccion-backtest-RAMA.txt`. Son **identicas** salvo la marca de tiempo del
+log, y las dos declaran **866 operaciones**, la cifra que D-34 registro.
+
+**Comando exacto de normalizacion y verificacion**, para que un tercero pueda
+repetirlo:
+
+    sed 's/^[0-9-]* [0-9:]* //' produccion-backtest-MAIN.txt | shasum -a 256
+    sed 's/^[0-9-]* [0-9:]* //' produccion-backtest-RAMA.txt | shasum -a 256
+
+Los dos devuelven:
+
+    49b12c855c2d2681d9ecd0f592248cd03b11cd8428273014238e04f0ddefbc3c
+
+El `sed` quita el prefijo `AAAA-MM-DD HH:MM:SS ` de la linea de log, que es lo
+unico que difiere entre las dos ejecuciones. Sin normalizar, cada fichero tiene
+su propio hash y ambos estan en `hashes-de-tablas.txt`.
+
+Como se generaron: `git stash` de los cambios para dejar el arbol en `main`,
+pasada, `git stash pop`, pasada. Un tercero puede reproducirlo extrayendo
+`main` y `HEAD` a dos arboles limpios con `git archive`.
 
 ## Los cuatro defectos inyectados
 
