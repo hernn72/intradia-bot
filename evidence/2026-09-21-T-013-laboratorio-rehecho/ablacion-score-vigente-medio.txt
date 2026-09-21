@@ -1,0 +1,55 @@
+# Ablación P2.4 del score
+
+Cosecha: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+Población: vigente
+Universo: 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
+Horizonte: medio | coste 0.20% | warmup 250 velas | horizonte máximo 250 velas
+Activos evaluados: 93 | señales evaluadas: 94273
+Descartes P2.3: 0 | descartes ablación: 0
+Sin net_R: 25
+evaluable_max observado: 80.0 (94273)
+evaluable_max sin RR observado: 60.0 (94273)
+Dimensión ablacionada: beneficio_riesgo | peso 20.0 | denominador resultante típico 60.0
+Intervalos: el primario es expectancy neta en R por bloque; P(objetivo antes de stop) queda como secundario y no se publica solo.
+Bootstrap capacidad: semilla=20260830; remuestreos=2000
+Umbrales NO recalibrados: la tabla B usa los mismos cortes de SCORE_BANDS sobre una nota normalizada sobre 60 puntos. Recalibrar es P3.
+
+TABLA A - Ordenación con el score COMPLETO
+banda   n       %total  target stop  ambig tiempo final  primario        IC95   bloques  net_R medio  n net_R  EXIT_FINAL  resolución    veredicto        motivos
+<50      36279  38.48%  16710 19083     13      0   473      0.171    [-0.007, 0.317]        5        0.222    36266      1.30% LOW          NO CONCLUYENTE   bloques 5 < 12; intervalo 0.324 > 0.200
+50-60    36407  38.62%  15886 19860      4      1   656      0.047    [-0.122, 0.174]        5        0.110    36403      1.80% LOW          NO CONCLUYENTE   bloques 5 < 12; intervalo 0.297 > 0.200
+60-70    19352  20.53%   8777 10228      7      2   338      0.093     [0.043, 0.140]        5        0.111    19345      1.75% LOW          NO CONCLUYENTE   bloques 5 < 12
+70-80     2172   2.30%   1052  1089      1      0    30     -0.072    [-0.583, 0.231]        5        0.193     2171      1.38% LOW          NO CONCLUYENTE   bloque mínimo 1 < 5 observaciones; bloques 5 < 12; intervalo 0.814 > 0.200
+80+         63   0.07%     31    32      0      0     0      0.122    [-0.181, 0.425]        4        0.180       63      0.00% LOW          NO CONCLUYENTE   bloque mínimo 3 < 5 observaciones; bloques 4 < 12; n 63 < 100; intervalo 0.606 > 0.200
+
+TABLA B - Ordenación con el score SIN RR
+banda   n       %total  target stop  ambig tiempo final  primario        IC95   bloques  net_R medio  n net_R  EXIT_FINAL  resolución    veredicto        motivos
+<50      39798  42.22%  17594 21694     14      0   496      0.161    [-0.016, 0.301]        5        0.207    39784      1.25% LOW          NO CONCLUYENTE   bloques 5 < 12; intervalo 0.317 > 0.200
+50-60    24403  25.89%  11005 12923      2      0   473      0.043    [-0.133, 0.168]        5        0.113    24401      1.94% LOW          NO CONCLUYENTE   bloques 5 < 12; intervalo 0.301 > 0.200
+60-70    22705  24.08%  10392 11875      8      3   427      0.047    [-0.105, 0.145]        5        0.114    22697      1.88% LOW          NO CONCLUYENTE   bloques 5 < 12; intervalo 0.249 > 0.200
+70-80     6347   6.73%   2968  3291      1      0    87     -0.018    [-0.319, 0.154]        5        0.134     6346      1.37% LOW          NO CONCLUYENTE   bloques 5 < 12; intervalo 0.473 > 0.200
+80+       1020   1.08%    497   509      0      0    14      0.149     [0.031, 0.268]        4        0.194     1020      1.37% LOW          NO CONCLUYENTE   bloques 4 < 12; intervalo 0.238 > 0.200
+
+TABLA C - Migración de bandas (filas score completo, columnas score sin RR)
+completo\sinRR      <50    50-60    60-70    70-80      80+    total
+<50               36279        0        0        0        0    36279
+50-60              3352    24157     8898        0        0    36407
+60-70               167      246    13789     5150        0    19352
+70-80                 0        0       18     1197      957     2172
+80+                   0        0        0        0       63       63
+total             39798    24403    22705     6347     1020    94273
+
+Cruces informativos: corte 60 baja=413, sube=8898; corte 70 baja=18, sube=5150.
+
+TABLA D - Diagnóstico del RR por banda (score completo)
+banda   n       mediana RR puntos  p10    p90    mediana contrib.  mediana risk_pp  mediana RR bruto  mediana RR neto  mediana coste/riesgo  veredicto
+<50      36279            10.000 10.000 15.000             2.167           4.755             1.500            1.470                 0.042 NO CONCLUYENTE
+50-60    36407            10.000 10.000 10.000            -1.583           4.417             1.500            1.460                 0.045 NO CONCLUYENTE
+60-70    19352            10.000 10.000 10.000            -4.167           4.233             1.500            1.454                 0.047 NO CONCLUYENTE
+70-80     2172            10.000 10.000 10.000            -7.292           4.683             1.500            1.458                 0.043 NO CONCLUYENTE
+80+         63            10.000 10.000 10.000           -10.333           5.501             1.500            1.464                 0.036 NO CONCLUYENTE
+
+Conclusiones:
+- Score sin RR 50-60 vs 80+: NO CONCLUYENTE (50-60 no concluyente; 80+ no concluyente; los intervalos se solapan)
+- RR por dimensión: NO CONCLUYENTE en al menos una banda necesaria.
+- Ningún umbral se recalibra en P2.4.

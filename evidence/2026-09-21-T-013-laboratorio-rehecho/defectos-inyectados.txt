@@ -1,0 +1,58 @@
+PRUEBA DE INYECCION DE DEFECTOS — T-013, 2026-09-21T12:11:32Z
+Cada invariante se acepta solo tras inyectar el defecto y VER FALLAR el test.
+
+############ DEFECTO 1: baja_decision se cuela en universe_vintage_payload ############
+        assert {asset.symbol for asset in universe.all_assets() if asset.baja_decision == "D-35"} == D35_SYMBOLS
+>       assert universe_vintage_id(universe) == REAL_UNIVERSE_VINTAGE
+E       AssertionError: assert 'cb77e4914077...dfd6ef0f7570a' == '237b0056f0b2...b37c3ac565d19'
+E         
+E         - 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
+E         + cb77e4914077685008e3aace3bbde9c608bb990b043b18ab9bbdfd6ef0f7570a
+
+tests/test_universe_vintage.py:189: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_universe_vintage.py::test_universe_real_tiene_93_analizables_y_vintage_conocido
+FAILED tests/test_universe_vintage.py::test_campo_baja_no_mueve_el_universe_vintage_id
+2 failed, 8 deselected in 0.27s
+
+############ DEFECTO 2: reponer sin anular valid_to ############
+        assert {asset.symbol for asset in pre_d31.analizables()} - {asset.symbol for asset in d31.analizables()} == D31_SYMBOLS
+        assert universe_vintage_id(vigente) == REAL_UNIVERSE_VINTAGE
+>       assert universe_vintage_id(d31) == D31_VINTAGE
+E       AssertionError: assert '4b589b0046b7...dca87638e6c4f' == 'c8496446d9b0...599b70f952132'
+E         
+E         - c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132
+E         + 4b589b0046b7495ddcb3729a218ab6a596dce1778824e2cd94bdca87638e6c4f
+
+tests/test_universe_vintage.py:161: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_universe_vintage.py::test_poblacion_pre_d31_reconstruye_107_y_d31_reconstruye_103
+1 failed, 9 deselected in 0.11s
+
+############ DEFECTO 3: el primario se calcula con la tasa TARGET_FIRST, no con net_R ############
+        band = {summary.label: summary for summary in report.bands}["50-60"]
+    
+        assert band.n_blocks == 2
+>       assert band.primary_expectancy_net_r == pytest.approx(0.20)
+E       assert 1.0 == 0.2 ± 2.0e-07
+E         
+E         comparison failed
+E         Obtained: 1.0
+E         Expected: 0.2 ± 2.0e-07
+
+tests/test_capacity.py:138: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_capacity.py::test_intervalo_primario_por_banda_se_calcula_sobre_bloques
+1 failed, 11 deselected in 0.07s
+
+############ DEFECTO 4: el veredicto NO CONCLUYENTE se come el intervalo y los bloques ############
+>       assert re.search(r"\[-?\d+\.\d{3}, -?\d+\.\d{3}\]", row), row
+E       AssertionError: 80+         78 100.00%     40    38      0      0     0     -0.040     NO CONCLUYENTE        2 NO CONCLUYENTE       78      0.00% LOW          NO CONCLUYENTE   bloques 2 < 12; n 78 < 100; intervalo 2.000 > 0.200
+E       assert None
+E        +  where None = <function search at 0x1024407c0>('\\[-?\\d+\\.\\d{3}, -?\\d+\\.\\d{3}\\]', '80+         78 100.00%     40    38      0      0     0     -0.040     NO CONCLUYENTE        2 NO CONCLUYENTE       78      0.00% LOW          NO CONCLUYENTE   bloques 2 < 12; n 78 < 100; intervalo 2.000 > 0.200')
+E        +    where <function search at 0x1024407c0> = re.search
+
+tests/test_ablation.py:162: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_ablation.py::test_una_banda_no_concluyente_publica_igualmente_primario_intervalo_y_bloques
+1 failed, 13 deselected in 0.10s

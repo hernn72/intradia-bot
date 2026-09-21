@@ -1,6 +1,6 @@
 # T-013 — Rehacer P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…` (A-02)
 
-Estado: PENDIENTE
+Estado: EN_REVISION
 Agente: Opus (ficha) → Codex (implementación) → Opus (revisión) → propietario (OD-11)
 Línea / fase: Línea A, A-02
 Gate al que contribuye: **GATE P2** (es la tarea que lo cruza)
@@ -412,4 +412,33 @@ devolvería las mismas series. Copiarla fuera del portátil antes de empezar no 
 parte de esta ficha, pero sí es la decisión más barata de la semana.
 
 ## Handoff al siguiente agente
-Pendiente de escribir al terminar.
+
+**Estado:** implementada el 2026-09-21 en `feat/a02-laboratorio-rehecho`, a la
+espera de revisión independiente. **No fusionada, sin PR.**
+
+**Verificado:** 613 tests, `ruff` y `mypy` limpios. Los tres
+`universe_vintage_id` reproducen los del decision log. `pre-d31` devuelve las
+121.786 señales de agosto, exactas. Producción probada intacta de forma
+determinista con `backtest --vintage` (mismo SHA-256, 866 operaciones). Los
+cuatro defectos inyectados hacen fallar su test, con la salida guardada.
+
+**Resultado:** con el estimador primario de INV-14 el veredicto global pasa de
+`LIMITADA`/`MEDIUM` a `INSUFICIENTE`/`LOW`; ninguna banda es concluyente; el
+IC95 cruza el cero en todas menos `<50`. Medio da 5 bloques, no los 8 previstos.
+No se ajustó nada para mejorarlo.
+
+**Pendiente, y es lo que bloquea el gate:** **OD-11**, la decisión del
+propietario sobre el RR. GATE P2 tiene 6 de 7 requisitos cumplidos.
+
+**Hallazgos clasificados:**
+- SAME_SCOPE, corregido: la tabla de la ablación sustituía intervalo, media y
+  bloques por «NO CONCLUYENTE», incumpliendo `docs/metodo-trabajo.md` §3. Era
+  anterior a esta tarea; el cambio de estimador lo dejó al descubierto porque
+  la tabla entera se quedaba sin números.
+- OBSERVATION: `_primary_rows_by_region` accede a `block_lookup._asset(...)`,
+  un método privado desde fuera de su clase. Funciona y `ruff` lo acepta; queda
+  anotado por higiene, no se tocó.
+- OBSERVATION: la `n` del primario es menor que la `n` de la banda porque las
+  señales `AMBIGUOUS` no tienen `net_r_multiple`. Está declarado en `despues.md`.
+
+**Siguiente paso:** revisión independiente y, en paralelo, responder OD-11.

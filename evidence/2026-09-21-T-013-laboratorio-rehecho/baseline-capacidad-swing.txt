@@ -1,0 +1,27 @@
+--- capacidad-estadistica swing ---
+Cosecha: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+Universo: 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
+
+SWING
+Capacidad global: LIMITADA
+  n=106363; n_by_band={'<50': 45574, '50-60': 38828, '60-70': 19702, '70-80': 2194, '80+': 65}; n_blocks=21; block_length=60; interval=[0.343, 0.439]; interval_width=0.096; block_n_min=144; block_n_mean=5064.9; EXIT_FINAL=0.013; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=True; reasons=[]
+
+Estimadores pre-registrados 2026-09-02: primario=media por bloque de expectancy neta en R +0.064 (bloques=21, longitud=60 sesiones); secundarios=tasa agrupada expectancy neta en R +0.103, tasa agrupada TARGET_FIRST/(TARGET_FIRST+STOP_FIRST) 0.433, P(objetivo antes de stop) [0.410, 0.410].
+
+Bandas de score:
+Score <50: LIMITADA
+  n=45574; n_by_band={'<50': 45574, '50-60': 0, '60-70': 0, '70-80': 0, '80+': 0}; n_blocks=21; block_length=60; interval=[0.361, 0.455]; interval_width=0.094; block_n_min=132; block_n_mean=2170.2; EXIT_FINAL=0.010; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=True; reasons=[]
+Score 50-60: LIMITADA
+  n=38828; n_by_band={'<50': 0, '50-60': 38828, '60-70': 0, '70-80': 0, '80+': 0}; n_blocks=21; block_length=60; interval=[0.306, 0.420]; interval_width=0.114; block_n_min=12; block_n_mean=1849.0; EXIT_FINAL=0.016; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=True; reasons=[]
+Score 60-70: LIMITADA
+  n=19702; n_by_band={'<50': 0, '50-60': 0, '60-70': 19702, '70-80': 0, '80+': 0}; n_blocks=20; block_length=60; interval=[0.338, 0.456]; interval_width=0.118; block_n_min=61; block_n_mean=985.1; EXIT_FINAL=0.017; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=True; reasons=[]
+Score 70-80: LIMITADA
+  n=2194; n_by_band={'<50': 0, '50-60': 0, '60-70': 0, '70-80': 2194, '80+': 0}; n_blocks=20; block_length=60; interval=[0.297, 0.464]; interval_width=0.166; block_n_min=2; block_n_mean=109.7; EXIT_FINAL=0.013; AMBIGUOUS=0.000; resolution=MEDIUM; conclusive=False; reasons=['bloque mínimo 2 < 5 observaciones']
+Score 80+: INSUFICIENTE
+  n=65; n_by_band={'<50': 0, '50-60': 0, '60-70': 0, '70-80': 0, '80+': 65}; n_blocks=15; block_length=60; interval=[0.397, 0.652]; interval_width=0.255; block_n_min=1; block_n_mean=4.3; EXIT_FINAL=0.000; AMBIGUOUS=0.000; resolution=LOW; conclusive=False; reasons=['bloque mínimo 1 < 5 observaciones', 'n 65 < 100', 'intervalo 0.255 > 0.200']
+
+Comparaciones:
+50-60 vs 80+: INSUFICIENTE
+  intervalos=[0.306, 0.420] vs [0.397, 0.652]; anchura_max=0.255; resolution=LOW; conclusive=False; reasons=['80+ no concluyente', 'los intervalos se solapan']
+
+Conclusión: no se permite calibrar un threshold apoyándose en 80+.
