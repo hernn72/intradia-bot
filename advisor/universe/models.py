@@ -131,6 +131,7 @@ class Asset(BaseModel):
     # Un activo con ``analizable: false`` se carga pero no se analiza: útil
     # para apartar temporalmente un valor sin borrar sus metadatos.
     analizable: bool = True
+    baja_decision: Optional[str] = None
     notes: Optional[str] = None
 
     @model_validator(mode="before")

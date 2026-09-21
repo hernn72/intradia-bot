@@ -86,6 +86,7 @@ class AblationResult:
     cost_pct: float
     warmup_bars: int
     max_hold_bars: int
+    population_name: str
     evaluated_assets: int
     source_skipped: List[Tuple[str, str]]
     rr_dimension_name: str
@@ -208,6 +209,7 @@ def run_ablation(
         cost_pct=result.cost_pct,
         warmup_bars=result.warmup_bars,
         max_hold_bars=result.max_hold_bars,
+        population_name=result.population_name,
         evaluated_assets=len(result.evaluated_assets),
         source_skipped=list(result.skipped),
         rr_dimension_name=RR_DIMENSION,
@@ -230,6 +232,7 @@ def format_ablation_report(result: AblationResult) -> str:
         "# Ablación P2.4 del score",
         "",
         f"Cosecha: {result.data_vintage_id}",
+        f"Población: {result.population_name}",
         f"Universo: {result.universe_vintage_id}",
         f"Horizonte: {result.horizonte} | coste {result.cost_pct:.2f}% | warmup {result.warmup_bars} velas | "
         f"horizonte máximo {result.max_hold_bars} velas",
@@ -241,8 +244,8 @@ def format_ablation_report(result: AblationResult) -> str:
         f"evaluable_max sin RR observado: {_format_counts(result.evaluable_max_without_rr_counts)}",
         f"Dimensión ablacionada: {result.rr_dimension_name} | peso {result.rr_dimension_max:.1f} | "
         f"denominador resultante típico {_typical_without_rr(result):.1f}",
-        "Intervalos: P(objetivo antes de stop) usa bootstrap P2.6 sobre medias por bloque; "
-        "net_R se cubre en comparacion-pareada P2.6.",
+        "Intervalos: el primario es expectancy neta en R por bloque; P(objetivo antes de stop) "
+        "queda como secundario y no se publica solo.",
         "Bootstrap capacidad: "
         f"semilla={DEFAULT_SEED}; remuestreos={DEFAULT_RESAMPLES}",
         "Umbrales NO recalibrados: la tabla B usa los mismos cortes de SCORE_BANDS sobre una nota normalizada "
@@ -349,7 +352,7 @@ def _counts(values: Iterable[float]) -> Dict[float, int]:
 def _format_order_header() -> str:
     return (
         "banda   n       %total  target stop  ambig tiempo final  "
-        "P(objetivo antes de stop)  net_R medio  n net_R  EXIT_FINAL  resolución    veredicto        motivos"
+        "primario        IC95   bloques  net_R medio  n net_R  EXIT_FINAL  resolución    veredicto        motivos"
     )
 
 
@@ -357,19 +360,18 @@ def _format_order_band(band: AblationBand) -> str:
     summary = band.band_summary
     capacity = band.capacity
     n_net_r = summary.total - summary.ambiguous
-    if capacity.conclusive:
-        interval = f"[{capacity.interval_lower:.3f}, {capacity.interval_upper:.3f}]"
-        mean = _fmt_optional(summary.mean_net_r_multiple)
-        verdict = capacity.verdict
-    else:
-        interval = "NO CONCLUYENTE"
-        mean = "NO CONCLUYENTE"
-        verdict = "NO CONCLUYENTE"
+    # Un resultado NO CONCLUYENTE se publica con sus numeros, no en su lugar:
+    # `docs/metodo-trabajo.md` seccion 3 exige resolucion, tamano de muestra,
+    # numero de bloques e intervalo, y el veredicto va en su propia columna.
+    interval = _fmt_interval(capacity.primary_interval_lower, capacity.primary_interval_upper)
+    mean = _fmt_optional(summary.mean_net_r_multiple)
+    verdict = capacity.verdict if capacity.conclusive else "NO CONCLUYENTE"
     return (
         f"{band.label:<6} {band.n:>7} {band.share_of_total:>7.2%} "
         f"{summary.target_first:>6} {summary.stop_first:>5} {summary.ambiguous:>6} "
         f"{summary.time_exit:>6} {summary.final_exit:>5}  "
-        f"{interval:>26} {mean:>12} {n_net_r:>8} {capacity.exit_final_rate:>10.2%} "
+        f"{_fmt_optional(capacity.primary_expectancy_net_r):>9} {interval:>18} "
+        f"{capacity.n_blocks:>8} {mean:>12} {n_net_r:>8} {capacity.exit_final_rate:>10.2%} "
         f"{capacity.resolution:<12} {verdict:<16} {_reasons(capacity)}"
     )
 
@@ -477,6 +479,12 @@ def _reasons(summary: CapacitySummary) -> str:
 
 def _fmt_optional(value: Optional[float]) -> str:
     return "N/D" if value is None else f"{value:.3f}"
+
+
+def _fmt_interval(lower: Optional[float], upper: Optional[float]) -> str:
+    if lower is None or upper is None:
+        return "sin intervalo"
+    return f"[{lower:.3f}, {upper:.3f}]"
 
 
 def _median(values: Sequence[float]) -> Optional[float]:

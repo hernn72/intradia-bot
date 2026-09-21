@@ -146,6 +146,7 @@ class EventStudyResult:
     warmup_bars: int
     max_hold_bars: int
     universe_vintage_id: str = ""
+    population_name: str = "vigente"
     signals: List[EventStudySignal] = field(default_factory=list)
     evaluated_assets: List[str] = field(default_factory=list)
     asset_bar_counts: Dict[str, int] = field(default_factory=dict)
@@ -218,11 +219,19 @@ def run_event_study(
     horizonte: str = "swing",
     cost_pct: float = 0.2,
     root_dir: str = "data/vintages",
+    population_name: str = "vigente",
 ) -> EventStudyResult:
     """Ejecuta P2.3 sobre una cosecha ya congelada y verificada."""
 
     vintage = load_vintage(data_vintage_id, root_dir=root_dir)
-    return run_event_study_on_vintage(config, universe, vintage, horizonte=horizonte, cost_pct=cost_pct)
+    return run_event_study_on_vintage(
+        config,
+        universe,
+        vintage,
+        horizonte=horizonte,
+        cost_pct=cost_pct,
+        population_name=population_name,
+    )
 
 
 def run_event_study_on_vintage(
@@ -232,6 +241,7 @@ def run_event_study_on_vintage(
     *,
     horizonte: str = "swing",
     cost_pct: float = 0.2,
+    population_name: str = "vigente",
 ) -> EventStudyResult:
     """Núcleo con I/O ya resuelto, útil para tests y para la CLI."""
 
@@ -248,6 +258,7 @@ def run_event_study_on_vintage(
         cost_pct=cost_pct,
         warmup_bars=warmup,
         max_hold_bars=max_hold,
+        population_name=population_name,
     )
 
     vix_close = frozen_close(vintage, config.market_context.vix_symbol)
@@ -570,6 +581,7 @@ def format_event_study_report(result: EventStudyResult, estimator_summary: Optio
         "# Event study P2.3",
         "",
         f"Cosecha: {result.data_vintage_id}",
+        f"Población: {result.population_name}",
         f"Universo: {result.universe_vintage_id}",
         f"Horizonte: {result.horizonte} | coste {result.cost_pct:.2f}% | "
         f"warmup {result.warmup_bars} velas | horizonte máximo {result.max_hold_bars} velas",
@@ -592,6 +604,9 @@ def format_event_study_report(result: EventStudyResult, estimator_summary: Optio
             "",
             "Banda   n     target stop ambig tiempo final  P(objetivo antes de stop)   net_R medio  "
             "MAE gan.       MFE perd.       MFE sin objetivo",
+            "Lectura MAE/MFE: la MAE de una salida por stop vale 1,0 R por construcción; "
+            "la informativa es la MAE de las ganadoras. MFE sin objetivo mantiene separado "
+            "el modo potencial sin target.",
         ]
     )
     for band in result.bands:

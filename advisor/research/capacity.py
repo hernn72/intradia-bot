@@ -77,9 +77,13 @@ class CapacitySummary:
     n_by_band: Dict[str, int]
     n_blocks: int
     block_length: int
-    interval_lower: float
-    interval_upper: float
-    interval_width: float
+    primary_expectancy_net_r: float
+    primary_interval_lower: Optional[float]
+    primary_interval_upper: Optional[float]
+    primary_interval_width: Optional[float]
+    secondary_target_first_interval_lower: float
+    secondary_target_first_interval_upper: float
+    secondary_target_first_interval_width: float
     min_block_observations: int
     mean_block_observations: float
     exit_final_rate: float
@@ -89,6 +93,18 @@ class CapacitySummary:
     verdict: str
     reasons: Tuple[str, ...] = field(default_factory=tuple)
 
+    @property
+    def interval_lower(self) -> float:
+        return self.primary_interval_lower if self.primary_interval_lower is not None else 0.0
+
+    @property
+    def interval_upper(self) -> float:
+        return self.primary_interval_upper if self.primary_interval_upper is not None else 0.0
+
+    @property
+    def interval_width(self) -> float:
+        return self.primary_interval_width if self.primary_interval_width is not None else 0.0
+
 
 @dataclass(frozen=True)
 class CapacityComparison:
@@ -97,9 +113,9 @@ class CapacityComparison:
     label: str
     left: CapacitySummary
     right: CapacitySummary
-    interval_left: Tuple[float, float]
-    interval_right: Tuple[float, float]
-    interval_width: float
+    interval_left: Tuple[Optional[float], Optional[float]]
+    interval_right: Tuple[Optional[float], Optional[float]]
+    interval_width: Optional[float]
     resolution: str
     conclusive: bool
     verdict: str
@@ -118,6 +134,20 @@ class CapacityReport:
 
 
 @dataclass(frozen=True)
+class PrimaryEstimatorRow:
+    label: str
+    n: int
+    n_blocks: int
+    mean: float
+    interval_lower: Optional[float]
+    interval_upper: Optional[float]
+
+    @property
+    def has_interval(self) -> bool:
+        return self.interval_lower is not None and self.interval_upper is not None
+
+
+@dataclass(frozen=True)
 class PreregisteredEstimatorSummary:
     """Estimadores fijados el 2026-09-02 antes de volver a mirar resultados."""
 
@@ -129,6 +159,11 @@ class PreregisteredEstimatorSummary:
     secondary_pooled_target_first_rate: float
     secondary_target_first_lower: float
     secondary_target_first_upper: float
+    primary_interval_lower: Optional[float] = None
+    primary_interval_upper: Optional[float] = None
+    primary_by_band: List[PrimaryEstimatorRow] = field(default_factory=list)
+    primary_by_region: List[PrimaryEstimatorRow] = field(default_factory=list)
+    primary_by_asset: List[PrimaryEstimatorRow] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -230,13 +265,14 @@ def assess_capacity(
 def format_capacity_report(report: CapacityReport) -> str:
     """Informe textual del gate: veredicto y materia prima inseparables."""
 
+    if report.estimators is None:
+        raise ValueError("INV-14: no se publica capacidad sin estimador primario")
     lines = [
         report.horizonte,
         f"Capacidad global: {report.global_summary.verdict}",
         _format_summary(report.global_summary),
     ]
-    if report.estimators is not None:
-        lines.extend(["", format_preregistered_estimators(report.estimators)])
+    lines.extend(["", format_preregistered_estimators(report.estimators)])
     lines.extend(["", "Bandas de score:"])
     for summary in report.bands:
         lines.append(f"Score {summary.label}: {summary.verdict}")
@@ -246,10 +282,12 @@ def format_capacity_report(report: CapacityReport) -> str:
         lines.append("Comparaciones:")
         for comparison in report.comparisons:
             lines.append(f"{comparison.label}: {comparison.verdict}")
+            width = "N/D" if comparison.interval_width is None else f"{comparison.interval_width:.3f}"
             lines.append(
-                "  intervalos="
-                f"{_fmt_interval(comparison.interval_left)} vs {_fmt_interval(comparison.interval_right)}; "
-                f"anchura_max={comparison.interval_width:.3f}; resolution={comparison.resolution}; "
+                "  intervalos primarios="
+                f"{_fmt_optional_interval(*comparison.interval_left)} vs "
+                f"{_fmt_optional_interval(*comparison.interval_right)}; "
+                f"anchura_max={width}; resolution={comparison.resolution}; "
                 f"conclusive={comparison.conclusive}; reasons={list(comparison.reasons)}"
             )
     if any(summary.label == "80+" and not summary.conclusive for summary in report.bands):
@@ -268,19 +306,7 @@ def preregistered_estimators(
 
     block_length = _protocol_block_length(result.horizonte, result.max_hold_bars)
     lookup = block_lookup or _temporal_block_lookup(result, block_length, universe)
-    block_values: Dict[int, List[EventStudySignal]] = {}
-    for signal in result.signals:
-        block_values.setdefault(lookup.block_for(signal), []).append(signal)
-
-    block_expectancies: List[Optional[float]] = []
-    for _, signals in sorted(block_values.items()):
-        values = [
-            signal.managed.net_r_multiple
-            for signal in signals
-            if signal.managed.net_r_multiple is not None
-        ]
-        block_expectancies.append(_mean_float(values))
-    observable_block_expectancies = [value for value in block_expectancies if value is not None]
+    primary_global = _primary_expectancy_row("GLOBAL", result.signals, lookup)
     pooled_values = [
         signal.managed.net_r_multiple
         for signal in result.signals
@@ -296,9 +322,17 @@ def preregistered_estimators(
     )
     return PreregisteredEstimatorSummary(
         block_length=block_length,
-        n_blocks=len(observable_block_expectancies),
+        n_blocks=primary_global.n_blocks,
         n_observable=len(pooled_values),
-        primary_block_expectancy_net_r=_mean_float(observable_block_expectancies) or 0.0,
+        primary_block_expectancy_net_r=primary_global.mean,
+        primary_interval_lower=primary_global.interval_lower,
+        primary_interval_upper=primary_global.interval_upper,
+        primary_by_band=[
+            _primary_expectancy_row(label, [signal for signal in result.signals if score_band(signal.observation.score_value) == label], lookup)
+            for label, _, _ in SCORE_BANDS
+        ],
+        primary_by_region=_primary_rows_by_region(result.signals, lookup),
+        primary_by_asset=_primary_rows_by_asset(result.signals, lookup),
         secondary_pooled_expectancy_net_r=_mean_float(pooled_values) or 0.0,
         secondary_pooled_target_first_rate=target_first / resolved if resolved else 0.0,
         secondary_target_first_lower=target_first / total if total else 0.0,
@@ -309,14 +343,24 @@ def preregistered_estimators(
 def format_preregistered_estimators(summary: PreregisteredEstimatorSummary) -> str:
     """Texto común: primario y secundarios juntos, nunca separados."""
 
-    return (
-        "Estimadores pre-registrados 2026-09-02: "
-        f"primario=media por bloque de expectancy neta en R {summary.primary_block_expectancy_net_r:+.3f} "
-        f"(bloques={summary.n_blocks}, longitud={summary.block_length} sesiones); "
-        f"secundarios=tasa agrupada expectancy neta en R {summary.secondary_pooled_expectancy_net_r:+.3f}, "
-        f"tasa agrupada TARGET_FIRST/(TARGET_FIRST+STOP_FIRST) {summary.secondary_pooled_target_first_rate:.3f}, "
-        f"P(objetivo antes de stop) [{summary.secondary_target_first_lower:.3f}, {summary.secondary_target_first_upper:.3f}]."
-    )
+    lines = [
+        "Estimadores pre-registrados 2026-09-02:",
+        "Primario: media por bloque de expectancy neta en R "
+        f"{summary.primary_block_expectancy_net_r:+.3f}; "
+        f"IC95={_fmt_optional_interval(summary.primary_interval_lower, summary.primary_interval_upper)}; "
+        f"bloques={summary.n_blocks}; longitud={summary.block_length} sesiones.",
+        "Primario por banda:",
+        _format_primary_rows(summary.primary_by_band),
+        "Primario por región:",
+        _format_primary_rows(summary.primary_by_region),
+        "Primario por activo:",
+        _format_primary_rows(summary.primary_by_asset),
+        "Secundarios: "
+        f"tasa agrupada expectancy neta en R {summary.secondary_pooled_expectancy_net_r:+.3f}; "
+        f"tasa agrupada TARGET_FIRST/(TARGET_FIRST+STOP_FIRST) {summary.secondary_pooled_target_first_rate:.3f}; "
+        f"P(objetivo antes de stop) [{summary.secondary_target_first_lower:.3f}, {summary.secondary_target_first_upper:.3f}].",
+    ]
+    return "\n".join(lines)
 
 
 def _summary(
@@ -334,9 +378,15 @@ def _summary(
         n_by_band[band_of(signal)] += 1
 
     n_blocks = _temporal_blocks(signals, block_lookup)
+    primary = _primary_expectancy_row(label, signals, block_lookup)
     block_rates = _block_success_rates(signals, block_lookup)
-    interval = _block_mean_interval(block_rates)
-    interval_width = interval[1] - interval[0]
+    secondary_interval = _block_mean_interval(block_rates)
+    secondary_interval_width = secondary_interval[1] - secondary_interval[0]
+    primary_width = (
+        primary.interval_upper - primary.interval_lower
+        if primary.interval_lower is not None and primary.interval_upper is not None
+        else None
+    )
     block_sizes = [total for _, total in block_rates]
     min_block_observations = min(block_sizes) if block_sizes else 0
     mean_block_observations = sum(block_sizes) / len(block_sizes) if block_sizes else 0.0
@@ -345,7 +395,7 @@ def _summary(
     resolution, verdict, conclusive, reasons = _classify_capacity(
         nominal_n=nominal_n,
         n_blocks=n_blocks,
-        interval_width=interval_width,
+        interval_width=primary_width,
         exit_final_rate=exit_final_rate,
         ambiguous_rate=ambiguous_rate,
         thresholds=thresholds,
@@ -357,9 +407,13 @@ def _summary(
         n_by_band=n_by_band,
         n_blocks=n_blocks,
         block_length=block_length,
-        interval_lower=interval[0],
-        interval_upper=interval[1],
-        interval_width=interval_width,
+        primary_expectancy_net_r=primary.mean,
+        primary_interval_lower=primary.interval_lower,
+        primary_interval_upper=primary.interval_upper,
+        primary_interval_width=primary_width,
+        secondary_target_first_interval_lower=secondary_interval[0],
+        secondary_target_first_interval_upper=secondary_interval[1],
+        secondary_target_first_interval_width=secondary_interval_width,
         min_block_observations=min_block_observations,
         mean_block_observations=mean_block_observations,
         exit_final_rate=exit_final_rate,
@@ -377,16 +431,23 @@ def _comparison(
     *,
     thresholds: CapacityThresholds,
 ) -> CapacityComparison:
-    interval_left = (left.interval_lower, left.interval_upper)
-    interval_right = (right.interval_lower, right.interval_upper)
-    overlap = interval_left[0] <= interval_right[1] and interval_right[0] <= interval_left[1]
-    interval_width = max(left.interval_width, right.interval_width)
+    interval_left = (left.primary_interval_lower, left.primary_interval_upper)
+    interval_right = (right.primary_interval_lower, right.primary_interval_upper)
+    overlap = _intervals_overlap(interval_left, interval_right)
+    widths = [
+        value
+        for value in (left.primary_interval_width, right.primary_interval_width)
+        if value is not None
+    ]
+    interval_width = max(widths) if widths else None
     reasons: List[str] = []
     if not left.conclusive:
         reasons.append(f"{left.label} no concluyente")
     if not right.conclusive:
         reasons.append(f"{right.label} no concluyente")
-    if overlap:
+    if interval_width is None:
+        reasons.append("intervalo primario no publicable")
+    elif overlap:
         reasons.append("los intervalos se solapan")
     resolution = max((left.resolution, right.resolution), key=_resolution_rank)
     conclusive = left.conclusive and right.conclusive and not overlap
@@ -409,7 +470,7 @@ def _classify_capacity(
     *,
     nominal_n: int,
     n_blocks: int,
-    interval_width: float,
+    interval_width: Optional[float],
     exit_final_rate: float,
     ambiguous_rate: float,
     thresholds: CapacityThresholds,
@@ -430,6 +491,7 @@ def _classify_capacity(
     if (
         n_blocks >= thresholds.sufficient_blocks
         and nominal_n >= thresholds.sufficient_n
+        and interval_width is not None
         and interval_width <= thresholds.sufficient_interval_width
         and not reasons
     ):
@@ -437,6 +499,7 @@ def _classify_capacity(
     if (
         n_blocks >= thresholds.limited_blocks
         and nominal_n >= thresholds.limited_n
+        and interval_width is not None
         and interval_width <= thresholds.limited_interval_width
     ):
         return RESOLUTION_MEDIUM, LIMITADA, not reasons, reasons
@@ -445,7 +508,9 @@ def _classify_capacity(
         reasons.append(f"bloques {n_blocks} < {thresholds.limited_blocks}")
     if nominal_n < thresholds.limited_n:
         reasons.append(f"n {nominal_n} < {thresholds.limited_n}")
-    if interval_width > thresholds.limited_interval_width:
+    if interval_width is None:
+        reasons.append("intervalo primario no publicable")
+    elif interval_width > thresholds.limited_interval_width:
         reasons.append(f"intervalo {interval_width:.3f} > {thresholds.limited_interval_width:.3f}")
     return RESOLUTION_LOW, INSUFICIENTE, False, reasons
 
@@ -517,6 +582,57 @@ def _temporal_blocks(signals: Sequence[EventStudySignal], block_lookup: Temporal
     return len({block_lookup.block_for(signal) for signal in signals})
 
 
+def _primary_expectancy_row(
+    label: str,
+    signals: Sequence[EventStudySignal],
+    block_lookup: TemporalBlockMap,
+) -> PrimaryEstimatorRow:
+    buckets: Dict[int, List[float]] = {}
+    for signal in signals:
+        value = signal.managed.net_r_multiple
+        if value is None:
+            continue
+        buckets.setdefault(block_lookup.block_for(signal), []).append(value)
+    block_values = [
+        (mean, len(values))
+        for _, values in sorted(buckets.items())
+        if (mean := _mean_float(values)) is not None
+    ]
+    means = [value for value, _ in block_values]
+    if len(block_values) < 2:
+        interval: Tuple[Optional[float], Optional[float]] = (None, None)
+    else:
+        interval = bootstrap_block_mean_interval(
+            block_values,
+            seed=DEFAULT_SEED,
+            n_resamples=DEFAULT_RESAMPLES,
+            confidence=0.95,
+        )
+    return PrimaryEstimatorRow(
+        label=label,
+        n=sum(weight for _, weight in block_values),
+        n_blocks=len(block_values),
+        mean=_mean_float(means) or 0.0,
+        interval_lower=interval[0],
+        interval_upper=interval[1],
+    )
+
+
+def _primary_rows_by_region(signals: Sequence[EventStudySignal], block_lookup: TemporalBlockMap) -> List[PrimaryEstimatorRow]:
+    buckets: Dict[str, List[EventStudySignal]] = {}
+    for signal in signals:
+        region = block_lookup._asset(signal).region
+        buckets.setdefault(region, []).append(signal)
+    return [_primary_expectancy_row(region, buckets[region], block_lookup) for region in sorted(buckets)]
+
+
+def _primary_rows_by_asset(signals: Sequence[EventStudySignal], block_lookup: TemporalBlockMap) -> List[PrimaryEstimatorRow]:
+    buckets: Dict[str, List[EventStudySignal]] = {}
+    for signal in signals:
+        buckets.setdefault(signal.observation.asset, []).append(signal)
+    return [_primary_expectancy_row(symbol, buckets[symbol], block_lookup) for symbol in sorted(buckets)]
+
+
 def _block_success_rates(signals: Sequence[EventStudySignal], block_lookup: TemporalBlockMap) -> List[Tuple[float, int]]:
     buckets: Dict[int, List[EventStudySignal]] = {}
     for signal in signals:
@@ -575,15 +691,41 @@ def _resolution_rank(value: str) -> int:
 
 
 def _format_summary(summary: CapacitySummary) -> str:
+    primary_width = "N/D" if summary.primary_interval_width is None else f"{summary.primary_interval_width:.3f}"
     return (
         f"  n={summary.nominal_n}; n_by_band={summary.n_by_band}; n_blocks={summary.n_blocks}; "
-        f"block_length={summary.block_length}; interval=[{summary.interval_lower:.3f}, {summary.interval_upper:.3f}]; "
-        f"interval_width={summary.interval_width:.3f}; block_n_min={summary.min_block_observations}; "
+        f"block_length={summary.block_length}; primary_expectancy_R={summary.primary_expectancy_net_r:+.3f}; "
+        f"primary_interval={_fmt_optional_interval(summary.primary_interval_lower, summary.primary_interval_upper)}; "
+        f"primary_interval_width={primary_width}; "
+        f"secondary_TARGET_FIRST_interval=[{summary.secondary_target_first_interval_lower:.3f}, "
+        f"{summary.secondary_target_first_interval_upper:.3f}]; "
+        f"block_n_min={summary.min_block_observations}; "
         f"block_n_mean={summary.mean_block_observations:.1f}; "
         f"EXIT_FINAL={summary.exit_final_rate:.3f}; AMBIGUOUS={summary.ambiguous_rate:.3f}; "
         f"resolution={summary.resolution}; conclusive={summary.conclusive}; reasons={list(summary.reasons)}"
     )
 
 
-def _fmt_interval(interval: Tuple[float, float]) -> str:
-    return f"[{interval[0]:.3f}, {interval[1]:.3f}]"
+def _intervals_overlap(
+    left: Tuple[Optional[float], Optional[float]],
+    right: Tuple[Optional[float], Optional[float]],
+) -> bool:
+    if left[0] is None or left[1] is None or right[0] is None or right[1] is None:
+        return True
+    return left[0] <= right[1] and right[0] <= left[1]
+
+
+def _format_primary_rows(rows: Sequence[PrimaryEstimatorRow]) -> str:
+    lines = ["label                 n  bloques  media_R   IC95"]
+    for row in rows:
+        lines.append(
+            f"{row.label:<18} {row.n:>6} {row.n_blocks:>8} {row.mean:>+8.3f}   "
+            f"{_fmt_optional_interval(row.interval_lower, row.interval_upper)}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_optional_interval(lower: Optional[float], upper: Optional[float]) -> str:
+    if lower is None or upper is None:
+        return "sin intervalo (<2 bloques)"
+    return f"[{lower:.3f}, {upper:.3f}]"

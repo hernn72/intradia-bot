@@ -58,6 +58,7 @@ from advisor.research.capacity import (
 )
 from advisor.research.event_study import format_event_study_report, run_event_study
 from advisor.research.execution_filter import format_execution_filter_report, run_execution_filter_study
+from advisor.research.population import resolve_research_population
 from advisor.research.uncertainty import compare_target_geometry, format_paired_comparison
 from advisor.research.vintage import freeze_vintage, select_symbols
 from advisor.run.manifest import RunManifest, build_run_manifest, format_manifest_footer
@@ -523,6 +524,7 @@ def cmd_pasada_evento(args: argparse.Namespace, config: AdvisorConfig, universe:
 
 
 def cmd_event_study(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    universe = resolve_research_population(universe, args.poblacion)
     result = run_event_study(
         config,
         universe,
@@ -530,6 +532,7 @@ def cmd_event_study(args: argparse.Namespace, config: AdvisorConfig, universe: U
         horizonte=args.horizonte,
         cost_pct=args.coste_pct,
         root_dir=args.data_dir,
+        population_name=args.poblacion,
     )
     print(format_event_study_report(result, format_preregistered_estimators(preregistered_estimators(result, universe=universe))))
     return 0
@@ -613,6 +616,7 @@ def format_universe_vintage(universe: Universe) -> str:
 
 
 def cmd_capacidad_estadistica(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    universe = resolve_research_population(universe, args.poblacion)
     result = run_event_study(
         config,
         universe,
@@ -620,13 +624,15 @@ def cmd_capacidad_estadistica(args: argparse.Namespace, config: AdvisorConfig, u
         horizonte=args.horizonte,
         cost_pct=args.coste_pct,
         root_dir=args.data_dir,
+        population_name=args.poblacion,
     )
-    print(f"Cosecha: {result.data_vintage_id}\nUniverso: {result.universe_vintage_id}\n")
+    print(f"Cosecha: {result.data_vintage_id}\nPoblación: {result.population_name}\nUniverso: {result.universe_vintage_id}\n")
     print(format_capacity_report(assess_capacity(result, universe=universe)))
     return 0
 
 
 def cmd_ablacion_score(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    universe = resolve_research_population(universe, args.poblacion)
     result = run_event_study(
         config,
         universe,
@@ -634,6 +640,7 @@ def cmd_ablacion_score(args: argparse.Namespace, config: AdvisorConfig, universe
         horizonte=args.horizonte,
         cost_pct=args.coste_pct,
         root_dir=args.data_dir,
+        population_name=args.poblacion,
     )
     print(format_ablation_report(run_ablation(result, universe=universe)))
     return 0
@@ -982,6 +989,7 @@ def build_parser() -> argparse.ArgumentParser:
     event_study.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
     event_study.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
                              help="coste de ida y vuelta en %%")
+    event_study.add_argument("--poblacion", choices=["vigente", "d31", "pre-d31"], default="vigente")
     event_study.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
     event_study.set_defaults(func=cmd_event_study)
 
@@ -999,6 +1007,7 @@ def build_parser() -> argparse.ArgumentParser:
     capacidad.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
     capacidad.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
                            help="coste de ida y vuelta en %%")
+    capacidad.add_argument("--poblacion", choices=["vigente", "d31", "pre-d31"], default="vigente")
     capacidad.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
     capacidad.set_defaults(func=cmd_capacidad_estadistica)
 
@@ -1007,6 +1016,7 @@ def build_parser() -> argparse.ArgumentParser:
     ablacion.add_argument("--horizonte", choices=["swing", "medio"], default="swing")
     ablacion.add_argument("--coste-pct", type=float, default=0.2, dest="coste_pct",
                           help="coste de ida y vuelta en %%")
+    ablacion.add_argument("--poblacion", choices=["vigente", "d31", "pre-d31"], default="vigente")
     ablacion.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
     ablacion.set_defaults(func=cmd_ablacion_score)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import inspect
 import math
+import re
 from dataclasses import replace
 from datetime import date, timedelta
 
@@ -144,6 +145,21 @@ def test_bandas_sin_capacidad_salen_como_no_concluyente() -> None:
     row = next(line for line in report.splitlines() if line.startswith("80+"))
     assert "NO CONCLUYENTE" in row
     assert "bloques 2 < 12" in row
+    assert " 78 " in row
+
+
+def test_una_banda_no_concluyente_publica_igualmente_primario_intervalo_y_bloques() -> None:
+    """`docs/metodo-trabajo.md` seccion 3: un NO CONCLUYENTE se publica CON sus
+    numeros —resolucion, muestra, bloques e intervalo—, no en lugar de ellos."""
+
+    signals = [_with_day(_signal_with_dimensions(score=85.0, status=TARGET_FIRST if i < 40 else STOP_FIRST), i) for i in range(78)]
+
+    report = format_ablation_report(run_ablation(_result(signals), universe=_universe()))
+    row = next(line for line in report.splitlines() if line.startswith("80+"))
+
+    assert "NO CONCLUYENTE" in row
+    # el veredicto no puede haberse comido el intervalo ni el recuento de bloques
+    assert re.search(r"\[-?\d+\.\d{3}, -?\d+\.\d{3}\]", row), row
     assert " 78 " in row
 
 
