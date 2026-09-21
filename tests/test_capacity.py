@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, timedelta
 
 import pytest
@@ -115,9 +116,64 @@ def test_capacidad_publica_estimador_primario_y_secundarios() -> None:
     salida = format_capacity_report(report)
 
     assert "Estimadores pre-registrados 2026-09-02" in salida
-    assert "primario=media por bloque de expectancy neta en R" in salida
-    assert "secundarios=tasa agrupada expectancy neta en R" in salida
+    assert "Primario: media por bloque de expectancy neta en R" in salida
+    assert "Secundarios: tasa agrupada expectancy neta en R" in salida
     assert "P(objetivo antes de stop)" in salida
+
+
+def test_intervalo_primario_por_banda_se_calcula_sobre_bloques() -> None:
+    signals = [
+        _with_net_r(_with_day(_signal(score=55.0, status=TARGET_FIRST), 0), 0.50),
+        _with_net_r(_with_day(_signal(score=55.0, status=TARGET_FIRST), 61), -0.10),
+    ]
+    result = _result(signals)
+    result = replace(
+        result,
+        session_dates_by_asset={"TEST": tuple(_session_date(day) for day in range(62))},
+    )
+    report = assess_capacity(result, universe=_universe())
+    band = {summary.label: summary for summary in report.bands}["50-60"]
+
+    assert band.n_blocks == 2
+    assert band.primary_expectancy_net_r == pytest.approx(0.20)
+    assert band.secondary_target_first_interval_lower == pytest.approx(1.0)
+    assert band.primary_interval_lower != pytest.approx(band.secondary_target_first_interval_lower)
+
+
+def test_el_informe_nunca_publica_el_secundario_sin_el_primario() -> None:
+    report = assess_capacity(_result([_with_day(_signal(score=55.0, status=TARGET_FIRST), 0)]), universe=_universe())
+    roto = replace(report, estimators=None)
+
+    with pytest.raises(ValueError, match="INV-14"):
+        format_capacity_report(roto)
+
+
+def test_desglose_por_region_suma_la_poblacion() -> None:
+    signals = []
+    for asset, day in (("A", 0), ("B", 1), ("C", 61)):
+        signal = _with_day(_signal(score=55.0, status=TARGET_FIRST), day)
+        object.__setattr__(signal.observation, "asset", asset)
+        signals.append(signal)
+    report = assess_capacity(_result(signals), universe=_universe("A", "B", "C", regions=("USA", "EUROPA", "USA")))
+
+    rows = report.estimators.primary_by_region
+    assert report.estimators is not None
+    assert sum(row.n for row in rows) == report.estimators.n_observable
+    assert {row.label: row.n for row in rows} == {"EUROPA": 1, "USA": 2}
+
+
+def test_tasa_de_censura_exit_final_se_publica_por_corte() -> None:
+    signals = [_with_day(_signal(score=55.0, status=TARGET_FIRST), 0)]
+    signal = signals[0]
+    censored = replace(signal.managed, exit_status=capacity.FINAL_EXIT, net_r_multiple=0.0)
+    signals.append(replace(_with_day(_signal(score=85.0, status=TARGET_FIRST), 1), managed=censored))
+
+    salida = format_capacity_report(assess_capacity(_result(signals), universe=_universe()))
+
+    assert "Score 50-60" in salida
+    assert "Score 80+" in salida
+    assert "EXIT_FINAL=0.000" in salida
+    assert "EXIT_FINAL=1.000" in salida
 
 
 def test_plaza_sin_zona_falla_ruidosamente() -> None:
@@ -135,6 +191,14 @@ def _with_day(signal, day: int):
     object.__setattr__(signal.observation, "signal_timestamp", timestamp)
     object.__setattr__(signal.observation, "signal_timestamp_raw", raw)
     return signal
+
+
+def _session_date(day: int) -> date:
+    return (parse_timestamp("2026-01-05T00:00:00Z") + timedelta(days=_business_day_offset(day))).date()
+
+
+def _with_net_r(signal, value: float):
+    return replace(signal, managed=replace(signal.managed, net_r_multiple=value))
 
 
 def _business_day_offset(index: int) -> int:
@@ -173,9 +237,11 @@ def _result(signals) -> EventStudyResult:
     )
 
 
-def _universe(*symbols: str, market: str = "XETRA") -> Universe:
+def _universe(*symbols: str, market: str = "XETRA", regions: tuple[str, ...] | None = None) -> Universe:
     if not symbols:
         symbols = ("TEST",)
+    if regions is None:
+        regions = tuple("EUROPA" for _ in symbols)
     assets = [
         Asset(
             primary_symbol=symbol,
@@ -183,12 +249,12 @@ def _universe(*symbols: str, market: str = "XETRA") -> Universe:
             primary_currency="EUR",
             name=symbol,
             asset_class="stock",
-            region="EUROPA",
+            region=region,
             economic_currency="EUR",
             timezone="Europe/Berlin",
             isin=None,
             requires_isin=True,
         )
-        for symbol in symbols
+        for symbol, region in zip(symbols, regions)
     ]
     return Universe(groups={"test": assets})

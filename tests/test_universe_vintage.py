@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from advisor.research.event_study import EventStudyResult, replay_managed_population
+from advisor.research.population import resolve_research_population
 from advisor.research.vintage import VintageLoad
 from advisor.universe.loader import load_universe
 from advisor.universe.models import Asset, Universe
@@ -14,6 +15,11 @@ BASE_VINTAGE = "b11204ead2a392b2832764b234b584dd3f070b9a11a884bd3994d39364e30709
 WITH_THIRD_ASSET = "28534156227fa947f5cb788f360c91d0038834dc82835fc8fef3646ed33d0eed"
 WITH_OTHER_BENCHMARK = "717e561a9a2b0cb736c4101c76c9a3ab65ac72d849bcd1a3d5d648b01c13a024"
 REAL_UNIVERSE_VINTAGE = "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19"
+D31_VINTAGE = "c8496446d9b04795b8533e25e794c6141a4e73db73c0ef9bf98599b70f952132"
+PRE_D31_VINTAGE = "894ce776ff8572b3a9dfc97a724f96789122e0dd2c46eef55045d4968e0b5fb0"
+PRE_D31_WITH_VALID_TO_VINTAGE = "d75368d6e2fc3b5d74206abaf357ea7f9d081e5d692841be44921f9c28e36c0e"
+D31_SYMBOLS = {"SAN.MC", "UCG.MI", "005930.KS", "1211.HK"}
+D35_SYMBOLS = {"LRCX", "JPM", "GE", "RTX", "RHM.DE", "NOVO-B.CO", "9984.T", "000660.KS", "DFEN.DE", "4GLD.DE"}
 
 
 SIN_DECLARAR = object()
@@ -137,6 +143,49 @@ def test_universe_real_tiene_93_analizables_y_vintage_conocido() -> None:
     assert len(universe.analizables()) == 93
     # Ninguna baja se queda analizable, y ninguna se cuela como contexto.
     assert [a.symbol for a in universe.all_assets() if a.trade_republic == "no" and a.analizable] == []
+    assert universe_vintage_id(universe) == REAL_UNIVERSE_VINTAGE
+
+
+def test_poblacion_pre_d31_reconstruye_107_y_d31_reconstruye_103() -> None:
+    universe = load_universe("universe.yaml")
+    vigente = resolve_research_population(universe, "vigente")
+    d31 = resolve_research_population(universe, "d31")
+    pre_d31 = resolve_research_population(universe, "pre-d31")
+
+    assert len(vigente.analizables()) == 93
+    assert len(d31.analizables()) == 103
+    assert len(pre_d31.analizables()) == 107
+    assert {asset.symbol for asset in d31.analizables()} - {asset.symbol for asset in vigente.analizables()} == D35_SYMBOLS
+    assert {asset.symbol for asset in pre_d31.analizables()} - {asset.symbol for asset in d31.analizables()} == D31_SYMBOLS
+    assert universe_vintage_id(vigente) == REAL_UNIVERSE_VINTAGE
+    assert universe_vintage_id(d31) == D31_VINTAGE
+    assert universe_vintage_id(pre_d31) == PRE_D31_VINTAGE
+    assert all(asset.valid_to is None for asset in d31.analizables() if asset.symbol in D35_SYMBOLS)
+
+
+def test_reponer_un_activo_sin_anular_valid_to_no_reproduce_el_hash() -> None:
+    universe = load_universe("universe.yaml")
+    groups = {
+        group: [
+            asset.model_copy(update={"analizable": True}, deep=True)
+            if asset.baja_decision in {"D-31", "D-35"}
+            else asset.model_copy(deep=True)
+            for asset in assets
+        ]
+        for group, assets in universe.groups.items()
+    }
+    defectuoso = Universe(groups=groups)
+
+    assert len(defectuoso.analizables()) == 107
+    assert universe_vintage_id(defectuoso) == PRE_D31_WITH_VALID_TO_VINTAGE
+    assert universe_vintage_id(defectuoso) != PRE_D31_VINTAGE
+
+
+def test_campo_baja_no_mueve_el_universe_vintage_id() -> None:
+    universe = load_universe("universe.yaml")
+
+    assert {asset.symbol for asset in universe.all_assets() if asset.baja_decision == "D-31"} == D31_SYMBOLS
+    assert {asset.symbol for asset in universe.all_assets() if asset.baja_decision == "D-35"} == D35_SYMBOLS
     assert universe_vintage_id(universe) == REAL_UNIVERSE_VINTAGE
 
 
