@@ -1,0 +1,11 @@
+=== CIERRE DE OD-11 / GATE P2  (2026-09-21T13:58:21Z) ===
+
+--- pytest -q ---
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+614 passed, 3 warnings in 114.93s (0:01:54)
+
+--- ruff check . ---
+All checks passed!
+
+--- mypy advisor ---
+Success: no issues found in 66 source files

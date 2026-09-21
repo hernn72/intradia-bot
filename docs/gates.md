@@ -70,12 +70,22 @@ línea 0 en la Pi.
 
 ## GATE P2 — Laboratorio corregido y congelado
 
-**Estado al 2026-09-21: SEIS de siete requisitos cumplidos, el gate NO está
-cruzado.** (Revisión independiente el mismo día: el requisito 3 estaba
-incompleto —faltaba la declaración de sesgo— y quedó completado.) T-013 (A-02) rehizo P2.3, P2.4 y P2.5 y dejó todo publicado; falta el
-requisito **6**, la decisión formal sobre el RR, que es del propietario y está
-abierta como **OD-11**. Evidencia y recorrido requisito a requisito en
-`evidence/2026-09-21-T-013-laboratorio-rehecho/README.md`. Veredicto en D-42.
+**GATE P2 CRUZADO el 2026-09-21.** Los siete requisitos cumplidos. T-013 (A-02)
+rehizo P2.3, P2.4 y P2.5 y publicó el resultado (**D-42**); el requisito 6, la
+decisión formal sobre el RR, lo cerró el propietario en **D-43** (OD-11): el RR
+sale del score como dimensión de puntuación y **sigue siendo condición de
+ejecutabilidad y de riesgo**. Evidencia y recorrido requisito a requisito en
+`evidence/2026-09-21-T-013-laboratorio-rehecho/README.md`.
+
+La revisión independiente del mismo día encontró el requisito 3 incompleto
+—faltaba copiar la declaración de sesgo— y quedó completado antes del cierre.
+
+**Lo que el gate NO autoriza a decir.** Con el estimador primario de INV-14
+ninguna de las cinco bandas es concluyente y el veredicto global es
+`INSUFICIENTE`/`LOW`. Este gate exige que los resultados **estén publicados**,
+no que sean favorables: se cruza con un resultado indeterminado, y P3 arranca
+sabiéndolo. Los nueve FOLLOW_UP abiertos están en
+`evidence/2026-09-21-T-013-laboratorio-rehecho/follow-ups.md`.
 
 Requisitos:
 
