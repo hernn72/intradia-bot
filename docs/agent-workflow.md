@@ -37,10 +37,21 @@ entregada`.
 **T-018 sigue pendiente y ya no compite con nada:** T-013 está hecha, así que
 T-018 (producción) es la única de las dos que queda por implementar.
 
-**T-013 (A-02) está ACEPTADA y GATE P2 quedó CRUZADO el 2026-09-21.** La rama
-`feat/a02-laboratorio-rehecho` está **sin fusionar** a la espera de revisar el
-cierre. Veredicto del laboratorio en **D-42**; OD-11 cerrada en **D-43**.
-Evidencia en `evidence/2026-09-21-T-013-laboratorio-rehecho/`.
+**T-013 (A-02) está ACEPTADA y GATE P2 quedó CRUZADO el 2026-09-21.**
+
+**Lo primero de mañana: el PR #23 está abierto, en verde y SIN FUSIONAR**
+(`feat/a02-laboratorio-rehecho`, 6 commits, cabeza `4a07fff`, `MERGEABLE`/`CLEAN`,
+los cuatro checks en pass). Solo falta que el propietario dé la orden de merge,
+que va con `gh pr merge 23 --rebase`. No hay nada mas pendiente de esta tarea.
+
+Veredicto del laboratorio en **D-42**; OD-11 cerrada en **D-43**. Evidencia en
+`evidence/2026-09-21-T-013-laboratorio-rehecho/`.
+
+**El horizonte MEDIO quedó invalidado**, no solo con poca resolución: su último
+bloque ocupado mide 102 sesiones y `MAX_HOLD_BARS` vale 250, así que no cabe una
+operación completa. Se publica `INSUFFICIENT` / no concluyente y sus números
+quedan marcados **no utilizables para calibración ni conclusión**. Swing no está
+afectado (42 > 40). La comparación es `<=`, igual que la validación nominal.
 
 **D-43 fija el punto de partida de P3 y no se reinterpreta:** el RR **sale del
 score como dimensión de puntuación**, y **sigue siendo condición de
