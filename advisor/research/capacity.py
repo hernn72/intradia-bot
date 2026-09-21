@@ -198,6 +198,17 @@ class TemporalBlockMap:
             return self.session_spine[spine_index]
         return session
 
+    def sessions_in_block(self, block: int) -> int:
+        """Sesiones de bolsa REALES de un bloque.
+
+        No tienen por que ser `block_length`: el ultimo bloque de la espina es
+        el resto de la division y puede quedarse corto. P2.5 exige que el bloque
+        supere `MAX_HOLD_BARS`, y esa exigencia es sobre la ventana real, no
+        sobre la nominal.
+        """
+
+        return sum(1 for assigned in self.session_to_block.values() if assigned == block)
+
     def block_for(self, signal: EventStudySignal) -> int:
         session = self.effective_session_date(signal)
         asset = self._asset(signal)
@@ -234,6 +245,7 @@ def assess_capacity(
         block_length=block_length,
         block_lookup=block_lookup,
         thresholds=thresholds,
+        max_hold_bars=result.max_hold_bars,
         band_of=band_of,
     )
     band_summaries = [
@@ -243,6 +255,7 @@ def assess_capacity(
             block_length=block_length,
             block_lookup=block_lookup,
             thresholds=thresholds,
+            max_hold_bars=result.max_hold_bars,
             band_of=band_of,
         )
         for label, _, _ in SCORE_BANDS
@@ -370,6 +383,7 @@ def _summary(
     block_length: int,
     block_lookup: TemporalBlockMap,
     thresholds: CapacityThresholds,
+    max_hold_bars: int,
     band_of: Callable[[EventStudySignal], str] = band_of_full_score,
 ) -> CapacitySummary:
     nominal_n = len(signals)
@@ -400,6 +414,8 @@ def _summary(
         ambiguous_rate=ambiguous_rate,
         thresholds=thresholds,
         min_block_observations=min_block_observations,
+        min_block_sessions=_shortest_occupied_block(signals, block_lookup),
+        max_hold_bars=max_hold_bars,
     )
     return CapacitySummary(
         label=label,
@@ -466,6 +482,22 @@ def _comparison(
     )
 
 
+def _shortest_occupied_block(
+    signals: Sequence[EventStudySignal],
+    block_lookup: TemporalBlockMap,
+) -> Optional[int]:
+    """Sesiones reales del bloque MAS CORTO de los que alimentan el estimador.
+
+    Solo cuentan los bloques ocupados: un bloque sin señales no entra en la
+    media por bloque y por tanto no puede invalidarla.
+    """
+
+    ocupados = {block_lookup.block_for(signal) for signal in signals}
+    if not ocupados:
+        return None
+    return min(block_lookup.sessions_in_block(block) for block in ocupados)
+
+
 def _classify_capacity(
     *,
     nominal_n: int,
@@ -475,10 +507,30 @@ def _classify_capacity(
     ambiguous_rate: float,
     thresholds: CapacityThresholds,
     min_block_observations: int,
+    min_block_sessions: Optional[int] = None,
+    max_hold_bars: Optional[int] = None,
 ) -> Tuple[str, str, bool, List[str]]:
     reasons: List[str] = []
     if nominal_n == 0:
         return RESOLUTION_INSUFFICIENT, INSUFICIENTE, False, ["sin observaciones"]
+    # P2.5: el bloque debe SUPERAR `MAX_HOLD_BARS`, y la exigencia es sobre la
+    # ventana REAL. El ultimo bloque de la espina es el resto de la division y
+    # puede quedarse corto: entonces no cabe una operacion completa y el
+    # horizonte queda invalidado. El motivo se ACUMULA con los demas en vez de
+    # sustituirlos —los otros siguen siendo ciertos y se publican— pero impide
+    # cualquier veredicto distinto de INSUFFICIENT, tambien si el intervalo
+    # sale estrecho. La materia prima numerica se conserva; lo que se niega es
+    # su uso para calibrar o concluir.
+    bloque_parcial = (
+        min_block_sessions is not None
+        and max_hold_bars is not None
+        and min_block_sessions < max_hold_bars
+    )
+    if bloque_parcial:
+        reasons.append(
+            f"bloque temporal parcial {min_block_sessions} sesiones < MAX_HOLD_BARS "
+            f"{max_hold_bars}: no utilizable para calibración ni conclusión"
+        )
     if exit_final_rate > thresholds.max_exit_final_rate:
         reasons.append(f"censura EXIT_FINAL {exit_final_rate:.1%} > {thresholds.max_exit_final_rate:.1%}")
     if ambiguous_rate > thresholds.max_ambiguous_rate:
@@ -489,7 +541,8 @@ def _classify_capacity(
         )
 
     if (
-        n_blocks >= thresholds.sufficient_blocks
+        not bloque_parcial
+        and n_blocks >= thresholds.sufficient_blocks
         and nominal_n >= thresholds.sufficient_n
         and interval_width is not None
         and interval_width <= thresholds.sufficient_interval_width
@@ -497,7 +550,8 @@ def _classify_capacity(
     ):
         return RESOLUTION_HIGH, SUFICIENTE, True, []
     if (
-        n_blocks >= thresholds.limited_blocks
+        not bloque_parcial
+        and n_blocks >= thresholds.limited_blocks
         and nominal_n >= thresholds.limited_n
         and interval_width is not None
         and interval_width <= thresholds.limited_interval_width
@@ -512,6 +566,8 @@ def _classify_capacity(
         reasons.append("intervalo primario no publicable")
     elif interval_width > thresholds.limited_interval_width:
         reasons.append(f"intervalo {interval_width:.3f} > {thresholds.limited_interval_width:.3f}")
+    if bloque_parcial:
+        return RESOLUTION_INSUFFICIENT, INSUFICIENTE, False, reasons
     return RESOLUTION_LOW, INSUFICIENTE, False, reasons
 
 

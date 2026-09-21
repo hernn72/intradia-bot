@@ -154,6 +154,56 @@ def test_intervalo_primario_por_banda_se_calcula_sobre_bloques() -> None:
     assert band.primary_interval_lower != pytest.approx(band.secondary_target_first_interval_lower)
 
 
+def test_un_bloque_temporal_parcial_invalida_la_capacidad_del_horizonte() -> None:
+    """P2.5: el bloque debe SUPERAR `MAX_HOLD_BARS`, y sobre la ventana REAL.
+
+    El ultimo bloque de la espina es el resto de la division y puede quedarse
+    corto. Los dos casos que fija el protocolo, con numeros cerrados:
+
+        swing  ultimo bloque  42 sesiones > MAX_HOLD_BARS  40  -> NO invalida
+        medio  ultimo bloque 102 sesiones < MAX_HOLD_BARS 250  -> INSUFFICIENT
+    """
+
+    # SWING: espina de 60 + 42 sesiones, señales en los dos bloques.
+    signals = [
+        _with_net_r(_with_day(_signal(score=55.0, status=TARGET_FIRST), day), 0.20)
+        for day in (0, 1, 61, 62)
+    ]
+    swing = replace(
+        _result(signals),
+        session_dates_by_asset={"TEST": tuple(_session_date(day) for day in range(102))},
+    )
+    resumen_swing = assess_capacity(swing, universe=_universe()).global_summary
+
+    assert resumen_swing.resolution != capacity.RESOLUTION_INSUFFICIENT
+    assert not any("bloque temporal parcial" in motivo for motivo in resumen_swing.reasons)
+
+    # MEDIO: bloque nominal 300, MAX_HOLD_BARS 250, espina de 300 + 102.
+    # Las señales tienen que CAER en el bloque parcial: un bloque vacio no
+    # alimenta la media por bloque y por tanto no puede invalidarla.
+    signals_medio = [
+        _with_net_r(_with_day(_signal(score=55.0, status=TARGET_FIRST), day), 0.20)
+        for day in (0, 1, 300, 301)
+    ]
+    medio = replace(
+        _result(signals_medio),
+        horizonte="medio",
+        max_hold_bars=250,
+        session_dates_by_asset={"TEST": tuple(_session_date(day) for day in range(402))},
+    )
+    resumen_medio = assess_capacity(medio, universe=_universe()).global_summary
+
+    assert resumen_medio.resolution == capacity.RESOLUTION_INSUFFICIENT
+    assert resumen_medio.conclusive is False
+    assert any(
+        "bloque temporal parcial 102 sesiones < MAX_HOLD_BARS 250" in motivo
+        for motivo in resumen_medio.reasons
+    ), resumen_medio.reasons
+    # La materia prima se conserva; lo que se niega es su uso para concluir.
+    assert resumen_medio.nominal_n == 4
+    assert resumen_medio.primary_expectancy_net_r == pytest.approx(0.20)
+
+
 def test_el_informe_nunca_publica_el_secundario_sin_el_primario() -> None:
     report = assess_capacity(_result([_with_day(_signal(score=55.0, status=TARGET_FIRST), 0)]), universe=_universe())
     roto = replace(report, estimators=None)

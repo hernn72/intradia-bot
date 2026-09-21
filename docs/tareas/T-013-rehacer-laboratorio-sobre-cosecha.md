@@ -417,14 +417,14 @@ parte de esta ficha, pero sí es la decisión más barata de la semana.
 `feat/a02-laboratorio-rehecho`. **No fusionada, sin PR**, a la espera de que el
 propietario revise el cierre. **GATE P2 CRUZADO** (D-42 y D-43).
 
-**Verificado:** 614 tests, `ruff` y `mypy` limpios. Pasó **revisión
+**Verificado:** 615 tests, `ruff` y `mypy` limpios. Pasó **revisión
 independiente** el 2026-09-21 (`CORREGIR_ANTES_DE_OD11`); sus cinco hallazgos
 SAME_SCOPE están corregidos y los nueve FOLLOW_UP registrados en
 `evidence/.../follow-ups.md`. Los tres
 `universe_vintage_id` reproducen los del decision log. `pre-d31` devuelve las
 121.786 señales de agosto, exactas. Producción probada intacta de forma
 determinista con `backtest --vintage` (mismo SHA-256, 866 operaciones). Los
-cuatro defectos inyectados hacen fallar su test, con la salida guardada.
+seis defectos inyectados hacen fallar su test, con la salida guardada.
 
 **Resultado:** con el estimador primario de INV-14 el veredicto global pasa de
 `LIMITADA`/`MEDIUM` a `INSUFICIENTE`/`LOW`; ninguna banda es concluyente; el
@@ -454,6 +454,12 @@ desbloqueada**, con su ficha por escribir.
 - SAME_SCOPE, corregido tras la revisión: faltaba la declaración de sesgo que
   exige el requisito 3 de GATE P2, y faltaba el test de integración de las tres
   poblaciones que esta misma ficha pide.
+- **BLOCKER, corregido tras la revisión del PR:** el último bloque de medio mide
+  102 sesiones y `MAX_HOLD_BARS` vale 250, así que no cabe una operación
+  completa; `_protocol_block_length` solo validaba la longitud **nominal**. El
+  horizonte medio pasa a `INSUFFICIENT` / no concluyente con motivo explícito, y
+  sus números se conservan marcados como no utilizables. Swing no está afectado
+  (42 > 40) y su salida es idéntica byte a byte.
 - OBSERVATION: `_primary_rows_by_region` accede a `block_lookup._asset(...)`,
   un método privado desde fuera de su clase. Funciona y `ruff` lo acepta; queda
   anotado por higiene, no se tocó.
