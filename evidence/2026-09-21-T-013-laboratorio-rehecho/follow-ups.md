@@ -38,13 +38,21 @@ como tratar bloques parciales.** `TemporalBlockMap.sessions_in_block` calcula la
 longitud real de cada bloque y `_classify_capacity` invalida el horizonte
 —`INSUFFICIENT`, no concluyente— en cuanto un bloque **ocupado** tiene menos
 sesiones que `MAX_HOLD_BARS`, con el motivo explicito
-`bloque temporal parcial 102 sesiones < MAX_HOLD_BARS 250`. La materia prima
+`bloque temporal parcial 102 sesiones <= MAX_HOLD_BARS 250`. La materia prima
 numerica se conserva y se publica por trazabilidad, pero queda marcada como no
 utilizable para calibracion ni conclusion.
 
 No se amplio la cosecha, no se elimino el bloque, no se fusiono con otro, no se
 cambio su peso y no se cambio la longitud nominal de 300. Swing no se mueve:
 su ultimo bloque mide 42 y supera los 40 de `MAX_HOLD_BARS`.
+
+**La comparacion es `<=`, no `<`.** P2.5 exige que el bloque **supere**
+`MAX_HOLD_BARS`, asi que la igualdad tampoco vale, y es el mismo criterio que
+usa la validacion NOMINAL de `_protocol_block_length`
+(`block_length <= max_hold_bars`). Si las dos divergieran, un bloque real de
+exactamente 250 sesiones pasaria mientras uno nominal de 250 se rechaza. El test
+fija los tres limites —`42 > 40` valido, `250 == 250` invalido, `102 < 250`
+invalido— para que no vuelvan a separarse.
 
 ## FU-3 — La atribucion poblacion / correccion de RS no es observable
 

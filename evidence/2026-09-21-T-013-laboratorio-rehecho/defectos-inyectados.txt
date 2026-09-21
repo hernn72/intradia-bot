@@ -100,3 +100,27 @@ FAILED tests/test_capacity.py::test_un_bloque_temporal_parcial_invalida_la_capac
 restaurado; el test vuelve a verde:
 .                                                                        [100%]
 1 passed, 12 deselected in 0.06s
+
+############ DEFECTO 7: la guarda del bloque real usa < en vez de <= ############
+P2.5 exige que el bloque SUPERE MAX_HOLD_BARS. La validacion NOMINAL de
+_protocol_block_length rechaza 'block_length <= max_hold_bars'. Si la del
+bloque REAL usa '<', un bloque real de exactamente 250 sesiones pasa mientras
+uno nominal de 250 se rechaza: las dos validaciones divergen en la igualdad.
+
+Se cambia SOLO el operador, no el mensaje, para que el fallo sea del caso
+250 == 250 y no de una comparacion de texto.
+
+>       assert resumen_borde.resolution == capacity.RESOLUTION_INSUFFICIENT
+E       AssertionError: assert 'LOW' == 'INSUFFICIENT'
+E         
+E         - INSUFFICIENT
+E         + LOW
+
+tests/test_capacity.py:227: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_capacity.py::test_un_bloque_temporal_parcial_invalida_la_capacidad_del_horizonte
+1 failed, 12 deselected in 0.14s
+
+restaurado; el test vuelve a verde:
+.                                                                        [100%]
+1 passed, 12 deselected in 0.11s

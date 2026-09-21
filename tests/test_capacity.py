@@ -160,8 +160,15 @@ def test_un_bloque_temporal_parcial_invalida_la_capacidad_del_horizonte() -> Non
     El ultimo bloque de la espina es el resto de la division y puede quedarse
     corto. Los dos casos que fija el protocolo, con numeros cerrados:
 
-        swing  ultimo bloque  42 sesiones > MAX_HOLD_BARS  40  -> NO invalida
-        medio  ultimo bloque 102 sesiones < MAX_HOLD_BARS 250  -> INSUFFICIENT
+        swing  ultimo bloque  42 sesiones >  MAX_HOLD_BARS  40  -> NO invalida
+        medio  ultimo bloque 250 sesiones == MAX_HOLD_BARS 250  -> INSUFFICIENT
+        medio  ultimo bloque 102 sesiones <  MAX_HOLD_BARS 250  -> INSUFFICIENT
+
+    La IGUALDAD se fija a proposito: la validacion NOMINAL de
+    `_protocol_block_length` rechaza `block_length <= max_hold_bars`, y la
+    validacion del bloque REAL tiene que usar el mismo criterio. Si divergen,
+    un bloque real de exactamente 250 sesiones pasaria mientras uno nominal de
+    250 se rechaza.
     """
 
     # SWING: espina de 60 + 42 sesiones, señales en los dos bloques.
@@ -196,12 +203,33 @@ def test_un_bloque_temporal_parcial_invalida_la_capacidad_del_horizonte() -> Non
     assert resumen_medio.resolution == capacity.RESOLUTION_INSUFFICIENT
     assert resumen_medio.conclusive is False
     assert any(
-        "bloque temporal parcial 102 sesiones < MAX_HOLD_BARS 250" in motivo
+        "bloque temporal parcial 102 sesiones <= MAX_HOLD_BARS 250" in motivo
         for motivo in resumen_medio.reasons
     ), resumen_medio.reasons
     # La materia prima se conserva; lo que se niega es su uso para concluir.
     assert resumen_medio.nominal_n == 4
     assert resumen_medio.primary_expectancy_net_r == pytest.approx(0.20)
+
+    # MEDIO en el borde: espina de 300 + 250, el ultimo bloque IGUALA
+    # MAX_HOLD_BARS y por tanto NO lo supera. Tambien invalida.
+    signals_borde = [
+        _with_net_r(_with_day(_signal(score=55.0, status=TARGET_FIRST), day), 0.20)
+        for day in (0, 1, 300, 301)
+    ]
+    borde = replace(
+        _result(signals_borde),
+        horizonte="medio",
+        max_hold_bars=250,
+        session_dates_by_asset={"TEST": tuple(_session_date(day) for day in range(550))},
+    )
+    resumen_borde = assess_capacity(borde, universe=_universe()).global_summary
+
+    assert resumen_borde.resolution == capacity.RESOLUTION_INSUFFICIENT
+    assert resumen_borde.conclusive is False
+    assert any(
+        "bloque temporal parcial 250 sesiones <= MAX_HOLD_BARS 250" in motivo
+        for motivo in resumen_borde.reasons
+    ), resumen_borde.reasons
 
 
 def test_el_informe_nunca_publica_el_secundario_sin_el_primario() -> None:
