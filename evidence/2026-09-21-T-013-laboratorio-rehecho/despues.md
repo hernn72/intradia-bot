@@ -147,7 +147,7 @@ bloque de 102 sesiones no puede contener una operacion completa, asi que el
 horizonte entero se publica como **`INSUFFICIENT` / no concluyente**, con el
 motivo explicito:
 
-    bloque temporal parcial 102 sesiones < MAX_HOLD_BARS 250:
+    bloque temporal parcial 102 sesiones <= MAX_HOLD_BARS 250:
     no utilizable para calibración ni conclusión
 
 Los numeros de medio (`+0.102 R`, IC95 `[-0.053, 0.203]`, 5 bloques) **se

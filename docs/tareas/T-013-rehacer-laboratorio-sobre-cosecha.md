@@ -424,7 +424,7 @@ SAME_SCOPE están corregidos y los nueve FOLLOW_UP registrados en
 `universe_vintage_id` reproducen los del decision log. `pre-d31` devuelve las
 121.786 señales de agosto, exactas. Producción probada intacta de forma
 determinista con `backtest --vintage` (mismo SHA-256, 866 operaciones). Los
-seis defectos inyectados hacen fallar su test, con la salida guardada.
+siete defectos inyectados hacen fallar su test, con la salida guardada.
 
 **Resultado:** con el estimador primario de INV-14 el veredicto global pasa de
 `LIMITADA`/`MEDIUM` a `INSUFICIENTE`/`LOW`; ninguna banda es concluyente; el

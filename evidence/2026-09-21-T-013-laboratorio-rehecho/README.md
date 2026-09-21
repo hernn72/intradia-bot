@@ -90,7 +90,7 @@ dimension del score medida en P2.4, no se ensancha a «el RR no sirve».
 | `ablacion-score-vigente-{swing,medio}.txt` | P2.4 |
 | `capacidad-estadistica-vigente-{swing,medio}.txt` | P2.5 |
 | `produccion-backtest-RAMA.txt` | prueba de que produccion no se mueve |
-| `defectos-inyectados.txt` | los seis defectos inyectados y los tests fallando |
+| `defectos-inyectados.txt` | los siete defectos inyectados y los tests fallando |
 | `hashes-de-tablas.txt` | GATE P2 punto 7 |
 | `final-pytest-ruff-mypy.txt` | verificacion final |
 | `analizar-*.txt` | pasada de produccion (ver limitacion abajo) |
@@ -124,7 +124,7 @@ Como se generaron: `git stash` de los cambios para dejar el arbol en `main`,
 pasada, `git stash pop`, pasada. Un tercero puede reproducirlo extrayendo
 `main` y `HEAD` a dos arboles limpios con `git archive`.
 
-## Los seis defectos inyectados
+## Los siete defectos inyectados
 
 Ninguna invariante se acepta sin ver fallar su test. Salida completa en
 `defectos-inyectados.txt`:
@@ -142,6 +142,9 @@ Ninguna invariante se acepta sin ver fallar su test. Salida completa en
 6. La guarda del **bloque temporal parcial** desactivada → medio publica `LOW`
    en vez de `INSUFFICIENT` apoyandose en un bloque de 102 sesiones que no cabe
    una operacion de 250 barras.
+7. Esa misma guarda comparando con `<` en vez de `<=` → un bloque real de
+   exactamente 250 sesiones pasa, aunque no SUPERE `MAX_HOLD_BARS`, y diverge
+   de la validacion nominal.
 
 ## Limitacion declarada
 

@@ -524,11 +524,16 @@ def _classify_capacity(
     bloque_parcial = (
         min_block_sessions is not None
         and max_hold_bars is not None
-        and min_block_sessions < max_hold_bars
+        # `<=`, no `<`: P2.5 exige que el bloque SUPERE `MAX_HOLD_BARS`, asi que
+        # la igualdad tampoco vale. Es el mismo criterio que la validacion
+        # NOMINAL de `_protocol_block_length`, y tiene que seguir siendolo: si
+        # las dos divergen, un bloque real de exactamente 250 sesiones pasaria
+        # aqui mientras uno nominal de 250 se rechaza alli.
+        and min_block_sessions <= max_hold_bars
     )
     if bloque_parcial:
         reasons.append(
-            f"bloque temporal parcial {min_block_sessions} sesiones < MAX_HOLD_BARS "
+            f"bloque temporal parcial {min_block_sessions} sesiones <= MAX_HOLD_BARS "
             f"{max_hold_bars}: no utilizable para calibración ni conclusión"
         )
     if exit_final_rate > thresholds.max_exit_final_rate:
