@@ -444,6 +444,51 @@ sobre los 103, y la comparación entre ambos debe declarar la diferencia de
 población. Quedan **10 activos** marcados `no` que siguen siendo analizables y
 vetados como `BROKER_UNAVAILABLE` (D-26); no se tocan aquí, es otra decisión.
 
+### D-42 — 2026-09-21 — El laboratorio rehecho (A-02): el diseño tiene menos resolución de la que aparentaba
+T-013 rehace P2.3, P2.4 y P2.5 una sola vez sobre `071ddb2b…`, con la fortaleza
+relativa alineada y el estimador pre-registrado de INV-14 al frente. Evidencia
+en `evidence/2026-09-21-T-013-laboratorio-rehecho/`.
+
+**El control que separa las causas pasa exacto.** La población `pre-d31` (107
+activos) devuelve **121.786 señales**, la cifra publicada en agosto, y solo
+**194 de ellas (0,16 %) cambian de banda**. Es la huella completa de la
+corrección de fortaleza relativa del 2026-09-02, coherente con que solo 8 de los
+107 activos crucen continente. La geometría de la línea 0 no mueve nada. Por
+tanto **toda la diferencia entre lo publicado en agosto y las cifras vigentes es
+de población**: 107 → 103 (D-31) → 93 (D-35).
+
+**Lo que cambia el veredicto, y es el hallazgo de la tarea.** Con la tasa
+TARGET_FIRST —el estimador **secundario**— la capacidad global salía `LIMITADA`
+con resolución `MEDIUM`. Con el primario que INV-14 declara desde el 2026-09-02
+—media por bloque de la expectancy neta en R— sale **`INSUFICIENTE` con
+resolución `LOW`**: el intervalo mide 0,231 R frente al umbral de 0,200.
+**Ninguna de las cinco bandas es concluyente**, y el IC95 del primario cruza el
+cero en todas menos en `<50`, que es la banda más baja del score.
+
+El instrumento existía desde el 2026-09-02, pero solo publicaba **un número
+global sin intervalo**; el intervalo que se venía leyendo por banda era el de la
+métrica secundaria. Esta tarea construye el primario por banda, por región y por
+activo, que es lo que GATE P2 punto 4 exigía.
+
+**Medio es peor de lo previsto**: el protocolo escribió «del orden de ocho
+bloques en diez años» y la medición da **5 bloques** de 300 sesiones.
+
+**No se adopta nada y no se ajusta nada.** No se toca `config.yaml`, ni los
+pesos, ni la geometría, ni los umbrales. Un resultado NO CONCLUYENTE es el
+resultado, y se publica con su resolución, su muestra, su número de bloques y su
+intervalo.
+
+**Defecto corregido de paso (SAME_SCOPE).** La tabla de la ablación sustituía el
+intervalo, la media y el número de bloques por la palabra «NO CONCLUYENTE».
+Mientras casi todo salía concluyente bajo la tasa no se notaba; con el primario
+la tabla se quedaba **sin un solo número**, lo que incumple `docs/metodo-trabajo.md`
+sección 3. Ahora el veredicto va en su columna y las cifras se publican siempre.
+
+**GATE P2 NO queda cruzado todavía.** Seis de sus siete requisitos están
+cumplidos; falta el **6**, la decisión formal sobre el RR, que es del propietario
+y queda abierta como **OD-11** con los números nuevos. El gate se cruzará cuando
+OD-11 se responda.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
@@ -569,6 +614,50 @@ demás**.
 - **Consecuencia:** tal como queda D-21, las tres criptos no son recomendables
   en ninguna pasada, porque su sesión 24/7 solo cierra a las 00:00 UTC.
 - **Bloquea:** nada; hoy cripto no ha generado ninguna señal OPERAR.
+
+### OD-11 — ¿Sale el RR del score? · ABIERTA el 2026-09-21 con los números de A-02
+- **Pregunta:** el ratio beneficio/riesgo pesa 20 de 100 puntos en
+  `compute_score`. A la vista de la ablación rehecha, ¿se mantiene como
+  dimensión, se retira del score, o se sustituye por otra formulación?
+- **Lo que se ha medido** (T-013, población vigente de 93 activos, cosecha
+  `071ddb2b…`, horizonte swing, 106.363 señales, cero descartes, sin pasar por
+  `classify()`):
+
+      Banda   n       mediana RR puntos  mediana contrib.  RR bruto  RR neto
+      <50     45.574        10,000            +2,500        1,500    1,472
+      50-60   38.828        10,000            −1,583        1,500    1,461
+      60-70   19.702        10,000            −4,167        1,500    1,454
+      70-80    2.194        10,000            −7,292        1,500    1,458
+      80+         65        10,000           −10,333        1,500    1,463
+
+  La dimensión reparte **10 de sus 20 puntos a casi todo el mundo** y el RR
+  bruto vale **1,500 en la mediana de las cinco bandas**. La contribución cae
+  monótonamente de +2,500 a −10,333: es **aritmética de normalización, no
+  información sobre el activo**. El hallazgo de agosto se reproduce entero sobre
+  la población nueva, así que no era un artefacto de los 107.
+  Al quitarlo, `70-80` pasa de 2.194 a 6.443 señales y `80+` de 65 a 1.032.
+- **Alternativas:** (a) retirar el RR del score y recalibrar los umbrales en P3
+  sobre la nota normalizada sobre 60; (b) mantenerlo como está; (c) mantener la
+  dimensión pero redefinirla para que discrimine —hoy no puede, porque con
+  `target2_structural: false` el ratio vale 1,5 salvo que un soporte cercano
+  acerque el stop—.
+- **Consecuencia:** (a) el score cambia de escala y **todos** los umbrales
+  quedan sin calibrar hasta P3; obliga a `score_model_version` nuevo y las
+  recomendaciones persistidas dejan de ser comparables sin etiqueta. (b) se
+  sigue diluyendo la nota hacia el centro y `80+` sigue siendo una banda de 65
+  señales que no calibra nada. (c) es trabajo de P4, no de P3, porque toca la
+  geometría.
+- **Recomendación técnica:** (a), pero **no ahora**: retirarlo es un cambio de
+  escala del score y debe entrar junto con la recalibración de P3, no antes, o
+  quedan umbrales heredados sobre una escala que ya no existe. Lo que sí
+  conviene decidir ya es **si P3 arranca con el RR dentro o fuera**, porque eso
+  cambia lo que P3 calibra.
+- **Aviso que condiciona la lectura:** con el estimador primario de INV-14
+  **ninguna banda es concluyente** (ver GATE P2). Esta decisión no puede
+  apoyarse en que una banda rinda más que otra, porque eso no se ha medido con
+  resolución suficiente. Lo que sí está medido, y con firmeza, es que la
+  dimensión **es casi constante**, y eso no depende de la resolución.
+- **Bloquea:** A-03 (P3, score v2). No bloquea nada más.
 
 ---
 

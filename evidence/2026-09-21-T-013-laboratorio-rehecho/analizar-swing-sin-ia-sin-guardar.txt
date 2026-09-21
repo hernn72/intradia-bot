@@ -1,0 +1,150 @@
+==========================================================================================
+ASESOR DE INVERSIÓN — 2026-09-21 12:06 UTC  |  horizonte: swing  |  velas: 1d
+==========================================================================================
+
+## 🌍 SITUACIÓN GLOBAL
+
+Asia:
+  - CSI 300 (vía ETF China AMC) (510300.SS): datos no disponibles
+  - Hang Seng (^HSI): datos no disponibles
+  - KOSPI (^KS11): datos no disponibles
+  - Nikkei 225 (^N225): datos no disponibles
+  - Taiwan Weighted (^TWII): datos no disponibles
+Europa:
+  - CAC 40 (^FCHI): datos no disponibles
+  - DAX (^GDAXI): datos no disponibles
+  - STOXX Europe 600 (^STOXX): datos no disponibles
+  - Euro Stoxx 50 (^STOXX50E): datos no disponibles
+EE. UU.:
+  - S&P 500 (^GSPC): datos no disponibles
+  - Nasdaq 100 (^NDX): datos no disponibles
+  - Russell 2000 (^RUT): datos no disponibles
+  - Philadelphia Semiconductor (^SOX): datos no disponibles
+  - Treasury 10 años (^TNX): datos no disponibles
+  - VIX (^VIX): datos no disponibles
+Global:
+  - WTI (CL=F): datos no disponibles
+  - Dollar Index (DX-Y.NYB): datos no disponibles
+  - EUR/USD (EURUSD=X): datos no disponibles
+  - Oro (GC=F): datos no disponibles
+
+Volatilidad: VIX N/D (umbral 25,0)  |  Contexto: INDETERMINADO — sin datos de volatilidad ni de tendencia del índice de referencia
+
+**Frescura de datos:** 0 activos analizados con snapshot; no hay barras que declarar.
+Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre de la sesión local + 20 min. Las ausencias se validan contra el calendario de plaza con festivos; cripto no tiene sesión de cierre.
+
+## 🔥 OPORTUNIDADES DETECTADAS
+
+Ninguna oportunidad cumple hoy los criterios de entrada.
+
+## 👀 RADAR
+
+Sin activos en vigilancia.
+
+## 🔴 DESCARTADOS
+
+Ninguno.
+
+No analizados por falta de datos:
+  - AAPL [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'AAPL'
+  - MSFT [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'MSFT'
+  - GOOGL [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'GOOGL'
+  - AMZN [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'AMZN'
+  - META [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'META'
+  - TSLA [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'TSLA'
+  - ORCL [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ORCL'
+  - CRM [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'CRM'
+  - NOW [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'NOW'
+  - ADBE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ADBE'
+  - NFLX [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'NFLX'
+  - NVDA [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'NVDA'
+  - AVGO [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'AVGO'
+  - AMD [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'AMD'
+  - MU [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'MU'
+  - QCOM [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'QCOM'
+  - MRVL [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'MRVL'
+  - INTC [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'INTC'
+  - AMAT [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'AMAT'
+  - ARM [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ARM'
+  - PLTR [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'PLTR'
+  - PANW [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'PANW'
+  - CRWD [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'CRWD'
+  - UBER [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'UBER'
+  - APP [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'APP'
+  - GS [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'GS'
+  - V [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'V'
+  - MA [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'MA'
+  - BRK-B [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'BRK-B'
+  - LLY [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'LLY'
+  - ABBV [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ABBV'
+  - VRTX [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'VRTX'
+  - LMT [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'LMT'
+  - CAT [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'CAT'
+  - XOM [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'XOM'
+  - CVX [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'CVX'
+  - COIN [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'COIN'
+  - SAP.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'SAP.DE'
+  - SIE.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'SIE.DE'
+  - ALV.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ALV.DE'
+  - MBG.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'MBG.DE'
+  - ENR.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ENR.DE'
+  - DTE.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'DTE.DE'
+  - DBK.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'DBK.DE'
+  - MUV2.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'MUV2.DE'
+  - IFX.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'IFX.DE'
+  - ASML.AS [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ASML.AS'
+  - ADYEN.AS [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ADYEN.AS'
+  - MC.PA [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'MC.PA'
+  - AIR.PA [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'AIR.PA'
+  - SU.PA [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'SU.PA'
+  - SAF.PA [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'SAF.PA'
+  - TTE.PA [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'TTE.PA'
+  - OR.PA [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'OR.PA'
+  - IBE.MC [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'IBE.MC'
+  - ITX.MC [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ITX.MC'
+  - BBVA.MC [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'BBVA.MC'
+  - RACE.MI [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'RACE.MI'
+  - ENI.MI [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ENI.MI'
+  - RRU.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'RRU.DE'
+  - BSP.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'BSP.DE'
+  - AZN [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'AZN'
+  - R6C0.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'R6C0.DE'
+  - 7203.T [ANALYSIS_ERROR]: No se han recibido datos para el símbolo '7203.T'
+  - 6758.T [ANALYSIS_ERROR]: No se han recibido datos para el símbolo '6758.T'
+  - 7011.T [ANALYSIS_ERROR]: No se han recibido datos para el símbolo '7011.T'
+  - 6501.T [ANALYSIS_ERROR]: No se han recibido datos para el símbolo '6501.T'
+  - 6857.T [ANALYSIS_ERROR]: No se han recibido datos para el símbolo '6857.T'
+  - 8035.T [ANALYSIS_ERROR]: No se han recibido datos para el símbolo '8035.T'
+  - TSM [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'TSM'
+  - 0700.HK [ANALYSIS_ERROR]: No se han recibido datos para el símbolo '0700.HK'
+  - 9988.HK [ANALYSIS_ERROR]: No se han recibido datos para el símbolo '9988.HK'
+  - 1810.HK [ANALYSIS_ERROR]: No se han recibido datos para el símbolo '1810.HK'
+  - INFY [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'INFY'
+  - EUNL.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'EUNL.DE'
+  - SXR8.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'SXR8.DE'
+  - EQQQ.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'EQQQ.DE'
+  - EXSA.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'EXSA.DE'
+  - IS3N.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'IS3N.DE'
+  - EUNN.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'EUNN.DE'
+  - ICGA.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ICGA.DE'
+  - QDV5.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'QDV5.DE'
+  - IQQT.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'IQQT.DE'
+  - IQQK.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'IQQK.DE'
+  - VVSM.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'VVSM.DE'
+  - Q8Y0.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'Q8Y0.DE'
+  - EUNH.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'EUNH.DE'
+  - ZPRR.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ZPRR.DE'
+  - EXV1.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'EXV1.DE'
+  - EXH1.DE [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'EXH1.DE'
+  - BTC-EUR [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'BTC-EUR'
+  - ETH-EUR [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'ETH-EUR'
+  - SOL-EUR [ANALYSIS_ERROR]: No se han recibido datos para el símbolo 'SOL-EUR'
+
+## 🎯 CONCLUSIÓN
+
+**NO OPERAR / MANTENER LIQUIDEZ** — ninguna oportunidad ofrece hoy una relación rentabilidad/riesgo suficiente. Mantener liquidez también es una decisión de inversión.
+
+------------------------------------------------------------------------------------------
+Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
+==========================================================================================
+run 3801ef97-5593-43e7-895f-0afe36b954e6 · d7ddf59998fc+dirty · config 1294c526 · universo 237b0056

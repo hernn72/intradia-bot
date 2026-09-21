@@ -1,0 +1,23 @@
+--- event-study medio ---
+# Event study P2.3
+
+Cosecha: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+Universo: 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
+Horizonte: medio | coste 0.20% | warmup 250 velas | horizonte máximo 250 velas
+Activos evaluados: 93 | señales evaluadas: 94273
+
+Estimadores pre-registrados 2026-09-02: primario=media por bloque de expectancy neta en R +0.102 (bloques=5, longitud=300 sesiones); secundarios=tasa agrupada expectancy neta en R +0.155, tasa agrupada TARGET_FIRST/(TARGET_FIRST+STOP_FIRST) 0.458, P(objetivo antes de stop) [0.450, 0.451].
+
+Estados administrados:
+- TARGET_FIRST: 42456
+- STOP_FIRST: 50292
+- AMBIGUOUS: 25
+- TIME: 3
+- FINAL: 1497
+
+Banda   n     target stop ambig tiempo final  P(objetivo antes de stop)   net_R medio  MAE gan.       MFE perd.       MFE sin objetivo
+<50    36279  16710 19083    13      0   473  [0.461, 0.461]         0.22      0.33    [0.42, 0.45]    [1.41, 1.42]
+50-60  36407  15886 19860     4      1   656  [0.436, 0.436]         0.11      0.34    [0.40, 0.42]    [1.20, 1.22]
+60-70  19352   8777 10228     7      2   338  [0.454, 0.454]         0.11      0.33    [0.40, 0.41]    [1.23, 1.23]
+70-80   2172   1052 1089     1      0    30  [0.484, 0.485]         0.19      0.30    [0.40, 0.40]    [1.40, 1.40]
+80+       63     31   32     0      0     0  [0.492, 0.492]         0.18      0.36    [0.39, 0.39]    [1.42, 1.42]

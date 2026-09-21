@@ -1,0 +1,27 @@
+=== LINEA BASE DE INVESTIGACION (codigo de main d7ddf59, poblacion vigente=93) ===
+fecha: 2026-09-21T11:30:44Z
+
+--- event-study swing ---
+# Event study P2.3
+
+Cosecha: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+Universo: 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
+Horizonte: swing | coste 0.20% | warmup 120 velas | horizonte máximo 40 velas
+Activos evaluados: 93 | señales evaluadas: 106363
+
+Estimadores pre-registrados 2026-09-02: primario=media por bloque de expectancy neta en R +0.064 (bloques=21, longitud=60 sesiones); secundarios=tasa agrupada expectancy neta en R +0.103, tasa agrupada TARGET_FIRST/(TARGET_FIRST+STOP_FIRST) 0.433, P(objetivo antes de stop) [0.410, 0.410].
+
+Estados administrados:
+- TARGET_FIRST: 43568
+- STOP_FIRST: 57069
+- AMBIGUOUS: 25
+- TIME: 4269
+- FINAL: 1432
+
+Banda   n     target stop ambig tiempo final  P(objetivo antes de stop)   net_R medio  MAE gan.       MFE perd.       MFE sin objetivo
+<50    45574  18319 24591    13   2200   451  [0.402, 0.402]         0.13      0.31    [0.40, 0.42]    [1.17, 1.19]
+50-60  38828  15678 21124     4   1396   626  [0.404, 0.404]         0.07      0.32    [0.38, 0.40]    [1.11, 1.12]
+60-70  19702   8522 10231     7    616   326  [0.433, 0.433]         0.10      0.31    [0.39, 0.39]    [1.17, 1.17]
+70-80   2194   1019 1089     1     56    29  [0.464, 0.465]         0.18      0.29    [0.39, 0.40]    [1.32, 1.32]
+80+       65     30   34     0      1     0  [0.462, 0.462]         0.11      0.34    [0.41, 0.41]    [1.30, 1.30]
+.venv/bin/python -m advisor.main event-study "$V" --horizonte swing  58,02s user 0,31s system 99% cpu 58,602 total
