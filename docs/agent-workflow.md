@@ -9,7 +9,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-20 (cierre de jornada)
+# START HERE — actualizado 2026-09-21
 
 ## Dónde está todo
 
@@ -17,7 +17,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
     la Pi                 v0.3.0 = 03e1ec3    esquema v5    EN_TAG  ← AL DÍA
     graphify-out/         sin seguimiento, ignorar
 
-## Lo primero de mañana: T-013 (A-02), y una pregunta al propietario
+## Lo primero: T-013 (A-02), ya con ficha, y una pregunta al propietario
 
 **T-012 está ACEPTADA y OD-02 quedó cerrada el mismo día en D-40:** el
 propietario eligió la lectura (c) —sesión cerrada y exigible que no está cuando
@@ -38,10 +38,31 @@ entregada`.
 producción. Si hay que elegir una, T-013, porque es la que abre GATE P2.
 
 **Lo siguiente que no depende de nadie es T-013 (A-02)**: rehacer P2.3, P2.4 y
-P2.5 sobre la cosecha `071ddb2b…` → GATE P2. **La ficha no está escrita**; es lo
-primero que hay que hacer. Tres avisos que ya se saben: la población pasa de 107
-a 103 y a 93 (hay que declarar las tres), el backtest ya es reproducible con
-`--vintage` (T-015) y D-29 quedó cerrada.
+P2.5 sobre la cosecha `071ddb2b…` → GATE P2. **La ficha ya está escrita**:
+`docs/tareas/T-013-rehacer-laboratorio-sobre-cosecha.md` (2026-09-21). Lo que
+midió al escribirse y conviene saber antes de abrirla:
+
+- **El trabajo de código no es el que parecía.** `preregistered_estimators`
+  devuelve el primario como **un número global sin intervalo**, y el intervalo
+  por banda que hoy publica `capacity.py` es el de la **tasa TARGET_FIRST**, o
+  sea el secundario. No hay intervalo por bloque de la expectancy neta en R por
+  banda, ni desglose por región, ni por activo, y GATE P2 punto 4 exige los
+  tres. Eso es lo que hay que construir.
+- **Las tres poblaciones se reconstruyen, y está comprobado.** Reponer los
+  activos dados de baja devuelve exactamente los hashes publicados —`894ce776…`
+  para 107 y `c8496446…` para 103— **solo si se anula también su `valid_to`**,
+  que entra en el hash; dejándolo puesto sale `d75368d6…`, que no corresponde a
+  nada. Son criterio de aceptación literal.
+- **La decisión que separa 103 de 107 no es la fecha**: las 14 bajas comparten
+  `valid_to: 2026-09-18` y solo el texto libre de `notes` dice si fue D-31 o
+  D-35. La ficha añade un campo `baja_decision` aditivo, que no mueve el hash de
+  los 93 porque las bajas no están en `analizables()`.
+- **La corrección de fortaleza relativa afecta como mucho a 8 activos** en la
+  población vigente: de los 10 pares que cruzan continente, `DFEN.DE` y
+  `4GLD.DE` cayeron con D-35. Eso acota cuánta diferencia se le puede atribuir.
+- **La cosecha está entera**: 126 series, 0 fallidas, y los 93 analizables
+  tienen serie. Sigue viviendo **solo en el portátil** y es la única fuente
+  reproducible del gate.
 
 **Lo que T-012 dejó medido y cambia cómo se lee todo lo demás:** el retraso del
 proveedor es **exclusivamente europeo** —278/329 mediciones europeas retrasadas a
@@ -130,10 +151,12 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 2. ~~**T-012**~~ **HECHA** (2026-09-20). La cifra de OD-02. Ya **no** decide
    OD-09 ni OD-10 —cerradas en D-36 y D-37—, pero sigue diciendo con qué
    frecuencia llega tarde cada plaza, que es lo que ahora determina el veto.
-3. **T-013 (A-02)** → GATE P2. **Desbloqueada.** Dos avisos: la población pasa
-   de 107 a 103 (D-31) y la comparación con lo publicado debe declararlo; y
-   D-29 quedó cerrada, así que `RR_TOO_LOW` sigue existiendo como guarda de P4
-   aunque hoy sea inalcanzable.
+3. **T-013 (A-02)** → GATE P2. **Desbloqueada y con ficha escrita**
+   (2026-09-21). Tres avisos: la población pasa de 107 a 103 (D-31) y a 93
+   (D-35), y la comparación con lo publicado debe declarar las tres; D-29 quedó
+   cerrada, así que `RR_TOO_LOW` sigue existiendo como guarda de P4 aunque hoy
+   sea inalcanzable; y el estimador primario (INV-14) todavía no se publica por
+   banda, que es el trabajo de código real de la tarea.
 4. **T-016** higiene del centinela, sin urgencia: la auditoría midió 0 celdas
    afectadas en el veredicto de P2.5.
 5. **T-014 (B-00)** contrato point-in-time, y **C-04** alertas, cuando toque.
