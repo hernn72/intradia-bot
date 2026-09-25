@@ -185,11 +185,87 @@ def _migration_v5_manifest_hygiene(conn: sqlite3.Connection) -> None:
     conn.execute("ALTER TABLE analysis_run_v5 RENAME TO analysis_run")
 
 
+def _migration_v6_validated_bar_cache(conn: sqlite3.Connection) -> None:
+    """Caché local de barras de sesión cerrada ya validadas (C-09, T-018).
+
+    `validated_bar` guarda la barra tal como se observó, con su marca temporal
+    original: reinyectarla tiene que reproducir el índice exacto que sirvió el
+    proveedor, porque fechar una barra en su plaza es lo que decide si el dato
+    está al día (D-36).
+
+    `validated_bar_revision` existe porque una barra revisada no se sobrescribe
+    en silencio (D-41, regla 4). `kind` distingue los dos casos que sí son
+    distinguibles: un REAJUSTE cambia todas las barras solapadas por un mismo
+    factor —dividendo o split, y entonces la caché se reancla— y una REVISION
+    mueve una barra sola, y entonces sigue mandando la primera validada.
+    """
+
+    statements = (
+        """
+        CREATE TABLE IF NOT EXISTS validated_bar (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            data_symbol         TEXT NOT NULL,
+            market              TEXT NOT NULL,
+            session_date        TEXT NOT NULL,
+            bar_timestamp       TEXT NOT NULL,
+            open                REAL NOT NULL,
+            high                REAL NOT NULL,
+            low                 REAL NOT NULL,
+            close               REAL NOT NULL,
+            volume              REAL,
+            observed_at         TEXT NOT NULL,
+            provider            TEXT NOT NULL,
+            run_id              TEXT,
+            UNIQUE(data_symbol, session_date)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_validated_bar_symbol ON validated_bar(data_symbol, session_date)",
+        """
+        CREATE TABLE IF NOT EXISTS validated_bar_revision (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            data_symbol         TEXT NOT NULL,
+            market              TEXT NOT NULL,
+            session_date        TEXT NOT NULL,
+            kind                TEXT NOT NULL,
+            previous_open       REAL NOT NULL,
+            previous_high       REAL NOT NULL,
+            previous_low        REAL NOT NULL,
+            previous_close      REAL NOT NULL,
+            previous_volume     REAL,
+            previous_observed_at TEXT NOT NULL,
+            new_open            REAL NOT NULL,
+            new_high            REAL NOT NULL,
+            new_low             REAL NOT NULL,
+            new_close           REAL NOT NULL,
+            new_volume          REAL,
+            factor              REAL,
+            observed_at         TEXT NOT NULL,
+            provider            TEXT NOT NULL,
+            applied             INTEGER NOT NULL,
+            run_id              TEXT
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_validated_bar_revision_symbol "
+        "ON validated_bar_revision(data_symbol, session_date)",
+        # La medición de frescura de la pasada declara lo que hizo la caché
+        # (INV-21) y el contador de valor marginal de una segunda fuente
+        # (D-41, regla 6). Van en la medición y no en una tabla aparte porque
+        # es la fila que ya se interpreta sola, con su calidad y su ventana.
+        "ALTER TABLE data_freshness_measurement ADD COLUMN bars_served_from_cache TEXT",
+        "ALTER TABLE data_freshness_measurement ADD COLUMN bars_pinned_revisions TEXT",
+        "ALTER TABLE data_freshness_measurement ADD COLUMN sessions_never_observed TEXT",
+        "ALTER TABLE data_freshness_measurement ADD COLUMN bar_cache_status TEXT",
+    )
+    for statement in statements:
+        conn.execute(statement)
+
+
 MIGRATIONS: list[Migration] = [
     (2, "analysis_run y run_id en recomendaciones/frescura", _migration_v2_runs),
     (3, "calendar en mediciones de frescura", _migration_v3_freshness_calendar),
     (4, "calidad del dato por dimensiones y códigos estructurados", _migration_v4_data_quality_codes),
     (5, "manifiesto: git_dirty nullable, release_tag, version del hash, grupos y backup_log versionada", _migration_v5_manifest_hygiene),
+    (6, "cache de barras de sesion cerrada validadas, revisiones y su declaracion en la frescura", _migration_v6_validated_bar_cache),
 ]
 
 

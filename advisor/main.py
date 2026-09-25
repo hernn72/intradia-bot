@@ -19,12 +19,14 @@ import os
 import sys
 from dataclasses import replace
 from datetime import date, datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from advisor.analysis.analyzer import AnalysisResult, indicator_reference_sessions, run_analysis
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.opportunity import RADAR_OPERAR, Opportunity
 from advisor.config import VALID_HORIZONTES, AdvisorConfig, load_config
+from advisor.data.bar_cache import BarCacheReport, CachedBarProvider, SymbolCacheUsage, build_market_resolver
 from advisor.data.bar_diagnostics import (
     diagnose_all_saved_gaps,
     diagnose_bar,
@@ -145,23 +147,56 @@ def opportunity_to_row(opportunity: Opportunity, fx: FxConverter, created_at: st
 
 def _persist(result: AnalysisResult, fx: FxConverter, db: AdvisorDB, manifest: RunManifest) -> int:
     created_at = result.generated_at.isoformat()
+    cache = result.bar_cache
     rows = [opportunity_to_row(o, fx, created_at) for o in result.opportunities]
-    freshness_rows = [freshness_row_to_measurement(row, created_at) for row in result.freshness_rows]
+    freshness_rows = [
+        freshness_row_to_measurement(row, created_at, _cache_usage(cache, row.data_symbol))
+        for row in result.freshness_rows
+    ]
     saved, freshness_saved = db.insert_analysis_result(
         manifest,
         rows,
         freshness_rows,
+        validated_bars=cache.bars_to_store if cache is not None else (),
+        bar_revisions=cache.revisions_to_store if cache is not None else (),
+        reanchored_symbols=cache.reanchored_symbols if cache is not None else (),
     )
     logger.info("%d mediciones de frescura guardadas en %s", freshness_saved, db.path)
     return saved
 
 
-def freshness_row_to_measurement(row: FreshnessRow, measured_at: str) -> Dict[str, Any]:
-    """Convierte una fila de frescura a la forma persistida."""
+def _cache_usage(cache: Optional[BarCacheReport], data_symbol: str) -> Optional[SymbolCacheUsage]:
+    if cache is None:
+        return None
+    return cache.usage.get(data_symbol)
+
+
+def freshness_row_to_measurement(
+    row: FreshnessRow,
+    measured_at: str,
+    cache_usage: Optional[SymbolCacheUsage] = None,
+) -> Dict[str, Any]:
+    """Convierte una fila de frescura a la forma persistida.
+
+    ``cache_usage`` es lo que la caché de barras hizo con ese símbolo en esta
+    pasada. Va en la misma fila que la calidad y la ventana de veto porque es
+    parte de la interpretación del dato: una barra servida desde la caché nunca
+    se presenta como si la fuente viva la hubiera devuelto (INV-21).
+    """
 
     freshness = row.freshness
     quality = freshness.data_quality if freshness is not None else None
     return {
+        "bars_served_from_cache": [
+            value.isoformat() for value in cache_usage.served_from_cache
+        ] if cache_usage is not None else [],
+        "bars_pinned_revisions": [
+            value.isoformat() for value in cache_usage.pinned_revisions
+        ] if cache_usage is not None else [],
+        "sessions_never_observed": [
+            value.isoformat() for value in cache_usage.sessions_never_observed
+        ] if cache_usage is not None else [],
+        "bar_cache_status": cache_usage.status if cache_usage is not None else None,
         "measured_at": measured_at,
         "symbol": row.symbol,
         "data_symbol": row.data_symbol,
@@ -191,23 +226,58 @@ def freshness_row_to_measurement(row: FreshnessRow, measured_at: str) -> Dict[st
     }
 
 
+def _build_data_provider(
+    config: AdvisorConfig,
+    universe: Universe,
+    db: Optional[AdvisorDB],
+    *,
+    reference: datetime,
+) -> Any:
+    """Proveedor de series de la pasada, con la caché de barras si procede.
+
+    Todo lo que analiza recibe el proveedor por aquí, de modo que no hay una
+    ruta con caché y otra sin ella (INV-06). Sin base de datos —``--sin-guardar``
+    o una base que no existe— la caché no puede leer ni escribir, y entonces el
+    proveedor va desnudo y la pasada lo declara por omisión de la medición.
+    """
+
+    provider = MarketDataProvider(config.request_min_interval_seconds)
+    if not config.bar_cache.enabled or db is None:
+        return provider
+    return CachedBarProvider(
+        provider,
+        store=db,
+        resolve_market=build_market_resolver(universe),
+        reference=reference,
+        settlement_minutes=config.data_quality.settlement_minutes,
+        window_sessions=config.bar_cache.window_sessions,
+        readjustment_tolerance=config.bar_cache.readjustment_tolerance,
+    )
+
+
 def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     db = None if args.sin_guardar else AdvisorDB(config.db_path)
     # Los grupos se resuelven antes del manifiesto: el vintage que se declara
     # es el de la población que se va a analizar, no el del universo entero.
     groups: Optional[List[str]] = args.grupos.split(",") if args.grupos else None
+    # Una sola referencia temporal para el manifiesto, la caché y el análisis:
+    # con tres relojes distintos, una pasada que cruza el cierre de una plaza
+    # puede guardar una barra que el análisis considera abierta.
+    reference = datetime.now(timezone.utc)
     manifest = build_run_manifest(
         command="analizar",
         config=config,
         universe=universe,
         schema_version=db.schema_version() if db is not None else LATEST_VERSION,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=reference,
         groups=groups,
     )
-    provider = MarketDataProvider(config.request_min_interval_seconds)
+    provider = _build_data_provider(config, universe, db, reference=reference)
     fx = FxConverter(provider, config.base_currency)
 
-    result = run_analysis(config, universe, provider, horizonte=args.horizonte, groups=groups)
+    result = run_analysis(
+        config, universe, provider, horizonte=args.horizonte, groups=groups, now=reference
+    )
 
     if config.ai.enabled and not args.sin_ia:
         from advisor.ai.narrator import enrich_with_narrative
@@ -290,7 +360,12 @@ def cmd_backtest(args: argparse.Namespace, config: AdvisorConfig, universe: Univ
             return 2
         vintage = load_vintage(resolve_vintage_id(args.vintage, args.data_dir), root_dir=args.data_dir)
     else:
-        provider = MarketDataProvider(config.request_min_interval_seconds)
+        # El backtest vivo lee las series por la misma ruta que producción
+        # (INV-06): si una barra que el bot ya observó desapareciera solo aquí,
+        # la investigación mediría sobre una serie que producción no ve. La base
+        # se abre de solo lectura, porque una investigación no debe dejar barras
+        # nuevas en la caché de producción.
+        provider = _build_backtest_provider(config, universe)
 
     result = run_backtest(
         config, universe, provider,
@@ -300,6 +375,13 @@ def cmd_backtest(args: argparse.Namespace, config: AdvisorConfig, universe: Univ
     )
     print(format_backtest_report(result))
     return 0
+
+
+def _build_backtest_provider(config: AdvisorConfig, universe: Universe) -> Any:
+    db: Optional[AdvisorDB] = None
+    if config.bar_cache.enabled and Path(config.db_path).is_file():
+        db = AdvisorDB(config.db_path, readonly=True)
+    return _build_data_provider(config, universe, db, reference=datetime.now(timezone.utc))
 
 
 def cmd_congelar_datos(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
@@ -478,16 +560,17 @@ def cmd_pasada_evento(args: argparse.Namespace, config: AdvisorConfig, universe:
         logger.info("Pasada por evento autodescartada: %s", decision.discard_reason)
         return 0
 
-    provider = MarketDataProvider(config.request_min_interval_seconds)
+    reference = datetime.now(timezone.utc)
+    provider = _build_data_provider(config, universe, db, reference=reference)
     fx = FxConverter(provider, config.base_currency)
     manifest = build_run_manifest(
         command="pasada-evento",
         config=config,
         universe=universe,
         schema_version=db.schema_version(),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=reference,
     )
-    result = run_analysis(config, universe, provider, horizonte=args.horizonte)
+    result = run_analysis(config, universe, provider, horizonte=args.horizonte, now=reference)
 
     if config.ai.enabled and not args.sin_ia:
         from advisor.ai.narrator import enrich_with_narrative

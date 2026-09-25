@@ -167,7 +167,7 @@ dónde está protegida hoy o qué tarea la protegerá.
 | INV-18 | Toda ejecución que persiste algo lleva `run_id` y manifiesto (git SHA, config hash, universe vintage, versiones) | **Pendiente** — T-004 |
 | INV-19 | Cualquier cambio en la lista de activos analizables produce un `universe_vintage_id` nuevo y una entrada en el decision log | **Pendiente** — A-00 |
 | INV-20 | Un resultado de investigación sin `experimental_resolution` y sin intervalo no se publica como hallazgo | `advisor/research/capacity.py`; revisión |
-| INV-21 | Una barra servida desde la caché local se declara como tal en la medición de esa pasada; nunca se presenta como si la fuente viva la hubiera devuelto | **Pendiente** — T-018 (C-09) |
+| INV-21 | Una barra servida desde la caché local se declara como tal en la medición de esa pasada; nunca se presenta como si la fuente viva la hubiera devuelto | `advisor/data/bar_cache.py`; `tests/test_bar_cache.py::TestPasadaCompleta::test_la_medicion_persistida_declara_la_barra_servida_por_cache` (T-018) |
 | INV-22 | Un porcentaje cuyas observaciones no son independientes se publica con el número de eventos que lo generan, no solo con el número de filas | `advisor/freshness_history.py`; D-41 |
 
 ---

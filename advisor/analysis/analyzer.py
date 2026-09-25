@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -29,6 +29,7 @@ from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_ove
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import AdvisorConfig
+from advisor.data.bar_cache import BarCacheReport
 from advisor.data.freshness import DataFreshness, FreshnessRow, calcular_frescura_serie, mercado_para_simbolo
 from advisor.data.market_data import MarketDataProvider
 from advisor.data.sessions import market_for_symbol, market_session, trim_unclosed_bar
@@ -63,6 +64,12 @@ class AnalysisResult:
     skipped: List[SkippedAnalysis] = field(default_factory=list)
     overview: List[IndexQuote] = field(default_factory=list)
     freshness_rows: List[FreshnessRow] = field(default_factory=list)
+    bar_cache: Optional[BarCacheReport] = None
+    """Lo que hizo la caché de barras validadas, o ``None`` si no actuó.
+
+    Viaja en el resultado para que el informe y la persistencia declaren lo
+    mismo que midió la pasada (INV-21), sin recalcularlo por separado.
+    """
 
     def by_radar(self, radar: str) -> List[Opportunity]:
         return [o for o in self.opportunities if o.radar == radar]
@@ -299,7 +306,23 @@ def run_analysis(
         skipped=skipped,
         overview=overview,
         freshness_rows=freshness_rows,
+        bar_cache=_bar_cache_report(provider),
     )
+
+
+def _bar_cache_report(provider: Any) -> Optional[BarCacheReport]:
+    """Lo que la caché declaró, si el proveedor recibido la lleva puesta.
+
+    El analizador no construye la caché ni decide si está activa: recibe el
+    proveedor que le den. Así el mismo `run_analysis` sirve a una pasada de
+    producción, a un test con proveedor falso y a un backtest vivo (INV-06).
+    """
+
+    report = getattr(provider, "bar_cache_report", None)
+    if not callable(report):
+        return None
+    value = report()
+    return value if isinstance(value, BarCacheReport) else None
 
 
 def indicator_reference_sessions(config: AdvisorConfig) -> int:

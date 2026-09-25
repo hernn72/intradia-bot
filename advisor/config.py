@@ -166,6 +166,27 @@ class DataQualityConfig(BaseModel):
         return self
 
 
+class BarCacheConfig(BaseModel):
+    """Caché local de barras de sesión cerrada ya validadas (C-09, D-41).
+
+    ``window_sessions`` es la ventana en la que la caché actúa. No es la ventana
+    de los indicadores a propósito: el fallo medido es que el proveedor retira
+    por la mañana una barra reciente que ya había servido, así que persistir y
+    reinyectar las últimas sesiones basta. Cuanto más larga sea la ventana, más
+    barras quedan expuestas a un reajuste por dividendo, que obliga a reanclar.
+
+    ``readjustment_tolerance`` es la holgura relativa con la que dos barras se
+    consideran la misma. Por debajo de ella, la diferencia es redondeo del
+    proveedor; por encima, o todas las barras solapadas cambian por un mismo
+    factor —reajuste por dividendo o split— o una cambia sola, que es una
+    revisión de la sesión.
+    """
+
+    enabled: bool = True
+    window_sessions: int = Field(30, gt=0)
+    readjustment_tolerance: float = Field(1e-4, gt=0)
+
+
 class ReportConfig(BaseModel):
     top_n: int = Field(5, gt=0)
     benchmark_symbol: str = "^STOXX50E"
@@ -229,6 +250,7 @@ class AdvisorConfig(BaseModel):
     portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
     market_context: MarketContextConfig = Field(default_factory=MarketContextConfig)
     data_quality: DataQualityConfig = Field(default_factory=DataQualityConfig)
+    bar_cache: BarCacheConfig = Field(default_factory=BarCacheConfig)
     report: ReportConfig = Field(default_factory=ReportConfig)
     ai: AiConfig = Field(default_factory=AiConfig)
     events: EventsConfig = Field(default_factory=EventsConfig)

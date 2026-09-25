@@ -49,6 +49,7 @@ from advisor.analysis.opportunity import (
 from advisor.analysis.overview import REGION_ORDER, IndexQuote
 from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, POSITION_LIMIT_RISK_BUDGET
 from advisor.config import AdvisorConfig, PortfolioConfig
+from advisor.data.bar_cache import BarCacheReport
 from advisor.data.freshness import (
     DataFreshness,
     FreshnessBucket,
@@ -660,6 +661,12 @@ def format_report(
     )
     lines.append("")
     lines.append(_report_freshness_summary(result.opportunities, result.generated_at))
+    cache_block = _report_bar_cache(
+        result.bar_cache,
+        {row.data_symbol for row in result.freshness_rows},
+    )
+    if cache_block:
+        lines.append(cache_block)
     lines.append(
         "Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre de la sesión local "
         f"+ {config.data_quality.settlement_minutes} min. Las ausencias se validan contra el calendario "
@@ -842,6 +849,91 @@ def _session_step_label(step: int) -> str:
 
 def _plural_activos(count: int) -> str:
     return "1 activo" if count == 1 else f"{count} activos"
+
+
+def _report_bar_cache(cache: Optional[BarCacheReport], persisted_symbols: set[str]) -> str:
+    """Declara lo que hizo la caché de barras validadas en esta pasada.
+
+    Nunca se calla cuando ha actuado: una barra servida por la caché no puede
+    presentarse como si la fuente viva la hubiera devuelto (INV-21). Cuando no
+    ha tenido trabajo también lo dice, porque «no aparece nada» y «la caché no
+    hizo falta» no son lo mismo para quien lee el informe mañana.
+
+    ``persisted_symbols`` son los símbolos que tienen fila de frescura, es decir
+    los activos analizados. La caché también toca índices de contexto y
+    benchmarks, que **no** se persisten por símbolo, así que el contador de valor
+    marginal se publica separado: si se mezclaran, el número del informe no
+    cuadraría con el acumulado que sale de la base, y son la misma pregunta.
+    """
+
+    if cache is None or not cache.enabled:
+        return ""
+
+    lines = ["**Caché de barras validadas:** ventana de "
+             f"{cache.window_sessions} sesiones exigibles."]
+
+    served = cache.served_symbols
+    if served:
+        lines.append(
+            f"⚠️ {cache.served_bars_count} barras servidas por la caché porque la fuente viva "
+            f"no las entregó, en {_plural_activos(len(served))}:"
+        )
+        for usage in sorted(served, key=lambda item: item.data_symbol):
+            fechas = ", ".join(value.isoformat() for value in usage.served_from_cache)
+            lines.append(f"  - {usage.data_symbol}: {fechas}.")
+    else:
+        lines.append("  - Barras servidas por la caché: ninguna; la fuente viva sirvió todo lo exigible.")
+
+    pinned = cache.pinned_symbols
+    if pinned:
+        lines.append(
+            f"⚠️ Revisiones del proveedor no aplicadas, manda la primera barra validada, en "
+            f"{_plural_activos(len(pinned))}:"
+        )
+        for usage in sorted(pinned, key=lambda item: item.data_symbol):
+            fechas = ", ".join(value.isoformat() for value in usage.pinned_revisions)
+            lines.append(f"  - {usage.data_symbol}: {fechas}.")
+
+    for usage in sorted(cache.reanchored, key=lambda item: item.data_symbol):
+        lines.append(f"  - {usage.data_symbol}: {usage.detail}")
+
+    for usage in sorted(cache.failed, key=lambda item: item.data_symbol):
+        lines.append(f"⚠️ {usage.data_symbol}: la caché no se pudo aplicar ({usage.detail}).")
+
+    # Este es el número que decide si además hace falta una segunda fuente de
+    # precios (D-41, regla 6): sesión exigible, nunca observada y no entregada.
+    # Una barra que la caché devuelve no cuenta: para esa no hace falta pagar.
+    analizados = sorted(
+        (usage for usage in cache.never_observed_symbols if usage.data_symbol in persisted_symbols),
+        key=lambda item: item.data_symbol,
+    )
+    contexto = sorted(
+        (usage for usage in cache.never_observed_symbols if usage.data_symbol not in persisted_symbols),
+        key=lambda item: item.data_symbol,
+    )
+    sesiones_analizados = sum(len(usage.sessions_never_observed) for usage in analizados)
+    sesiones_contexto = sum(len(usage.sessions_never_observed) for usage in contexto)
+    lines.append(
+        f"  - Sesiones exigibles nunca observadas y no entregadas: {sesiones_analizados} "
+        f"en {_plural_activos(len(analizados))} analizados (valor marginal de una segunda fuente; "
+        "es la cifra que se persiste y se acumula)."
+    )
+    for usage in analizados[:5]:
+        fechas = ", ".join(value.isoformat() for value in usage.sessions_never_observed)
+        lines.append(f"    · {usage.data_symbol}: {fechas}.")
+    if len(analizados) > 5:
+        lines.append(
+            f"    · … y {len(analizados) - 5} activos más; el detalle queda persistido por pasada."
+        )
+    if contexto:
+        lines.append(
+            f"  - Y {sesiones_contexto} sesiones en {len(contexto)} símbolos de contexto o benchmark "
+            f"({', '.join(usage.data_symbol for usage in contexto[:6])}"
+            f"{'…' if len(contexto) > 6 else ''}), que no tienen fila de frescura y por tanto "
+            "no se persisten por símbolo ni entran en el acumulado."
+        )
+
+    return "\n".join(lines)
 
 
 def _bucket_detail(bucket: FreshnessBucket) -> str:
