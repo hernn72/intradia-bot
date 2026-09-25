@@ -260,6 +260,7 @@ class CachedBarProvider:
         # No es una declaración, es contabilidad: hace falta para que el contador
         # de la regla 6 no dependa de con qué periodo se pidió el símbolo.
         self._delivered: Dict[str, set] = {}
+        self._markets: Dict[str, Optional[str]] = {}
 
     # -- Interfaz de proveedor ------------------------------------------------
 
@@ -268,7 +269,7 @@ class CachedBarProvider:
         if not self._enabled or interval != "1d":
             return live
         try:
-            return self._merge(symbol, live)
+            return self._merge(symbol, live, period)
         except Exception as exc:  # la caché no puede tumbar una pasada
             # Se declara en vez de degradar en silencio: una medición que no
             # dice nada es indistinguible de una caché que no tenía trabajo.
@@ -303,8 +304,8 @@ class CachedBarProvider:
 
     # -- Mezcla ---------------------------------------------------------------
 
-    def _merge(self, symbol: str, live: pd.DataFrame) -> pd.DataFrame:
-        market = self._resolve_market(symbol)
+    def _merge(self, symbol: str, live: pd.DataFrame, period: str) -> pd.DataFrame:
+        market = self._market_for(symbol)
         if market is None:
             self._record(
                 SymbolCacheUsage(
@@ -345,9 +346,11 @@ class CachedBarProvider:
 
         window_start = window[0]
         live_bars = self._live_bars(live, zone, ultima_cerrada)
-        stored = {bar.session_date: bar for bar in self._load(symbol, window_start)}
-
+        # Lo que la fuente viva entregó se anota **antes** de tocar la base: si
+        # `_load` falla, esa sesión ya se entregó, y no anotarlo la convertiría
+        # después en «nunca observada» para el contador de la regla 6.
         self._delivered.setdefault(symbol, set()).update(live_bars)
+        stored = {bar.session_date: bar for bar in self._load(symbol, window_start)}
 
         readjustment = self._detect_readjustment(live_bars, stored)
         if readjustment is not None:
@@ -386,24 +389,25 @@ class CachedBarProvider:
             pinned.append(session)
             live_bars[session] = (label, (*bar.values, bar.volume))
 
-        # La caché repone lo que el proveedor retiró; no alarga hacia atrás una
-        # ventana que el llamante pidió corta. Medido en una pasada real: el
-        # contexto pide `^VIX` con `period="5d"` y la caché le estaba inyectando
-        # 19 barras de sesiones anteriores, guardadas por otra llamada del mismo
-        # símbolo con `2y`. Eran barras reales, pero nadie las había pedido, y
-        # además inflaban la cifra de barras rescatadas que se publica.
-        primera_viva = min(live_bars) if live_bars else None
+        # La caché repone lo que el proveedor retiró, dentro del rango que el
+        # llamante pidió. El límite lo marca **el periodo de la petición**, no la
+        # primera barra que la fuente viva entregue, y esa distinción salió de dos
+        # defectos medidos y opuestos: sin límite, el contexto pide `^VIX` con
+        # `period="5d"` y recibía 19 barras guardadas por la llamada de `2y` del
+        # mismo símbolo; con el límite puesto en la primera barra viva, **dejaba de
+        # reponerse la primera barra del rango cuando era justo la que el proveedor
+        # retiraba**, que es el caso que la regla 1 de D-41 existe para cubrir.
+        rango_inicio = _requested_start(period, ultima_cerrada)
         candidatas = [
             session
             for session in sorted(stored)
             if session not in live_bars
             and window_start <= session <= ultima_cerrada
-            and primera_viva is not None
-            and session >= primera_viva
+            and (rango_inicio is None or session >= rango_inicio)
         ]
         marcas: Dict[date, Any] = {}
         for session in candidatas:
-            marca = _index_like(live.index, [stored[session].bar_timestamp])[0]
+            marca = _index_like(live.index, [stored[session].bar_timestamp], zone)[0]
             if _session_date(marca, zone) != session:
                 # La marca guardada, releída en la zona de la serie viva, no
                 # vuelve a caer en su propia sesión: con el cambio de horario una
@@ -566,19 +570,20 @@ class CachedBarProvider:
         ]
         if len(factores) < 2:
             return None
-        # El candidato es el factor que más barras comparten, y tiene que ser
-        # **mayoría estricta**: un empate no es una escala de la serie. Con dos
-        # barras a 0,5 y dos a 0,8, aceptar el empate reanclaba a 0,5 solo porque
-        # llegaba antes en el tiempo, que es elegir la escala por sorteo.
-        candidato, coincidencias = max(
-            (
-                (valor, sum(1 for otro in factores if abs(otro - valor) <= self._tolerance))
-                for valor in factores
-            ),
-            key=lambda par: par[1],
-        )
-        if coincidencias < 2 or coincidencias * 2 <= len(factores):
+        # El factor de la serie es el que **más barras comparten y sin empate**,
+        # no el que tenga mayoría absoluta. Las dos condiciones salieron de dos
+        # casos medidos y opuestos: con dos barras a 0,5 y dos a 0,8 exigir
+        # mayoría absoluta acierta —un empate sería elegir la escala por sorteo—,
+        # pero con dos barras a 0,5 y dos revisiones **distintas** la mayoría
+        # absoluta fallaba y dejaba al análisis en la base anterior al split
+        # (101,5 donde el proveedor ya servía 50,75). Lo que distingue los dos
+        # casos no es el recuento contra el total, es si hay un solo grupo
+        # dominante.
+        grupos = _clusters(factores, self._tolerance)
+        mayor = max(count for _, count in grupos)
+        if mayor < 2 or sum(1 for _, count in grupos if count == mayor) > 1:
             return None
+        candidato = next(valor for valor, count in grupos if count == mayor)
         if abs(candidato - 1.0) <= self._tolerance:
             return None
         return candidato
@@ -696,6 +701,20 @@ class CachedBarProvider:
             bars[session] = (label, values)
         return bars
 
+    def _market_for(self, symbol: str) -> Optional[str]:
+        """Plaza del símbolo, resuelta **una vez** por pasada.
+
+        Memorizarla no es una optimización: lo que la caché acumula por símbolo
+        —lo entregado, lo servido, lo nunca observado— se fecha en una plaza, así
+        que dos plazas para el mismo símbolo en la misma pasada mezclarían
+        calendarios. El resolver actual es determinista y no puede darlas, pero la
+        estructura no tiene por qué depender de eso.
+        """
+
+        if symbol not in self._markets:
+            self._markets[symbol] = self._resolve_market(symbol)
+        return self._markets[symbol]
+
     def _load(self, symbol: str, since: date) -> List[StoredBar]:
         if self._store is None:
             return []
@@ -810,6 +829,24 @@ def _worst_status(
                 return _status(list(served), list(pinned)) if (served or pinned) else status
             return status
     return nuevo
+
+
+def _clusters(factores: List[float], tolerance: float) -> List[Tuple[float, int]]:
+    """Agrupa factores que son el mismo dentro de la tolerancia.
+
+    Devuelve el representante de cada grupo y cuántas barras lo comparten. Es
+    contar, no ajustar: dos factores a distancia menor que la tolerancia son la
+    misma escala, y la lista ordenada hace el agrupamiento determinista.
+    """
+
+    grupos: List[Tuple[float, int]] = []
+    for valor in sorted(factores):
+        if grupos and abs(valor - grupos[-1][0]) <= tolerance:
+            representante, count = grupos[-1]
+            grupos[-1] = (representante, count + 1)
+            continue
+        grupos.append((valor, 1))
+    return grupos
 
 
 def _bar_factor(
@@ -928,13 +965,23 @@ def _rebuild(
     return merged
 
 
-def _index_like(reference: pd.Index, timestamps: List[str]) -> pd.DatetimeIndex:
+def _index_like(
+    reference: pd.Index,
+    timestamps: List[str],
+    market_zone: Any = None,
+) -> pd.DatetimeIndex:
     """Índice para las barras reinyectadas, en la misma escala que la serie viva.
 
     Las marcas se guardan tal como llegaron —ISO con su desfase—, así que
     releerlas produce una zona de desfase fijo (`UTC+02:00`) que no es la misma
     que `Europe/Berlin`. Concatenar dos índices con zonas distintas degrada el
     resultado a `object`, y ahí se pierde la alineación por sesiones.
+
+    Con una serie viva **sin zona** hay que quitarla, y entonces el orden importa:
+    pasar primero por la zona de la plaza y después soltar la zona conserva la
+    sesión, mientras que soltarla directamente movía de día a una barra europea
+    guardada en UTC —`2026-09-13T22:00:00+00:00` es la sesión del 14 en Berlín— y
+    la validación la descartaba por legítima que fuera.
     """
 
     valores = [pd.Timestamp(value) for value in timestamps]
@@ -946,9 +993,42 @@ def _index_like(reference: pd.Index, timestamps: List[str]) -> pd.DatetimeIndex:
         ]
     else:
         valores = [
-            valor.tz_localize(None) if valor.tzinfo is not None else valor for valor in valores
+            valor.tz_convert(market_zone).tz_localize(None)
+            if valor.tzinfo is not None and market_zone is not None
+            else (valor.tz_localize(None) if valor.tzinfo is not None else valor)
+            for valor in valores
         ]
     return pd.DatetimeIndex(valores)
+
+
+_PERIOD_DAYS: Dict[str, int] = {
+    "1d": 1,
+    "5d": 5,
+    "1mo": 31,
+    "3mo": 92,
+    "6mo": 183,
+    "1y": 366,
+    "2y": 731,
+    "5y": 1827,
+    "10y": 3653,
+}
+
+
+def _requested_start(period: str, ultima_cerrada: date) -> Optional[date]:
+    """Primera fecha que el llamante ha pedido, o ``None`` si no hay límite.
+
+    ``max`` no tiene límite inferior y un periodo no declarado tampoco se
+    inventa uno: sin poder acotar el rango, la caché repone dentro de su ventana
+    y el límite lo pone esa, que es lo conservador.
+    """
+
+    clave = period.strip().lower()
+    if clave == "ytd":
+        return date(ultima_cerrada.year, 1, 1)
+    dias = _PERIOD_DAYS.get(clave)
+    if dias is None:
+        return None
+    return ultima_cerrada - timedelta(days=dias)
 
 
 def _revision_row(
