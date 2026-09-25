@@ -35,13 +35,14 @@ Lo que hay que saber antes de tocarla:
   reescribe la serie por un factor común. De ahí la distinción entre **REAJUSTE**
   de la serie —que la caché adopta reanclándose— y **REVISION** de una barra
   —donde manda la primera validada—. Una sola base de ajuste por serie, siempre.
-- **La revisión cruzada cazó seis defectos, y cuatro de ellos pasaban los tests.**
-  Están listados en la ficha `docs/tareas/T-018-cache-de-barras-validadas.md`. El
-  peor: exigir unanimidad para detectar el reajuste hacía que un split con una
-  revisión puntual el mismo día **no** reanclara, y el análisis veía la base
-  anterior al split. El patrón se repite: **los defectos aparecen donde la caché
-  toca insumos del análisis** (índice de la serie, volumen), no en su propia
-  lógica.
+- **La revisión cruzada cazó diecisiete hallazgos en tres vueltas, y once de los
+  catorce que eran defectos de código pasaban los tests.** La lista numerada está
+  en `evidence/2026-09-25-T-018-cache-de-barras/README.md`. Dos patrones que
+  conviene no olvidar: **los defectos aparecen donde la caché toca insumos del
+  análisis** —el índice de la serie reinyectada, el volumen— y no en su propia
+  lógica; y **cada corrección defensiva tendía a comerse un caso que D-41 sí quiere
+  cubrir**, que es por lo que hubo tres vueltas y por lo que cada guarda del módulo
+  lleva su contraprueba al lado en los tests.
 - **OD-02 bis queda abierta y es del propietario.** La cifra que decide si además
   se compra una segunda fuente de precios ya se publica y se persiste, pero **no
   se decide con una pasada**: hay que dejar que la Pi acumule semanas. La primera
@@ -68,7 +69,7 @@ encima se compra EODHD para precios: `sesión exigible + nunca observada + no
 entregada`.
 
 **T-018 ya no está pendiente:** se implementó el 2026-09-25 y está EN_REVISION,
-con 37 tests propios. Lo único que queda de ella es una decisión del propietario
+con 50 tests propios. Lo único que queda de ella es una decisión del propietario
 que necesita tiempo, no código: **OD-02 bis**.
 
 **T-013 (A-02) está ACEPTADA y GATE P2 quedó CRUZADO el 2026-09-21.** El PR #23
