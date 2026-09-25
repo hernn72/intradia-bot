@@ -9,7 +9,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-25 (T-018 implementada, en revisión)
+# START HERE — actualizado 2026-09-25 (T-018 aceptada en `main`, pendiente de despliegue)
 
 ## Dónde está todo
 
@@ -17,14 +17,17 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
     la Pi                 v0.3.0 = 03e1ec3    esquema v5    EN_TAG
     graphify-out/         sin seguimiento, ignorar
 
-**Ojo con la Pi: T-018 trae migración v5 → v6.** Es la primera entrega desde
-`v0.3.0` que toca el esquema, así que su despliegue **no** es solo de código y el
-rollback no deshará la migración (D-32). El procedimiento con red de seguridad
-está en `docs/despliegue-y-rollback.md`.
+**Ojo con la Pi: T-018 está en `main` pero NO desplegada, y trae migración v5 → v6.**
+La Pi sigue corriendo **`v0.3.0` = `03e1ec3` con esquema v5**, a propósito: el
+propietario decidió revisar antes el procedimiento de migración y de rollback. Es la
+primera entrega desde `v0.3.0` que toca el esquema, así que su despliegue **no** es
+solo de código y **el rollback de código no deshace la migración** (D-32). El
+procedimiento con red de seguridad está en `docs/despliegue-y-rollback.md`.
 
 ## Lo primero: A-03 (P3), la única tarea grande abierta
 
-**T-018 (C-09) quedó implementada el 2026-09-25 y está EN_REVISION.** La caché
+**T-018 (C-09) está ACEPTADA y en `main` desde el 2026-09-25** (PR #24 fusionado
+con `--rebase`; `main` en `f378bc7`), **pendiente de despliegue**. La caché
 local de barras validadas ya funciona: el proveedor puede retirar por la mañana
 una barra que sirvió la tarde anterior y el análisis sigue viéndola, declarándolo.
 Lo que hay que saber antes de tocarla:
@@ -68,9 +71,10 @@ vio ese dato la tarde anterior. T-018 produce además la cifra que decide si
 encima se compra EODHD para precios: `sesión exigible + nunca observada + no
 entregada`.
 
-**T-018 ya no está pendiente:** se implementó el 2026-09-25 y está EN_REVISION,
-con 50 tests propios. Lo único que queda de ella es una decisión del propietario
-que necesita tiempo, no código: **OD-02 bis**.
+**T-018 ya no está pendiente:** ACEPTADA y en `main` el 2026-09-25, con 50 tests
+propios. Le quedan dos cosas, y ninguna es código: el **despliegue en la Pi**, que
+es una operación aparte por la migración de esquema, y **OD-02 bis**, que es una
+decisión del propietario y necesita semanas de datos.
 
 **T-013 (A-02) está ACEPTADA y GATE P2 quedó CRUZADO el 2026-09-21.** El PR #23
 se fusionó ese mismo día y `main` lo lleva dentro: esa tarea no tiene nada
@@ -219,11 +223,14 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
    frecuencia llega tarde cada plaza, que es lo que ahora determina el veto.
 3. ~~**T-013 (A-02)** → GATE P2~~ **ACEPTADA** el 2026-09-21. **GATE P2
    CRUZADO** (D-42 y D-43). La rama sigue sin fusionar.
-3b. **A-03 (P3, score v2)** → **DESBLOQUEADA y es lo siguiente**. Ficha por
-   escribir. Arranca de D-43 y del aviso de que ninguna banda es concluyente.
-3c. ~~**T-018 (C-09)** caché de barras validadas~~ **IMPLEMENTADA** el
-   2026-09-25, EN_REVISION. Esquema v6. Deja abierta **OD-02 bis**, que se
-   decide con semanas de datos de la Pi, no con código.
+3b. **A-03 (P3, score v2)** → **DESBLOQUEADA y es el siguiente trabajo grande**.
+   Ficha por escribir. Arranca de D-43 —el RR sale del score como dimensión y
+   sigue siendo condición de ejecutabilidad— y del aviso de que ninguna banda es
+   concluyente.
+3c. ~~**T-018 (C-09)** caché de barras validadas~~ **ACEPTADA** el 2026-09-25 (PR
+   #24 fusionado). Esquema v6. Le quedan dos cosas, ninguna de código: el
+   **despliegue en la Pi**, que es aparte por la migración, y **OD-02 bis**, que se
+   decide con semanas de datos.
 4. **T-016** higiene del centinela, sin urgencia: la auditoría midió 0 celdas
    afectadas en el veredicto de P2.5.
 5. **T-014 (B-00)** contrato point-in-time, y **C-04** alertas, cuando toque.

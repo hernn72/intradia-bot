@@ -1,6 +1,20 @@
 # T-018 — Caché local de barras de sesión cerrada ya validadas (C-09)
 
-Estado: EN_REVISION (implementada el 2026-09-25)
+Estado: ACEPTADA (2026-09-25; PR #24 fusionado, pendiente de despliegue en la Pi)
+
+**Tres cosas distintas, que conviene no confundir al leer esta ficha:**
+
+1. **T-018 está terminada y aceptada en `main`.** El PR #24 se fusionó el
+   2026-09-25 con `--rebase`; `main` quedó en `f378bc7` con 665 tests, `ruff` y
+   `mypy` limpios verificados sobre `main` después del rebase.
+2. **OD-02 bis sigue ABIERTA**, y no por falta de trabajo: necesita **semanas de
+   datos** de la Pi. Una sola pasada no distingue un fallo puntual del proveedor de
+   un hueco estructural, y las mediciones de una misma pasada no son independientes
+   (INV-22). La cifra ya se publica y se persiste; lo que falta es acumularla.
+3. **El despliegue del esquema v5 → v6 es una operación posterior y separada.** La
+   Pi sigue en `v0.3.0` = `03e1ec3` con esquema **v5**, a propósito: el propietario
+   decidió revisar antes el procedimiento de migración y de rollback. El rollback de
+   código **no** deshace una migración (D-32).
 Agente: Opus (ficha e implementación) → Codex (revisión de diseño y supervisión del código) → propietario (OD-02 bis)
 Línea / fase: Línea C, C-09
 Gate al que contribuye: ninguno directamente; **produce la cifra que decide si
@@ -160,10 +174,15 @@ Rama `feat/validated-bar-cache`. Mensaje:
 `feat(datos): persistir barras de sesion cerrada ya validadas y declarar cuando la fuente viva no las sirve`
 
 ## Actualización documental requerida
-`docs/roadmap.md`: fila C-09 a EN_REVISION y luego ACEPTADA.
-`docs/metodo-trabajo.md`: añadir **INV-21** a la tabla de invariantes.
-`docs/decision-log.md`: OD-02 bis queda abierta a la espera del contador; se
-cierra cuando haya varias semanas de datos.
+Las tres, **hechas**:
+- `docs/roadmap.md`: fila C-09 pasó a EN_REVISION con la entrega y a **ACEPTADA**
+  el 2026-09-25, al fusionarse el PR #24. Queda marcada como **pendiente de
+  despliegue**, que no es lo mismo que pendiente de aceptación.
+- `docs/metodo-trabajo.md`: **INV-21** ya no figura como pendiente; apunta a su
+  test en `tests/test_bar_cache.py`.
+- `docs/decision-log.md`: **OD-02 bis** queda abierta a la espera del contador, y se
+  cierra cuando haya varias semanas de datos. **D-44** recoge las dos decisiones que
+  el propietario tomó al implementar.
 
 ## Cómo quedó implementada (2026-09-25)
 
