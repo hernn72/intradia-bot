@@ -1,4 +1,4 @@
---- pasada normal (2026-09-25T11:31:47.879874+00:00) ---
+--- pasada normal (2026-09-25T12:14:13.958276+00:00) ---
 barras guardadas en esta pasada  : 3328
 sesiones retiradas al proveedor  : 0
 simbolos servidos por la cache   : 0
@@ -10,15 +10,15 @@ nunca observadas, analizados     : 33
 nunca observadas, contexto       : 15
 retiradas que la cache NO restauro: 0 []
 servidas que nadie retiro         : 0 []
---- pasada retirando la ultima sesion europea (2026-09-25T11:33:51.325872+00:00) ---
+--- pasada retirando la ultima sesion europea (2026-09-25T12:16:17.435032+00:00) ---
 barras guardadas en esta pasada  : 0
 sesiones retiradas al proveedor  : 12
-simbolos servidos por la cache   : 12
-barras servidas por la cache     : 12
+simbolos servidos por la cache   : 15
+barras servidas por la cache     : 15
 revisiones fijadas               : 0
 reanclajes                       : 0
 fallos de cache                  : 0
 nunca observadas, analizados     : 33
 nunca observadas, contexto       : 15
 retiradas que la cache NO restauro: 0 []
-servidas que nadie retiro         : 0 []
+servidas que nadie retiro         : 3 ['^GSPC', '^STOXX', '^STOXX50E']

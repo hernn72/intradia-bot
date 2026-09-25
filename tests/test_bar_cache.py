@@ -1088,3 +1088,161 @@ class TestSegundaRondaDeRevision:
         assert provider.report.usage["SAP.DE"].served_from_cache == ()
         # La barra sigue guardada: lo que no se puede es reinyectarla a ciegas.
         assert {row["session_date"] for row in db.get_validated_bars("SAP.DE")} == {"2026-09-14"}
+
+
+class TestTerceraRondaDeRevision:
+    """Ronda 3: dos correcciones de la ronda 2 recortaban casos legítimos.
+
+    El patrón se repitió tres veces y conviene tenerlo escrito: cada corrección
+    defensiva de esta caché tiende a comerse un caso que las reglas de D-41 sí
+    quieren cubrir. Por eso cada guarda lleva su contraprueba al lado.
+    """
+
+    def test_se_repone_la_primera_barra_del_rango_cuando_es_la_retirada(self, db) -> None:
+        """Antes: no se reponía, y es justo el caso de la regla 1 de D-41.
+
+        Medido: con la barra del 2026-09-07 guardada y retirada por el proveedor,
+        el análisis veía 5 filas en vez de 6 y la caché declaraba `FUENTE_VIVA`.
+        La causa era limitar la reposición a la primera barra que la fuente viva
+        entrega, en vez de al rango que el llamante pidió.
+        """
+
+        completa = serie(SESIONES[-6:])
+        tarde = cache(ProveedorDeSerie(completa), db, TARDE_DEL_14)
+        tarde.get_history("SAP.DE")
+        guardar(db, tarde)
+
+        # Se recorta la MISMA serie, que es lo que hace el proveedor: regenerar
+        # precios movería toda la escala y el caso mediría otra cosa.
+        siguiente = cache(ProveedorDeSerie(completa.iloc[1:]), db, MANANA_DEL_15)
+        merged = siguiente.get_history("SAP.DE")
+
+        uso = siguiente.report.usage["SAP.DE"]
+        assert uso.served_from_cache == (SESIONES[-6],)
+        assert uso.status == STATUS_SERVED
+        assert len(merged) == len(completa)
+
+    def test_un_split_con_dos_revisiones_sobre_cuatro_solapes_si_reancla(self, db) -> None:
+        """Antes: exigir mayoría absoluta perdía el reajuste y fijaba la base vieja.
+
+        Medido: el análisis veía 101,5 mientras el proveedor ya servía 50,75. Lo
+        que distingue este caso del empate 2-2 no es el recuento contra el total,
+        es que aquí hay **un solo grupo dominante** y allí hay dos.
+        """
+
+        cuatro = SESIONES[-4:]
+        tarde = cache(ProveedorDeSerie(serie(cuatro)), db, TARDE_DEL_14)
+        tarde.get_history("SAP.DE")
+        guardar(db, tarde)
+
+        split = serie(cuatro, factor=0.5)
+        for posicion, extra in ((0, 1.01), (1, 1.03)):
+            for columna in ("Open", "High", "Low", "Close"):
+                indice = split.columns.get_loc(columna)
+                split.iloc[posicion, indice] = float(split.iloc[posicion, indice]) * extra
+        siguiente = cache(ProveedorDeSerie(split), db, MANANA_DEL_15)
+        merged = siguiente.get_history("SAP.DE")
+
+        uso = siguiente.report.usage["SAP.DE"]
+        assert uso.status == STATUS_REANCHORED
+        assert uso.readjustment_factor == pytest.approx(0.5, abs=1e-6)
+        assert float(merged["Close"].iloc[-1]) == pytest.approx(float(split["Close"].iloc[-1]))
+
+    def test_lo_entregado_se_anota_aunque_la_base_falle_despues(self, db) -> None:
+        """Antes: si `_load` fallaba, la sesión entregada contaba como nunca observada.
+
+        La cuenta de la regla 6 no puede depender de que la caché consiguiera leer
+        la base: lo que el proveedor entregó, entregado está.
+        """
+
+        hueco = date(2026, 9, 1)
+        completa = serie(SESIONES)
+        corta = serie([value for value in SESIONES if value >= date(2026, 9, 7)])
+
+        class BaseQueFallaUnaVez:
+            def __init__(self) -> None:
+                self.llamadas = 0
+
+            def get_validated_bars(self, data_symbol, since=None):
+                self.llamadas += 1
+                if self.llamadas == 1:
+                    raise RuntimeError("base bloqueada")
+                return []
+
+        class ProveedorPorPeriodo:
+            def get_history(self, symbol, period="1y", interval="1d"):
+                return corta if period == "1mo" else completa
+
+            def get_raw_history(self, symbol, period="1y", interval="1d", *, drop_na=True):
+                return completa
+
+        provider = CachedBarProvider(
+            ProveedorPorPeriodo(),
+            store=BaseQueFallaUnaVez(),
+            resolve_market=lambda symbol: "XETRA",
+            reference=TARDE_DEL_14,
+            settlement_minutes=20,
+            window_sessions=30,
+            readjustment_tolerance=1e-4,
+        )
+        # La primera petición entrega la sesión y la caché falla después de eso.
+        provider.get_history("^STOXX50E", period="2y")
+        assert provider.report.usage["^STOXX50E"].status == "CACHE_NO_APLICADA"
+        # La segunda no la trae, pero ya se sabe que el proveedor sí la entrega.
+        provider.get_history("^STOXX50E", period="1mo")
+
+        assert hueco not in provider.report.usage["^STOXX50E"].sessions_never_observed
+
+    def test_una_serie_sin_zona_no_descarta_una_barra_legitima(self, db) -> None:
+        """Antes: con índice naive se soltaba la zona y la barra cambiaba de sesión.
+
+        `2026-09-13T22:00:00+00:00` es la sesión del 14 en Berlín. Soltando la zona
+        directamente pasaba a ser del 13 y la validación la descartaba por
+        legítima que fuera.
+        """
+
+        db.insert_validated_bars(
+            [
+                {
+                    "data_symbol": "SAP.DE",
+                    "market": "XETRA",
+                    "session_date": "2026-09-14",
+                    "bar_timestamp": "2026-09-13T22:00:00+00:00",
+                    "open": 100.0,
+                    "high": 101.0,
+                    "low": 99.0,
+                    "close": 100.0,
+                    "volume": 1.0,
+                    "observed_at": TARDE_DEL_14.isoformat(),
+                    "provider": "yfinance",
+                }
+            ]
+        )
+        naive = serie(SESIONES[:-1])
+        naive.index = naive.index.tz_localize(None)
+
+        provider = cache(ProveedorDeSerie(naive), db, MANANA_DEL_15)
+        merged = provider.get_history("SAP.DE")
+
+        assert provider.report.usage["SAP.DE"].served_from_cache == (date(2026, 9, 14),)
+        assert len(merged) == len(naive) + 1
+
+    def test_la_plaza_de_un_simbolo_se_resuelve_una_vez_por_pasada(self, db) -> None:
+        """Lo que se acumula por símbolo se fecha en una plaza, no en dos."""
+
+        plazas = iter(["XETRA", "NASDAQ"])
+        provider = CachedBarProvider(
+            ProveedorDeSerie(serie(SESIONES)),
+            store=db,
+            resolve_market=lambda symbol: next(plazas),
+            reference=TARDE_DEL_14,
+            settlement_minutes=20,
+            window_sessions=30,
+            readjustment_tolerance=1e-4,
+        )
+
+        provider.get_history("SAP.DE", period="2y")
+        provider.get_history("SAP.DE", period="1y")
+
+        assert provider.report.usage["SAP.DE"].market == "XETRA"
+        assert {row["market"] for row in provider.report.bars_to_store} == {"XETRA"}

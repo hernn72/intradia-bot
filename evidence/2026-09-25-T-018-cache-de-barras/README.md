@@ -1,7 +1,7 @@
 # T-018 — caché local de barras de sesión cerrada ya validadas (C-09)
 
 - Instante de cierre: `2026-09-25T11:40Z`. Rama `feat/validated-bar-cache`.
-- Suite: **660 tests pasan** (615 en `main` + 45 nuevos en `tests/test_bar_cache.py`),
+- Suite: **665 tests pasan** (615 en `main` + 50 nuevos en `tests/test_bar_cache.py`),
   `ruff check .` limpio, `mypy advisor` limpio (67 ficheros), Python 3.12.13.
 - Decisiones del propietario tomadas en esta sesión: **D-44** (regla 4 de la caché
   y la distinción entre reajuste de la serie y revisión de una barra).
@@ -36,17 +36,35 @@ Todo lo demás —series, universo de 93, calendarios, análisis— es real.
 |---|---:|---:|
 | Barras validadas guardadas | **3.328** | 0 (ya estaban) |
 | Sesiones retiradas al proveedor | 0 | **12** |
-| Símbolos servidos por la caché | 0 | **12** |
-| Barras servidas por la caché | 0 | **12** |
+| Símbolos servidos por la caché | 0 | **15** |
+| Barras servidas por la caché | 0 | **15** |
 | Retiradas que la caché **no** restauró | — | **0** |
-| Barras servidas que nadie había retirado | 0 | **0** |
+| Barras servidas que nadie había retirado | 0 | **3** |
 | Revisiones fijadas · reanclajes · fallos | 0 · 0 · 0 | 0 · 0 · 0 |
 
-**Doce retiradas, doce restauradas, ni una de más.** Es la comprobación que pedía
-la ficha, y el «ni una de más» importa tanto como el resto: una versión anterior
-servía 74 barras en 19 símbolos con solo 12 retiradas, porque alargaba hacia atrás
-ventanas que el llamante había pedido cortas (`^VIX` se pide con `period="5d"` y
-recibía 19 barras guardadas por la llamada de `2y` del mismo símbolo).
+**Las doce retiradas se restauraron, sin excepción.** Es la comprobación que pedía
+la ficha.
+
+**Y las tres de más están explicadas, no sueltas.** Son una sola sesión en cada uno
+de tres índices de contexto —`^GSPC`, `^STOXX` y `^STOXX50E`—, y salen del límite
+con el que la caché decide qué repone: **el periodo que pidió el llamante**. Un
+`period="1mo"` se acota en 31 días naturales, y yfinance devuelve para ese periodo
+unas 21 sesiones, así que la sesión que cae justo en el borde entra en el rango de
+la caché aunque el proveedor no la hubiera servido esta vez. Es una barra real de
+esa plaza, observada por el bot en otra petición del mismo símbolo, y el efecto
+está acotado por el propio periodo: **una sesión, no una ventana**.
+
+El límite por periodo sustituyó a dos reglas peores, ambas medidas:
+
+- **sin límite**, el contexto pide `^VIX` con `period="5d"` y recibía **19 barras**
+  guardadas por la llamada de `2y` del mismo símbolo: 74 barras servidas en 19
+  símbolos con solo 12 retiradas;
+- **limitando a la primera barra que la fuente viva entrega**, dejaba de reponerse
+  la primera barra del rango cuando era **justo la que el proveedor retiraba**, que
+  es el caso que la regla 1 de D-41 existe para cubrir.
+
+Entre equivocarse por una sesión de más y perder una barra que el bot ya había
+validado, la regla 1 marca la dirección: no perderla.
 
 Solo 12 de los ~25 europeos tenían la barra del 2026-09-24 que retirar: al resto
 ya le faltaba, y eso es justo lo que cuenta el apartado siguiente.
@@ -80,12 +98,18 @@ que estas 33 son ~1 evento, no 33 observaciones (INV-22). La cifra hay que leerl
 acumulada y deduplicada por par activo-sesión, con `frescura-historico`, tras
 varias semanas en la Pi.
 
-## Los nueve defectos que cazó la revisión cruzada
+## Los doce defectos que cazó la revisión cruzada
 
 Codex revisó el diseño antes de escribir el módulo y supervisó el código después,
-en dos vueltas. **Ninguno de los nueve se detectó leyendo el código: todos se
+en **tres vueltas**. **Ninguno de los doce se detectó leyendo el código: todos se
 midieron ejecutándolos**, y cada uno tiene ahora un test con el valor de antes
 escrito dentro.
+
+Hubo tres vueltas y no una por un motivo que conviene tener presente si alguien
+vuelve a tocar esta capa: **cada corrección defensiva tendía a comerse un caso que
+las reglas de D-41 sí quieren cubrir**. Las correcciones de la vuelta 1 abrieron
+los hallazgos de la 2, y las de la 2 abrieron los de la 3. Por eso cada guarda del
+módulo lleva su contraprueba al lado en los tests.
 
 Del diseño, antes de escribir:
 
@@ -121,6 +145,27 @@ la primera, que es para lo que hay una segunda):
 Y uno menor, condicional: una marca guardada releída en otra zona puede retroceder
 de sesión con el cambio de horario. Ahora se valida que vuelva a fechar en su
 propia sesión y, si no, **no se reinyecta y se declara**.
+
+Del código, tercera vuelta (los dos primeros los abrieron, otra vez, las
+correcciones de la vuelta anterior):
+
+10. la mayoría **absoluta** perdía un reajuste real: un split de factor 0,5 con dos
+    revisiones puntuales sobre cuatro solapes no reanclaba, y el análisis veía
+    **101,5 donde el proveedor ya servía 50,75**. La regla pasa a ser **un solo
+    grupo dominante, sin empate**, que es lo que distingue este caso del empate
+    2-2 de la vuelta anterior;
+11. limitar la reposición a la primera barra viva **dejaba sin reponer la primera
+    barra del rango** cuando era la retirada: cinco filas donde tenían que haber
+    seis, con la caché declarando `FUENTE_VIVA`. El límite pasa a ser el periodo
+    pedido;
+12. lo entregado por la fuente viva se anotaba **después** de leer la base, así que
+    un fallo de la base entre medias convertía una sesión ya entregada en «nunca
+    observada» para el contador de la regla 6.
+
+Y dos menores más: con una serie de índice sin zona se soltaba la zona de la marca
+guardada y una barra europea legítima cambiaba de sesión (ahora se pasa primero por
+la zona de la plaza); y la plaza de un símbolo se resuelve ahora **una sola vez por
+pasada**, porque todo lo que se acumula por símbolo se fecha en una plaza.
 
 Dos más los encontró contrastar la pasada real por SQL, no leer código: el informe
 publicaba 48 sesiones cuando solo 33 se persisten (mezclaba activos con índices), y

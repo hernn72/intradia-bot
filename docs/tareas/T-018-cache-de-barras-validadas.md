@@ -200,25 +200,37 @@ que es lo que usa producción para recortarlo: el universo declara `^STOXX50E` e
 símbolo explícito → declaración del universo → sufijo → `None`, y con `None` la
 caché no actúa y lo declara (INV-16).
 
-**Los seis defectos que la revisión cruzada con Codex cazó, todos medidos antes
-de corregirlos** (y cada uno con su test, con el valor de antes escrito dentro):
-1. el índice de una barra reinyectada degradaba a `object` y **`relative_strength`
-   devolvía `None` en silencio**, justo en los activos que la caché rescata;
-2. una barra con volumen desconocido metía un `NaN` y `build_snapshot` tomaba el
-   volumen de la sesión anterior como si fuera el de esa barra;
-3. una revisión que solo tocaba el volumen no se registraba;
-4. **el más grave**: exigir unanimidad para el reajuste hacía que un split con una
-   revisión puntual el mismo día **no** reanclara, y el análisis veía la base
-   anterior al split (168,5 donde el proveedor servía 85,09). El factor sale
-   ahora de la mayoría;
-5. `_record` sobrescribía lo declarado cuando un símbolo se pide dos veces con
-   periodos distintos, y podía perder una declaración de barra servida (INV-21);
-6. el informe publicaba una cifra de valor marginal que **no cuadraba con la
-   persistida**, porque mezclaba activos analizados con índices de contexto.
+**Quince defectos, en tres vueltas de revisión cruzada con Codex, todos medidos
+antes de corregirlos** y cada uno con su test, con el valor de antes escrito
+dentro. La lista completa está en
+`evidence/2026-09-25-T-018-cache-de-barras/README.md`. Lo que hay que saber si
+alguien vuelve a tocar esta capa son dos patrones:
 
-**Coste declarado que no se esconde:** una barra retirada el mismo día de un
-reajuste se pierde, porque escalarla por el factor produciría un valor que el bot
-nunca observó (regla 2). La medición lo declara.
+- **Los defectos no estaban en la lógica de la caché, sino donde la caché toca
+  insumos del análisis.** El índice de una barra reinyectada degradaba a `object`
+  y `relative_strength` devolvía `None` en silencio; una barra con volumen
+  desconocido hacía que `build_snapshot` tomara el volumen de la sesión anterior
+  como si fuera el de esa barra. Al meter una capa en medio del camino de los
+  datos hay que comprobar **qué lee aguas abajo**, no solo que la capa haga lo suyo.
+- **Cada corrección defensiva tendía a comerse un caso que las reglas de D-41 sí
+  quieren cubrir**, y de ahí que hubiera tres vueltas y no una: las correcciones
+  de la vuelta 1 abrieron los hallazgos de la 2, y las de la 2 los de la 3. Dos
+  ejemplos del mismo par: exigir **unanimidad** para detectar el reajuste dejaba al
+  análisis en la base anterior a un split, y exigir **mayoría absoluta** también
+  —la regla buena es un solo grupo dominante, sin empate—; y acotar la reposición
+  a la primera barra viva evitaba alargar ventanas cortas pero dejaba de reponer la
+  primera barra del rango cuando era justo la retirada. **Cada guarda del módulo
+  lleva su contraprueba al lado en los tests**, y conviene que siga siendo así.
+
+**Dos costes declarados, que no se esconden:**
+- una barra retirada el mismo día de un reajuste **se pierde**, porque escalarla
+  por el factor produciría un valor que el bot nunca observó (regla 2);
+- el límite de reposición es **el periodo que pidió el llamante**, y en el borde
+  de un periodo corto puede entrar **una** sesión que el proveedor no habría
+  servido esa vez. Medido: 3 sesiones en 3 índices de contexto sobre 12 retiradas.
+  Es una barra real de esa plaza y el efecto está acotado por el propio periodo.
+  Entre equivocarse por una sesión de más y perder una barra ya validada, la regla
+  1 marca la dirección.
 
 ## Handoff al siguiente agente
 **Queda vivo para el propietario:** OD-02 bis, que **no se decide hoy**. La cifra

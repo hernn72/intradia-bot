@@ -1,5 +1,5 @@
 {
-  "instante": "2026-09-25T11:33:51.325872+00:00",
+  "instante": "2026-09-25T12:16:17.435032+00:00",
   "retiradas": {
     "SAP.DE": "2026-09-24",
     "SIE.DE": "2026-09-24",
@@ -15,6 +15,15 @@
     "R6C0.DE": "2026-09-24"
   },
   "servidos": {
+    "^STOXX": [
+      "2026-08-24"
+    ],
+    "^STOXX50E": [
+      "2026-08-24"
+    ],
+    "^GSPC": [
+      "2026-08-24"
+    ],
     "SAP.DE": [
       "2026-09-24"
     ],
@@ -53,7 +62,11 @@
     ]
   },
   "no_restauradas": [],
-  "servidas_no_retiradas": [],
+  "servidas_no_retiradas": [
+    "^GSPC",
+    "^STOXX",
+    "^STOXX50E"
+  ],
   "nunca_observadas_analizados": 33,
   "nunca_observadas_contexto": 15
 }
