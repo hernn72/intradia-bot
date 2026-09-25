@@ -106,6 +106,31 @@ class AssetPartialSummary:
 
 
 @dataclass(frozen=True)
+class BarCacheHistory:
+    """Lo acumulado de la caché de barras validadas en toda la ventana.
+
+    Cuenta **pares activo-sesión distintos**, no filas. La misma sesión ausente
+    reaparece en todas las pasadas que la ven, así que sumar por fila multiplica
+    el hueco por el número de pasadas: es el defecto que D-40 obligó a corregir
+    en las ausencias y que aquí no se repite.
+    """
+
+    passes_with_cache: int = 0
+    served_pairs: int = 0
+    served_symbols: int = 0
+    pinned_pairs: int = 0
+    pinned_symbols: int = 0
+    never_observed_pairs: int = 0
+    never_observed_symbols: int = 0
+    reanchored_symbols: int = 0
+    failed_symbols: int = 0
+
+    @property
+    def measured(self) -> bool:
+        return self.passes_with_cache > 0
+
+
+@dataclass(frozen=True)
 class FreshnessHistorySummary:
     total_measurements: int
     total_passes: int
@@ -127,6 +152,7 @@ class FreshnessHistorySummary:
     versions: list[VersionSegment]
     populations: tuple[str, ...]
     window_note: str
+    bar_cache: BarCacheHistory = BarCacheHistory()
 
 
 def summarize_freshness_history(rows: Iterable[Any], universe: Universe) -> FreshnessHistorySummary:
@@ -292,6 +318,7 @@ def summarize_freshness_history(rows: Iterable[Any], universe: Universe) -> Fres
     )
 
     return FreshnessHistorySummary(
+        bar_cache=_summarize_bar_cache(parsed),
         total_measurements=len(materialized),
         total_passes=len(pass_times),
         total_symbols=len(symbols),
@@ -328,6 +355,50 @@ def summarize_freshness_history(rows: Iterable[Any], universe: Universe) -> Fres
     )
 
 
+def _summarize_bar_cache(parsed: list[tuple[datetime, Any]]) -> BarCacheHistory:
+    """Acumulado de la caché deduplicando por activo y sesión (D-40).
+
+    Las filas anteriores a la caché llegan con `NULL` en estas columnas y no
+    cuentan como «la caché no hizo nada»: cuentan como no medido, que es por qué
+    `passes_with_cache` existe. Sin ese dato, un cero sería indistinguible de una
+    ventana entera de pasadas que no sabían medirlo.
+    """
+
+    served: set[tuple[str, date]] = set()
+    pinned: set[tuple[str, date]] = set()
+    never: set[tuple[str, date]] = set()
+    reanchored: set[str] = set()
+    failed: set[str] = set()
+    passes: set[datetime] = set()
+    for measured_at, row in parsed:
+        status = _optional_str(row.get("bar_cache_status"))
+        if status is None:
+            continue
+        passes.add(measured_at)
+        symbol = str(row["symbol"])
+        for value in _decode_dates(row.get("bars_served_from_cache")):
+            served.add((symbol, value))
+        for value in _decode_dates(row.get("bars_pinned_revisions")):
+            pinned.add((symbol, value))
+        for value in _decode_dates(row.get("sessions_never_observed")):
+            never.add((symbol, value))
+        if status == "REANCLADA":
+            reanchored.add(symbol)
+        if status == "CACHE_NO_APLICADA":
+            failed.add(symbol)
+    return BarCacheHistory(
+        passes_with_cache=len(passes),
+        served_pairs=len(served),
+        served_symbols=len({symbol for symbol, _ in served}),
+        pinned_pairs=len(pinned),
+        pinned_symbols=len({symbol for symbol, _ in pinned}),
+        never_observed_pairs=len(never),
+        never_observed_symbols=len({symbol for symbol, _ in never}),
+        reanchored_symbols=len(reanchored),
+        failed_symbols=len(failed),
+    )
+
+
 def classify_absence_causes(
     row: Mapping[str, object], measured_at: datetime
 ) -> tuple[CauseCounts, set[date], set[date], set[date]]:
@@ -361,6 +432,43 @@ def classify_absence_causes(
 
 def _optional_str(value: object) -> str | None:
     return None if value is None else str(value)
+
+
+def _bar_cache_section(history: BarCacheHistory) -> list[str]:
+    """Acumulado de la cache, y el numero que decide la segunda fuente.
+
+    Se publica en pares activo-sesion distintos y diciendo sobre cuantas pasadas
+    se apoya, porque las mediciones de una misma pasada no son independientes
+    (INV-22).
+    """
+
+    if not history.measured:
+        return [
+            (
+                "Sin mediciones de cache en esta ventana: las filas anteriores a C-09 no la declaraban. "
+                "No medido NO es cero (INV-16)."
+            )
+        ]
+    return [
+        f"Pasadas que declaran cache: {history.passes_with_cache}.",
+        (
+            f"- barras servidas por la cache porque la fuente viva las retiro: {history.served_pairs} "
+            f"pares activo-sesion distintos, en {history.served_symbols} activos."
+        ),
+        (
+            f"- revisiones del proveedor no aplicadas (manda la primera validada): {history.pinned_pairs} "
+            f"pares, en {history.pinned_symbols} activos."
+        ),
+        (
+            f"- reanclajes por reajuste de la serie: {history.reanchored_symbols} activos; "
+            f"pasadas en que la cache no se pudo aplicar: {history.failed_symbols} activos."
+        ),
+        (
+            f"- VALOR MARGINAL DE UNA SEGUNDA FUENTE: {history.never_observed_pairs} sesiones exigibles "
+            f"nunca observadas y no entregadas, en {history.never_observed_symbols} activos. Es la cifra de "
+            "OD-02 bis, y se cuenta una sola vez por activo y sesion."
+        ),
+    ]
 
 
 def format_freshness_history_summary(summary: FreshnessHistorySummary) -> str:
@@ -418,6 +526,11 @@ def format_freshness_history_summary(summary: FreshnessHistorySummary) -> str:
             f"n={summary.causes_appearances.provider_missing}; parcial "
             f"n={summary.causes_appearances.partial_bar}."
         ),
+        "",
+        "## Cache de barras validadas",
+    ])
+    lines.extend(_bar_cache_section(summary.bar_cache))
+    lines.extend([
         "",
         "## Plaza x hora UTC",
         (

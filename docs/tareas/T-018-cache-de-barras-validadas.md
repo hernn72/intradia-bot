@@ -1,7 +1,7 @@
 # T-018 — Caché local de barras de sesión cerrada ya validadas (C-09)
 
-Estado: PENDIENTE
-Agente: Opus (ficha) → Codex (implementación) → Opus (revisión) → propietario (OD-02 bis)
+Estado: EN_REVISION (implementada el 2026-09-25)
+Agente: Opus (ficha e implementación) → Codex (revisión de diseño y supervisión del código) → propietario (OD-02 bis)
 Línea / fase: Línea C, C-09
 Gate al que contribuye: ninguno directamente; **produce la cifra que decide si
 además hace falta una segunda fuente de precios europea**
@@ -165,5 +165,70 @@ Rama `feat/validated-bar-cache`. Mensaje:
 `docs/decision-log.md`: OD-02 bis queda abierta a la espera del contador; se
 cierra cuando haya varias semanas de datos.
 
+## Cómo quedó implementada (2026-09-25)
+
+**La regla 4 la decidió el propietario, y con ella apareció un hecho que la
+pregunta no contemplaba.** Todo está en **D-44**: manda la primera barra
+validada, y —porque `get_history` usa yfinance con `auto_adjust=True`, así que
+cada ex-dividendo reescribe la serie por un factor común— se distingue el
+**REAJUSTE** de la serie, que la caché adopta reanclándose, de la **REVISION**
+de una barra, donde sigue mandando la primera validada. Una sola base de ajuste
+por serie, siempre.
+
+**Piezas:**
+- `advisor/data/bar_cache.py`: `CachedBarProvider` envuelve al proveedor y solo
+  actúa en series diarias. `get_raw_history` pasa intacto: alimenta la cosecha
+  congelada, que debe seguir siendo lo que el proveedor sirvió (INV-13).
+- Esquema **v6**: `validated_bar` (UNIQUE por símbolo y sesión, `INSERT OR IGNORE`
+  para que nadie sobrescriba la primera validada), `validated_bar_revision` y
+  cuatro columnas en `data_freshness_measurement`
+  (`bars_served_from_cache`, `bars_pinned_revisions`, `sessions_never_observed`,
+  `bar_cache_status`).
+- Todo se escribe en la transacción de `insert_analysis_result`, al final de la
+  pasada, para que lo persistido lleve el `run_id` de un manifiesto que existe
+  (INV-18). El reanclaje **borra antes de insertar**.
+- Cableado en `cmd_analizar`, `cmd_pasada_evento` y el `backtest` **vivo** —este
+  con la base en solo lectura—, porque no puede haber una ruta con caché y otra
+  sin ella (INV-06). `--sin-guardar` no escribe nada.
+- La cifra de la regla 6 se publica por pasada en el informe y **acumulada y
+  deduplicada por par activo-sesión** en `frescura-historico` (D-40).
+
+**Precedencia de plaza, que no es trivial.** Un activo del universo se fecha con
+su plaza declarada, pero un índice o un benchmark se fecha con `SYMBOL_MARKETS`,
+que es lo que usa producción para recortarlo: el universo declara `^STOXX50E` en
+`ZRH`, sin cierre regular, y producción lo recorta con XETRA. La precedencia es
+símbolo explícito → declaración del universo → sufijo → `None`, y con `None` la
+caché no actúa y lo declara (INV-16).
+
+**Los seis defectos que la revisión cruzada con Codex cazó, todos medidos antes
+de corregirlos** (y cada uno con su test, con el valor de antes escrito dentro):
+1. el índice de una barra reinyectada degradaba a `object` y **`relative_strength`
+   devolvía `None` en silencio**, justo en los activos que la caché rescata;
+2. una barra con volumen desconocido metía un `NaN` y `build_snapshot` tomaba el
+   volumen de la sesión anterior como si fuera el de esa barra;
+3. una revisión que solo tocaba el volumen no se registraba;
+4. **el más grave**: exigir unanimidad para el reajuste hacía que un split con una
+   revisión puntual el mismo día **no** reanclara, y el análisis veía la base
+   anterior al split (168,5 donde el proveedor servía 85,09). El factor sale
+   ahora de la mayoría;
+5. `_record` sobrescribía lo declarado cuando un símbolo se pide dos veces con
+   periodos distintos, y podía perder una declaración de barra servida (INV-21);
+6. el informe publicaba una cifra de valor marginal que **no cuadraba con la
+   persistida**, porque mezclaba activos analizados con índices de contexto.
+
+**Coste declarado que no se esconde:** una barra retirada el mismo día de un
+reajuste se pierde, porque escalarla por el factor produciría un valor que el bot
+nunca observó (regla 2). La medición lo declara.
+
 ## Handoff al siguiente agente
-Pendiente de escribir al terminar.
+**Queda vivo para el propietario:** OD-02 bis, que **no se decide hoy**. La cifra
+—`sesión exigible + nunca observada + no entregada`— ya se publica y se persiste,
+pero una sola pasada no distingue un fallo puntual del proveedor de un hueco
+estructural. Hay que dejar que la Pi acumule varias semanas y leerla con
+`frescura-historico`.
+
+**Lo que la primera pasada real midió** (2026-09-25, copia de la base del
+portátil, 93 activos): 3.193 barras guardadas, 0 revisiones, y 33 sesiones
+exigibles nunca observadas en 33 activos analizados —17 son huecos interiores que
+la frescura ya declaraba y 16 son cola del día anterior en ETF alemanes—. Es la
+línea base de OD-02 bis, no la respuesta.

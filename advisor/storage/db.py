@@ -11,6 +11,10 @@ Tablas:
 - ``position_review``: cada revisión de una posición abierta y su veredicto.
 - ``event_pass``: deduplicación de pasadas despertadas por eventos conocidos.
 - ``data_freshness_measurement``: frescura y sesiones ausentes por pasada.
+- ``validated_bar``: barras de sesión cerrada ya validadas que el bot observó,
+  para que no desaparezcan del análisis si el proveedor deja de servirlas.
+- ``validated_bar_revision``: cada vez que el proveedor devuelve una barra
+  distinta de la guardada, con el valor anterior y el nuevo.
 
 Los importes se guardan en euros cuando hay tipo de cambio (``*_eur``) y
 siempre también en la divisa nativa, para que un fallo de conversión no
@@ -323,16 +327,47 @@ class AdvisorDB:
         manifest: RunManifest,
         recommendation_rows: Iterable[Dict[str, Any]],
         freshness_rows: Iterable[Dict[str, Any]],
+        *,
+        validated_bars: Iterable[Dict[str, Any]] = (),
+        bar_revisions: Iterable[Dict[str, Any]] = (),
+        reanchored_symbols: Iterable[str] = (),
     ) -> tuple[int, int]:
+        """Escribe la pasada entera en una sola transacción.
+
+        Las barras validadas entran aquí y no cuando se observan para que lo
+        persistido lleve el `run_id` de un manifiesto que existe (INV-18): una
+        pasada que se corta a medias no deja barras huérfanas de su pasada.
+        """
+
         recommendations = [dict(row, run_id=manifest.run_id) for row in recommendation_rows]
         freshness = [
             freshness_measurement_to_row(dict(row, run_id=manifest.run_id))
             for row in freshness_rows
         ]
+        bars = [dict(row, run_id=manifest.run_id) for row in validated_bars]
+        revisions = [dict(row, run_id=manifest.run_id) for row in bar_revisions]
+        reanchored = list(reanchored_symbols)
         with self._connect() as connection:
             self._insert_analysis_run(connection, manifest)
             recommendation_count = self._insert_recommendations(connection, recommendations)
             freshness_count = self._insert_freshness_measurements(connection, freshness)
+            # El reanclaje borra antes de insertar: si se hiciera al revés, el
+            # `DELETE` se llevaría las barras nuevas y la caché quedaría vacía.
+            for symbol in reanchored:
+                deleted = self._delete_validated_bars(connection, symbol)
+                logger.info(
+                    "Caché reanclada en %s: %d barras descartadas por reajuste de la serie",
+                    symbol,
+                    deleted,
+                )
+            stored = self._insert_validated_bars(connection, bars)
+            revision_count = self._insert_bar_revisions(connection, revisions)
+        if stored or revision_count:
+            logger.info(
+                "Caché de barras: %d barras validadas guardadas, %d revisiones registradas",
+                stored,
+                revision_count,
+            )
         return recommendation_count, freshness_count
 
     def _insert_analysis_run(self, connection: sqlite3.Connection, manifest: RunManifest) -> None:
@@ -397,6 +432,8 @@ class AdvisorDB:
             "veto_window_sessions", "quality", "error", "run_id",
             "quality_freshness", "quality_recent", "quality_historical", "execution_ready",
             "quality_period", "quality_interval",
+            "bars_served_from_cache", "bars_pinned_revisions", "sessions_never_observed",
+            "bar_cache_status",
         ]
         placeholders = ", ".join(f":{column}" for column in columns)
         sql = f"INSERT INTO data_freshness_measurement ({', '.join(columns)}) VALUES ({placeholders})"
@@ -419,6 +456,8 @@ class AdvisorDB:
             "veto_window_sessions", "quality", "error", "run_id",
             "quality_freshness", "quality_recent", "quality_historical", "execution_ready",
             "quality_period", "quality_interval",
+            "bars_served_from_cache", "bars_pinned_revisions", "sessions_never_observed",
+            "bar_cache_status",
         ]
         placeholders = ", ".join(f":{column}" for column in columns)
         sql = f"INSERT INTO data_freshness_measurement ({', '.join(columns)}) VALUES ({placeholders})"
@@ -520,6 +559,122 @@ class AdvisorDB:
                 (run_id,),
             )
             return cursor.fetchall()
+
+    # -- Caché de barras validadas -------------------------------------------
+
+    def get_validated_bars(self, data_symbol: str, since: Optional[date] = None) -> List[sqlite3.Row]:
+        """Barras guardadas de un símbolo, de la más antigua a la más reciente.
+
+        ``since`` recorta por fecha de sesión. La caché solo actúa en una
+        ventana reciente, así que traer la tabla entera para cada activo de cada
+        pasada sería trabajo tirado.
+        """
+
+        with self._connect() as connection:
+            if since is None:
+                cursor = connection.execute(
+                    "SELECT * FROM validated_bar WHERE data_symbol = ? ORDER BY session_date",
+                    (data_symbol,),
+                )
+            else:
+                cursor = connection.execute(
+                    """
+                    SELECT * FROM validated_bar
+                    WHERE data_symbol = ? AND session_date >= ?
+                    ORDER BY session_date
+                    """,
+                    (data_symbol, since.isoformat()),
+                )
+            return cursor.fetchall()
+
+    def insert_validated_bars(self, rows: Iterable[Dict[str, Any]]) -> int:
+        with self._connect() as connection:
+            return self._insert_validated_bars(connection, [dict(row) for row in rows])
+
+    def insert_bar_revisions(self, rows: Iterable[Dict[str, Any]]) -> int:
+        with self._connect() as connection:
+            return self._insert_bar_revisions(connection, [dict(row) for row in rows])
+
+    def delete_validated_bars(self, data_symbol: str) -> int:
+        """Borra las barras guardadas de un símbolo. Devuelve cuántas borró.
+
+        Es lo que hace un reajuste por dividendo o split: la serie entera pasa a
+        otra base y conservar barras de la base anterior mezclaría dos escalas en
+        la misma serie. La caché se reancla con lo que el proveedor sirve ahora,
+        que es una observación, no un número calculado.
+        """
+
+        with self._connect() as connection:
+            return self._delete_validated_bars(connection, data_symbol)
+
+    def get_bar_revisions(self, data_symbol: Optional[str] = None) -> List[sqlite3.Row]:
+        with self._connect() as connection:
+            if data_symbol is None:
+                cursor = connection.execute(
+                    "SELECT * FROM validated_bar_revision ORDER BY id"
+                )
+            else:
+                cursor = connection.execute(
+                    "SELECT * FROM validated_bar_revision WHERE data_symbol = ? ORDER BY id",
+                    (data_symbol,),
+                )
+            return cursor.fetchall()
+
+    def _insert_validated_bars(
+        self,
+        connection: sqlite3.Connection,
+        rows: List[Dict[str, Any]],
+    ) -> int:
+        if not rows:
+            return 0
+        for row in rows:
+            row.setdefault("run_id", None)
+        columns = [
+            "data_symbol", "market", "session_date", "bar_timestamp",
+            "open", "high", "low", "close", "volume",
+            "observed_at", "provider", "run_id",
+        ]
+        placeholders = ", ".join(f":{column}" for column in columns)
+        # `INSERT OR IGNORE`: la barra guardada es la primera validada y no la
+        # sobrescribe nadie (D-41, regla 4). Una barra que ya está se ignora
+        # aquí, y si su valor ha cambiado eso se registra como revisión, que es
+        # otra tabla y otra decisión.
+        sql = (
+            f"INSERT OR IGNORE INTO validated_bar ({', '.join(columns)}) "
+            f"VALUES ({placeholders})"
+        )
+        cursor = connection.executemany(sql, rows)
+        return int(cursor.rowcount)
+
+    def _insert_bar_revisions(
+        self,
+        connection: sqlite3.Connection,
+        rows: List[Dict[str, Any]],
+    ) -> int:
+        if not rows:
+            return 0
+        for row in rows:
+            row.setdefault("run_id", None)
+        columns = [
+            "data_symbol", "market", "session_date", "kind",
+            "previous_open", "previous_high", "previous_low", "previous_close",
+            "previous_volume", "previous_observed_at",
+            "new_open", "new_high", "new_low", "new_close", "new_volume",
+            "factor", "observed_at", "provider", "applied", "run_id",
+        ]
+        placeholders = ", ".join(f":{column}" for column in columns)
+        sql = (
+            f"INSERT INTO validated_bar_revision ({', '.join(columns)}) "
+            f"VALUES ({placeholders})"
+        )
+        connection.executemany(sql, rows)
+        return len(rows)
+
+    def _delete_validated_bars(self, connection: sqlite3.Connection, data_symbol: str) -> int:
+        cursor = connection.execute(
+            "DELETE FROM validated_bar WHERE data_symbol = ?", (data_symbol,)
+        )
+        return int(cursor.rowcount)
 
     # -- Pasadas por evento ---------------------------------------------------
 
@@ -708,9 +863,15 @@ def freshness_measurement_to_row(row: Dict[str, Any]) -> Dict[str, Any]:
     absent_recent = row.get("absent_recent_sessions") or ()
     for column in (
         "quality_freshness", "quality_recent", "quality_historical",
-        "quality_period", "quality_interval",
+        "quality_period", "quality_interval", "bar_cache_status",
     ):
         row.setdefault(column, None)
+    # Una medición sin caché guarda listas vacías, no NULL: distinguir «la caché
+    # no hizo nada» de «esta pasada no medía la caché» es justo lo que hace
+    # legible el histórico, que ya se lee solo (D-41).
+    served = row.get("bars_served_from_cache") or ()
+    pinned = row.get("bars_pinned_revisions") or ()
+    never_observed = row.get("sessions_never_observed") or ()
     return {
         **row,
         "calendar": row.get("calendar"),
@@ -718,6 +879,9 @@ def freshness_measurement_to_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "execution_ready": None if row.get("execution_ready") is None else int(bool(row.get("execution_ready"))),
         "absent_reference_sessions": json.dumps(list(absent), ensure_ascii=False),
         "absent_recent_sessions": json.dumps(list(absent_recent), ensure_ascii=False),
+        "bars_served_from_cache": json.dumps(list(served), ensure_ascii=False),
+        "bars_pinned_revisions": json.dumps(list(pinned), ensure_ascii=False),
+        "sessions_never_observed": json.dumps(list(never_observed), ensure_ascii=False),
     }
 
 

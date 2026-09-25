@@ -9,15 +9,47 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-21 (GATE P2 cruzado)
+# START HERE — actualizado 2026-09-25 (T-018 implementada, en revisión)
 
 ## Dónde está todo
 
     main / origin/main    este commit    CI verde
-    la Pi                 v0.3.0 = 03e1ec3    esquema v5    EN_TAG  ← AL DÍA
+    la Pi                 v0.3.0 = 03e1ec3    esquema v5    EN_TAG
     graphify-out/         sin seguimiento, ignorar
 
-## Lo primero: A-03 (P3), ya desbloqueada — pero leer antes lo que midió A-02
+**Ojo con la Pi: T-018 trae migración v5 → v6.** Es la primera entrega desde
+`v0.3.0` que toca el esquema, así que su despliegue **no** es solo de código y el
+rollback no deshará la migración (D-32). El procedimiento con red de seguridad
+está en `docs/despliegue-y-rollback.md`.
+
+## Lo primero: A-03 (P3), la única tarea grande abierta
+
+**T-018 (C-09) quedó implementada el 2026-09-25 y está EN_REVISION.** La caché
+local de barras validadas ya funciona: el proveedor puede retirar por la mañana
+una barra que sirvió la tarde anterior y el análisis sigue viéndola, declarándolo.
+Lo que hay que saber antes de tocarla:
+
+- **D-44** resolvió la regla 4 que D-41 dejó abierta: manda la **primera barra
+  validada**. Y con ella apareció un hecho que la pregunta no contemplaba:
+  `get_history` usa yfinance con `auto_adjust=True`, así que cada ex-dividendo
+  reescribe la serie por un factor común. De ahí la distinción entre **REAJUSTE**
+  de la serie —que la caché adopta reanclándose— y **REVISION** de una barra
+  —donde manda la primera validada—. Una sola base de ajuste por serie, siempre.
+- **La revisión cruzada cazó seis defectos, y cuatro de ellos pasaban los tests.**
+  Están listados en la ficha `docs/tareas/T-018-cache-de-barras-validadas.md`. El
+  peor: exigir unanimidad para detectar el reajuste hacía que un split con una
+  revisión puntual el mismo día **no** reanclara, y el análisis veía la base
+  anterior al split. El patrón se repite: **los defectos aparecen donde la caché
+  toca insumos del análisis** (índice de la serie, volumen), no en su propia
+  lógica.
+- **OD-02 bis queda abierta y es del propietario.** La cifra que decide si además
+  se compra una segunda fuente de precios ya se publica y se persiste, pero **no
+  se decide con una pasada**: hay que dejar que la Pi acumule semanas. La primera
+  medición real (93 activos, 2026-09-25) dio **33 sesiones exigibles nunca
+  observadas en 33 activos**, 17 huecos interiores que la frescura ya declaraba y
+  16 de cola en ETF alemanes.
+
+## Sobre A-03 — leer antes lo que midió A-02
 
 **T-012 está ACEPTADA y OD-02 quedó cerrada el mismo día en D-40:** el
 propietario eligió la lectura (c) —sesión cerrada y exigible que no está cuando
@@ -25,7 +57,8 @@ una pasada la necesita, aunque llegue después, contada una vez por activo y
 sesión—, así que 47 activos cruzan el umbral de 10 y **sí hace falta respaldo,
 solo para Europa**. Eso abre **C-09**, sin ficha todavía.
 
-**La ficha de C-09 ya está escrita: `docs/tareas/T-018-cache-de-barras-validadas.md`**,
+**C-09 ya está implementada (2026-09-25), no solo escrita.** Lo que sigue vale
+para entender por qué existe: `docs/tareas/T-018-cache-de-barras-validadas.md`,
 con las cinco reglas del propietario (D-41). El orden quedó decidido: **caché
 local primero, segunda fuente condicionada**, porque el proveedor **retira por la
 noche una barra que ya había servido** —`SAP.DE` el 14 a las 20:02 tiene la barra
@@ -34,15 +67,13 @@ vio ese dato la tarde anterior. T-018 produce además la cifra que decide si
 encima se compra EODHD para precios: `sesión exigible + nunca observada + no
 entregada`.
 
-**T-018 sigue pendiente y ya no compite con nada:** T-013 está hecha, así que
-T-018 (producción) es la única de las dos que queda por implementar.
+**T-018 ya no está pendiente:** se implementó el 2026-09-25 y está EN_REVISION,
+con 37 tests propios. Lo único que queda de ella es una decisión del propietario
+que necesita tiempo, no código: **OD-02 bis**.
 
-**T-013 (A-02) está ACEPTADA y GATE P2 quedó CRUZADO el 2026-09-21.**
-
-**Lo primero de mañana: el PR #23 está abierto, en verde y SIN FUSIONAR**
-(`feat/a02-laboratorio-rehecho`, 6 commits, cabeza `4a07fff`, `MERGEABLE`/`CLEAN`,
-los cuatro checks en pass). Solo falta que el propietario dé la orden de merge,
-que va con `gh pr merge 23 --rebase`. No hay nada mas pendiente de esta tarea.
+**T-013 (A-02) está ACEPTADA y GATE P2 quedó CRUZADO el 2026-09-21.** El PR #23
+se fusionó ese mismo día y `main` lo lleva dentro: esa tarea no tiene nada
+pendiente.
 
 Veredicto del laboratorio en **D-42**; OD-11 cerrada en **D-43**. Evidencia en
 `evidence/2026-09-21-T-013-laboratorio-rehecho/`.
@@ -187,8 +218,11 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
    frecuencia llega tarde cada plaza, que es lo que ahora determina el veto.
 3. ~~**T-013 (A-02)** → GATE P2~~ **ACEPTADA** el 2026-09-21. **GATE P2
    CRUZADO** (D-42 y D-43). La rama sigue sin fusionar.
-3b. **A-03 (P3, score v2)** → **DESBLOQUEADA**. Ficha por escribir. Arranca de
-   D-43 y del aviso de que ninguna banda es concluyente.
+3b. **A-03 (P3, score v2)** → **DESBLOQUEADA y es lo siguiente**. Ficha por
+   escribir. Arranca de D-43 y del aviso de que ninguna banda es concluyente.
+3c. ~~**T-018 (C-09)** caché de barras validadas~~ **IMPLEMENTADA** el
+   2026-09-25, EN_REVISION. Esquema v6. Deja abierta **OD-02 bis**, que se
+   decide con semanas de datos de la Pi, no con código.
 4. **T-016** higiene del centinela, sin urgencia: la auditoría midió 0 celdas
    afectadas en el veredicto de P2.5.
 5. **T-014 (B-00)** contrato point-in-time, y **C-04** alertas, cuando toque.

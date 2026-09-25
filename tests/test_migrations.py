@@ -171,7 +171,7 @@ def test_segunda_apertura_es_idempotente(tmp_path) -> None:
     AdvisorDB(path)
     AdvisorDB(path)
 
-    esperados = LATEST_VERSION - 1  # una copia por migración pendiente: v2, v3, v4, v5
+    esperados = LATEST_VERSION - 1  # una copia por migración pendiente: v2, v3, v4, v5, v6
     assert len(list(tmp_path.glob("intradia.db.bak-*"))) == esperados
     with sqlite3.connect(path) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == LATEST_VERSION

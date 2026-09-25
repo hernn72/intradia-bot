@@ -576,6 +576,44 @@ independiente de la resolución.
 decisión formal sobre el RR, salida de P2.4, en el decision log. Con ella,
 **T-013 / A-02 pasa a ACEPTADA** y **A-03 (P3) queda desbloqueada**.
 
+### D-44 — 2026-09-25 — Regla 4 de la caché resuelta, y el reajuste de la serie se distingue de la revisión
+Decisión del propietario, tomada al implementar T-018. D-41 dejó la regla 4 con
+una pregunta abierta a propósito —una barra revisada no se sobrescribe en
+silencio, pero no estaba dicho **cuál se usa**— y la ficha prohibía que la
+respondiera el implementador.
+
+**Qué se decide (primera pregunta).** Manda la **primera barra validada**. Una
+revisión posterior del proveedor queda registrada con valor anterior, valor
+nuevo, instante y proveedor, y **no cambia el número que alimenta el análisis**.
+El motivo es el efecto secundario que justificaba la tarea: que el histórico del
+bot deje de moverse según lo que el proveedor decida devolver esa mañana.
+
+**Hecho técnico que apareció al implementar, y que la pregunta no contemplaba.**
+`MarketDataProvider.get_history` usa yfinance con `auto_adjust=True`
+(verificado en yfinance 1.7.0), así que **cada ex-dividendo reescribe
+legítimamente todas las barras anteriores por un factor común**. Con la regla
+literal, la caché habría conservado la base vieja en las barras recientes
+mientras el resto de la serie se reajustaba: **dos bases de ajuste en la misma
+serie**, con un escalón artificial de en torno al 1 % justo en el borde de la
+ventana, que ATR y las medias se comen sin avisar.
+
+**Qué se decide (segunda pregunta).** Se distingue lo que sí es distinguible:
+- si **todas** las barras solapadas cambian por un **mismo factor**, es un
+  **REAJUSTE** de la serie (dividendo o split) y la caché **adopta la base
+  nueva**, reanclándose con lo que el proveedor sirve ahora;
+- si **una barra se mueve sola**, es una **REVISION** de esa sesión y sigue
+  mandando la primera validada.
+
+Una sola base de ajuste por serie, siempre. Con **una sola** barra solapada no
+se puede distinguir un caso del otro, así que no se afirma que sea un reajuste:
+se trata como revisión, que es la lectura conservadora.
+
+**Coste declarado del reanclaje, que no se esconde.** Al reanclar se descartan
+las barras guardadas en la base vieja, así que **una barra retirada el mismo día
+del reajuste se pierde**. No se escala por el factor detectado porque eso
+produciría un valor que el bot nunca observó, contra la regla 2 de D-41. La
+pasada lo declara en la medición en vez de perderlo en silencio.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
@@ -618,6 +656,22 @@ demás**.
   podría cubrir la segunda fuente de precios y los fundamentales point-in-time,
   y su EOD europeo ya responde en el plan gratuito (ver D-39). Ninguna de las dos
   se decide hasta tener la cifra de T-012.
+
+### OD-02 bis — ¿Hace falta además una segunda fuente de precios? · ABIERTA desde el 2026-09-25
+- **Por qué existe:** D-40 cerró OD-02 con la lectura (c) y D-41 puso la caché
+  primero, porque el fallo dominante era que el proveedor **retiraba una barra
+  que ya había servido**. Eso lo resuelve T-018 sin pagar nada. Lo que queda por
+  medir es el resto: las sesiones que **nadie ha visto nunca**.
+- **Pregunta:** ¿se contrata una segunda fuente de precios europea, sabiendo que
+  la caché ya cubre las barras retiradas?
+- **La cifra que la decide** la produce T-018 y se publica en cada informe y en
+  `frescura-historico`: `sesión exigible + nunca observada antes + no entregada`,
+  contada **una vez por activo y sesión** (deduplicada, como exige D-40).
+- **Estado:** la caché ya está implementada y la cifra ya se persiste. **No se
+  decide hasta tener varias semanas de datos de la Pi**: una sola pasada no
+  distingue un fallo puntual del proveedor de un hueco estructural.
+- **Bloquea:** nada. La ficha de proveedor (B-00) solo se activa si la respuesta
+  es sí.
 - **T-012 ENTREGADA el 2026-09-20: la cifra ya existe, falta que el propietario
   elija una definición.** Sobre 4.143 mediciones y 39 pasadas de la Pi
   (`evidence/2026-09-20-T-012-frescura-historico/`):
