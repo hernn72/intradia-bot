@@ -200,9 +200,13 @@ que es lo que usa producción para recortarlo: el universo declara `^STOXX50E` e
 símbolo explícito → declaración del universo → sufijo → `None`, y con `None` la
 caché no actúa y lo declara (INV-16).
 
-**Quince defectos, en tres vueltas de revisión cruzada con Codex, todos medidos
-antes de corregirlos** y cada uno con su test, con el valor de antes escrito
-dentro. La lista completa está en
+**Diecisiete hallazgos, en tres vueltas de revisión cruzada con Codex, todos
+medidos antes de corregirlos** y cada uno con su test, con el valor de antes
+escrito dentro. El reparto: 3 de diseño (antes de existir el código), 4 de la
+primera vuelta, 2 + 1 menor de la segunda, 3 + 2 menores de la tercera y 2 que
+salieron de contrastar la pasada real por SQL. De los diecisiete, **3 son ajustes
+de diseño y 14 defectos en código ya escrito**, y **11 de esos 14 pasaban la
+suite**. La lista numerada y el recuento están en
 `evidence/2026-09-25-T-018-cache-de-barras/README.md`. Lo que hay que saber si
 alguien vuelve a tocar esta capa son dos patrones:
 
@@ -239,8 +243,20 @@ pero una sola pasada no distingue un fallo puntual del proveedor de un hueco
 estructural. Hay que dejar que la Pi acumule varias semanas y leerla con
 `frescura-historico`.
 
-**Lo que la primera pasada real midió** (2026-09-25, copia de la base del
-portátil, 93 activos): 3.193 barras guardadas, 0 revisiones, y 33 sesiones
-exigibles nunca observadas en 33 activos analizados —17 son huecos interiores que
-la frescura ya declaraba y 16 son cola del día anterior en ETF alemanes—. Es la
-línea base de OD-02 bis, no la respuesta.
+**Las cifras de la verificación real, que son las canónicas** (2026-09-25, copia
+de la base del portátil, universo de 93; detalle y salidas literales en
+`evidence/2026-09-25-T-018-cache-de-barras/`):
+
+| Qué | Valor |
+|---|---:|
+| Barras validadas guardadas | **3.328** |
+| Sesiones retiradas al proveedor | **12** |
+| Retiradas restauradas por la caché | **12** |
+| Retiradas **sin** restaurar | **0** |
+| Barras de más, por el límite del periodo (índices de contexto) | **3** |
+| Sesiones nunca observadas, activos analizables | **33** |
+| Sesiones nunca observadas, símbolos de contexto | **15** |
+
+Las 33 son la línea base de OD-02 bis, **no la respuesta**: 17 son huecos
+interiores que la frescura ya declaraba y 16 son cola del día anterior en ETF
+alemanes.

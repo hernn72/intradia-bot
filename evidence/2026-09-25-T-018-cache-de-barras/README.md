@@ -98,12 +98,27 @@ que estas 33 son ~1 evento, no 33 observaciones (INV-22). La cifra hay que leerl
 acumulada y deduplicada por par activo-sesión, con `frescura-historico`, tras
 varias semanas en la Pi.
 
-## Los doce defectos que cazó la revisión cruzada
+## Los diecisiete hallazgos que cazó la revisión cruzada
 
 Codex revisó el diseño antes de escribir el módulo y supervisó el código después,
-en **tres vueltas**. **Ninguno de los doce se detectó leyendo el código: todos se
-midieron ejecutándolos**, y cada uno tiene ahora un test con el valor de antes
-escrito dentro.
+en **tres vueltas**. **Ninguno de los diecisiete se detectó leyendo el código:
+todos se midieron ejecutándolos**, y cada uno tiene ahora un test con el valor de
+antes escrito dentro.
+
+El recuento, por si alguien quiere comprobar que cuadra:
+
+| De dónde salió | Cuántos | Numerados |
+|---|---:|---|
+| Diseño, antes de escribir código | 3 | 1–3 |
+| Código, primera vuelta | 4 | 4–7 |
+| Código, segunda vuelta | 2 + 1 menor | 8–10 |
+| Código, tercera vuelta | 3 + 2 menores | 11–15 |
+| Contrastar la pasada real por SQL | 2 | 16–17 |
+| **Total** | **17** | |
+
+De los diecisiete, **3 son ajustes de diseño** —se corrigieron antes de que
+existiera el código— y **14 son defectos en código ya escrito**, de los cuales
+**11 pasaban la suite de tests** en el momento de encontrarlos.
 
 Hubo tres vueltas y no una por un motivo que conviene tener presente si alguien
 vuelve a tocar esta capa: **cada corrección defensiva tendía a comerse un caso que
@@ -111,7 +126,7 @@ las reglas de D-41 sí quieren cubrir**. Las correcciones de la vuelta 1 abriero
 los hallazgos de la 2, y las de la 2 abrieron los de la 3. Por eso cada guarda del
 módulo lleva su contraprueba al lado en los tests.
 
-Del diseño, antes de escribir:
+**Del diseño, antes de escribir** (1–3):
 
 1. el `backtest` **vivo** se habría quedado sin caché, rompiendo INV-06;
 2. el acumulado habría contado el mismo par activo-sesión una vez por pasada (el
@@ -119,7 +134,7 @@ Del diseño, antes de escribir:
 3. la plaza de los índices: el universo declara `^STOXX50E` en `ZRH`, sin cierre
    regular, mientras producción lo recorta con XETRA.
 
-Del código, primera vuelta:
+**Del código, primera vuelta** (4–7):
 
 4. el índice de una barra reinyectada degradaba a `object` y **`relative_strength`
    devolvía `None` en silencio** —medido: `None` frente a `6.111461203602397`—,
@@ -128,50 +143,53 @@ Del código, primera vuelta:
    volumen de la sesión anterior como si fuera el de esa barra;
 6. una revisión que solo tocaba el volumen no se registraba, y el análisis
    consumía el volumen nuevo;
-7. **el más grave:** exigir unanimidad para detectar el reajuste hacía que un split
-   con una revisión puntual el mismo día **no** reanclara, y el análisis veía la
-   base anterior al split: **168,5 donde el proveedor ya servía 85,09**.
+7. **el más grave de la vuelta:** exigir unanimidad para detectar el reajuste hacía
+   que un split con una revisión puntual el mismo día **no** reanclara, y el
+   análisis veía la base anterior al split: **168,5 donde el proveedor ya servía
+   85,09**.
 
-Del código, segunda vuelta (los dos primeros los **abrieron** las correcciones de
-la primera, que es para lo que hay una segunda):
+**Del código, segunda vuelta** (8–10; los dos primeros los **abrieron** las
+correcciones de la primera, que es para lo que hay una segunda):
 
 8. la regla de mayoría aceptaba un **empate** como mayoría y reanclaba al factor
    que llegaba antes en el tiempo: elegir la escala de una serie por sorteo;
 9. intersecar `sessions_never_observed` entre dos peticiones del mismo símbolo con
    periodos distintos **dejaba el contador de OD-02 bis en cero**, porque la
    petición corta empieza después de la sesión que la larga sí había detectado.
-   Ahora se **resta lo entregado**, que es lo que dice la regla 6.
+   Ahora se **resta lo entregado**, que es lo que dice la regla 6;
+10. *(menor, condicional)* una marca guardada releída en otra zona puede retroceder
+    de sesión con el cambio de horario. Ahora se valida que vuelva a fechar en su
+    propia sesión y, si no, **no se reinyecta y se declara**.
 
-Y uno menor, condicional: una marca guardada releída en otra zona puede retroceder
-de sesión con el cambio de horario. Ahora se valida que vuelva a fechar en su
-propia sesión y, si no, **no se reinyecta y se declara**.
-
-Del código, tercera vuelta (los dos primeros los abrieron, otra vez, las
+**Del código, tercera vuelta** (11–15; los dos primeros los abrieron, otra vez, las
 correcciones de la vuelta anterior):
 
-10. la mayoría **absoluta** perdía un reajuste real: un split de factor 0,5 con dos
+11. la mayoría **absoluta** perdía un reajuste real: un split de factor 0,5 con dos
     revisiones puntuales sobre cuatro solapes no reanclaba, y el análisis veía
     **101,5 donde el proveedor ya servía 50,75**. La regla pasa a ser **un solo
     grupo dominante, sin empate**, que es lo que distingue este caso del empate
     2-2 de la vuelta anterior;
-11. limitar la reposición a la primera barra viva **dejaba sin reponer la primera
+12. limitar la reposición a la primera barra viva **dejaba sin reponer la primera
     barra del rango** cuando era la retirada: cinco filas donde tenían que haber
     seis, con la caché declarando `FUENTE_VIVA`. El límite pasa a ser el periodo
     pedido;
-12. lo entregado por la fuente viva se anotaba **después** de leer la base, así que
+13. lo entregado por la fuente viva se anotaba **después** de leer la base, así que
     un fallo de la base entre medias convertía una sesión ya entregada en «nunca
-    observada» para el contador de la regla 6.
+    observada» para el contador de la regla 6;
+14. *(menor)* con una serie de índice sin zona se soltaba la zona de la marca
+    guardada y una barra europea legítima cambiaba de sesión; ahora se pasa primero
+    por la zona de la plaza y después se suelta;
+15. *(menor)* la plaza de un símbolo se resuelve ahora **una sola vez por pasada**,
+    porque todo lo que se acumula por símbolo se fecha en una plaza.
 
-Y dos menores más: con una serie de índice sin zona se soltaba la zona de la marca
-guardada y una barra europea legítima cambiaba de sesión (ahora se pasa primero por
-la zona de la plaza); y la plaza de un símbolo se resuelve ahora **una sola vez por
-pasada**, porque todo lo que se acumula por símbolo se fecha en una plaza.
+**De contrastar la pasada real por SQL, no de leer código** (16–17):
 
-Dos más los encontró contrastar la pasada real por SQL, no leer código: el informe
-publicaba 48 sesiones cuando solo 33 se persisten (mezclaba activos con índices), y
-`_record` sobrescribía lo declarado cuando un símbolo se pide dos veces con
-periodos distintos, con lo que podía perder una declaración de barra servida
-(INV-21).
+16. el informe publicaba 48 sesiones nunca observadas cuando solo 33 se persisten,
+    porque mezclaba activos analizados con índices de contexto: dos números que
+    decían ser lo mismo sin serlo;
+17. `_record` sobrescribía lo declarado cuando un símbolo se pide dos veces con
+    periodos distintos, con lo que podía perder una declaración de barra servida
+    (INV-21).
 
 ## Lo que esta entrega NO hace
 
@@ -185,3 +203,9 @@ periodos distintos, con lo que podía perder una declaración de barra servida
 - **No escala una barra** por el factor de un reajuste. Coste declarado: una barra
   retirada el mismo día de un reajuste se pierde, porque escalarla produciría un
   valor que el bot nunca observó (regla 2 de D-41).
+- **No acota la reposición a lo que la fuente viva entregue en esa petición.** El
+  límite lo marca **el periodo solicitado**, y eso puede añadir **una** sesión real
+  ya validada en el borde de un periodo corto: se midieron **3 casos, todos en
+  índices de contexto**, sobre 12 retiradas. **Ese error acotado se acepta a
+  propósito**, porque la alternativa medida era dejar de reponer una barra ya
+  validada, que es exactamente lo que la regla 1 de D-41 exige conservar.
