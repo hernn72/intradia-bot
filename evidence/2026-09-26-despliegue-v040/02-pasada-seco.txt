@@ -1,0 +1,315 @@
+2026-09-26 18:35:15 [INFO] advisor.analysis.analyzer: Analizando 93 activos (horizonte swing, velas de 1d)
+2026-09-26 18:37:32 [INFO] advisor.analysis.analyzer: BTC-EUR: barra 2026-09-26 recortada: aún abierta; la última sesión cerrada exigible es 2026-09-25 (cierre de sesión 00:00 UTC + 20 min)
+2026-09-26 18:37:33 [INFO] advisor.analysis.analyzer: ETH-EUR: barra 2026-09-26 recortada: aún abierta; la última sesión cerrada exigible es 2026-09-25 (cierre de sesión 00:00 UTC + 20 min)
+2026-09-26 18:37:34 [INFO] advisor.analysis.analyzer: SOL-EUR: barra 2026-09-26 recortada: aún abierta; la última sesión cerrada exigible es 2026-09-25 (cierre de sesión 00:00 UTC + 20 min)
+==========================================================================================
+ASESOR DE INVERSIÓN — 2026-09-26 17:35 UTC  |  horizonte: swing  |  velas: 1d
+==========================================================================================
+
+## 🌍 SITUACIÓN GLOBAL
+
+Asia:
+  - CSI 300 (vía ETF China AMC) (510300.SS): 4,51 CNY -1,6%
+  - Hang Seng (^HSI): 24510,09 HKD -1,0%
+  - KOSPI (^KS11): 7080,92 KRW +0,9%
+  - Nikkei 225 (^N225): 66364,20 JPY +1,3%
+  - Taiwan Weighted (^TWII): 48024,60 TWD -0,3%
+Europa:
+  - CAC 40 (^FCHI): 8077,80 EUR -0,0%
+  - DAX (^GDAXI): 25408,64 EUR +0,6%
+  - STOXX Europe 600 (^STOXX): 638,65 EUR +0,3%
+  - Euro Stoxx 50 (^STOXX50E): 6302,82 EUR +0,5%
+EE. UU.:
+  - S&P 500 (^GSPC): 7743,41 USD +0,5%
+  - Nasdaq 100 (^NDX): 30608,13 USD +0,4%
+  - Russell 2000 (^RUT): 2837,55 USD +0,1%
+  - Philadelphia Semiconductor (^SOX): 12668,93 USD +1,4%
+  - Treasury 10 años (^TNX): 5,18 USD +0,4%
+  - VIX (^VIX): 14,87 USD -5,1%
+Global:
+  - WTI (CL=F): 92,41 USD -2,3%
+  - Dollar Index (DX-Y.NYB): 100,97 USD -0,3%
+  - EUR/USD (EURUSD=X): 1,14 USD +0,2%
+  - Oro (GC=F): 4321,20 USD +0,5%
+
+Volatilidad: VIX 14,9 (umbral 25,0)  |  Contexto: RISK_ON — tendencia alcista del índice de referencia y volatilidad contenida
+
+**Frescura de datos:** 93 activos analizados con snapshot.
+  - Calidad: DEGRADADO=16, OK=77.
+  - 0 sesiones cerradas perdidas: 77 activos; última barra 2026-09-25 (NASDAQ (24), NYSE (16), XETRA (12), JPX (6), PAR (6), CRYPTO (3), HKG (3), MCE (3), AMS (2), MIL (2)).
+⚠️ 1 sesión cerrada perdida: 16 activos; última barra 2026-09-24 (XETRA (16)).
+  - 2 o más sesiones cerradas perdidas: 0 activos.
+⚠️ Sesiones ausentes frente al calendario de su plaza: 12 activos.
+  - EQQQ.DE: faltan 2026-03-06 en XETR.
+  - SXR8.DE: faltan 2026-03-06 en XETR.
+  - IQQT.DE: faltan 2026-03-06 en XETR.
+  - EUNL.DE: faltan 2026-03-06 en XETR.
+  - VVSM.DE: faltan 2026-03-06 en XETR.
+  - IS3N.DE: faltan 2026-03-06 en XETR.
+  - IQQK.DE: faltan 2026-03-06 en XETR.
+  - EUNN.DE: faltan 2026-03-06 en XETR.
+  - Q8Y0.DE: faltan 2026-03-06 en XETR.
+  - ZPRR.DE: faltan 2026-03-06 en XETR.
+  - QDV5.DE: faltan 2026-03-06 en XETR.
+  - ICGA.DE: faltan 2026-03-06 en XETR.
+Cierre de barras: se descarta la última barra diaria si no ha pasado el cierre de la sesión local + 20 min. Las ausencias se validan contra el calendario de plaza con festivos; cripto no tiene sesión de cierre.
+
+## 🔥 OPORTUNIDADES DETECTADAS
+
+| Activo     | Tipo                   |           Precio |     Entrada máx. |       Objetivo 2 |             Stop |  Potenc. |   Riesgo | Score |
+|------------|------------------------|------------------|------------------|------------------|------------------|----------|----------|-------|
+| ARM        | 🚀 Swing / corto plazo  |         272,18 € |         272,18 € |         323,35 € |         238,07 € |   +18,8% |   -12,5% |    71 |
+| R6C0.DE    | 🚀 Swing / corto plazo  |          42,05 € |          42,05 € |          44,34 € |          40,52 € |    +5,5% |    -3,6% |    71 |
+
+------------------------------------------------------------------------------------------
+## Arm Holdings
+
+**Ticker:** ARM
+**ISIN:** US0420682058
+**Mercado de datos:** NASDAQ (EE. UU.)
+**Divisa de cotización:** USD
+**Exposición económica:** USD
+**Broker / ejecución:** trade_republic / best_price
+**Disponible en Trade Republic:** Sí
+
+**Último cierre:** 310,32 USD (≈ 272,18 €) · Sesión: 2026-09-25 · Mercado: CLOSED
+**Tipo de operación:** 🚀 Swing / corto plazo
+Score: 71/100 (Interesante)
+Setup: VÁLIDO
+Ejecución: EJECUTABLE
+Dato: OK
+Broker: AVAILABLE
+**Señal:** 🟢 OPERAR
+**Ejecutabilidad en broker:** ✅ disponible verificado
+**Datos de mercado:** OK; última barra 2026-09-25 (hace 1 día natural; al día); histórico OK
+**Cierre de sesión:** última barra cerrada según cierre de sesión 16:00 America/New_York + 20 min; última sesión cerrada exigible: 2026-09-25
+**Puntuación:** 71/100 (Interesante) — calculada sobre 80 puntos evaluables
+
+### Tesis
+el activo mantiene estructura alcista (EMA rápida sobre la lenta y precio sobre la SMA larga) con el RSI en 66 y por delante de su índice de referencia (+21.4 pp). El planteamiento arriesga un 12.5% para buscar un 18.8%, un ratio de 1.5:1
+
+### Catalizador
+Huella en el precio: volumen 1.3× la media; hueco alcista +4.0%. El bot no consulta noticias ni resultados, así que la causa de fondo no está verificada.
+
+### Entrada
+Entrada ideal: 300,60 USD (≈ 263,65 €) — 310,32 USD (≈ 272,18 €)
+Entrada máxima por técnica (ATR): 324,90 USD (≈ 284,97 €)
+Entrada máxima por RR mínimo (1,5): 310,32 USD (≈ 272,18 €)
+Entrada máxima aplicada: 310,32 USD (≈ 272,18 €) — manda el RR mínimo
+⚠️ ESPERAR PULLBACK / NO PERSEGUIR PRECIO — el precio está extendido sobre su media rápida.
+
+### Stop / invalidación
+Stop de precio: 271,43 USD (≈ 238,07 €) (2·ATR por debajo del precio)
+Invalidación de la tesis: 273,66 USD (≈ 240,03 €) — cierre por debajo de la EMA lenta: la tendencia que sostiene la tesis desaparece
+Pérdida máxima estimada desde el precio de referencia: -12,5%
+
+### Objetivos
+Objetivo 1: 339,49 USD (≈ 297,76 €)  (+9,4%)
+Objetivo 2: 368,65 USD (≈ 323,35 €)  (+18,8%)
+Objetivo 3: 407,54 USD (≈ 357,46 €)  (+31,3%)
+
+### Potencial
++18,8% hasta el objetivo 2 (escenario principal)
+
+### Riesgo
+-12,5% hasta el stop
+
+### Ratio beneficio/riesgo
+1,5 : 1
+RR a 310,32 USD (≈ 272,18 €): 1,50
+
+### Horizonte temporal
+de 2 días a 8 semanas
+
+### Confianza
+Media
+
+### Próximo evento importante
+Ninguno con fecha conocida en la ventana consultada.
+
+### Escenarios
+Alcista: el precio alcanza el objetivo 3 (407,54 USD (≈ 357,46 €), +31,3%).
+Base: el precio alcanza el objetivo 2 (368,65 USD (≈ 323,35 €), +18,8%).
+Bajista: se activa el stop en 271,43 USD (≈ 238,07 €) (-12,5%).
+Sin datos de probabilidad histórica de cada escenario: el bot no estima probabilidades que no ha medido.
+
+### Qué podría salir mal
+  - Volatilidad elevada (ATR = 6.3% del precio): el stop puede activarse por ruido.
+  - Análisis sin dimensión fundamental: la puntuación no recoge ese factor.
+
+### Dimensionamiento sugerido
+Convicción media: 4,0% de la cartera, arriesgando 0,50% si salta el stop.
+Restricción dominante: manda el presupuesto de riesgo.
+Cálculo hecho con entrada de referencia 310,32 USD (≈ 272,18 €); si introduces otro precio en Trade Republic, recalcula el tamaño.
+
+### Desglose de la puntuación
+  - catalizador: 9.0/20
+      · volumen: volumen 1.3× la media
+      · hueco: hueco alcista +4.0%
+      · ruptura: a -13.4% del máximo de la ventana
+  - fundamental: excluida — sin fuente de datos fundamentales configurada
+  - tecnico: 20.0/20
+      · cruce de medias: EMA rápida por encima de la lenta
+      · tendencia de fondo: precio por encima de la SMA larga
+      · RSI: RSI 66, en zona de entrada
+      · MACD: histograma MACD positivo
+      · fortaleza relativa: bate a su índice en +21.4 pp
+  - beneficio_riesgo: 10.0/20
+      · ratio B/R: ratio 1.5:1 — aceptable
+  - contexto: 9.0/10
+      · régimen: RISK_ON: tendencia alcista del índice de referencia y volatilidad contenida
+  - conviccion: 9.0/10
+      · histórico: 251 velas (100% de lo requerido)
+      · indicadores: 6/6 disponibles
+      · estabilidad: ATR 6.3% del precio
+
+### Acción
+**COMPRAR**
+**Señal:** 🟢 OPERAR
+**Disponibilidad:** ✅ disponible verificado
+  ⚠️ precio extendido 1.5·ATR sobre su media rápida: no persigas, prioriza la zona de entrada ideal o un pullback
+
+------------------------------------------------------------------------------------------
+## Shell
+
+**Ticker:** R6C0.DE
+**ISIN:** GB00BP6MXD84
+**Mercado de datos:** XETRA (Europa)
+**Divisa de cotización:** EUR
+**Exposición económica:** USD
+**Broker / ejecución:** trade_republic / best_price
+**Disponible en Trade Republic:** Sí
+
+**Último cierre:** 42,05 € · Sesión: 2026-09-25 · Mercado: CLOSED
+**Tipo de operación:** 🚀 Swing / corto plazo
+Score: 71/100 (Interesante)
+Setup: VÁLIDO
+Ejecución: EJECUTABLE
+Dato: OK
+Broker: AVAILABLE
+**Señal:** 🟢 OPERAR
+**Ejecutabilidad en broker:** ✅ disponible verificado
+**Datos de mercado:** OK; última barra 2026-09-25 (hace 1 día natural; al día); histórico OK
+**Cierre de sesión:** última barra cerrada según cierre de sesión 17:30 Europe/Berlin + 20 min; última sesión cerrada exigible: 2026-09-25
+**Puntuación:** 71/100 (Interesante) — calculada sobre 80 puntos evaluables
+
+### Tesis
+el activo mantiene estructura alcista (EMA rápida sobre la lenta y precio sobre la SMA larga) con el RSI en 62 y por delante de su índice de referencia (+10.0 pp). El planteamiento arriesga un 3.6% para buscar un 5.5%, un ratio de 1.5:1
+
+### Catalizador
+Huella en el precio: volumen 2.2× la media; apertura sin hueco relevante (-1.1%); a -1.8% del máximo de la ventana. El bot no consulta noticias ni resultados, así que la causa de fondo no está verificada.
+
+### Entrada
+Entrada ideal: 41,67 € — 42,05 €
+Entrada máxima por técnica (ATR): 42,62 €
+Entrada máxima por RR mínimo (1,5): 42,05 €
+Entrada máxima aplicada: 42,05 € — manda el RR mínimo
+⚠️ ESPERAR PULLBACK / NO PERSEGUIR PRECIO — el precio está extendido sobre su media rápida.
+
+### Stop / invalidación
+Stop de precio: 40,52 € (2·ATR por debajo del precio)
+Invalidación de la tesis: 39,77 € — cierre por debajo de la EMA lenta: la tendencia que sostiene la tesis desaparece
+Pérdida máxima estimada desde el precio de referencia: -3,6%
+
+### Objetivos
+Objetivo 1: 42,82 €  (+1,8%)
+Objetivo 2: 44,34 €  (+5,5%)
+Objetivo 3: 45,87 €  (+9,1%)
+
+### Potencial
++5,5% hasta el objetivo 2 (escenario principal)
+
+### Riesgo
+-3,6% hasta el stop
+
+### Ratio beneficio/riesgo
+1,5 : 1
+RR a 42,05 €: 1,50
+
+### Horizonte temporal
+de 2 días a 8 semanas
+
+### Confianza
+Media
+
+### Próximo evento importante
+Ninguno con fecha conocida en la ventana consultada.
+
+### Escenarios
+Alcista: el precio alcanza el objetivo 3 (45,87 €, +9,1%).
+Base: el precio alcanza el objetivo 2 (44,34 €, +5,5%).
+Bajista: se activa el stop en 40,52 € (-3,6%).
+Sin datos de probabilidad histórica de cada escenario: el bot no estima probabilidades que no ha medido.
+
+### Qué podría salir mal
+  - Análisis sin dimensión fundamental: la puntuación no recoge ese factor.
+
+### Dimensionamiento sugerido
+Convicción media: 10,0% de la cartera, arriesgando 0,36% si salta el stop.
+El tope máximo por posición (10%) limita la posición; sin tope serían 13,8% de la cartera.
+Restricción dominante: manda el tope máximo por posición.
+Cálculo hecho con entrada de referencia 42,05 €; si introduces otro precio en Trade Republic, recalcula el tamaño.
+
+### Desglose de la puntuación
+  - catalizador: 12.0/20
+      · volumen: volumen 2.2× la media
+      · hueco: apertura sin hueco relevante (-1.1%)
+      · ruptura: a -1.8% del máximo de la ventana
+  - fundamental: excluida — sin fuente de datos fundamentales configurada
+  - tecnico: 16.0/20
+      · cruce de medias: EMA rápida por encima de la lenta
+      · tendencia de fondo: precio por encima de la SMA larga
+      · RSI: RSI 62, en zona de entrada
+      · MACD: histograma MACD negativo
+      · fortaleza relativa: bate a su índice en +10.0 pp
+  - beneficio_riesgo: 10.0/20
+      · ratio B/R: ratio 1.5:1 — aceptable
+  - contexto: 9.0/10
+      · régimen: RISK_ON: tendencia alcista del índice de referencia y volatilidad contenida
+  - conviccion: 10.0/10
+      · histórico: 254 velas (100% de lo requerido)
+      · indicadores: 6/6 disponibles
+      · estabilidad: ATR 1.8% del precio
+
+### Acción
+**COMPRAR**
+**Señal:** 🟢 OPERAR
+**Disponibilidad:** ✅ disponible verificado
+  ⚠️ precio extendido 1.2·ATR sobre su media rápida: no persigas, prioriza la zona de entrada ideal o un pullback
+
+## 👀 RADAR
+
+  - EQQQ.DE (Invesco EQQQ Nasdaq-100) — score 69, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-24 (1s) [LOW_SCORE] — puntuación 69, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - MSFT (Microsoft) — score 68, ratio 1,5:1 [LOW_SCORE] — puntuación 68, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - SOL-EUR (Solana) — score 67, ratio 1,5:1 [LOW_SCORE] — puntuación 67, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - SXR8.DE (iShares Core S&P 500) — score 66, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-24 (1s) [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - ABBV (AbbVie) — score 66, ratio 1,5:1 [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - IQQT.DE (iShares MSCI Taiwan) — score 66, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-24 (1s) [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - ENI.MI (Eni) — score 66, ratio 1,5:1 [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - TTE.PA (TotalEnergies) — score 66, ratio 1,5:1 [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - QCOM (Qualcomm) — score 66, ratio 1,5:1 [LOW_SCORE] — puntuación 66, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+  - EUNL.DE (iShares Core MSCI World) — score 65, ratio 1,5:1 calidad DEGRADADO; ⚠️ falta sesión 2026-03-06; ⚠️ dato 2026-09-24 (1s) [LOW_SCORE] — puntuación 65, insuficiente para operar (70); code=LOW_SCORE; threshold=70
+
+## 🔴 DESCARTADOS
+
+65 activos descartados por grupo:
+  - score insuficiente: 65 activos — TSLA, RRU.DE, SU.PA, OR.PA, INTC, PANW, 8035.T, CRWD, ASML.AS, BTC-EUR, CAT, XOM, SAF.PA, EXH1.DE, META, IBE.MC, IFX.DE, Q8Y0.DE, AIR.PA, GOOGL, SIE.DE, AMAT, DBK.DE, NVDA, MUV2.DE, BRK-B, SAP.DE, 6857.T, MC.PA, EXV1.DE, CVX, AZN, APP, MBG.DE, INFY, EXSA.DE, VRTX, V, MA, ALV.DE, 6758.T, ZPRR.DE, NOW, CRM, 0700.HK, BSP.DE, 7011.T, AVGO, ENR.DE, GS, 7203.T, 9988.HK, QDV5.DE, ICGA.DE, AMZN, EUNH.DE, LMT, ITX.MC, DTE.DE, NFLX, UBER, ADYEN.AS, 1810.HK, ORCL, ADBE
+  - RR/ejecución: 0 activos
+  - datos: 0 activos
+  - tendencia: 0 activos
+  - sobreextensión: 0 activos
+  - broker: 0 activos
+  - otros: 0 activos
+
+## 🎯 CONCLUSIÓN
+
+Mejor oportunidad (🚀 Swing / corto plazo): ARM — score 71, ratio 1.5:1.
+Régimen: RISK_ON — tendencia alcista del índice de referencia y volatilidad contenida.
+Capital asignado a señales actuales: 14% · Capital no asignado: 86%. Suma de las 2 mejores ideas por señal en su dimensionamiento máximo. No es una política de asignación a efectivo. Topes dominantes: manda el presupuesto de riesgo, manda el tope máximo por posición. Cuando manda el tope máximo por posición, el riesgo efectivo es menor que el configurado. La disponibilidad del broker se informa aparte.
+
+------------------------------------------------------------------------------------------
+Conversión a euros aproximada (cierre del 2026-09-26) — 1 JPY ≈ 0,0056 EUR; 1 USD ≈ 0,8771 EUR. El importe que aplicará Trade Republic al ejecutar puede diferir.
+------------------------------------------------------------------------------------------
+Este informe analiza precio y volumen, y consulta el calendario de resultados y de bancos centrales para avisar de eventos con fecha conocida. NO consulta noticias ni fundamentales, así que no recoge catalizadores imprevistos ni valoración. No es asesoramiento financiero.
+==========================================================================================
+run b5d17f70-6306-4e20-a3b7-11e71035061c · 84ea28e3a39a · config 2356d37d · universo 237b0056

@@ -1,6 +1,6 @@
 # T-018 — Caché local de barras de sesión cerrada ya validadas (C-09)
 
-Estado: ACEPTADA (2026-09-25; PR #24 fusionado, pendiente de despliegue en la Pi)
+Estado: ACEPTADA (2026-09-25; PR #24 fusionado) y **DESPLEGADA** en la Pi el 2026-09-26 como `v0.4.0`
 
 **Tres cosas distintas, que conviene no confundir al leer esta ficha:**
 
@@ -11,10 +11,12 @@ Estado: ACEPTADA (2026-09-25; PR #24 fusionado, pendiente de despliegue en la Pi
    datos** de la Pi. Una sola pasada no distingue un fallo puntual del proveedor de
    un hueco estructural, y las mediciones de una misma pasada no son independientes
    (INV-22). La cifra ya se publica y se persiste; lo que falta es acumularla.
-3. **El despliegue del esquema v5 → v6 es una operación posterior y separada.** La
-   Pi sigue en `v0.3.0` = `03e1ec3` con esquema **v5**, a propósito: el propietario
-   decidió revisar antes el procedimiento de migración y de rollback. El rollback de
-   código **no** deshace una migración (D-32).
+3. **El despliegue del esquema v5 → v6 fue una operación posterior y separada, y
+   ya está hecho.** El 2026-09-26 la Pi pasó de `v0.3.0` = `03e1ec3` (esquema v5)
+   a **`v0.4.0` = `84ea28e`** (esquema **v6**, `EN_TAG`). La migración se aplicó de
+   forma aislada y se verificó antes de la primera pasada persistente; el rollback
+   de código **no** deshace una migración (D-32). Detalle en el handoff y en
+   `evidence/2026-09-26-despliegue-v040/`.
 Agente: Opus (ficha e implementación) → Codex (revisión de diseño y supervisión del código) → propietario (OD-02 bis)
 Línea / fase: Línea C, C-09
 Gate al que contribuye: ninguno directamente; **produce la cifra que decide si
@@ -176,8 +178,8 @@ Rama `feat/validated-bar-cache`. Mensaje:
 ## Actualización documental requerida
 Las tres, **hechas**:
 - `docs/roadmap.md`: fila C-09 pasó a EN_REVISION con la entrega y a **ACEPTADA**
-  el 2026-09-25, al fusionarse el PR #24. Queda marcada como **pendiente de
-  despliegue**, que no es lo mismo que pendiente de aceptación.
+  el 2026-09-25, al fusionarse el PR #24, y como **desplegada** el 2026-09-26
+  (`v0.4.0`).
 - `docs/metodo-trabajo.md`: **INV-21** ya no figura como pendiente; apunta a su
   test en `tests/test_bar_cache.py`.
 - `docs/decision-log.md`: **OD-02 bis** queda abierta a la espera del contador, y se
@@ -279,3 +281,25 @@ de la base del portátil, universo de 93; detalle y salidas literales en
 Las 33 son la línea base de OD-02 bis, **no la respuesta**: 17 son huecos
 interiores que la frescura ya declaraba y 16 son cola del día anterior en ETF
 alemanes.
+
+**Despliegue en la Pi, 2026-09-26** (`evidence/2026-09-26-despliegue-v040/`):
+
+| Qué | Valor |
+|---|---|
+| Release | `v0.4.0` (tag anotado) = `84ea28e3a39a5602302838504e37c60aaf9492de`, `verificar-release` en `EN_TAG` |
+| Esquema | v5 → **v6**, migración aplicada de forma aislada y verificada (`integrity_check = ok`, tablas y columnas de v6 presentes) |
+| Backup manual | `intradia.db.bak-manual-20260926-173436`: esquema v5, `VALIDO` |
+| Backup automático | `intradia.db.bak-20260926-173928-pre-v6`: esquema v5, registrado en `backup_log`, `VALIDO` |
+| Primera pasada real | `ea08c727-8c1c-4d02-8a08-5d197f5dc33b`: 93 recomendaciones y 93 mediciones persistidas |
+| Manifiesto | `release_tag v0.4.0`, `git_sha 84ea28e…`, `git_dirty false`, `schema_version 6`, `score_model_version 1.0`, `CLOCK_OK` |
+| Caché | `validated_bar = 3228`, `validated_bar_revision = 0` |
+| Timers | reactivados |
+
+**Hallazgo del despliegue, ya corregido en `docs/despliegue-y-rollback.md`:** la
+pasada `analizar --sin-guardar` no abre la base, así que ni migra ni usa esta
+caché. El procedimiento separa ahora prueba seca, migración aislada y pasada real.
+
+**OD-02 bis sigue abierta**, ahora acumulando desde producción: la primera pasada
+con caché midió 16 sesiones exigibles nunca observadas en 16 ETF de XETRA (la
+barra del 2026-09-25, retraso europeo conocido). Una sola pasada no decide una
+segunda fuente.

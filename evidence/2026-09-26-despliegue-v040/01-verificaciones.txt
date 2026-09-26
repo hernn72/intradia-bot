@@ -1,0 +1,18 @@
+$ git rev-parse HEAD
+84ea28e3a39a5602302838504e37c60aaf9492de
+$ git rev-list -n 1 v0.4.0
+84ea28e3a39a5602302838504e37c60aaf9492de
+$ verificar-systemd
+Unidades systemd alineadas con las plantillas versionadas.
+exit=0
+$ verificar-release
+HEAD               84ea28e3a39a5602302838504e37c60aaf9492de
+tag exacto         v0.4.0
+SHA del tag        84ea28e3a39a5602302838504e37c60aaf9492de
+árbol modificado   no
+origin             COINCIDE (84ea28e3a39a5602302838504e37c60aaf9492de)
+veredicto          EN_TAG
+exit=0
+$ systemctl is-active timers
+active
+active

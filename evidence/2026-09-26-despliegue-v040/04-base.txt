@@ -1,0 +1,32 @@
+$ verificar-backup --ruta intradia.db.bak-manual-20260926-173436
+fichero            intradia.db.bak-manual-20260926-173436
+integridad         ok
+esquema            v5
+registro           no registrado (copia manual)
+filas en la copia  analysis_run=48, data_freshness_measurement=6003, event_pass=1, position=0, position_review=0, recommendation=7328
+filas en la viva   analysis_run=49, data_freshness_measurement=6096, event_pass=1, position=0, position_review=0, recommendation=7421, validated_bar=3228, validated_bar_revision=0
+veredicto          VALIDO
+  - no figura en backup_log: copia manual, no la hizo una migración
+exit=0
+$ verificar-backup --ruta intradia.db.bak-20260926-173928-pre-v6
+fichero            intradia.db.bak-20260926-173928-pre-v6
+integridad         ok
+esquema            v5
+registro           registrado en backup_log
+filas en la copia  analysis_run=48, data_freshness_measurement=6003, event_pass=1, position=0, position_review=0, recommendation=7328
+filas en la viva   analysis_run=49, data_freshness_measurement=6096, event_pass=1, position=0, position_review=0, recommendation=7421, validated_bar=3228, validated_bar_revision=0
+veredicto          VALIDO
+exit=0
+$ esquema, integridad y estructuras v6 (lectura)
+user_version = 6
+integrity_check = ok
+validated_bar = OK
+validated_bar_revision = OK
+bars_served_from_cache = OK
+bars_pinned_revisions = OK
+sessions_never_observed = OK
+bar_cache_status = OK
+validated_bar = 3228
+validated_bar_revision = 0
+recommendation del run = 93
+data_freshness_measurement del run = 93
