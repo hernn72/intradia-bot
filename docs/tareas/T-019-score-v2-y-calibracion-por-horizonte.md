@@ -1,11 +1,14 @@
 # T-019 — Score v2 y umbrales por horizonte, con P3 pre-registrado (A-03)
 
 Estado: PENDIENTE — ficha aprobada el 2026-09-26 y commiteada como
-**pre-registro de P3**. Decisiones cerradas por el propietario ese mismo día:
-A → **D-45**, B → **D-46**, C → **D-47** (alternativa C2), D → **D-48**
-(alternativa D1). GATE P3 requisito 2 corregido por D-45. Lista para
-implementar desde el paso 1.
-Agente: Opus (ficha) → propietario (A–D) → Codex (implementación) → Claude Code
+**pre-registro de P3** en la rama `docs/t019-preregistro-p3`, sin fusionar.
+Decisiones cerradas por el propietario: A → **D-45**, B → **D-46**, C →
+**D-47** (C2, estado de transición), VIX → **D-49**. La **D-48** se retiró el
+mismo día, antes de fusionarse (mezclaba tres cuestiones). Queda **abierta** la
+pregunta de pre-registro PR-1 sobre el componente asiático, que debe cerrarse
+antes de ejecutar P3. GATE P3 requisito 2 corregido por D-45. **La
+implementación no ha empezado** y no empieza hasta que el propietario lo diga.
+Agente: Opus (ficha) → propietario (D-45 a D-47, D-49; PR-1 pendiente) → Codex (implementación) → Claude Code
 (verificación real y commits) → revisor independiente (look-ahead, obligatorio)
 Línea / fase: Línea A, A-03 (P3)
 Gate al que contribuye: **GATE P3** (es la tarea que lo cruza)
@@ -50,9 +53,11 @@ respondidos con evidencia, **salga lo que salga**.
 - Pre-registro del estimador de bloque del 2026-09-02 (INV-14, D-03).
 - `main` en `b658541` (T-018 aceptada; la caché de barras no afecta a la
   cosecha congelada).
-- **D-45, D-46, D-47 y D-48** (decisiones A, B, C y D de esta ficha), cerradas
-  por el propietario el 2026-09-26 y registradas en `docs/decision-log.md` en el
-  mismo commit que esta ficha, junto con la corrección de `docs/gates.md`.
+- **D-45, D-46, D-47 y D-49**, cerradas por el propietario el 2026-09-26 y
+  registradas en `docs/decision-log.md`, junto con la corrección de
+  `docs/gates.md`. D-48 figura como retirada.
+- **Antes del paso 3 (P3):** PR-1 respondida y la regla point-in-time del VIX
+  documentada en esta ficha (D-49); ver «Contexto: paridad y point-in-time».
 
 ## Hechos verificados sobre el terreno el 2026-09-26
 Comprobados sobre `main` = `b658541ee53c9a868ec96c2ad34fc8eefaa204c8`. Antes de
@@ -198,10 +203,12 @@ study **no** llama a `classify()` (P2.3/P2.4).
   (`market_context.py:159–170`); y el **seguimiento de posiciones** repuntúa con
   un contexto **sin** Asia (`report/tracking.py:109`), distinto del de la
   pasada diaria. Hay por tanto tres versiones del contexto: la del laboratorio,
-  la de `analizar` y la de `seguimiento`. Requiere la decisión D.
+  la de `analizar` y la de `seguimiento`. Se trata en tres piezas separadas:
+  PR-1 (componente asiático), D-49 (VIX) y R-CTX (seguimiento); sección
+  «Contexto: paridad y point-in-time».
 - **H-2 — `position_review.score` sin versión. SAME_SCOPE.** Con dos modelos
   coexistiendo, una revisión persistida no dice con qué modelo se puntuó.
-  Migración v6 (sección «Implementación», paso 1).
+  Migración **v7** (sección «Implementación», paso 1).
 - **H-3 — Cortes v1 codificados fuera de `config.yaml`. SAME_SCOPE.**
   `Score.grade` (90/80/70/60) y `conviction_label` (80/70) aplicarían bandas v1
   a una nota v2 sin que nadie lo decidiera. Prohibido por D-43.
@@ -220,10 +227,12 @@ study **no** llama a `classify()` (P2.3/P2.4).
 
 ## Decisiones que esta ficha necesita antes de código
 
-**Cerradas el 2026-09-26.** El propietario aprobó A, B, C2 y D1, registradas
-como **D-45, D-46, D-47 y D-48** en `docs/decision-log.md`, que es el texto que
-manda. Se conserva abajo el razonamiento y las alternativas con que se
-propusieron.
+**A, B y C cerradas el 2026-09-26** como **D-45, D-46 y D-47** en
+`docs/decision-log.md`, que es el texto que manda. Se conserva abajo el
+razonamiento y las alternativas con que se propusieron. **D no se cerró como
+una decisión única**: la D-48 que la registraba se retiró antes de fusionarse
+porque mezclaba tres cuestiones y una no estaba aprobada; su reparto está en la
+sección «Contexto: paridad y point-in-time».
 
 ### DECISIÓN A — Medio frente a GATE P3 (metodológica, cambia un gate) · **D-45**
 
@@ -334,7 +343,13 @@ Es de propietario porque cambia lo que el asesor recomienda.
 - **Consecuencias:** C1 es la más honesta y deja el producto sin compras; C2
   mantiene el producto como está con la etiqueta correcta; C3 mantiene compras
   con un corte que nadie ha medido, igual que hoy pero en otra escala.
-- **Recomendación técnica: C2**, con la etiqueta `calibrated: false` visible
+- **Aprobada C2 como estado de transición (D-47):** producción sigue en
+  `score_model_version = "1.0"` con los 70/60 legacy de v1, que nunca se
+  presentan como calibración de v2; el RR sigue puntuando solo porque corre v1;
+  el paso a v2 es atómico (versión + contrato de umbrales + estado de
+  calibración coherente) y no puede existir una pasada que calcule v2 y
+  clasifique con 70/60.
+- **Recomendación técnica con que se propuso: C2**, con la etiqueta `calibrated: false` visible
   desde el paso 1. Es la única que no introduce un corte nuevo sin medir y no
   deja el asesor inutilizado; y la regla estructural del paso 1 (los umbrales
   declaran su `score_model_version` y el cargador rechaza un desajuste) hace
@@ -342,47 +357,81 @@ Es de propietario porque cambia lo que el asesor recomienda.
 - **Bloquea:** solo el paso 5 (activación de v2 en producción). No bloquea P3
   ni GATE P3.
 
-### DECISIÓN D — Paridad del contexto entre laboratorio y producción (metodológica, H-1) · **D1, D-48**
+### DECISIÓN D — Paridad del contexto · **no se cerró como una decisión: dividida**
 
-- **Pregunta:** ¿cómo se eliminan las divergencias de H-1 (Asia, desfase del
-  VIX y contexto del seguimiento) antes de calibrar?
-- **Alternativas:**
-  - **(D1) En Score v2, Asia no puntúa.** El componente sale del cálculo de
-    `MarketContext.points` para v2 y la dimensión contexto se reescala sobre
-    tendencia + VIX (máximo bruto 8 → peso 10), igual en producción e
-    investigación. El dato asiático sigue en el informe como contexto
-    descriptivo. Coherente con B: lo que no se puede medir en el laboratorio no
-    puntúa.
-  - **(D2) Reconstruir Asia en el laboratorio** con los índices asiáticos de la
-    cosecha y la misma alineación temporal que producción. Exige demostrar que
-    el dato de la sesión asiática posterior al cierre de la barra de señal no es
-    look-ahead para la entrada simulada, que P2.3 fija en la apertura
-    siguiente. Es trabajo de laboratorio nuevo y con riesgo propio.
-  - **(D3) Dejarlo y declararlo.** Los umbrales calibrados tendrían ±2 puntos de
-    holgura desconocida en producción.
-- **Desfase del VIX, en cualquiera de las tres alternativas:** hay que decidir
-  cuál de los dos alineamientos es el correcto **para la hora de la pasada** y
-  aplicar el mismo en los dos caminos. El `shift(1)` del laboratorio es la
-  opción conservadora contra look-ahead (el VIX cierra a las 22:15 CET, después
-  de las plazas europeas); en producción, a las 06 UTC, el último VIX cerrado es
-  el de la víspera, que para una barra europea de la víspera es simultáneo.
-  Recomendación: que el revisor de look-ahead (GATE P3 requisito 5) fije cuál
-  es la alineación sin mirar hacia delante en cada plaza, y que el paso 2 la
-  aplique igual en los dos caminos; si difiere de la actual del laboratorio,
-  el cambio se mide antes/después en P3 y se declara.
-- **Seguimiento:** `review_positions` debe construir el contexto igual que la
-  pasada diaria (paso 2), o sus veredictos por umbral compararán una nota que
-  no es la de producción.
-- **Recomendación técnica: D1** para Asia. Es la única que devuelve INV-06 a su
-  sentido pleno sin ampliar el laboratorio. Cambia el contenido de la dimensión
-  contexto, y por eso **no** lo decide el implementador: si se aprueba, forma
-  parte de la definición de Score v2 y la sección siguiente se lee con
-  «contexto = tendencia 4 + VIX 4, reescalado a 10».
-- **Bloquea:** el paso 2 (implementar v2) y todo lo posterior.
+Se propuso como una sola decisión (D1: el componente asiático deja de puntuar,
+el revisor fija la alineación del VIX y el seguimiento usa el mismo contexto).
+Se registró como D-48 y **se retiró** antes de fusionarse: la primera parte no
+estaba aprobada, la segunda no es válida metodológicamente y la tercera es un
+requisito técnico, no una decisión estadística. Queda dividida en la sección
+siguiente.
+
+## Contexto: paridad y point-in-time
+
+Las tres piezas de H-1, separadas. Ninguna se resuelve mirando la expectancy de
+nada.
+
+### PR-1 — Componente asiático · pregunta de pre-registro PENDIENTE
+
+La dimensión `contexto` **permanece** en Score v2 (D-46) y hoy incluye el
+componente asiático (2 de sus 10 puntos brutos). Excluirlo sería una
+modificación interna de la dimensión y **no está decidido**. Antes de ejecutar
+P3 hay que responder, por inspección del código y de la cosecha y **sin mirar
+su expectancy**:
+
+1. ¿La señal de sesión asiática puede usarse **point-in-time** para todas las
+   observaciones de P3, es decir, era conocida en el `analysis_timestamp` de
+   cada señal y de cada plaza?
+2. ¿Producción y laboratorio pueden reconstruir **exactamente el mismo dato**
+   disponible en `analysis_timestamp`, con la misma función?
+
+Si las dos respuestas son sí, el componente se reconstruye en el laboratorio
+con esa misma implementación y se queda. **Si alguna es no, deberá excluirse
+antes de ejecutar P3, con decisión explícita del propietario** registrada en
+`docs/decision-log.md`. Hasta entonces la tabla de Score v2 lo mantiene y P3
+**no se ejecuta**.
+
+Lo que ya se sabe: producción lo calcula con `asia_session_change(overview)`
+(`analyzer.py:245–248`); el laboratorio y el backtest no lo reciben y puntúan el
+neutro 1,0.
+
+### D-49 — Alineación del VIX · contrato previo
+
+Texto de la decisión:
+
+> **La regla point-in-time de alineación del VIX se fija y documenta antes de
+> ejecutar P3. El revisor independiente no elige la regla: verifica que la regla
+> pre-registrada no contiene look-ahead y que producción e investigación usan
+> exactamente la misma implementación.**
+
+Obligación de esta ficha, dentro del paso 2a y **antes** del paso 3:
+- inspeccionar el camino actual de los dos lados —laboratorio y backtest:
+  `_align(vix_close, …).shift(1)` en `event_study.py:308–309` y
+  `backtest/runner.py:208–210`; producción: último VIX cerrado tras
+  `trim_unclosed_bar` a la hora de la pasada en `market_context.py:159–170`—;
+- definir por escrito, en esta ficha, **qué valor del VIX era realmente
+  conocido en cada `analysis_timestamp`**, por plaza (el VIX cierra a las
+  16:15 ET; las barras de señal cierran a horas distintas según la plaza);
+- implementar esa regla en **una sola función** que usen los dos caminos.
+
+Si la inspección deja **varias reglas plausibles** y ningún contrato previo
+decide entre ellas, **se eleva al propietario antes de ejecutar el
+laboratorio**. Ni el implementador ni el revisor la eligen.
+
+### R-CTX — Contexto del seguimiento · requisito técnico (INV-06)
+
+> `review_positions` debe construir el contexto con la misma semántica temporal
+> y la misma función que una pasada normal para el mismo `analysis_timestamp`
+> (INV-06).
+
+Hoy no lo hace: `report/tracking.py:109` llama a `fetch_market_context` sin el
+dato asiático ni la referencia temporal de la pasada. Se corrige en el paso 2a;
+no se modifica código en esta entrega.
 
 ## Score v2 — especificación
 
-Con D-46 (convicción fuera) y D-48 (componente asiático fuera de v2).
+Con D-43 (RR fuera) y D-46 (convicción fuera). El contenido del contexto queda
+pendiente de PR-1.
 
 | Dimensión | v1 | v2 | Cambio |
 |---|---|---|---|
@@ -390,7 +439,7 @@ Con D-46 (convicción fuera) y D-48 (componente asiático fuera de v2).
 | fundamental | 20 | **20** | ninguno: sigue no disponible y fuera del denominador |
 | técnico | 20 | **20** | ninguno |
 | beneficio/riesgo | 20 | — | **sale** (D-43) |
-| contexto | 10 | **10** | el componente asiático no puntúa (D-48): tendencia 4 + VIX 4, máximo bruto 8 reescalado a 10 |
+| contexto | 10 | **10** | ninguno por ahora (tendencia 4 + VIX 4 + Asia 2). Si PR-1 lleva a excluir el componente asiático, se decide antes de P3 y esta fila se corrige |
 | convicción | 10 | — | **sale** (D-46) |
 
 - **`score_model_version = "2.0"`.** v1 conserva `"1.0"` y su código, porque
@@ -483,12 +532,12 @@ Semántica:
 Rama única `research/a03-score-v2` desde `main`, cinco pasos, cada uno en su
 commit compilable. **El orden es lo que impide el estado prohibido.**
 
-**Paso 0 — Documental (antes de código). HECHO el 2026-09-26.** D-45 a D-48
-registradas en `docs/decision-log.md`, requisito 2 de GATE P3 corregido en
-`docs/gates.md` y esta ficha commiteada tal como quedó aprobada, en la rama
-`docs/t019-preregistro-p3`: ese commit es el pre-registro, y su SHA se cita en
-toda la evidencia de P3. La implementación parte de esa rama, o de `main` una
-vez fusionada.
+**Paso 0 — Documental (antes de código). HECHO el 2026-09-26.** D-45, D-46,
+D-47 y D-49 registradas (D-48 retirada) en `docs/decision-log.md`, requisito 2
+de GATE P3 corregido en `docs/gates.md` y esta ficha commiteada en la rama
+`docs/t019-preregistro-p3`, que se fusiona por PR tras revisión. El commit que
+cierre PR-1 y el contrato del VIX (paso 2a) completa el pre-registro; su SHA es
+el que se cita en toda la evidencia de P3.
 
 **Paso 1 — Contrato de umbrales, con v1 activo y sin cambio de comportamiento.**
 - `ScoringConfig` con `score_model_version` y `thresholds` por horizonte;
@@ -496,16 +545,40 @@ vez fusionada.
 - `classify_setup_detailed` y `tracking._verdict` leen del horizonte.
 - `Score.grade` y `conviction_label` siguen con sus cortes en v1 (son la
   presentación de v1), aisladas para que no sean alcanzables desde v2.
-- Migración **v6**: `position_review.score_model_version TEXT` (nullable; las
-  filas anteriores quedan `NULL` = «anterior a v6, sin versión por fila»; **no**
-  se rellena con «1.0», porque la fórmula v1 cambió durante 2026 sin cambiar de
-  versión). Backup previo y prueba de restauración (INV-17).
+- Migración **v7** (`main` ya está en v6 desde T-018,
+  `_migration_v6_validated_bar_cache` en `advisor/storage/migrations.py:268`):
+  `position_review.score_model_version TEXT` (nullable; las filas anteriores
+  quedan `NULL` = «anterior a v7, sin versión por fila»; **no** se rellena con
+  «1.0», porque la fórmula v1 cambió durante 2026 sin cambiar de versión).
+  Backup previo y prueba de restauración (INV-17). Recorridos que el test y la
+  evidencia deben cubrir:
+  - **base nueva:** se crea en v1 y recorre la cadena hasta la vigente en la
+    misma apertura (`db.py:227–243`), así que llega directamente a v7;
+  - **base de `main`:** v6 → v7, con su backup `pre-v7`;
+  - **la Pi:** sigue en **v5** y no se toca en A-03;
+  - **futuro despliegue que contenga T-018 y P3:** v5 → v6 → v7, cada paso con su
+    backup;
+  - **rollback de código:** no deshace **ninguna** de las dos migraciones
+    (D-32); volver atrás exige restaurar el backup previo a v6 o a v7 y aceptar
+    la pérdida de las pasadas guardadas desde entonces.
 - Verificación: `backtest --vintage 071ddb2b…` **idéntico byte a byte** al de
   A-02 (866 operaciones; hash normalizado `49b12c85…`), salvo lo que cambie por
   `config_hash`. Informe: solo cambia la etiqueta «no calibrado».
-- **Aviso de esquema:** este paso migra a v6. La Pi sigue en v5 y no se toca.
+- **Aviso de esquema:** este paso migra a v7. La Pi sigue en v5 y no se toca.
 
-**Paso 2 — Score v2 en el código, sin activar.** (Requiere D.)
+**Paso 2a — Contexto point-in-time, antes de v2 y de P3.**
+- Responder PR-1 por inspección y, si sale excluir el componente asiático,
+  elevarlo al propietario para decisión explícita.
+- Documentar en esta ficha la regla point-in-time del VIX (D-49), o elevarla si
+  hay varias plausibles.
+- Implementar la regla del VIX (y, si se queda, la del dato asiático) en una
+  sola función usada por producción, backtest y laboratorio.
+- R-CTX: `review_positions` construye el contexto con esa misma función y la
+  misma referencia temporal que la pasada.
+- Medir antes/después sobre la cosecha lo que cambie en el contexto de v1, y
+  declararlo. Commit de la ficha con la regla: **cierra el pre-registro**.
+
+**Paso 2 — Score v2 en el código, sin activar.** (Requiere el paso 2a.)
 - `compute_score(..., model_version)` con v1 y v2; `Score.model_version`.
 - `Opportunity.confianza` pasa a calcularse desde el snapshot, no desde la
   dimensión: `ratio = (4·min(1, barras/min_bars) + 4·presentes/6) / 8`, mismos
@@ -518,7 +591,7 @@ vez fusionada.
   observaciones de otra versión.
 - Producción **no cambia**: `scoring.score_model_version` sigue en `"1.0"`.
 
-**Paso 3 — P3 ejecutado una sola vez** sobre el pre-registro del paso 0
+**Paso 3 — P3 ejecutado una sola vez** sobre el pre-registro de los pasos 0 y 2a
 (sección siguiente). Comandos nuevos o extendidos en `advisor/main.py`
 (`event-study`, `capacidad-estadistica`, `ablacion-score` con
 `--score-model 2.0`, o un `score-v2` que los agrupe; el implementador elige y la
@@ -711,8 +784,10 @@ Cualquiera de esas cosas es un estudio nuevo, con decisión propia y
 ## Qué NO debe modificarse
 - `min_rr_ratio`, `compute_levels*`, `entry_max_rr`, `RR_TOO_LOW`,
   `evaluate_trade_at_entry` y la geometría (`config.levels`).
-- Los componentes y tramos de catalizador, técnico y contexto (salvo lo que
-  diga la decisión D).
+- Los componentes y tramos de catalizador, técnico y contexto, salvo lo que
+  decida el propietario al responder PR-1 y la alineación que fije D-49.
+- `advisor/`, `tests/` y `config.yaml` **mientras el propietario no autorice
+  empezar la implementación**.
 - El estimador, los bloques, la semilla, `CapacityThresholds`, la cosecha y
   `universe.yaml`.
 - La evidencia de A-02.
@@ -769,18 +844,21 @@ Tests:
   con anchura 0,10 → LIMITADA (no SUFICIENTE).
 - `test_regla_de_umbral_meseta`: candidatos que cumplen {p60, p80, p90} pero no
   p70 → operar = p80, no p60.
-- `test_migracion_v6_position_review` con backup y restauración.
+- `test_migracion_v7_position_review`: base nueva → v7; base v6 → v7 con backup
+  `pre-v7` y restauración; base v5 → v6 → v7.
 
 ## Tests de integración
 - **INV-06, código:** para `AAPL`, `SAP.DE` y `SXR8.DE` sobre la cosecha, el
   score v2 de `analyzer`, `backtest/engine` y `event_study` coincide en las
   mismas barras (extensión del test de equivalencia prefijo/vectorizado).
 - **INV-06, contenido:** el `MarketContext` que ven los tres caminos para la
-  misma barra produce los mismos `points` (falla hoy por H-1; pasa con D1 o D2).
+  misma barra produce los mismos `points` (falla hoy por H-1; tiene que pasar
+  tras el paso 2a). Incluye `review_positions` (R-CTX).
 - **Equivalencia v2 ↔ ablación:** en los mismos tres activos, `Score.value` v2
   == `100·(points − rr − conviccion)/(evaluable_max − 20 − 10)` reconstruido
   desde las `DimensionObservation` v1 (P2.2), con `assert_allclose` estrecho.
-  Con D1 la reconstrucción añade el ajuste de contexto y el test lo refleja.
+  Si PR-1 o D-49 cambian el contexto, la reconstrucción parte de observaciones
+  v1 recalculadas con el contexto nuevo, y el test lo refleja.
 - **Recomendación persistida:** una pasada con versión activa X deja
   `analysis_run.score_model_version = X`, y persistir una oportunidad cuyo
   `Score.model_version` ≠ X aborta la transacción.
@@ -811,8 +889,8 @@ inválido), sin llamar equivalentes a bandas de escalas distintas:
   equivalentes;
 - lo mismo por región y la mediana del desplazamiento por activo;
 - efecto de retirar solo el RR, solo convicción y los dos, por separado;
-- número de señales con contexto imputado (H-6) y, con D1, el efecto de retirar
-  Asia;
+- número de señales con contexto imputado (H-6) y el efecto sobre la nota de
+  lo que decida el paso 2a (regla del VIX y, en su caso, componente asiático);
 - cambio de `confianza` en la pasada de producción (paso 2), por motivo;
 - **clasificación operativa:** el número de señales cuya clasificación cambia
   **solo** se calcula si swing sale `calibrated: true`, comparando v1 70/60 con
@@ -823,8 +901,9 @@ inválido), sin llamar equivalentes a bandas de escalas distintas:
   permite.
 
 ## Criterio de aceptación
-1. Decisiones A–D registradas y `gates.md` corregido **antes** del primer
-   commit de código; el SHA del pre-registro aparece en la evidencia.
+1. D-45, D-46, D-47 y D-49 registradas y `gates.md` corregido **antes** del
+   primer commit de código; PR-1 respondida y la regla del VIX documentada
+   **antes** de ejecutar P3; el SHA del pre-registro aparece en la evidencia.
 2. Score v2 implementado como está especificado, con `"2.0"` y v1 intacto.
 3. Contrato de umbrales por horizonte con las seis reglas de validación.
 4. P3 ejecutado **una vez** con el pre-registro, sin desviaciones, o con cada
@@ -878,7 +957,7 @@ Rama `research/a03-score-v2`. Primeras líneas, una por paso:
 - `docs(T-019): resultado de P3 y estado de calibración por horizonte`
 
 ## Actualización documental requerida
-- Paso 0 (hecho): `docs/decision-log.md` (D-45 a D-48), `docs/gates.md` (requisito 2 de
+- Paso 0 (hecho): `docs/decision-log.md` (D-45, D-46, D-47, D-49; D-48 retirada), `docs/gates.md` (requisito 2 de
   GATE P3, texto de A).
 - Al cerrar: fila A-03 de `docs/roadmap.md`; GATE P3 en `docs/gates.md` y
   `docs/decision-log.md` si se cruza; `README.md` (tabla de dimensiones);
@@ -896,7 +975,7 @@ será el de A-02), los números de los tests (63,75 / 62,0; 56,106 / 55,873 con
 recuento de 239 comparaciones y que ningún paso deja v2 activo con 70/60.
 Cuatro hallazgos, reproducidos y ya incorporados: inventario incompleto en tests
 (IMPORTANTE), desfase del VIX y contexto del seguimiento como divergencias
-adicionales a Asia (IMPORTANTE, ahora en H-1 y D), regla de VIGILAR ambigua
+adicionales a Asia (IMPORTANTE, ahora en H-1, D-49 y R-CTX), regla de VIGILAR ambigua
 (MENOR, ahora en pseudocódigo) y estado del árbol desactualizado (MENOR).
 
 ## Matriz de GATE P3
@@ -907,7 +986,7 @@ adicionales a Asia (IMPORTANTE, ahora en H-1 y D), regla de VIGILAR ambigua
 | 2 | Umbrales por horizonte con estado `calibrated` ligado a la versión; swing con la regla pre-registrada; medio `calibrated: false` con motivo (D-42); intradía `calibrated: false` | D-45 registrada y `gates.md` corregido; contrato en `advisor/config.py` y sus tests; `p3-calibracion-swing.txt` con el resultado mecánico de la regla; D-nn del paso 4 con el estado de los tres horizontes |
 | 3 | Ordenación bajo el primario, por banda y por bloque, con veredicto SUFICIENTE / LIMITADA / INSUFICIENTE / NO CONCLUYENTE | `p3-ordenacion-swing.txt` (quintiles, IC95, tabla por bloque, Δ Q5−Q1, secundarias, `experimental_resolution`, veredicto, contador de comparaciones); `p3-ordenacion-medio.txt` con veredicto forzado por invalidez |
 | 4 | Ablación por dimensión (`score_sin_X`) publicada | `p3-ablacion-{swing,medio}.txt`, tres dimensiones, mismo procedimiento que el completo, sin selección |
-| 5 | Revisión independiente del look-ahead | `revision-look-ahead.md` de otro agente, con al menos: alineación temporal de VIX (`shift(1)`), tendencia y fortaleza relativa; que los quintiles y candidatos no leen desenlace; que la población no depende del score; paridad de contexto producción/laboratorio (H-1); que medio no se usa para nada más que trazabilidad; hallazgos clasificados y cerrados |
+| 5 | Revisión independiente del look-ahead | `revision-look-ahead.md` de otro agente, con al menos: que la regla del VIX pre-registrada en el paso 2a (D-49) no contiene look-ahead y es la misma implementación en producción e investigación —el revisor verifica, no elige—; la respuesta a PR-1; alineación de tendencia y fortaleza relativa; que los quintiles y candidatos no leen desenlace; que la población no depende del score; paridad de contexto producción/laboratorio/seguimiento (H-1, R-CTX); que medio no se usa para nada más que trazabilidad; hallazgos clasificados y cerrados |
 
 ## Handoff al siguiente agente
 (se rellena al terminar)

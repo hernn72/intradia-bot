@@ -666,64 +666,85 @@ normativo fija seis dimensiones.
    habituales.
 5. La ablación de P3 **no** reabre esta decisión.
 
-### D-47 — 2026-09-26 — Producción sigue en Score v1, declarado no calibrado, hasta que v2 tenga umbrales calibrados
+### D-47 — 2026-09-26 — Transición: producción sigue en Score v1 con sus 70/60 legacy hasta que v2 entre de forma atómica
 Decisión del propietario sobre la propuesta C de T-019 (alternativa **C2**).
+**Es un estado de transición**, no el destino.
 
 **Pregunta.** Si P3 sale NO CONCLUYENTE y swing queda `calibrated: false`, ¿qué
 modelo y qué umbrales usa producción?
 
-**Qué se decide.** Producción sigue con **Score v1 y sus 70/60**, que son
-coherentes entre sí porque pertenecen a la misma escala, pero **se declaran
-`calibrated: false` en todos los horizontes desde el primer commit de código**
-(paso 1 de T-019), porque A-02 midió que ninguna banda v1 es concluyente. Score
-v2 vive en el código y en investigación con la misma función versionada
-(INV-06 se cumple en el código, no en la versión activa). La activación de v2 en
-producción (paso 5 de T-019) solo se hace cuando exista un bloque de umbrales
-`"2.0"`, y en un solo commit con el modelo.
+**Qué se decide:**
+1. Producción sigue en **`score_model_version = "1.0"`**: calcula Score v1 y
+   clasifica con sus **cortes legacy 70/60**.
+2. Esos 70/60 son de v1 y se declaran `calibrated: false` en todos los
+   horizontes desde el primer commit de código (paso 1 de T-019), porque A-02
+   midió que ninguna banda v1 es concluyente. **No se presentan nunca como
+   calibración de Score v2**, ni en el informe, ni en Telegram, ni en el texto
+   al LLM, ni en la persistencia.
+3. El RR **sigue puntuando en producción únicamente porque todavía corre v1**.
+   No es una excepción a D-43: en cuanto producción pase a v2, el RR deja de
+   puntuar.
+4. El cambio a v2 en producción es **atómico**: en un mismo commit entran la
+   versión nueva (`"2.0"`), el contrato de umbrales con bloques que declaran
+   `"2.0"` y un estado de calibración coherente con la evidencia de P3.
+5. **No puede existir ninguna pasada de producción que calcule Score v2 y
+   clasifique con los 70/60 de v1.** Lo impide la configuración: cada bloque de
+   umbrales declara su `score_model_version`, y el cargador rechaza al arrancar
+   un desajuste con el modelo activo.
+
+Score v2 vive mientras tanto en el código y en investigación, con la misma
+función versionada (INV-06 se cumple en el código, no en la versión activa).
 
 **Alternativas descartadas.** C1 (v2 activo sin umbrales: el asesor dejaría de
 emitir COMPRAR) y C3 (v2 con umbrales provisionales elegidos a mano: un corte
 nuevo sin medir).
 
-**Tensión declarada.** Mientras dure, el RR sigue puntuando en producción. D-43
-decidió sacarlo «a partir de P3», y esta decisión lo interpreta como a partir de
-que v2 tenga umbrales con los que clasificar, que es lo que recomendaba OD-11
-(«retirarlo debe entrar junto con la recalibración de P3, no antes»).
+**Por qué no contradice D-43.** D-43 sacó el RR «a partir de P3»; esta decisión
+lo lee como a partir de que v2 tenga umbrales con los que clasificar, que es lo
+que ya recomendaba OD-11: «retirarlo debe entrar junto con la recalibración de
+P3, no antes, o quedan umbrales heredados sobre una escala que ya no existe».
 
-**Mecanismo que lo protege.** Cada bloque de umbrales declara su
-`score_model_version` y el cargador de configuración rechaza un desajuste con el
-modelo activo: el estado «v2 activo clasificando con 70/60» es imposible por
-construcción.
+### D-48 — 2026-09-26 — RETIRADA el mismo día, antes de fusionarse: mezclaba tres cuestiones y la primera no estaba aprobada
+La primera versión de esta entrada (commit `6572ecb`, rama
+`docs/t019-preregistro-p3`, nunca fusionada en `main`) registraba como una sola
+decisión cerrada tres cosas distintas: que el componente asiático dejaba de
+puntuar en Score v2, que el revisor independiente decidiría la alineación del
+VIX y que el seguimiento construiría el contexto como la pasada diaria. **Se
+retira** porque:
+- la exclusión del componente asiático **no estaba aprobada**: es una
+  modificación interna de la dimensión `contexto`, que en la arquitectura
+  aprobada de Score v2 permanece;
+- que el revisor **eligiera** la alineación del VIX no es válido
+  metodológicamente: una regla elegida al revisar no está pre-registrada;
+- el seguimiento de posiciones es un requisito técnico de INV-06, no una
+  decisión estadística.
 
-### D-48 — 2026-09-26 — Paridad del contexto: el componente asiático no puntúa en Score v2, y el contexto se construye igual en los tres caminos
-Decisión del propietario sobre la propuesta D de T-019 (alternativa **D1**).
+No se borra, conforme a la regla de este registro. Su contenido queda dividido
+así:
+- **Componente asiático** → pregunta de pre-registro **pendiente** en T-019
+  (PR-1), a resolver antes de ejecutar P3 y sin mirar su expectancy.
+- **Alineación del VIX** → **D-49**.
+- **Contexto del seguimiento** → requisito técnico de T-019 (R-CTX), bajo INV-06.
 
-**Hallazgo que la motiva (H-1 de T-019, reproducido y confirmado por Codex).**
-`compute_score` es la misma función en producción e investigación, pero el
-contexto que recibe no: producción pasa `asia_change_pct`
-(`analyzer.py:245–248`) y el event study y el backtest no
-(`event_study.py:643`, `backtest/engine.py:168`), así que en investigación el
-componente asiático vale siempre el neutro 1,0; el laboratorio usa el VIX con una
-vela de retraso (`event_study.py:309`, `backtest/runner.py:210`) y producción el
-último cerrado; y el seguimiento de posiciones repuntúa sin el dato asiático
-(`report/tracking.py:109`). En v2 la diferencia puede mover la nota ±2 puntos.
+### D-49 — 2026-09-26 — La regla point-in-time del VIX se fija antes de P3; el revisor la verifica, no la elige
+Decisión del propietario. Sustituye la parte del VIX de la D-48 retirada.
 
-**Qué se decide:**
-1. En Score v2 el componente asiático **no puntúa**: la dimensión contexto se
-   calcula con tendencia (4) y VIX (4), máximo bruto 8 reescalado a su peso de
-   10, igual en producción e investigación. El dato asiático sigue en el informe
-   como contexto descriptivo. v1 no cambia.
-2. La **alineación del VIX** la fija el revisor independiente de look-ahead de
-   T-019 (GATE P3 requisito 5), como la que no mira hacia delante para cada
-   plaza a la hora de la pasada, y el paso 2 la aplica igual en los dos caminos.
-   Si difiere de la actual del laboratorio, el cambio se mide antes/después en
-   P3 y se declara.
-3. El **seguimiento de posiciones** construye el contexto igual que la pasada
-   diaria.
+**Hallazgo que la motiva (H-1 de T-019).** El laboratorio y el backtest usan el
+VIX con una vela de retraso (`event_study.py:309`, `backtest/runner.py:210`,
+`shift(1)`), y producción el último VIX cerrado a la hora de la pasada
+(`market_context.py:159–170`). Mismo `compute_score`, entradas distintas.
 
-**Alternativas descartadas.** D2 (reconstruir el dato asiático en el
-laboratorio: trabajo nuevo con riesgo propio de look-ahead) y D3 (dejarlo y
-declararlo: los umbrales tendrían ±2 puntos de holgura desconocida).
+**Qué se decide.** La regla point-in-time de alineación del VIX se fija y
+documenta antes de ejecutar P3. El revisor independiente no elige la regla:
+verifica que la regla pre-registrada no contiene look-ahead y que producción e
+investigación usan exactamente la misma implementación.
+
+**Cómo se fija.** Antes del experimento se inspecciona el camino actual de los
+dos lados y se define, por escrito en T-019, qué valor del VIX era realmente
+conocido en cada `analysis_timestamp`. Si esa inspección deja **varias reglas
+plausibles** y ningún contrato previo decide entre ellas, **se eleva al
+propietario antes de ejecutar el laboratorio**; ni el implementador ni el
+revisor eligen.
 
 ## OWNER_DECISION_REQUIRED
 
