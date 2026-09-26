@@ -614,6 +614,117 @@ del reajuste se pierde**. No se escala por el factor detectado porque eso
 produciría un valor que el bot nunca observó, contra la regla 2 de D-41. La
 pasada lo declara en la medición en vez de perderlo en silencio.
 
+### D-45 — 2026-09-26 — GATE P3 requisito 2: medio queda sin calibrar mientras su evidencia sea inválida, y ningún umbral v1 se hereda
+Decisión del propietario sobre la propuesta A de T-019.
+
+**Contradicción que resuelve.** GATE P3 exigía calibrar swing y medio por
+separado. A-02 (D-42) invalidó medio para calibración y conclusión: su último
+bloque ocupado mide 102 sesiones y `MAX_HOLD_BARS` vale 250. Calibrar medio con
+esos números contradice P2.5, y conseguir datos válidos exige una cosecha más
+larga, que es FU-1 de A-02 y no cabe en A-03.
+
+**Qué se decide:**
+1. **Swing** puede calibrarse en P3 con la regla pre-registrada en T-019. Si la
+   regla no se cumple, queda `calibrated: false`.
+2. **Medio** queda `calibrated: false` sin intentar calibración. P3 publica sus
+   números solo por trazabilidad, marcados inválidos.
+3. **Intradía** queda `calibrated: false` (no tiene laboratorio: P2 solo cubre
+   swing y medio).
+4. **No se heredan los umbrales 70/60 de Score v1** en ningún horizonte de
+   Score v2, ni por equivalencia de escala ni por equivalencia de percentil.
+5. Un horizonte `calibrated: false` **no puede presentarse** como score
+   operativamente calibrado en ningún informe, mensaje ni persistencia.
+6. Si la ordenación de P3 sale NO CONCLUYENTE, GATE P3 se cruza con esa
+   etiqueta, como ya decía `docs/gates.md`, y P4 trabaja sobre `score_signal`
+   sin umbrales operativos nuevos.
+
+Reabrir la calibración de medio exige una cosecha nueva cuyo último bloque
+ocupado supere `MAX_HOLD_BARS`, con `data_vintage_id` nuevo, y una ficha nueva.
+**Se corrige en el mismo commit el requisito 2 de GATE P3** en `docs/gates.md`.
+
+### D-46 — 2026-09-26 — `convicción` sale de Score v2; su contenido de calidad del dato pasa a la confianza, y el ATR% no se conserva escondido
+Decisión del propietario sobre la propuesta B de T-019. Se toma por
+arquitectura y **antes** de ver P3.
+
+**Por qué.** La dimensión `convicción` (10 puntos) mide cobertura de barras (4),
+indicadores disponibles (4) y «estabilidad» por ATR% (2). Los dos primeros son
+calidad del dato, que por arquitectura no puntúa (INV-03). El tercero es una
+propiedad del activo que nunca se pre-registró como predictor. Ningún documento
+normativo fija seis dimensiones.
+
+**Qué se decide:**
+1. Score v2 **no** contiene `convicción`.
+2. Cobertura de barras e indicadores disponibles siguen existiendo como
+   **confianza del análisis** (`Opportunity.confianza`), calculada desde el
+   snapshot, **fuera** de `compute_score`, y **no** se convierten en puntos.
+3. El ATR% **no** se conserva dentro de ninguna otra dimensión ni de la
+   confianza. Estudiar la volatilidad como predictor exige una señal o dimensión
+   explícita, pre-registrada y medida por separado.
+4. Los 30 puntos retirados (RR 20 + convicción 10) **no se redistribuyen**. Score
+   v2 = catalizador 20 + técnico 20 + contexto 10 (fundamental 20 cuando exista,
+   que sería otro modelo), normalizado sobre los puntos evaluables: **50**
+   habituales.
+5. La ablación de P3 **no** reabre esta decisión.
+
+### D-47 — 2026-09-26 — Producción sigue en Score v1, declarado no calibrado, hasta que v2 tenga umbrales calibrados
+Decisión del propietario sobre la propuesta C de T-019 (alternativa **C2**).
+
+**Pregunta.** Si P3 sale NO CONCLUYENTE y swing queda `calibrated: false`, ¿qué
+modelo y qué umbrales usa producción?
+
+**Qué se decide.** Producción sigue con **Score v1 y sus 70/60**, que son
+coherentes entre sí porque pertenecen a la misma escala, pero **se declaran
+`calibrated: false` en todos los horizontes desde el primer commit de código**
+(paso 1 de T-019), porque A-02 midió que ninguna banda v1 es concluyente. Score
+v2 vive en el código y en investigación con la misma función versionada
+(INV-06 se cumple en el código, no en la versión activa). La activación de v2 en
+producción (paso 5 de T-019) solo se hace cuando exista un bloque de umbrales
+`"2.0"`, y en un solo commit con el modelo.
+
+**Alternativas descartadas.** C1 (v2 activo sin umbrales: el asesor dejaría de
+emitir COMPRAR) y C3 (v2 con umbrales provisionales elegidos a mano: un corte
+nuevo sin medir).
+
+**Tensión declarada.** Mientras dure, el RR sigue puntuando en producción. D-43
+decidió sacarlo «a partir de P3», y esta decisión lo interpreta como a partir de
+que v2 tenga umbrales con los que clasificar, que es lo que recomendaba OD-11
+(«retirarlo debe entrar junto con la recalibración de P3, no antes»).
+
+**Mecanismo que lo protege.** Cada bloque de umbrales declara su
+`score_model_version` y el cargador de configuración rechaza un desajuste con el
+modelo activo: el estado «v2 activo clasificando con 70/60» es imposible por
+construcción.
+
+### D-48 — 2026-09-26 — Paridad del contexto: el componente asiático no puntúa en Score v2, y el contexto se construye igual en los tres caminos
+Decisión del propietario sobre la propuesta D de T-019 (alternativa **D1**).
+
+**Hallazgo que la motiva (H-1 de T-019, reproducido y confirmado por Codex).**
+`compute_score` es la misma función en producción e investigación, pero el
+contexto que recibe no: producción pasa `asia_change_pct`
+(`analyzer.py:245–248`) y el event study y el backtest no
+(`event_study.py:643`, `backtest/engine.py:168`), así que en investigación el
+componente asiático vale siempre el neutro 1,0; el laboratorio usa el VIX con una
+vela de retraso (`event_study.py:309`, `backtest/runner.py:210`) y producción el
+último cerrado; y el seguimiento de posiciones repuntúa sin el dato asiático
+(`report/tracking.py:109`). En v2 la diferencia puede mover la nota ±2 puntos.
+
+**Qué se decide:**
+1. En Score v2 el componente asiático **no puntúa**: la dimensión contexto se
+   calcula con tendencia (4) y VIX (4), máximo bruto 8 reescalado a su peso de
+   10, igual en producción e investigación. El dato asiático sigue en el informe
+   como contexto descriptivo. v1 no cambia.
+2. La **alineación del VIX** la fija el revisor independiente de look-ahead de
+   T-019 (GATE P3 requisito 5), como la que no mira hacia delante para cada
+   plaza a la hora de la pasada, y el paso 2 la aplica igual en los dos caminos.
+   Si difiere de la actual del laboratorio, el cambio se mide antes/después en
+   P3 y se declara.
+3. El **seguimiento de posiciones** construye el contexto igual que la pasada
+   diaria.
+
+**Alternativas descartadas.** D2 (reconstruir el dato asiático en el
+laboratorio: trabajo nuevo con riesgo propio de look-ahead) y D3 (dejarlo y
+declararlo: los umbrales tendrían ±2 puntos de holgura desconocida).
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

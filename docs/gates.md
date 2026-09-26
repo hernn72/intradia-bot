@@ -125,9 +125,17 @@ Requisitos:
 
 1. Dimensiones y pesos redefinidos y documentados con `score_model_version`
    nuevo. Ninguna observación posterior se mezcla con la anterior sin etiqueta.
-2. Umbrales `min_score_operar` / `min_score_vigilar` calibrados **por
-   horizonte** (swing y medio por separado) con el estimador primario
-   (INV-14), y `calibrated: false` declarado para intradía.
+2. Umbrales `min_score_operar` / `min_score_vigilar` declarados **por
+   horizonte** (swing, medio e intradía por separado), cada uno con estado
+   `calibrated` explícito y ligado al `score_model_version` al que pertenecen.
+   Un horizonte solo puede quedar `calibrated: true` si sus umbrales salen de
+   la regla pre-registrada en la ficha de P3, aplicada con el estimador
+   primario (INV-14) sobre datos que P2.5 no declare inválidos para ese
+   horizonte. Medio queda `calibrated: false` mientras su evidencia sea
+   inválida (D-42) y, en ese caso, el requisito se cumple publicando el motivo;
+   intradía queda `calibrated: false`. Ningún umbral de un `score_model_version`
+   se reutiliza en otro. (Corregido el 2026-09-26 por D-45: el texto anterior
+   exigía calibrar medio, lo que D-42 hizo imposible con la cosecha vigente.)
 3. Ordenación medida bajo el estimador primario: publicada como intervalo por
    banda y por bloque, con veredicto `SUFICIENTE / LIMITADA / INSUFICIENTE /
    NO CONCLUYENTE`.
