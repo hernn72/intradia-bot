@@ -388,9 +388,22 @@ modificación interna de la dimensión y **no está decidido**. Antes de ejecuta
 P3 hay que responder, por inspección del código y de la cosecha y **sin mirar
 su expectancy**:
 
-1. ¿Qué **índices exactos** forman la señal? (Los fija el vintage del
-   universo: hoy `^N225`, `^HSI`, `^KS11` y `^TWII`, los índices de contexto de
-   región ASIA vigentes.)
+1. ¿Qué **series exactas** forman la señal? Producción las toma así:
+   `context_assets_of()` reúne los activos vigentes con `analizable: false` y
+   `asia_session_change()` promedia los de `region: ASIA`. Con el universo
+   vigente, la composición observada en producción es de **cinco series de
+   contexto asiático**: `^N225`, `^HSI`, `^KS11` y `^TWII` (índices) y
+   `510300.SS` (ETF de Shanghái). La cosecha congelada contiene las cinco,
+   incluido `510300.SS.csv`.
+
+   La composición de la señal no se decide por una lista escrita a mano en
+   T-019: debe derivarse del universo/vintage con la misma regla que
+   producción. La lista anterior documenta la composición vigente para poder
+   auditarla.
+
+   Excluir `510300.SS` o cualquier otra de esas cinco series sería una
+   **decisión explícita de composición**, antes del SHA del paso 2a-doc; no
+   puede hacerse porque «parece un ETF» ni por su resultado estadístico.
 2. ¿La señal de sesión asiática puede usarse **point-in-time** para todas las
    observaciones de P3, es decir, era conocida en el `analysis_timestamp` de
    cada señal (definido en el paso 2a-doc)?
@@ -401,11 +414,14 @@ su expectancy**:
 Lo que ya se sabe, y condiciona las respuestas:
 - producción lo calcula con `asia_session_change(fetch_overview(…))`
   (`analyzer.py:245–248`, `overview.py:23–35`) como la variación media entre
-  el último precio y el anterior de esos índices, **sin recortar la barra
+  el último precio y el anterior de esas series, **sin recortar la barra
   abierta** (`overview.py:82–97`);
 - por eso, en algunas pasadas el dato es **intradía**: a las 06 UTC Hong Kong,
-  Tokio y Seúl siguen abiertos;
-- la cosecha `071ddb2b…` contiene **cierres diarios** de esos índices, no
+  Tokio y Seúl siguen abiertos, y también Shanghái, donde cotiza `510300.SS`,
+  cuya sesión todavía no ha cerrado a esa hora; esto refuerza el problema de
+  PR-1: producción puede estar usando información intradía que la cosecha
+  diaria congelada no reproduce exactamente;
+- la cosecha `071ddb2b…` contiene **cierres diarios** de esas series, no
   necesariamente el valor intradía exacto que vio producción;
 - el neutro 1,0 que puntúa hoy el laboratorio **no es una reconstrucción: es
   una imputación**.
@@ -621,7 +637,7 @@ pre-registro cerrado.**
 **Paso 0 — Pre-registro condicionado (PR #26). HECHO el 2026-09-26.** D-45,
 D-46, D-47 y D-49 registradas (D-48 retirada) en `docs/decision-log.md`,
 requisito 2 de GATE P3 corregido en `docs/gates.md` y esta ficha en la rama
-`docs/t019-preregistro-p3`, fusionada por PR tras revisión. Fija todo el diseño
+`docs/t019-preregistro-p3`, pendiente de fusionar por PR tras revisión. Fija todo el diseño
 estadístico de P3, **pero no es el SHA que autoriza a ejecutarlo**: PR-1 y la
 semántica point-in-time concreta del VIX siguen abiertas.
 
@@ -986,8 +1002,10 @@ Cualquiera de esas cosas es un estudio nuevo, con decisión propia y
   - un bloque que queda con **cero** activos calculables se excluye del
     bootstrap y se publica;
   - `n_blocks` del intervalo es el número de **bloques calculables reales**;
-  - si cae por debajo del mínimo de resolución aplicable (12 bloques,
-    `CapacityThresholds.limited_blocks`), el resultado es **NO CONCLUYENTE**.
+  - si cae por debajo del mínimo aplicable según
+    `CapacityThresholds.limited_blocks` (vigente: 12), el resultado es **NO
+    CONCLUYENTE**. La regla depende de ese umbral pre-registrado de capacidad;
+    12 es su valor vigente, no una constante propia de T-019.
 - Todas con la etiqueta de universo condicionado a 2026.
 
 ## Qué NO debe modificarse
@@ -1076,7 +1094,8 @@ Tests:
   los valores por defecto del instrumento de INV-14 no cambian.
 - `test_intra_activo_excluye_pares_incompletos`: activo-bloque sin Q1∪Q2 se
   excluye (no cuenta como 0) y se publica; bloque sin activos calculables sale
-  del bootstrap; con menos de 12 bloques calculables → NO CONCLUYENTE.
+  del bootstrap; por debajo del mínimo aplicable según
+  `CapacityThresholds.limited_blocks` (vigente: 12) → NO CONCLUYENTE.
 - `test_contadores_de_comparaciones_derivados`: los tres contadores se derivan
   de las salidas previstas; medio no incluye la familia de umbrales.
 - `test_veredicto_ordenacion_tabla`: cuatro casos sintéticos con bloques de
