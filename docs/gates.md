@@ -127,15 +127,24 @@ Requisitos:
    nuevo. Ninguna observación posterior se mezcla con la anterior sin etiqueta.
 2. Umbrales `min_score_operar` / `min_score_vigilar` declarados **por
    horizonte** (swing, medio e intradía por separado), cada uno con estado
-   `calibrated` explícito y ligado al `score_model_version` al que pertenecen.
-   Un horizonte solo puede quedar `calibrated: true` si sus umbrales salen de
-   la regla pre-registrada en la ficha de P3, aplicada con el estimador
-   primario (INV-14) sobre datos que P2.5 no declare inválidos para ese
-   horizonte. Medio queda `calibrated: false` mientras su evidencia sea
-   inválida (D-42) y, en ese caso, el requisito se cumple publicando el motivo;
-   intradía queda `calibrated: false`. Ningún umbral de un `score_model_version`
-   se reutiliza en otro. (Corregido el 2026-09-26 por D-45: el texto anterior
-   exigía calibrar medio, lo que D-42 hizo imposible con la cosecha vigente.)
+   `calibrated` explícito y ligado al `score_model_version` al que pertenecen:
+   - **swing** queda `calibrated: true` **solo** si la regla pre-registrada en
+     la ficha de P3, aplicada con el estimador primario (INV-14) sobre datos que
+     P2.5 no declare inválidos, produce umbrales válidos; si la regla no produce
+     ningún umbral, swing `calibrated: false` **también satisface** este
+     requisito, siempre que se publiquen el resultado de la regla y el motivo;
+   - **medio** queda `calibrated: false` mientras D-42 y D-45 sigan vigentes, y
+     el requisito se cumple publicando el motivo; reabrirlo exige la decisión y
+     la ficha nuevas que prevé D-45;
+   - **intradía** queda `calibrated: false`.
+
+   Ningún horizonte puede llamarse «calibrado» sin evidencia válida: para Score
+   v2 el contrato implementado impide `calibrated: true` en los horizontes que
+   D-45 no autoriza, como parte de la especificación de la versión. Ningún
+   umbral de un `score_model_version` se reutiliza en otro. (Corregido el
+   2026-09-26 por D-45: el texto anterior exigía calibrar medio, lo que D-42 hizo
+   imposible con la cosecha vigente; precisado el mismo día en la tercera
+   revisión del PR #26, antes de fusionar, para cerrar sus escapatorias.)
 3. Ordenación medida bajo el estimador primario: publicada como intervalo por
    banda y por bloque, con veredicto `SUFICIENTE / LIMITADA / INSUFICIENTE /
    NO CONCLUYENTE`.

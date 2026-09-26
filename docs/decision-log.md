@@ -642,6 +642,17 @@ Reabrir la calibración de medio exige una cosecha nueva cuyo último bloque
 ocupado supere `MAX_HOLD_BARS`, con `data_vintage_id` nuevo, y una ficha nueva.
 **Se corrige en el mismo commit el requisito 2 de GATE P3** en `docs/gates.md`.
 
+**Precisión de la tercera revisión del PR #26 (2026-09-26, antes de fusionar).**
+Para que el requisito no tenga escapatorias: swing queda `calibrated: true`
+**solo** si la regla pre-registrada produce umbrales válidos, y
+`calibrated: false` **también satisface el requisito** cuando la regla no produce
+ninguno, siempre que se publiquen el resultado y el motivo. Para Score v2, el
+contrato implementado **impide** `calibrated: true` en medio e intradía: cada
+`score_model_version` declara en el código qué horizontes puede calibrar (`"2.0"`
+→ solo swing; `"1.0"` → ninguno), así que la restricción es parte de la
+especificación de la versión y no una revisión humana del YAML (T-019, regla 8
+del contrato).
+
 ### D-46 — 2026-09-26 — `convicción` sale de Score v2; su contenido de calidad del dato pasa a la confianza, y el ATR% no se conserva escondido
 Decisión del propietario sobre la propuesta B de T-019. Se toma por
 arquitectura y **antes** de ver P3.
@@ -665,6 +676,12 @@ normativo fija seis dimensiones.
    que sería otro modelo), normalizado sobre los puntos evaluables: **50**
    habituales.
 5. La ablación de P3 **no** reabre esta decisión.
+6. **Invariante de composición** (añadida en la tercera revisión del PR #26,
+   antes de fusionar): las dimensiones puntuables son **propiedad del
+   `score_model_version`**, no de un flag que pueda modificar su composición.
+   Con `"1.0"` o `"2.0"`, `fundamentals_enabled: true` es configuración
+   inválida; activar fundamentales exige una versión nueva del modelo (T-019,
+   regla 9 del contrato). No se crea ahora ninguna versión `"3.0"`.
 
 ### D-47 — 2026-09-26 — Transición: producción sigue en Score v1 con sus 70/60 legacy hasta que v2 entre de forma atómica
 Decisión del propietario sobre la propuesta C de T-019 (alternativa **C2**).
@@ -688,9 +705,24 @@ modelo y qué umbrales usa producción?
    versión nueva (`"2.0"`), el contrato de umbrales con bloques que declaran
    `"2.0"` y un estado de calibración coherente con la evidencia de P3.
 5. **No puede existir ninguna pasada de producción que calcule Score v2 y
-   clasifique con los 70/60 de v1.** Lo impide la configuración: cada bloque de
-   umbrales declara su `score_model_version`, y el cargador rechaza al arrancar
-   un desajuste con el modelo activo.
+   clasifique con los 70/60 de v1.** Comparar la etiqueta de versión de los
+   umbrales con la del modelo activo **no basta** (se podrían reescribir 70/60
+   en un bloque que declare `"2.0"`). Lo impide la **regla 7** del contrato de
+   T-019, que el cargador aplica al arrancar: los 70/60 legacy con
+   `calibrated: false` solo se admiten con `"1.0"`; en cualquier otra versión,
+   `calibrated: false` obliga a umbrales y `calibration_ref` nulos, y
+   `calibrated: true` exige umbrales numéricos y una referencia de calibración
+   válida.
+6. **Trazabilidad en persistencia.** Cada pasada guarda junto a su manifiesto el
+   contrato de scoring canónico realmente usado
+   (`analysis_run.scoring_contract_json`: versión, `fundamentals_enabled`,
+   umbrales, `calibrated` y `calibration_ref` por horizonte); las
+   recomendaciones lo alcanzan por `run_id`, y las revisiones de posición también,
+   porque `seguimiento` crea manifiesto y `position_review.run_id` entra en la
+   migración v7. `config_hash` solo no basta: permite comprobar una
+   configuración, no recuperarla. Las filas anteriores a v7 quedan con el
+   contrato **no recuperable**, salvo evidencia externa verificable; nunca se
+   rellenan con `"1.0"`.
 
 Score v2 vive mientras tanto en el código y en investigación, con la misma
 función versionada (INV-06 se cumple en el código, no en la versión activa).
