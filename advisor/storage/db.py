@@ -32,6 +32,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
+from advisor.config import SCORING_CONTRACT_FIELDS
 from advisor.run.manifest import RunManifest
 from advisor.storage.migrations import (
     ANALYSIS_RUN_COLUMNS,
@@ -318,6 +319,7 @@ class AdvisorDB:
 
     def insert_analysis_run(self, manifest: RunManifest) -> None:
         row = manifest.to_row()
+        _validate_manifest_scoring_contract(row)
         sql = _ANALYSIS_RUN_INSERT
         with self._connect() as connection:
             connection.execute(sql, row)
@@ -372,6 +374,7 @@ class AdvisorDB:
 
     def _insert_analysis_run(self, connection: sqlite3.Connection, manifest: RunManifest) -> None:
         row = manifest.to_row()
+        _validate_manifest_scoring_contract(row)
         sql = _ANALYSIS_RUN_INSERT
         connection.execute(sql, row)
 
@@ -830,6 +833,7 @@ class AdvisorDB:
         price: float,
         pnl_pct: float,
         verdict: str,
+        run_id: str,
         score: Optional[float] = None,
         note: Optional[str] = None,
         created_at: Optional[datetime] = None,
@@ -838,13 +842,16 @@ class AdvisorDB:
 
         if verdict not in VERDICTS:
             raise ValueError(f"verdict inválido: '{verdict}'. Permitidos: {list(VERDICTS)}")
+        if not run_id:
+            raise ValueError("run_id es obligatorio para revisiones nuevas")
 
         timestamp = (created_at or datetime.now(timezone.utc)).isoformat()
         with self._connect() as connection:
             connection.execute(
                 "INSERT OR REPLACE INTO position_review "
-                "(position_id, created_at, price, pnl_pct, score, verdict, note) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (position_id, timestamp, price, pnl_pct, score, verdict, note),
+                "(position_id, created_at, price, pnl_pct, score, verdict, note, run_id) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (position_id, timestamp, price, pnl_pct, score, verdict, note, run_id),
             )
 
     def get_reviews(self, position_id: int, limit: int = 20) -> List[sqlite3.Row]:
@@ -854,6 +861,59 @@ class AdvisorDB:
                 (position_id, limit),
             )
             return cursor.fetchall()
+
+
+def _validate_manifest_scoring_contract(row: Dict[str, Any]) -> None:
+    contract_json = row.get("scoring_contract_json")
+    if not contract_json:
+        raise ValueError("scoring_contract_json es obligatorio para analysis_run nuevas")
+    try:
+        contract = json.loads(contract_json)
+    except json.JSONDecodeError as exc:
+        raise ValueError("scoring_contract_json debe ser JSON válido") from exc
+    if not isinstance(contract, dict):
+        raise ValueError("scoring_contract_json debe ser un objeto JSON")
+    expected = set(SCORING_CONTRACT_FIELDS)
+    actual = set(contract)
+    if actual != expected:
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        detail = []
+        if missing:
+            detail.append(f"faltan {missing}")
+        if extra:
+            detail.append(f"sobran {extra}")
+        raise ValueError("scoring_contract_json no cumple el contrato: " + ", ".join(detail))
+    if row.get("score_model_version") != contract.get("score_model_version"):
+        raise ValueError(
+            "analysis_run.score_model_version no coincide con scoring_contract_json.score_model_version"
+        )
+    thresholds = contract.get("thresholds")
+    if not isinstance(thresholds, dict) or not thresholds:
+        raise ValueError("scoring_contract_json.thresholds debe ser un objeto no vacío")
+    threshold_fields = {
+        "score_model_version",
+        "calibrated",
+        "min_score_operar",
+        "min_score_vigilar",
+        "calibration_ref",
+    }
+    for horizon, payload in thresholds.items():
+        if not isinstance(payload, dict):
+            raise ValueError(f"scoring_contract_json.thresholds.{horizon} debe ser un objeto")
+        actual_fields = set(payload)
+        if actual_fields != threshold_fields:
+            missing = sorted(threshold_fields - actual_fields)
+            extra = sorted(actual_fields - threshold_fields)
+            detail = []
+            if missing:
+                detail.append(f"faltan {missing}")
+            if extra:
+                detail.append(f"sobran {extra}")
+            raise ValueError(
+                f"scoring_contract_json.thresholds.{horizon} no cumple el contrato: "
+                + ", ".join(detail)
+            )
 
 
 def freshness_measurement_to_row(row: Dict[str, Any]) -> Dict[str, Any]:

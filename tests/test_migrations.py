@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 
 import pytest
@@ -61,6 +62,38 @@ CREATE TABLE data_freshness_measurement (
     veto_window_sessions            INTEGER NOT NULL,
     quality                         TEXT NOT NULL,
     error                           TEXT
+);
+
+CREATE TABLE position (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol          TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    opened_at       TEXT NOT NULL,
+    entry_price     REAL NOT NULL,
+    currency        TEXT NOT NULL,
+    quantity        REAL NOT NULL,
+    invested_eur    REAL,
+    thesis          TEXT NOT NULL,
+    target          REAL,
+    stop            REAL,
+    horizonte       TEXT NOT NULL,
+    catalyst        TEXT,
+    status          TEXT NOT NULL DEFAULT 'OPEN',
+    closed_at       TEXT,
+    exit_price      REAL,
+    close_reason    TEXT
+);
+
+CREATE TABLE position_review (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    position_id     INTEGER NOT NULL REFERENCES position(id),
+    created_at      TEXT NOT NULL,
+    price           REAL NOT NULL,
+    pnl_pct         REAL NOT NULL,
+    score           REAL,
+    verdict         TEXT NOT NULL,
+    note            TEXT,
+    UNIQUE(position_id, created_at)
 );
 """
 
@@ -171,7 +204,7 @@ def test_segunda_apertura_es_idempotente(tmp_path) -> None:
     AdvisorDB(path)
     AdvisorDB(path)
 
-    esperados = LATEST_VERSION - 1  # una copia por migración pendiente: v2, v3, v4, v5, v6
+    esperados = LATEST_VERSION - 1  # una copia por migración pendiente: v2, v3, v4, v5, v6, v7
     assert len(list(tmp_path.glob("intradia.db.bak-*"))) == esperados
     with sqlite3.connect(path) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == LATEST_VERSION
@@ -324,6 +357,15 @@ def _create_v4_db(path, *, con_backup_log: bool = True, pasadas: int = 2) -> Non
         conn.execute("PRAGMA user_version = 4")
 
 
+def _create_migrated_fixture(path, target_version: int) -> None:
+    _create_v4_db(path)
+    with sqlite3.connect(path) as conn:
+        for version, _description, migrate in _REAL_MIGRATIONS:
+            if 4 < version <= target_version:
+                migrate(conn)
+                conn.execute(f"PRAGMA user_version = {version}")
+
+
 def test_manifiestos_antiguos_conservan_su_hash_y_su_version(tmp_path) -> None:
     """El hash viejo se calculó con las rutas dentro; recalcularlo sería inventarlo (D-33)."""
 
@@ -347,6 +389,7 @@ def test_manifiestos_antiguos_conservan_su_hash_y_su_version(tmp_path) -> None:
     assert filas["run-0"]["groups"] is None
     assert filas["run-0"]["git_dirty_reason"] is None
     assert filas["run-0"]["universe_vintage_id"] == "universo-103"
+    assert filas["run-0"]["scoring_contract_json"] is None
 
 
 def test_git_dirty_desconocido_se_guarda_como_null(tmp_path) -> None:
@@ -356,6 +399,25 @@ def test_git_dirty_desconocido_se_guarda_como_null(tmp_path) -> None:
 
     from advisor.run.manifest import RunManifest
 
+    scoring_contract_json = json.dumps(
+        {
+            "score_model_version": "v3",
+            "fundamentals_enabled": False,
+            "thresholds": {
+                horizon: {
+                    "score_model_version": "v3",
+                    "calibrated": False,
+                    "min_score_operar": None,
+                    "min_score_vigilar": None,
+                    "calibration_ref": None,
+                }
+                for horizon in ("intradia", "medio", "swing")
+            },
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
     path = tmp_path / "intradia.db"
     db = AdvisorDB(path)
     manifiesto = RunManifest(
@@ -371,6 +433,7 @@ def test_git_dirty_desconocido_se_guarda_como_null(tmp_path) -> None:
         groups=None,
         data_vintage_id=None,
         score_model_version="v3",
+        scoring_contract_json=scoring_contract_json,
         context_model_version=None,
         schema_version=db.schema_version(),
         analysis_timestamp=datetime(2026, 9, 18, tzinfo=timezone.utc).isoformat(),
@@ -425,6 +488,46 @@ def test_la_migracion_v5_hace_backup_previo(tmp_path) -> None:
     assert check.registration == REGISTRO_EN_LOG
     assert check.schema_version == 4  # la copia es de ANTES de migrar
     assert check.counts["analysis_run"] == 2
+
+
+def test_base_v6_migra_a_v7_con_backup_previo_y_nulls_historicos(tmp_path) -> None:
+    path = tmp_path / "intradia.db"
+    _create_migrated_fixture(path, 6)
+
+    db = AdvisorDB(path)
+
+    assert db.schema_version() == LATEST_VERSION
+    copias = list(tmp_path.glob("intradia.db.bak-*-pre-v7"))
+    assert len(copias) == 1
+    check = check_backup(path, copias[0])
+    assert check.restorable is True
+    assert check.registration == REGISTRO_EN_LOG
+    assert check.schema_version == 6
+    with db._connect() as conn:
+        analysis_columns = {row[1] for row in conn.execute("PRAGMA table_info(analysis_run)")}
+        review_columns = {row[1] for row in conn.execute("PRAGMA table_info(position_review)")}
+        assert "scoring_contract_json" in analysis_columns
+        assert "run_id" in review_columns
+        assert conn.execute("SELECT count(*) FROM analysis_run WHERE scoring_contract_json IS NULL").fetchone()[0] == 2
+
+
+def test_base_v5_migra_a_v6_y_v7_con_backups_separados(tmp_path) -> None:
+    path = tmp_path / "intradia.db"
+    _create_migrated_fixture(path, 5)
+
+    db = AdvisorDB(path)
+
+    assert db.schema_version() == LATEST_VERSION
+    pre_v6 = list(tmp_path.glob("intradia.db.bak-*-pre-v6"))
+    pre_v7 = list(tmp_path.glob("intradia.db.bak-*-pre-v7"))
+    assert len(pre_v6) == 1
+    assert len(pre_v7) == 1
+    check_v6 = check_backup(path, pre_v6[0])
+    check_v7 = check_backup(path, pre_v7[0])
+    assert check_v6.restorable is True
+    assert check_v6.schema_version == 5
+    assert check_v7.restorable is True
+    assert check_v7.schema_version == 6
 
 
 def test_el_backup_previo_a_v5_queda_registrado_aunque_no_hubiera_backup_log(tmp_path) -> None:

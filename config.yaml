@@ -55,8 +55,26 @@ levels:
   entry_max_atr: 0.75        # por encima de esto: ESPERAR PULLBACK / NO PERSEGUIR PRECIO
 
 scoring:
-  min_score_operar: 70       # 🟢 OPERAR
-  min_score_vigilar: 60      # 🟡 VIGILAR (por debajo: 🔴 DESCARTAR)
+  score_model_version: "1.0"
+  thresholds:
+    swing:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70       # 🟢 OPERAR
+      min_score_vigilar: 60      # 🟡 VIGILAR (por debajo: 🔴 DESCARTAR)
+      calibration_ref: null
+    medio:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
+    intradia:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
   # Los fundamentales (PER, ROIC, EV/EBITDA...) requieren una fuente de datos
   # que este bot todavía no tiene. Mientras esté en false, esa dimensión se
   # EXCLUYE del cómputo y la puntuación se normaliza sobre los puntos

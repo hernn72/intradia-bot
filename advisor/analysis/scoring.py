@@ -90,6 +90,7 @@ class Score:
     """Resultado de la puntuación de una oportunidad."""
 
     dimensions: List[Dimension]
+    score_model_version: str = SCORE_MODEL_VERSION
 
     @property
     def evaluable_max(self) -> float:
@@ -114,6 +115,8 @@ class Score:
     @property
     def grade(self) -> str:
         """Clasificación cualitativa de la puntuación."""
+        if self.score_model_version != "1.0":
+            raise ValueError("Score.grade solo está definido para score_model_version 1.0")
         value = self.value
         if value >= 90:
             return "Excepcional"
@@ -333,5 +336,6 @@ def compute_score(
             _beneficio_riesgo(levels),
             _contexto(context),
             _conviccion(snapshot, min_bars),
-        ]
+        ],
+        score_model_version=SCORE_MODEL_VERSION,
     )

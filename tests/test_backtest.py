@@ -359,7 +359,7 @@ class TestPoblacionDeOperarYBroker:
         acciones = {}
         for estado in ("yes", "unknown"):
             _, accion, _ = classify(
-                _Score(), levels, benign_context, config.scoring, config.risk, _asset(estado)
+                _Score(), levels, benign_context, config.scoring, config.risk, _asset(estado), "swing"
             )
             acciones[estado] = accion
 

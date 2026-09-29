@@ -773,9 +773,19 @@ def cmd_seguimiento(args: argparse.Namespace, config: AdvisorConfig, universe: U
     provider = MarketDataProvider(config.request_min_interval_seconds)
     fx = FxConverter(provider, config.base_currency)
     db = AdvisorDB(config.db_path)
+    reference = datetime.now(timezone.utc)
+    manifest = build_run_manifest(
+        command="seguimiento",
+        config=config,
+        universe=universe,
+        schema_version=db.schema_version(),
+        timestamp=reference,
+    )
+    db.insert_analysis_run(manifest)
 
-    reviews = review_positions(config, universe, db, provider)
+    reviews = review_positions(config, universe, db, provider, manifest.run_id, now=reference)
     report = format_reviews(reviews, fx)
+    report = f"{report}\n{format_manifest_footer(manifest)}"
     print(report)
 
     if args.telegram:

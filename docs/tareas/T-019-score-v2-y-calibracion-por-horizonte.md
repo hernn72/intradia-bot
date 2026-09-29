@@ -533,7 +533,7 @@ pendiente de PR-1.
   directamente con una v2. Toda tabla o consulta que mezcle filas de las dos
   exige el `score_model_version` de cada una y las separa.
 
-## Contrato de umbrales por horizonte (diseño; sin implementar)
+## Contrato de umbrales por horizonte (implementado en el paso 1)
 
 ```yaml
 scoring:
@@ -642,7 +642,10 @@ estadístico de P3, **pero no es el SHA que autoriza a ejecutarlo**: PR-1 y la
 semántica point-in-time concreta del VIX siguen abiertas.
 
 **Paso 1 — Contrato de umbrales y persistencia v7, con v1 activo y sin cambio de
-comportamiento.**
+comportamiento. HECHO el 2026-09-29** en `research/a03-score-v2`; evidencia en
+`evidence/2026-09-29-T-019-paso1-contrato-umbrales-v7/`. Además de lo que
+sigue, la configuración exige umbrales para los tres horizontes válidos (no
+solo los de `horizontes`), porque `abrir` acepta cualquiera.
 - `ScoringConfig` con `score_model_version` y `thresholds` por horizonte y las
   nueve reglas de validación; `config.yaml` con v1 70/60 **declarados
   `calibrated: false`** en los tres horizontes.

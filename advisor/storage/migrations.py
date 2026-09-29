@@ -96,7 +96,7 @@ BACKUP_LOG_STATEMENTS: tuple[str, ...] = (
 )
 
 
-# Columnas del manifiesto, en el orden en que las escribe la migración v5.
+# Columnas vigentes del manifiesto, en el orden en que las escribe la persistencia.
 ANALYSIS_RUN_COLUMNS: tuple[str, ...] = (
     "run_id",
     "command",
@@ -110,6 +110,7 @@ ANALYSIS_RUN_COLUMNS: tuple[str, ...] = (
     "groups",
     "data_vintage_id",
     "score_model_version",
+    "scoring_contract_json",
     "context_model_version",
     "schema_version",
     "analysis_timestamp",
@@ -260,12 +261,25 @@ def _migration_v6_validated_bar_cache(conn: sqlite3.Connection) -> None:
         conn.execute(statement)
 
 
+def _migration_v7_scoring_contract_and_review_run(conn: sqlite3.Connection) -> None:
+    """Contrato de scoring por pasada y run_id en seguimiento (T-019 paso 1)."""
+
+    statements = (
+        "ALTER TABLE analysis_run ADD COLUMN scoring_contract_json TEXT",
+        "ALTER TABLE position_review ADD COLUMN run_id TEXT REFERENCES analysis_run(run_id)",
+        "CREATE INDEX IF NOT EXISTS idx_position_review_run_id ON position_review(run_id)",
+    )
+    for statement in statements:
+        conn.execute(statement)
+
+
 MIGRATIONS: list[Migration] = [
     (2, "analysis_run y run_id en recomendaciones/frescura", _migration_v2_runs),
     (3, "calendar en mediciones de frescura", _migration_v3_freshness_calendar),
     (4, "calidad del dato por dimensiones y códigos estructurados", _migration_v4_data_quality_codes),
     (5, "manifiesto: git_dirty nullable, release_tag, version del hash, grupos y backup_log versionada", _migration_v5_manifest_hygiene),
     (6, "cache de barras de sesion cerrada validadas, revisiones y su declaracion en la frescura", _migration_v6_validated_bar_cache),
+    (7, "contrato de scoring por pasada y run_id en seguimiento", _migration_v7_scoring_contract_and_review_run),
 ]
 
 

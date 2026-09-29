@@ -646,6 +646,11 @@ def format_report(
         f"ASESOR DE INVERSIÓN — {result.generated_at:%Y-%m-%d %H:%M} UTC"
         f"  |  horizonte: {result.horizonte}  |  velas: {result.interval}"
     )
+    threshold = config.scoring.threshold_for(result.horizonte)
+    threshold_state = "calibrado" if threshold.calibrated else "no calibrado"
+    lines.append(
+        f"Score {config.scoring.score_model_version}: umbral {threshold_state}"
+    )
     lines.append(_SEPARATOR)
     lines.append("")
 

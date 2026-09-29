@@ -51,6 +51,8 @@ class PositionReview:
     stop: Optional[float]
     target: Optional[float]
     score: Optional[float]
+    horizonte: str
+    threshold_calibrated: bool
     verdict: str
     note: str
     thesis: str
@@ -63,6 +65,7 @@ def _verdict(
     target: Optional[float],
     score: Optional[float],
     config: AdvisorConfig,
+    horizonte: str,
 ) -> tuple:
     """Decide el veredicto y su explicación. Devuelve ``(veredicto, nota)``."""
 
@@ -75,14 +78,20 @@ def _verdict(
     if score is None:
         return VERDICT_NO_CAMBIA, "sin datos suficientes para repuntuar el activo; la tesis sigue en pie"
 
-    if score < config.scoring.min_score_vigilar:
+    thresholds = config.scoring.threshold_for(horizonte)
+    min_score_vigilar = thresholds.min_score_vigilar
+    min_score_operar = thresholds.min_score_operar
+    if min_score_vigilar is None or min_score_operar is None:
+        return VERDICT_NO_CAMBIA, "sin umbral calibrado para este horizonte; solo mandan stop y objetivo"
+
+    if score < min_score_vigilar:
         return (
             VERDICT_DEBILITA,
             f"la puntuación ha caído a {score:.0f}, por debajo del mínimo de vigilancia "
-            f"({config.scoring.min_score_vigilar:.0f})",
+            f"({min_score_vigilar:.0f})",
         )
 
-    if score >= config.scoring.min_score_operar and price > entry_price:
+    if score >= min_score_operar and price > entry_price:
         return VERDICT_REFUERZA, f"la puntuación se mantiene en {score:.0f} y la posición va a favor"
 
     return VERDICT_NO_CAMBIA, f"puntuación {score:.0f}: ni mejora ni deteriora la tesis original"
@@ -93,6 +102,7 @@ def review_positions(
     universe: Universe,
     db: AdvisorDB,
     provider: MarketDataProvider,
+    run_id: str,
     now: Optional[datetime] = None,
 ) -> List[PositionReview]:
     """Revisa todas las posiciones abiertas y persiste cada veredicto.
@@ -136,13 +146,16 @@ def review_positions(
 
         entry_price = float(row["entry_price"])
         pnl_pct = (price / entry_price - 1) * 100
-        verdict, note = _verdict(price, entry_price, row["stop"], row["target"], score_value, config)
+        horizonte = row["horizonte"]
+        threshold_calibrated = config.scoring.threshold_for(horizonte).calibrated
+        verdict, note = _verdict(price, entry_price, row["stop"], row["target"], score_value, config, horizonte)
 
         db.insert_review(
             position_id=int(row["id"]),
             price=price,
             pnl_pct=pnl_pct,
             verdict=verdict,
+            run_id=run_id,
             score=score_value,
             note=note,
             created_at=timestamp,
@@ -162,6 +175,8 @@ def review_positions(
                 stop=row["stop"],
                 target=row["target"],
                 score=score_value,
+                horizonte=horizonte,
+                threshold_calibrated=threshold_calibrated,
                 verdict=verdict,
                 note=note,
                 thesis=row["thesis"],
@@ -192,7 +207,9 @@ def format_reviews(reviews: List[PositionReview], fx: FxConverter) -> str:
         lines.append(f"  Precio actual: {money(review.price)}")
         lines.append(f"  Rentabilidad: {review.pnl_pct:+.1f}%".replace(".", ","))
         lines.append(f"  Stop: {money(review.stop)}  |  Objetivo: {money(review.target)}")
-        lines.append(f"  Puntuación actual: {review.score:.0f}/100" if review.score is not None else "  Puntuación actual: N/D")
+        threshold_state = "umbral calibrado" if review.threshold_calibrated else "umbral no calibrado"
+        score_text = f"{review.score:.0f}/100" if review.score is not None else "N/D"
+        lines.append(f"  Puntuación actual: {score_text} ({threshold_state}; horizonte {review.horizonte})")
         lines.append(f"  Veredicto: **{review.verdict} LA TESIS** — {review.note}")
         lines.append(f"  Tesis original: {review.thesis}")
         lines.append("-" * width)

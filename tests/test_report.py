@@ -13,7 +13,7 @@ from advisor.analysis.execution import ABOVE_MAX_ENTRY, RR_TOO_LOW
 from advisor.analysis.levels import Levels, compute_levels
 from advisor.analysis.opportunity import LOW_SCORE, RADAR_DESCARTAR, RADAR_VIGILAR, build_opportunity
 from advisor.analysis.overview import IndexQuote
-from advisor.analysis.scoring import compute_score
+from advisor.analysis.scoring import Component, Dimension, Score, compute_score
 from advisor.analysis.sizing import calculate_position_sizing
 from advisor.config import AdvisorConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.data.freshness import DataFreshness
@@ -62,6 +62,10 @@ def _opportunity(asset, context, horizonte: str = "swing", portfolio: PortfolioC
         score=score, context=context, scoring=ScoringConfig(), risk=RiskConfig(), portfolio=portfolio,
         data_freshness=data_freshness,
     )
+
+
+def _score_value(value: float) -> Score:
+    return Score([Dimension("test", 100.0, [Component("test", value, 100.0)])])
 
 
 class TestFormatoDeImportes:
@@ -567,6 +571,7 @@ class TestFormatReport:
         for seccion in ["🌍 SITUACIÓN GLOBAL", "🔥 OPORTUNIDADES DETECTADAS", "👀 RADAR", "🎯 CONCLUSIÓN"]:
             assert seccion in informe
         assert "no es asesoramiento financiero" in informe.lower()
+        assert "Score 1.0: umbral no calibrado" in informe
 
     def test_aviso_de_precio_extendido_llega_al_informe_tambien_en_radar(
         self, asset_eur, hostile_context, fx: FxConverter
@@ -580,11 +585,9 @@ class TestFormatReport:
         """
 
         config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
-        # Sin bajar el umbral, el contexto hostil deja la nota en 67,8 y la
-        # clasificación sale por «insuficiente para operar» antes de llegar a
-        # la extensión, que es lo que genera la advertencia. Con 60 el activo
-        # recorre el camino real hasta VIGILAR por contexto, con su aviso.
-        scoring = ScoringConfig(min_score_operar=60.0)
+        # Con una nota ya operable bajo el contrato v1, el activo recorre el
+        # camino real hasta VIGILAR por contexto hostil y conserva su aviso.
+        scoring = ScoringConfig()
         snapshot = make_snapshot(price=100.0, ema_fast=90.0, atr=2.0)
         levels = compute_levels(snapshot, LevelsConfig(), RiskConfig().min_rr_ratio)
         vigilado = build_opportunity(
@@ -592,7 +595,7 @@ class TestFormatReport:
             horizonte="swing",
             snapshot=snapshot,
             levels=levels,
-            score=compute_score(snapshot, levels, hostile_context, scoring, 250),
+            score=_score_value(80.0),
             context=hostile_context,
             scoring=scoring,
             risk=RiskConfig(),
@@ -821,9 +824,7 @@ class TestFormatReport:
         """
 
         config = AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
-        # Umbrales por encima de cualquier nota alcanzable: fuerza el descarte
-        # por el camino real, sin tocar el resultado a mano.
-        scoring = ScoringConfig(min_score_vigilar=99.0, min_score_operar=99.5)
+        scoring = ScoringConfig()
         degradado = DataFreshness(
             last_bar_date=date(2026, 9, 14),
             natural_days=2,
@@ -860,7 +861,7 @@ class TestFormatReport:
                 horizonte="swing",
                 snapshot=snapshot,
                 levels=levels,
-                score=compute_score(snapshot, levels, benign_context, scoring, 250),
+                score=_score_value(40.0),
                 context=benign_context,
                 scoring=scoring,
                 risk=RiskConfig(),

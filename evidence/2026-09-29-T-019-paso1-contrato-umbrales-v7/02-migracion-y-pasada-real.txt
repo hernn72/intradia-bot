@@ -1,0 +1,22 @@
+Copia de solo lectura de la base de la Pi (sqlite3 backup API, mode=ro) a un directorio temporal; config.yaml identico salvo db_path.
+Base original: PRAGMA user_version=6, analysis_run=55
+
+--- tras AdvisorDB (migracion) + analizar --sin-ia + abrir SAP.DE --horizonte medio + seguimiento ---
+user_version|7
+integrity_check|ok
+foreign_key_violations|0
+analysis_run total / con contrato|57|2
+pasadas pre-v7 con contrato (debe ser 0)|0
+recomendaciones de la pasada v7|93
+position_review con run_id|1
+review -> run command|seguimiento
+backup_log (ultima fila)|37|<tmp>/pi.db.bak-20260929-114106-pre-v7|2026-09-29T11:41:06.783174+00:00|7|validated_bar_revision|250
+
+--- backup pre-v7 ---
+user_version|6
+integrity_check|ok
+analysis_run|55
+
+--- contrato persistido (analizar) ---
+analizar|1.0|{"fundamentals_enabled":false,"score_model_version":"1.0","thresholds":{"intradia":{"calibrated":false,"calibration_ref":null,"min_score_operar":70.0,"min_score_vigilar":60.0,"score_model_version":"1.0"},"medio":{"calibrated":false,"calibration_ref":null,"min_score_operar":70.0,"min_score_vigilar":60.0,"score_model_version":"1.0"},"swing":{"calibrated":false,"calibration_ref":null,"min_score_operar":70.0,"min_score_vigilar":60.0,"score_model_version":"1.0"}}}
+seguimiento|1.0|{"fundamentals_enabled":false,"score_model_version":"1.0","thresholds":{"intradia":{"calibrated":false,"calibration_ref":null,"min_score_operar":70.0,"min_score_vigilar":60.0,"score_model_version":"1.0"},"medio":{"calibrated":false,"calibration_ref":null,"min_score_operar":70.0,"min_score_vigilar":60.0,"score_model_version":"1.0"},"swing":{"calibrated":false,"calibration_ref":null,"min_score_operar":70.0,"min_score_vigilar":60.0,"score_model_version":"1.0"}}}

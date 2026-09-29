@@ -31,14 +31,16 @@ from advisor.analysis.opportunity import (
     RADAR_DESCARTAR,
     RADAR_OPERAR,
     RADAR_VIGILAR,
+    SCORE_UNCALIBRATED,
     build_opportunity,
     classify,
+    classify_setup_detailed,
     reevaluate_execution_at_price,
 )
 from advisor.analysis.scoring import Component, Dimension, Score, compute_score
-from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, calculate_position_sizing
+from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, calculate_position_sizing, conviction_label
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
-from advisor.config import IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
+from advisor.config import HorizonThresholds, IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
 from advisor.data.freshness import QUALITY_DEGRADED, QUALITY_INCOMPLETE, DataFreshness
 from advisor.data.quality import INVALID_INDICATORS, DataQuality, FreshnessState, Severity
 from advisor.universe.loader import load_universe
@@ -406,11 +408,22 @@ class TestScoring:
 
         assert score.value == pytest.approx(69.995)
         radar, accion, motivos = classify(
-            score, levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+            score, levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
 
         assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
         assert "puntuación 70" in motivos[0]
+
+    def test_grade_funciona_para_score_v1(self) -> None:
+        score = Score([Dimension("prueba", 100.0, [Component("factor", 80.0, 100.0)])], score_model_version="1.0")
+
+        assert score.grade == "Muy atractiva"
+
+    def test_grade_rechaza_score_v2(self) -> None:
+        score = Score([Dimension("prueba", 100.0, [Component("factor", 80.0, 100.0)])], score_model_version="2.0")
+
+        with pytest.raises(ValueError, match=r"solo está definido para score_model_version 1\.0"):
+            _ = score.grade
 
     def test_una_dimension_excluida_no_penaliza_la_nota(self, benign_context) -> None:
         """Sin normalizar, ningún activo llegaría nunca al umbral de operar."""
@@ -506,6 +519,17 @@ class TestScoring:
         assert sizing.capped_by is not None
         assert sizing.risk_pct == pytest.approx(0.2)
 
+    def test_conviction_label_funciona_para_score_v1(self) -> None:
+        score = Score([Dimension("prueba", 100.0, [Component("factor", 80.0, 100.0)])], score_model_version="1.0")
+
+        assert conviction_label(score) == "Alta convicción"
+
+    def test_conviction_label_rechaza_score_v2(self) -> None:
+        score = Score([Dimension("prueba", 100.0, [Component("factor", 80.0, 100.0)])], score_model_version="2.0")
+
+        with pytest.raises(ValueError, match=r"solo está definido para score_model_version 1\.0"):
+            conviction_label(score)
+
 
 class TestClassify:
     def _score_con_valor(self, valor: float):
@@ -516,16 +540,46 @@ class TestClassify:
             missing_dimensions: ClassVar[List] = []
             dimensions: ClassVar[List] = []
             evaluable_max = 80.0
+            score_model_version = "1.0"
 
         return _Score()
 
     def test_descarta_por_nota_baja(self, asset_eur, benign_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, motivos = classify(
-            self._score_con_valor(40.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+            self._score_con_valor(40.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
         assert (radar, accion) == (RADAR_DESCARTAR, ACCION_DESCARTAR)
         assert "por debajo del mínimo" in motivos[0]
+
+    def test_threshold_null_devuelve_vigilar_esperar_sin_calibracion(self, benign_context) -> None:
+        scoring = ScoringConfig.model_construct(
+            score_model_version="2.0",
+            fundamentals_enabled=False,
+            thresholds={
+                "swing": HorizonThresholds.model_construct(
+                    score_model_version="2.0",
+                    calibrated=False,
+                    min_score_operar=None,
+                    min_score_vigilar=None,
+                    calibration_ref=None,
+                )
+            },
+        )
+        result = classify_setup_detailed(
+            self._score_con_valor(85.0),
+            compute_levels(make_snapshot(), LevelsConfig()),
+            benign_context,
+            scoring,
+            RiskConfig(),
+            "swing",
+        )
+
+        assert (result.radar, result.accion, result.discard_code) == (
+            RADAR_VIGILAR,
+            ACCION_ESPERAR,
+            SCORE_UNCALIBRATED,
+        )
 
     def test_setup_bueno_con_rr_malo_espera_sin_tocar_score(self, asset_eur, benign_context) -> None:
         # Stop muy lejano y objetivos cortos: ratio por debajo de 1,5.
@@ -533,7 +587,7 @@ class TestClassify:
         snapshot = make_snapshot(price=100.0, atr=2.0, low_lookback=50.0)
         levels = compute_levels(snapshot, LevelsConfig(atr_stop_multiple=4.0, target_atr_multiples=[1.0, 2.0, 3.0]))
         radar, accion, motivos = classify(
-            score, levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+            score, levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
         assert score.value == 85.0
         assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
@@ -542,14 +596,14 @@ class TestClassify:
     def test_setup_bueno_con_rr_bueno_opera(self, asset_eur, benign_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, _ = classify(
-            self._score_con_valor(85.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+            self._score_con_valor(85.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
         assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
 
     def test_setup_malo_con_rr_bueno_no_opera(self, asset_eur, benign_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, motivos = classify(
-            self._score_con_valor(40.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+            self._score_con_valor(40.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
         assert (radar, accion) == (RADAR_DESCARTAR, ACCION_DESCARTAR)
         assert "puntuación" in motivos[0]
@@ -566,7 +620,7 @@ class TestClassify:
         assert levels.rr_ratio == pytest.approx(1.5)
 
         radar, accion, _ = classify(
-            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
         assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
 
@@ -592,7 +646,7 @@ class TestClassify:
     def test_vigila_cuando_la_nota_no_llega_a_operar(self, asset_eur, benign_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, _ = classify(
-            self._score_con_valor(65.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+            self._score_con_valor(65.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
         assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
 
@@ -604,7 +658,7 @@ class TestClassify:
         snapshot = make_snapshot(price=100.0, ema_fast=90.0, atr=2.0)
         levels = compute_levels(snapshot, LevelsConfig())
         radar, accion, motivos = classify(
-            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
         assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
         assert motivos == []
@@ -624,7 +678,7 @@ class TestClassify:
     def test_contexto_hostil_frena_la_compra(self, asset_eur, hostile_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, motivos = classify(
-            self._score_con_valor(90.0), levels, hostile_context, ScoringConfig(), RiskConfig(), asset_eur
+            self._score_con_valor(90.0), levels, hostile_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
         assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
         assert "adverso" in motivos[0]
@@ -633,7 +687,7 @@ class TestClassify:
         no_disponible = asset_eur.model_copy(update={"trade_republic": "no"})
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, motivos = classify(
-            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), no_disponible
+            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), no_disponible, "swing"
         )
         assert (radar, accion) == (RADAR_DESCARTAR, ACCION_DESCARTAR)
         assert "Trade Republic" in motivos[0]
@@ -641,7 +695,7 @@ class TestClassify:
     def test_disponibilidad_sin_verificar_da_accion_propia(self, asset_usd, benign_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, motivos = classify(
-            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_usd
+            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_usd, "swing"
         )
         assert (radar, accion) == (RADAR_OPERAR, ACCION_VERIFICAR_BROKER)
         assert any("sin verificar" in m for m in motivos)
@@ -663,7 +717,7 @@ class TestClassify:
         levels = compute_levels(make_snapshot(), LevelsConfig())
 
         radar, accion, motivos = classify(
-            score, levels, benign_context, ScoringConfig(), RiskConfig(), asset
+            score, levels, benign_context, ScoringConfig(), RiskConfig(), asset, "swing"
         )
 
         assert score.value == 90.0
@@ -673,7 +727,7 @@ class TestClassify:
     def test_compra_limpia_no_genera_advertencias(self, asset_eur, benign_context) -> None:
         levels = compute_levels(make_snapshot(), LevelsConfig())
         radar, accion, motivos = classify(
-            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur
+            self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "swing"
         )
         assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
         assert motivos == []
@@ -700,12 +754,30 @@ class TestClassify:
 
         radar, accion, motivos = classify(
             score, compute_levels(make_snapshot(), LevelsConfig()), benign_context,
-            ScoringConfig(), RiskConfig(), asset_eur, data_freshness=freshness,
+            ScoringConfig(), RiskConfig(), asset_eur, "swing", data_freshness=freshness,
         )
 
         assert score.value == 90.0
         assert (radar, accion) == (RADAR_VIGILAR, ACCION_ESPERAR)
         assert any("apertura vetada" in motivo for motivo in motivos)
+
+    def test_horizonte_vacio_falla_en_umbrales(self, asset_eur, benign_context) -> None:
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+        with pytest.raises(ValueError, match=r"thresholds\. no configurado"):
+            classify(self._score_con_valor(90.0), levels, benign_context, ScoringConfig(), RiskConfig(), asset_eur, "")
+
+    def test_horizonte_desconocido_falla_en_umbrales(self, asset_eur, benign_context) -> None:
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+        with pytest.raises(ValueError, match=r"thresholds\.semanal no configurado"):
+            classify(
+                self._score_con_valor(90.0),
+                levels,
+                benign_context,
+                ScoringConfig(),
+                RiskConfig(),
+                asset_eur,
+                "semanal",
+            )
 
     def test_score_64_genera_codigo_low_score_con_umbral_70(self, asset_eur, benign_context) -> None:
         opportunity = build_opportunity(
@@ -715,7 +787,7 @@ class TestClassify:
             levels=compute_levels(make_snapshot(), LevelsConfig()),
             score=self._score_con_valor(64.0),
             context=benign_context,
-            scoring=ScoringConfig(min_score_operar=70, min_score_vigilar=60),
+            scoring=ScoringConfig(),
             risk=RiskConfig(),
             portfolio=PortfolioConfig(),
             data_freshness=DataFreshness(
@@ -758,7 +830,7 @@ class TestClassify:
             levels=compute_levels(make_snapshot(), LevelsConfig()),
             score=self._score_con_valor(40.0),
             context=benign_context,
-            scoring=ScoringConfig(min_score_operar=70, min_score_vigilar=60),
+            scoring=ScoringConfig(),
             risk=RiskConfig(),
             portfolio=PortfolioConfig(),
             data_freshness=DataFreshness(
@@ -796,7 +868,7 @@ class TestClassify:
 
         radar, accion, motivos = classify(
             self._score_con_valor(90.0), compute_levels(make_snapshot(), LevelsConfig()), benign_context,
-            ScoringConfig(), RiskConfig(), asset_eur, data_freshness=freshness,
+            ScoringConfig(), RiskConfig(), asset_eur, "swing", data_freshness=freshness,
         )
 
         assert (radar, accion) == (RADAR_OPERAR, ACCION_COMPRAR)
@@ -810,6 +882,7 @@ class TestExecutionEvaluation:
             missing_dimensions: ClassVar[List] = []
             dimensions: ClassVar[List] = []
             evaluable_max = 80.0
+            score_model_version = "1.0"
 
         return _Score()
 

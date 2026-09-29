@@ -1,0 +1,9 @@
+$ .venv/bin/python -m pytest -q ; ruff check . ; mypy advisor
+703 passed, 3 warnings in 116.94s (0:01:56)
+All checks passed!
+Success: no issues found in 67 source files
+
+$ .venv/bin/python -m advisor.main backtest --vintage 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841 2>&1 | sed 's/^[0-9-]* [0-9:]* //' | shasum -a 256
+49b12c855c2d2681d9ecd0f592248cd03b11cd8428273014238e04f0ddefbc3c  -
+(A-02: 49b12c855c2d2681d9ecd0f592248cd03b11cd8428273014238e04f0ddefbc3c, evidence/2026-09-21-T-013-laboratorio-rehecho/hashes-de-tablas.txt)
+866 operaciones | win rate 42% | expectancy R 0,17 | profit factor 1,25 | payoff 1,74 | R mediana -1,03 | R total 145,10 | desv. R 1,67 | P10/P25/P50/P75/P90 -1,17/-1,07/-1,03/1,67/2,13 | 10 velas de media

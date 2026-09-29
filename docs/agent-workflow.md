@@ -9,7 +9,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-26 (`v0.4.0` desplegado: T-018 en producción, esquema v6; T-019 pre-registrada)
+# START HERE — actualizado 2026-09-29 (T-019 paso 1 hecho en `research/a03-score-v2`: contrato de umbrales y esquema v7; la Pi sigue en `v0.4.0`, esquema v6)
 
 ## Dónde está todo
 
@@ -36,15 +36,21 @@ abre la base**, así que no migra ni usa la caché. El procedimiento corregido
 pasada: la primera con caché midió 16 sesiones exigibles nunca observadas en 16
 ETF de XETRA.
 
-## Lo primero: T-019 paso 1 (A-03 / P3)
+## Lo primero: T-019 paso 2a-doc (A-03 / P3)
 
-**T-019 tiene pre-registro condicionado en `main`** (PR #26, `84ea28e`), sin una
-línea de código. El siguiente trabajo grande es su **paso 1**: contrato de
-umbrales por horizonte y persistencia de la **migración v7**, con v1 activo y sin
-cambio de comportamiento. La v7 **todavía no existe en código**. Después vienen
-2a-doc (componente asiático PR-1 y regla del VIX, que puede requerir decisión del
-propietario) y 2a-code, antes de Score v2 y de P3. El orden completo está en la
-ficha.
+**El paso 1 de T-019 está hecho** (2026-09-29) en la rama
+`research/a03-score-v2`: contrato de umbrales por horizonte (v1 70/60
+`calibrated: false`), `analysis_run.scoring_contract_json`,
+`position_review.run_id` y la **migración v7**, sin cambio de comportamiento:
+el backtest de la cosecha sale idéntico byte a byte al de A-02. Evidencia en
+`evidence/2026-09-29-T-019-paso1-contrato-umbrales-v7/`. **Ojo: `main` con este
+paso migra a v7**, y un despliegue desde `v0.4.0` hará v6 → v7 con su backup
+`pre-v7`; el rollback de código no la deshace (D-32).
+
+Lo siguiente es **2a-doc**: cerrar el componente asiático (PR-1) y la regla
+point-in-time del VIX, solo documentación y **deteniéndose si exige decisión
+del propietario**. Después 2a-code, antes de Score v2 y de P3. El orden completo
+está en la ficha.
 
 ## T-018 (C-09), ya en producción
 
@@ -246,9 +252,9 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 3. ~~**T-013 (A-02)** → GATE P2~~ **ACEPTADA** el 2026-09-21. **GATE P2
    CRUZADO** (D-42 y D-43). La rama sigue sin fusionar.
 3b. **A-03 (P3, score v2)** → **ficha T-019 con pre-registro condicionado en
-   `main`** (PR #26; D-45, D-46, D-47 y D-49). **Siguiente trabajo grande: T-019
-   paso 1** (contrato de umbrales y persistencia v7, sin cambio de
-   comportamiento). La v7 aún no existe en código.
+   `main`** (PR #26; D-45, D-46, D-47 y D-49). **Paso 1 hecho** el 2026-09-29
+   (contrato de umbrales y persistencia v7, sin cambio de comportamiento).
+   Siguiente: **paso 2a-doc**.
 3c. ~~**T-018 (C-09)** caché de barras validadas~~ **ACEPTADA** el 2026-09-25 (PR
    #24 fusionado) y **DESPLEGADA** el 2026-09-26 como `v0.4.0`, esquema v6. Le
    queda **OD-02 bis**, que se decide con semanas de datos y acumula desde ese

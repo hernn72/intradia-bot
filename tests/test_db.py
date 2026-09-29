@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from advisor.run.manifest import RunManifest
 from advisor.storage.db import AdvisorDB
 
 
@@ -42,6 +43,106 @@ def _recommendation(symbol: str = "SAP.DE") -> dict:
         "reasons": "[]",
         "run_id": "test-run",
     }
+
+
+def _insert_analysis_run(db: AdvisorDB, run_id: str = "run-review") -> None:
+    contract_json = _contract_json()
+    with db._connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO analysis_run (
+                run_id, command, git_sha, git_dirty, git_dirty_reason, release_tag,
+                config_hash, config_hash_version, universe_vintage_id, groups,
+                data_vintage_id, score_model_version, scoring_contract_json,
+                context_model_version, schema_version, analysis_timestamp,
+                environment, python_version, provider_versions, clock_drift_seconds,
+                clock_status
+            ) VALUES (?, 'seguimiento', 'test', 0, NULL, NULL, 'cfg', 2,
+                'universo-test', NULL, NULL, '1.0', ?, NULL, ?, '2026-09-29T10:00:00+00:00',
+                'ci', '3.12', '{}', NULL, 'CLOCK_UNKNOWN')
+            """,
+            (run_id, contract_json, db.schema_version()),
+        )
+
+
+def _contract_payload() -> dict:
+    return {
+        "score_model_version": "1.0",
+        "fundamentals_enabled": False,
+        "thresholds": {
+            horizon: {
+                "score_model_version": "1.0",
+                "calibrated": False,
+                "min_score_operar": 70.0,
+                "min_score_vigilar": 60.0,
+                "calibration_ref": None,
+            }
+            for horizon in ("intradia", "medio", "swing")
+        },
+    }
+
+
+def _contract_json(payload: dict | None = None) -> str:
+    return json.dumps(
+        _contract_payload() if payload is None else payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+
+
+def _manifest(db: AdvisorDB, *, score_model_version: str = "1.0", scoring_contract_json: str | None = None) -> RunManifest:
+    return RunManifest(
+        run_id="run-contract",
+        command="analizar",
+        git_sha="test",
+        git_dirty=False,
+        git_dirty_reason=None,
+        release_tag=None,
+        config_hash="cfg",
+        config_hash_version=2,
+        universe_vintage_id="universo-test",
+        groups=None,
+        data_vintage_id=None,
+        score_model_version=score_model_version,
+        scoring_contract_json=_contract_json() if scoring_contract_json is None else scoring_contract_json,
+        context_model_version=None,
+        schema_version=db.schema_version(),
+        analysis_timestamp="2026-09-29T10:00:00+00:00",
+        environment="ci",
+        python_version="3.12",
+        provider_versions={},
+        clock_drift_seconds=None,
+        clock_status="CLOCK_UNKNOWN",
+    )
+
+
+class TestAnalysisRunContract:
+    def test_rechaza_contrato_vacio(self, db: AdvisorDB) -> None:
+        with pytest.raises(ValueError, match="no cumple el contrato"):
+            db.insert_analysis_run(_manifest(db, scoring_contract_json="{}"))
+
+    def test_rechaza_contrato_json_invalido(self, db: AdvisorDB) -> None:
+        with pytest.raises(ValueError, match="JSON válido"):
+            db.insert_analysis_run(_manifest(db, scoring_contract_json="{"))
+
+    def test_rechaza_version_distinta(self, db: AdvisorDB) -> None:
+        payload = _contract_payload()
+        payload["score_model_version"] = "2.0"
+
+        with pytest.raises(ValueError, match="score_model_version no coincide"):
+            db.insert_analysis_run(_manifest(db, scoring_contract_json=_contract_json(payload)))
+
+    def test_rechaza_claves_superiores_incompletas(self, db: AdvisorDB) -> None:
+        with pytest.raises(ValueError, match="no cumple el contrato"):
+            db.insert_analysis_run(_manifest(db, scoring_contract_json='{"score_model_version":"1.0"}'))
+
+    def test_rechaza_claves_de_horizonte_incompletas(self, db: AdvisorDB) -> None:
+        payload = _contract_payload()
+        del payload["thresholds"]["swing"]["calibration_ref"]
+
+        with pytest.raises(ValueError, match=r"thresholds\.swing no cumple el contrato"):
+            db.insert_analysis_run(_manifest(db, scoring_contract_json=_contract_json(payload)))
 
 
 class TestRecommendations:
@@ -212,22 +313,29 @@ class TestPositions:
 
 class TestReviews:
     def test_guarda_revision(self, db: AdvisorDB) -> None:
+        _insert_analysis_run(db)
         position_id = db.open_position(
             symbol="SAP.DE", name="SAP", entry_price=240.0, currency="EUR", quantity=4,
             thesis="t", horizonte="swing",
         )
         db.insert_review(
             position_id=position_id, price=248.0, pnl_pct=3.3, verdict="REFUERZA",
+            run_id="run-review",
             score=81.0, note="la tesis se mantiene",
             created_at=datetime(2026, 8, 27, tzinfo=timezone.utc),
         )
         revisiones = db.get_reviews(position_id)
         assert len(revisiones) == 1
         assert revisiones[0]["verdict"] == "REFUERZA"
+        assert revisiones[0]["run_id"] == "run-review"
 
     def test_rechaza_veredicto_invalido(self, db: AdvisorDB) -> None:
         with pytest.raises(ValueError, match="verdict inválido"):
-            db.insert_review(position_id=1, price=1.0, pnl_pct=0.0, verdict="QUIZÁS")
+            db.insert_review(position_id=1, price=1.0, pnl_pct=0.0, verdict="QUIZÁS", run_id="run-review")
+
+    def test_revision_sin_run_id_se_rechaza(self, db: AdvisorDB) -> None:
+        with pytest.raises(ValueError, match="run_id"):
+            db.insert_review(position_id=1, price=1.0, pnl_pct=0.0, verdict="REFUERZA", run_id="")
 
     def test_el_esquema_se_crea_una_sola_vez(self, tmp_path) -> None:
         path = tmp_path / "test.db"

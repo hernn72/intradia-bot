@@ -35,6 +35,8 @@ class PositionSizing:
 def conviction_label(score: Score) -> str:
     """Etiqueta informativa de convicción; no dimensiona la posición."""
 
+    if score.score_model_version != "1.0":
+        raise ValueError("conviction_label solo está definido para score_model_version 1.0")
     value = score.value
     if value >= 80:
         return "Alta convicción"

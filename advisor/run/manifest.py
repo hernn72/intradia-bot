@@ -20,7 +20,7 @@ import exchange_calendars as xcals
 import pandas as pd
 import yfinance as yf
 
-from advisor.analysis.scoring import SCORE_MODEL_VERSION
+from advisor.analysis import scoring
 from advisor.config import AdvisorConfig
 from advisor.data.calendars import EXCHANGE_OVERRIDES_PATH
 from advisor.run.git import exact_release_tag, git_dirty, git_sha
@@ -57,6 +57,7 @@ class RunManifest:
     groups: Optional[tuple[str, ...]]
     data_vintage_id: Optional[str]
     score_model_version: str
+    scoring_contract_json: str
     context_model_version: Optional[str]
     schema_version: int
     analysis_timestamp: str
@@ -88,6 +89,17 @@ def config_hash(config: AdvisorConfig) -> str:
     for key in _CONFIG_HASH_EXCLUDED_KEYS:
         payload.pop(key, None)
     return canonical_hash(payload)
+
+
+def scoring_contract_json(config: AdvisorConfig) -> str:
+    """Contrato de scoring usado por la pasada, en JSON canónico."""
+
+    return json.dumps(
+        config.scoring.contract_payload(),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
 
 
 def file_content_hash(path: str | Path) -> str:
@@ -123,6 +135,14 @@ def build_run_manifest(
     if dirty.value is None:
         logger.warning("No se pudo determinar si el árbol está limpio: %s", dirty.reason)
 
+    contract_json = scoring_contract_json(config)
+    contract = json.loads(contract_json)
+    executed_score_model_version = scoring.SCORE_MODEL_VERSION
+    if executed_score_model_version != contract["score_model_version"]:
+        raise ValueError(
+            "analysis_run.score_model_version no coincide con scoring_contract_json.score_model_version"
+        )
+
     return RunManifest(
         run_id=str(uuid.uuid4()),
         command=command,
@@ -135,7 +155,8 @@ def build_run_manifest(
         universe_vintage_id=universe_vintage_id(universe, groups),
         groups=tuple(groups) if groups is not None else None,
         data_vintage_id=None,
-        score_model_version=SCORE_MODEL_VERSION,
+        score_model_version=executed_score_model_version,
+        scoring_contract_json=contract_json,
         context_model_version=None,
         schema_version=schema_version,
         analysis_timestamp=timestamp.astimezone(timezone.utc).isoformat(),

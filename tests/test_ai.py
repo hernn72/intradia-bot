@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 from advisor.ai.agents import _call, build_user_message
 from advisor.ai.narrator import enrich_with_narrative, extract_json, parse_narrative
@@ -86,6 +87,16 @@ class TestBuildUserMessage:
     def test_incluye_la_decision_del_sistema(self, asset_eur, benign_context) -> None:
         opportunity = _opportunity(asset_eur, benign_context)
         assert f"Decisión del sistema: {opportunity.accion}" in build_user_message(opportunity)
+
+    def test_declara_umbral_no_calibrado(self, asset_eur, benign_context) -> None:
+        mensaje = build_user_message(_opportunity(asset_eur, benign_context))
+        assert "umbral no calibrado" in mensaje
+
+    def test_declara_umbral_calibrado_cuando_la_oportunidad_lo_trae(self, asset_eur, benign_context) -> None:
+        opportunity = replace(_opportunity(asset_eur, benign_context), threshold_calibrated=True)
+        mensaje = build_user_message(opportunity)
+        assert "umbral calibrado" in mensaje
+        assert "umbral no calibrado" not in mensaje
 
 
 class TestEnrichWithNarrative:

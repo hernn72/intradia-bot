@@ -15,6 +15,7 @@ from advisor.run.manifest import (
     file_content_hash,
     git_dirty,
     measure_clock_drift_seconds,
+    scoring_contract_json,
 )
 from advisor.universe.loader import load_universe
 from advisor.universe.vintage import universe_vintage_id, universe_vintage_payload
@@ -33,6 +34,27 @@ horizontes:
     interval: 1d
     period: 1y
     min_bars: 120
+scoring:
+  score_model_version: "1.0"
+  thresholds:
+    intradia:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
+    swing:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
+    medio:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
 request_min_interval_seconds: 1.0
 """,
         encoding="utf-8",
@@ -45,6 +67,27 @@ horizontes:
     min_bars: 120
     period: 1y
     interval: 1d
+scoring:
+  thresholds:
+    medio:
+      calibration_ref: null
+      min_score_vigilar: 60
+      min_score_operar: 70
+      calibrated: false
+      score_model_version: "1.0"
+    swing:
+      calibration_ref: null
+      min_score_vigilar: 60
+      min_score_operar: 70
+      calibrated: false
+      score_model_version: "1.0"
+    intradia:
+      calibration_ref: null
+      min_score_vigilar: 60
+      min_score_operar: 70
+      calibrated: false
+      score_model_version: "1.0"
+  score_model_version: "1.0"
 base_currency: EUR
 """,
         encoding="utf-8",
@@ -53,6 +96,75 @@ base_currency: EUR
 
     assert config_hash(load_config(first)) == config_hash(load_config(second))
     assert config_hash(load_config(first)) != config_hash(load_config(changed))
+
+
+def test_scoring_contract_json_es_canonico_y_sale_de_la_config(tmp_path) -> None:
+    first = tmp_path / "a.yaml"
+    second = tmp_path / "b.yaml"
+    body_a = """
+horizontes:
+  swing:
+    interval: 1d
+    period: 1y
+    min_bars: 120
+scoring:
+  score_model_version: "1.0"
+  thresholds:
+    intradia:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
+    swing:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
+    medio:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
+"""
+    body_b = """
+scoring:
+  thresholds:
+    medio:
+      calibration_ref: null
+      min_score_vigilar: 60
+      min_score_operar: 70
+      calibrated: false
+      score_model_version: "1.0"
+    swing:
+      calibration_ref: null
+      min_score_vigilar: 60
+      min_score_operar: 70
+      calibrated: false
+      score_model_version: "1.0"
+    intradia:
+      calibration_ref: null
+      min_score_vigilar: 60
+      min_score_operar: 70
+      calibrated: false
+      score_model_version: "1.0"
+  score_model_version: "1.0"
+horizontes:
+  swing:
+    min_bars: 120
+    period: 1y
+    interval: 1d
+"""
+    first.write_text(body_a, encoding="utf-8")
+    second.write_text(body_b, encoding="utf-8")
+
+    contract = scoring_contract_json(load_config(first))
+
+    assert contract == scoring_contract_json(load_config(second))
+    assert '"score_model_version":"1.0"' in contract
+    assert '"calibrated":false' in contract
 
 
 def test_manifest_registra_hash_de_exchange_overrides(monkeypatch, tmp_path) -> None:
@@ -71,6 +183,25 @@ def test_manifest_registra_hash_de_exchange_overrides(monkeypatch, tmp_path) -> 
     )
 
     assert run.provider_versions["exchange_overrides_hash"] == file_content_hash(overrides)
+    assert run.score_model_version == "1.0"
+    assert '"score_model_version":"1.0"' in run.scoring_contract_json
+
+
+def test_manifest_aborta_si_modelo_ejecutado_no_coincide_con_contrato(monkeypatch, tmp_path) -> None:
+    overrides = tmp_path / "exchange_overrides.yaml"
+    overrides.write_text("XKRX:\n  cierres_adicionales: []\n  aperturas_forzadas: []\n", encoding="utf-8")
+    monkeypatch.setattr(manifest, "EXCHANGE_OVERRIDES_PATH", overrides)
+    monkeypatch.setattr(manifest, "measure_clock_drift_seconds", lambda: None)
+    monkeypatch.setattr(manifest.scoring, "SCORE_MODEL_VERSION", "9.9")
+
+    with pytest.raises(ValueError, match="score_model_version no coincide"):
+        build_run_manifest(
+            command="analizar",
+            config=load_config("config.yaml"),
+            universe=load_universe("universe.yaml"),
+            schema_version=1,
+            timestamp=datetime(2026, 9, 16, tzinfo=timezone.utc),
+        )
 
 
 def test_manifest_git_dirty(tmp_path) -> None:
@@ -177,6 +308,27 @@ horizontes:
     interval: 1d
     period: 1y
     min_bars: 120
+scoring:
+  score_model_version: "1.0"
+  thresholds:
+    intradia:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
+    swing:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
+    medio:
+      score_model_version: "1.0"
+      calibrated: false
+      min_score_operar: 70
+      min_score_vigilar: 60
+      calibration_ref: null
 request_min_interval_seconds: 1.0
 """
     portatil.write_text(

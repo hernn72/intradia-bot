@@ -51,6 +51,7 @@ ACCION_DESCARTAR = "DESCARTAR"
 ACCION_VERIFICAR_BROKER = "VERIFICAR_BROKER"
 
 LOW_SCORE = "LOW_SCORE"
+SCORE_UNCALIBRATED = "SCORE_UNCALIBRATED"
 INVALID_TREND = "INVALID_TREND"
 OVEREXTENDED = "OVEREXTENDED"
 VOLATILITY_TOO_HIGH = "VOLATILITY_TOO_HIGH"
@@ -103,6 +104,7 @@ class Opportunity:
     snapshot: TechnicalSnapshot
     levels: Levels
     score: Score
+    threshold_calibrated: bool
     context: MarketContext
     setup_radar: str
     setup_accion: str
@@ -181,7 +183,7 @@ def classify(
     scoring: ScoringConfig,
     risk: RiskConfig,
     asset: Asset,
-    horizonte: str = "",
+    horizonte: str,
     data_freshness: Optional[DataFreshness] = None,
     data_quality: Optional[DataQualityConfig] = None,
     portfolio: Optional[PortfolioConfig] = None,
@@ -230,7 +232,7 @@ def classify_setup(
     context: MarketContext,
     scoring: ScoringConfig,
     risk: RiskConfig,
-    horizonte: str = "",
+    horizonte: str,
 ) -> tuple:
     """Clasifica la calidad del setup sin vetos de ejecutabilidad."""
 
@@ -244,25 +246,35 @@ def classify_setup_detailed(
     context: MarketContext,
     scoring: ScoringConfig,
     risk: RiskConfig,
-    horizonte: str = "",
+    horizonte: str,
 ) -> SetupClassification:
     """Clasifica la calidad del setup y asigna código estructurado."""
 
     reasons: List[str] = []
     warnings: list[str] = []
     value = score.value
+    thresholds = scoring.threshold_for(horizonte)
+    min_score_vigilar = thresholds.min_score_vigilar
+    min_score_operar = thresholds.min_score_operar
 
-    if value < scoring.min_score_vigilar:
+    if min_score_vigilar is None or min_score_operar is None:
+        reasons.append(
+            f"puntuación {value:.0f}: horizonte {horizonte or 'sin nombre'} sin umbral calibrado; "
+            f"code={SCORE_UNCALIBRATED}"
+        )
+        return SetupClassification(RADAR_VIGILAR, ACCION_ESPERAR, reasons, SCORE_UNCALIBRATED)
+
+    if value < min_score_vigilar:
         reasons.append(
             f"puntuación {value:.0f} por debajo del mínimo de vigilancia "
-            f"({scoring.min_score_vigilar:.0f}); code={LOW_SCORE}; threshold={scoring.min_score_vigilar:.0f}"
+            f"({min_score_vigilar:.0f}); code={LOW_SCORE}; threshold={min_score_vigilar:.0f}"
         )
         return SetupClassification(RADAR_DESCARTAR, ACCION_DESCARTAR, reasons, LOW_SCORE)
 
-    if value < scoring.min_score_operar:
+    if value < min_score_operar:
         reasons.append(
             f"puntuación {value:.0f}, insuficiente para operar "
-            f"({scoring.min_score_operar:.0f}); code={LOW_SCORE}; threshold={scoring.min_score_operar:.0f}"
+            f"({min_score_operar:.0f}); code={LOW_SCORE}; threshold={min_score_operar:.0f}"
         )
         return SetupClassification(RADAR_VIGILAR, ACCION_ESPERAR, reasons, LOW_SCORE)
 
@@ -352,6 +364,7 @@ def build_opportunity(
     """Ensambla la oportunidad ya clasificada y dimensionada."""
 
     label = conviction_label(score)
+    threshold_calibrated = scoring.threshold_for(horizonte).calibrated
     setup = classify_setup_detailed(score, levels, context, scoring, risk, horizonte)
     setup_radar, setup_accion, setup_reasons = setup.radar, setup.accion, setup.reasons
     radar, accion, reasons = classify(
@@ -384,6 +397,7 @@ def build_opportunity(
         snapshot=snapshot,
         levels=levels,
         score=score,
+        threshold_calibrated=threshold_calibrated,
         context=context,
         setup_radar=setup_radar,
         setup_accion=setup_accion,

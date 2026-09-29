@@ -423,6 +423,7 @@ class TestPersistenciaEnLaPasadaReal:
             ),
             levels=levels,
             score=score,
+            threshold_calibrated=False,
             context=MarketContext(None, 25.0, None, None, "INDETERMINADO", "sin datos"),
             setup_radar="OPERAR",
             setup_accion="COMPRAR",

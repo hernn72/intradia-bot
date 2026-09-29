@@ -11,12 +11,22 @@ archivo: solo de variables de entorno / ``.env``.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 VALID_HORIZONTES = ("intradia", "swing", "medio")
+IMPLEMENTED_SCORE_MODEL_VERSIONS = frozenset({"1.0"})
+CALIBRATABLE_HORIZONS_BY_SCORE_MODEL = {
+    "1.0": frozenset(),
+    "2.0": frozenset({"swing"}),
+}
+SCORING_CONTRACT_FIELDS = (
+    "score_model_version",
+    "fundamentals_enabled",
+    "thresholds",
+)
 
 # Divisas para las que existe un par ``EUR<CCY>=X`` en yfinance y por tanto
 # se puede convertir el precio a euros. Ampliar aquí al añadir mercados.
@@ -101,19 +111,115 @@ class LevelsConfig(BaseModel):
         return value
 
 
+class HorizonThresholds(BaseModel):
+    score_model_version: str
+    calibrated: bool
+    min_score_operar: Optional[float] = Field(None, ge=0, le=100)
+    min_score_vigilar: Optional[float] = Field(None, ge=0, le=100)
+    calibration_ref: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _validate_pair(self) -> HorizonThresholds:
+        operar = self.min_score_operar
+        vigilar = self.min_score_vigilar
+        if (operar is None) != (vigilar is None):
+            raise ValueError("min_score_operar y min_score_vigilar deben ser ambos números o ambos null")
+        if operar is not None and vigilar is not None and vigilar > operar:
+            raise ValueError(
+                f"min_score_vigilar ({vigilar}) no puede superar min_score_operar ({operar})"
+            )
+        if self.calibrated and (operar is None or vigilar is None or self.calibration_ref is None):
+            raise ValueError("calibrated: true exige umbrales numéricos y calibration_ref no nulo")
+        if self.calibration_ref is not None and not self.calibration_ref.strip():
+            raise ValueError("calibration_ref no puede estar vacío")
+        return self
+
+
 class ScoringConfig(BaseModel):
-    min_score_operar: float = Field(70.0, ge=0, le=100)
-    min_score_vigilar: float = Field(60.0, ge=0, le=100)
+    score_model_version: str = "1.0"
     fundamentals_enabled: bool = False
+    thresholds: Dict[str, HorizonThresholds] = Field(
+        default_factory=lambda: {
+            horizon: HorizonThresholds(
+                score_model_version="1.0",
+                calibrated=False,
+                min_score_operar=70.0,
+                min_score_vigilar=60.0,
+                calibration_ref=None,
+            )
+            for horizon in VALID_HORIZONTES
+        }
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_legacy_global_thresholds(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            legacy = sorted({"min_score_operar", "min_score_vigilar"} & set(data))
+            if legacy:
+                raise ValueError(
+                    "scoring.min_score_operar/scoring.min_score_vigilar son claves antiguas; "
+                    f"declara los umbrales en scoring.thresholds.<horizonte> ({', '.join(legacy)})"
+                )
+        return data
 
     @model_validator(mode="after")
     def _validate_thresholds(self) -> ScoringConfig:
-        if self.min_score_vigilar > self.min_score_operar:
+        if self.score_model_version not in IMPLEMENTED_SCORE_MODEL_VERSIONS:
+            raise ValueError(f"score_model_version no implementada: {self.score_model_version}")
+        for horizon, thresholds in self.thresholds.items():
+            if thresholds.score_model_version != self.score_model_version:
+                raise ValueError(
+                    f"thresholds.{horizon}.score_model_version ({thresholds.score_model_version}) "
+                    f"debe coincidir con scoring.score_model_version ({self.score_model_version})"
+                )
+            calibratable = CALIBRATABLE_HORIZONS_BY_SCORE_MODEL.get(self.score_model_version, frozenset())
+            if thresholds.calibrated and horizon not in calibratable:
+                raise ValueError(
+                    f"thresholds.{horizon}.calibrated no está permitido para score_model_version "
+                    f"{self.score_model_version}"
+                )
+            operar = thresholds.min_score_operar
+            vigilar = thresholds.min_score_vigilar
+            if self.score_model_version == "1.0":
+                if thresholds.calibrated:
+                    raise ValueError('score_model_version "1.0" no admite horizontes calibrated: true')
+                if (operar, vigilar, thresholds.calibration_ref) != (70.0, 60.0, None):
+                    raise ValueError(
+                        'score_model_version "1.0" solo admite los cortes legacy 70/60 '
+                        "con calibrated: false y calibration_ref: null"
+                    )
+            elif not thresholds.calibrated and (operar is not None or vigilar is not None or thresholds.calibration_ref is not None):
+                raise ValueError(
+                    "en modelos distintos de 1.0, calibrated: false exige umbrales y calibration_ref null"
+                )
+        if self.fundamentals_enabled and self.score_model_version in {"1.0", "2.0"}:
             raise ValueError(
-                f"min_score_vigilar ({self.min_score_vigilar}) no puede superar "
-                f"min_score_operar ({self.min_score_operar})"
+                f"fundamentals_enabled: true no está permitido con score_model_version {self.score_model_version}"
             )
         return self
+
+    def threshold_for(self, horizon: str) -> HorizonThresholds:
+        try:
+            return self.thresholds[horizon]
+        except KeyError:
+            raise ValueError(f"thresholds.{horizon} no configurado") from None
+
+    def contract_payload(self) -> dict[str, Any]:
+        return {
+            "score_model_version": self.score_model_version,
+            "fundamentals_enabled": self.fundamentals_enabled,
+            "thresholds": {
+                horizon: {
+                    "score_model_version": thresholds.score_model_version,
+                    "calibrated": thresholds.calibrated,
+                    "min_score_operar": thresholds.min_score_operar,
+                    "min_score_vigilar": thresholds.min_score_vigilar,
+                    "calibration_ref": thresholds.calibration_ref,
+                }
+                for horizon, thresholds in sorted(self.thresholds.items())
+            },
+        }
 
 
 class RiskConfig(BaseModel):
@@ -273,6 +379,16 @@ class AdvisorConfig(BaseModel):
             raise ValueError(f"horizontes desconocidos: {sorted(unknown)}. Permitidos: {list(VALID_HORIZONTES)}")
         return value
 
+    @model_validator(mode="after")
+    def _validate_scoring_thresholds_cover_horizons(self) -> AdvisorConfig:
+        missing = sorted(set(VALID_HORIZONTES) - set(self.scoring.thresholds))
+        if missing:
+            raise ValueError(f"falta scoring.thresholds para horizontes válidos: {missing}")
+        extra = sorted(set(self.scoring.thresholds) - set(VALID_HORIZONTES))
+        if extra:
+            raise ValueError(f"thresholds contiene horizontes desconocidos: {extra}")
+        return self
+
     def horizonte(self, name: str) -> HorizonteConfig:
         """Devuelve la ventana de datos de ``name``. Lanza ``ValueError`` si no está configurado."""
         try:
@@ -299,5 +415,13 @@ def load_config(path: str | Path = "config.yaml") -> AdvisorConfig:
 
     if not isinstance(raw, dict):
         raise ValueError(f"{config_path} debe contener un mapeo YAML en la raíz")
+
+    scoring = raw.get("scoring")
+    if not isinstance(scoring, dict):
+        raise ValueError(f"{config_path} debe declarar scoring.score_model_version y scoring.thresholds")
+    missing_scoring = [key for key in ("score_model_version", "thresholds") if key not in scoring]
+    if missing_scoring:
+        missing = ", ".join(f"scoring.{key}" for key in missing_scoring)
+        raise ValueError(f"{config_path} debe declarar explícitamente {missing}")
 
     return AdvisorConfig(**raw)

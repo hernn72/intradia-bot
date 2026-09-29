@@ -5,6 +5,7 @@ Todos los datos vienen de ``FakeProvider``: ningún test toca la red.
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timezone
 
 import pandas as pd
@@ -15,20 +16,47 @@ from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.market_context import build_market_context, fetch_market_context
 from advisor.analysis.opportunity import ANALYSIS_ERROR, INSUFFICIENT_HISTORY, INVALID_INDICATORS
 from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
-from advisor.config import AdvisorConfig, MarketContextConfig
+from advisor.config import AdvisorConfig, HorizonThresholds, MarketContextConfig, ScoringConfig
 from advisor.data.calendars import expected_sessions
+from advisor.data.fx import FxConverter
 from advisor.data.quality import FreshnessState
 from advisor.report.tracking import (
     VERDICT_DEBILITA,
     VERDICT_INVALIDA,
     VERDICT_NO_CAMBIA,
     VERDICT_REFUERZA,
+    PositionReview,
     _verdict,
+    format_reviews,
     review_positions,
 )
 from advisor.storage.db import AdvisorDB
 from advisor.universe.models import Asset
 from tests.conftest import FakeProvider, make_ohlcv
+
+
+def _insert_analysis_run(db: AdvisorDB, run_id: str, config: AdvisorConfig) -> None:
+    with db._connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO analysis_run (
+                run_id, command, git_sha, git_dirty, git_dirty_reason, release_tag,
+                config_hash, config_hash_version, universe_vintage_id, groups,
+                data_vintage_id, score_model_version, scoring_contract_json,
+                context_model_version, schema_version, analysis_timestamp,
+                environment, python_version, provider_versions, clock_drift_seconds,
+                clock_status
+            ) VALUES (?, 'seguimiento', 'test', 0, NULL, NULL, 'cfg', 2,
+                'universo-test', NULL, NULL, ?, ?, NULL, ?, '2026-09-29T10:00:00+00:00',
+                'ci', '3.12', '{}', NULL, 'CLOCK_UNKNOWN')
+            """,
+            (
+                run_id,
+                config.scoring.score_model_version,
+                json.dumps(config.scoring.contract_payload(), sort_keys=True, separators=(",", ":"), ensure_ascii=False),
+                db.schema_version(),
+            ),
+        )
 
 
 def _asset(
@@ -356,71 +384,131 @@ class TestVerdict:
         return AdvisorConfig(horizontes={"swing": {"interval": "1d", "period": "1y", "min_bars": 120}})
 
     def test_stop_alcanzado_invalida(self) -> None:
-        verdict, nota = _verdict(90.0, 100.0, stop=92.0, target=120.0, score=85.0, config=self._config())
+        verdict, nota = _verdict(90.0, 100.0, stop=92.0, target=120.0, score=85.0, config=self._config(), horizonte="swing")
         assert verdict == VERDICT_INVALIDA
         assert "stop alcanzado" in nota
 
     def test_el_stop_manda_sobre_la_puntuacion(self) -> None:
         """Una nota alta no puede justificar mantener una posición con el stop roto."""
-        verdict, _ = _verdict(90.0, 100.0, stop=92.0, target=120.0, score=99.0, config=self._config())
+        verdict, _ = _verdict(90.0, 100.0, stop=92.0, target=120.0, score=99.0, config=self._config(), horizonte="swing")
         assert verdict == VERDICT_INVALIDA
 
     def test_objetivo_alcanzado_refuerza(self) -> None:
-        verdict, nota = _verdict(125.0, 100.0, stop=92.0, target=120.0, score=50.0, config=self._config())
+        verdict, nota = _verdict(125.0, 100.0, stop=92.0, target=120.0, score=50.0, config=self._config(), horizonte="swing")
         assert verdict == VERDICT_REFUERZA
         assert "objetivo alcanzado" in nota
 
     def test_nota_baja_debilita(self) -> None:
-        verdict, _ = _verdict(105.0, 100.0, stop=92.0, target=120.0, score=45.0, config=self._config())
+        verdict, _ = _verdict(105.0, 100.0, stop=92.0, target=120.0, score=45.0, config=self._config(), horizonte="swing")
         assert verdict == VERDICT_DEBILITA
 
     def test_nota_alta_y_posicion_a_favor_refuerza(self) -> None:
-        verdict, _ = _verdict(105.0, 100.0, stop=92.0, target=120.0, score=75.0, config=self._config())
+        verdict, _ = _verdict(105.0, 100.0, stop=92.0, target=120.0, score=75.0, config=self._config(), horizonte="swing")
         assert verdict == VERDICT_REFUERZA
 
     def test_sin_puntuacion_no_cambia(self) -> None:
-        verdict, nota = _verdict(105.0, 100.0, stop=92.0, target=120.0, score=None, config=self._config())
+        verdict, nota = _verdict(105.0, 100.0, stop=92.0, target=120.0, score=None, config=self._config(), horizonte="swing")
         assert verdict == VERDICT_NO_CAMBIA
         assert "sin datos suficientes" in nota
 
+    def test_umbral_no_calibrado_usa_solo_precio(self) -> None:
+        scoring = ScoringConfig.model_construct(
+            score_model_version="2.0",
+            fundamentals_enabled=False,
+            thresholds={
+                "swing": HorizonThresholds.model_construct(
+                    score_model_version="2.0",
+                    calibrated=False,
+                    min_score_operar=None,
+                    min_score_vigilar=None,
+                    calibration_ref=None,
+                )
+            },
+        )
+        config = self._config().model_copy(update={"scoring": scoring})
+
+        verdict, nota = _verdict(105.0, 100.0, stop=92.0, target=120.0, score=40.0, config=config, horizonte="swing")
+
+        assert verdict == VERDICT_NO_CAMBIA
+        assert "solo mandan stop y objetivo" in nota
+
     def test_posicion_en_perdidas_sin_romper_stop_no_cambia(self) -> None:
-        verdict, _ = _verdict(96.0, 100.0, stop=92.0, target=120.0, score=75.0, config=self._config())
+        verdict, _ = _verdict(96.0, 100.0, stop=92.0, target=120.0, score=75.0, config=self._config(), horizonte="swing")
         assert verdict == VERDICT_NO_CAMBIA
 
 
 class TestReviewPositions:
     def test_sin_posiciones_devuelve_lista_vacia(self, config, universe, tmp_path, histories) -> None:
         db = AdvisorDB(tmp_path / "test.db")
-        assert review_positions(config, universe, db, FakeProvider(histories)) == []
+        _insert_analysis_run(db, "run-seguimiento", config)
+        assert review_positions(config, universe, db, FakeProvider(histories), "run-seguimiento") == []
 
     def test_revisa_y_persiste(self, config, universe, tmp_path, histories) -> None:
         db = AdvisorDB(tmp_path / "test.db")
+        _insert_analysis_run(db, "run-seguimiento", config)
         position_id = db.open_position(
             symbol="SAP.DE", name="SAP", entry_price=200.0, currency="EUR", quantity=4,
             thesis="Ruptura con volumen", horizonte="swing", target=400.0, stop=180.0,
         )
         provider = FakeProvider(histories, closes={"^VIX": 14.0})
 
-        reviews = review_positions(config, universe, db, provider)
+        reviews = review_positions(config, universe, db, provider, "run-seguimiento")
 
         assert len(reviews) == 1
         assert reviews[0].symbol == "SAP.DE"
         assert reviews[0].pnl_pct > 0  # la serie sintética es alcista
-        assert len(db.get_reviews(position_id)) == 1
+        stored = db.get_reviews(position_id)
+        assert len(stored) == 1
+        assert stored[0]["run_id"] == "run-seguimiento"
 
     def test_activo_fuera_del_universo_sigue_revisandose(self, config, universe, tmp_path, histories) -> None:
         db = AdvisorDB(tmp_path / "test.db")
+        _insert_analysis_run(db, "run-seguimiento", config)
         db.open_position(
             symbol="ZZZ.DE", name="Antiguo", entry_price=100.0, currency="EUR", quantity=1,
             thesis="tesis heredada", horizonte="swing",
         )
         provider = FakeProvider({**histories, "ZZZ.DE": make_ohlcv(n=50, start=110.0)}, closes={"^VIX": 14.0})
 
-        reviews = review_positions(config, universe, db, provider)
+        reviews = review_positions(config, universe, db, provider, "run-seguimiento")
 
         assert len(reviews) == 1
         assert reviews[0].symbol == "ZZZ.DE"
         assert reviews[0].score is None  # no se puede repuntuar, pero no desaparece
+
+
+class TestFormatReviews:
+    def _review(self, *, threshold_calibrated: bool) -> PositionReview:
+        return PositionReview(
+            position_id=1,
+            symbol="SAP.DE",
+            name="SAP",
+            currency="EUR",
+            opened_at="2026-09-01T10:00:00+00:00",
+            entry_price=100.0,
+            quantity=2,
+            price=105.0,
+            pnl_pct=5.0,
+            stop=92.0,
+            target=120.0,
+            score=75.0,
+            horizonte="swing",
+            threshold_calibrated=threshold_calibrated,
+            verdict=VERDICT_REFUERZA,
+            note="la puntuación se mantiene",
+            thesis="Ruptura con volumen",
+        )
+
+    def test_declara_umbral_no_calibrado(self) -> None:
+        report = format_reviews([self._review(threshold_calibrated=False)], FxConverter(FakeProvider(), "EUR"))
+
+        assert "Puntuación actual: 75/100 (umbral no calibrado; horizonte swing)" in report
+
+    def test_declara_umbral_calibrado(self) -> None:
+        report = format_reviews([self._review(threshold_calibrated=True)], FxConverter(FakeProvider(), "EUR"))
+
+        assert "Puntuación actual: 75/100 (umbral calibrado; horizonte swing)" in report
+        assert "umbral no calibrado" not in report
 
 
 class TestBarraParcialYCalidad:
