@@ -1,0 +1,36 @@
+
+=== swing ===
+población de A-02 (todos los activos): 106363 | saltados: 0
+excluded_crypto: 5112
+excluded_asia_missing: 396
+excluded_trend_sma_history: 6937
+combinaciones de motivos (observaciones): {'excluded_asia_missing': 220, 'excluded_asia_missing + excluded_trend_sma_history': 176, 'excluded_crypto': 5112, 'excluded_trend_sma_history': 6761}
+excluidas (unión deduplicada): 12269
+POBLACION FINAL: 94094 señales | 90 activos
+  por region: {'ASIA': 16719, 'EMERGING_MARKETS': 1068, 'EUROPA': 32118, 'GLOBAL': 2459, 'USA': 41730} | regiones: 5
+  activos por region: {'ASIA': 16, 'EMERGING_MARKETS': 1, 'EUROPA': 30, 'GLOBAL': 3, 'USA': 40}
+hueco intermedio de ^STOXX50E en la población final (último cierre presente, D-56): 1406 | antigüedad en días naturales: {1: 624, 3: 700, 4: 82}
+faltas asiáticas (serie:motivo:sesión -> observaciones):
+    falta_anterior_cerrada:2022-05-09 -> 88
+    falta_anterior_cerrada:2025-10-24 -> 90
+    falta_ultima_cerrada:2022-05-09 -> 88
+    falta_ultima_cerrada:2025-10-24 -> 90
+    falta_ultima_cerrada:2026-08-28 -> 40
+sha256 de la población final (activo<TAB>sesión de señal, ordenado): 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a
+
+=== medio ===
+población de A-02 (todos los activos): 94273 | saltados: 0
+excluded_crypto: 4722
+excluded_asia_missing: 218
+excluded_trend_sma_history: 0
+combinaciones de motivos (observaciones): {'excluded_asia_missing': 218, 'excluded_crypto': 4722}
+excluidas (unión deduplicada): 4940
+POBLACION FINAL: 89333 señales | 90 activos
+  por region: {'ASIA': 15839, 'EMERGING_MARKETS': 1019, 'EUROPA': 30661, 'GLOBAL': 2233, 'USA': 39581} | regiones: 5
+  activos por region: {'ASIA': 16, 'EMERGING_MARKETS': 1, 'EUROPA': 30, 'GLOBAL': 3, 'USA': 40}
+hueco intermedio de ^STOXX50E en la población final (último cierre presente, D-56): 1312 | antigüedad en días naturales: {1: 620, 3: 610, 4: 82}
+faltas asiáticas (serie:motivo:sesión -> observaciones):
+    falta_anterior_cerrada:2025-10-24 -> 89
+    falta_ultima_cerrada:2025-10-24 -> 89
+    falta_ultima_cerrada:2026-08-28 -> 40
+sha256 de la población final (activo<TAB>sesión de señal, ordenado): 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8

@@ -1,16 +1,23 @@
 # T-019 — Score v2 y umbrales por horizonte, con P3 pre-registrado (A-03)
 
-Estado: PENDIENTE — ficha aprobada el 2026-09-26 como **pre-registro
-condicionado de P3** (PR #26, rama `docs/t019-preregistro-p3`, sin fusionar).
-**No autoriza todavía a ejecutar P3**: PR-1 (componente asiático) y la regla
-point-in-time concreta del VIX (D-49) siguen abiertas, y el pre-registro
-**completo y ejecutable** es el SHA del paso 2a-doc (sección «Implementación»).
+Estado: EN CURSO. La ficha se aprobó el 2026-09-26 como **pre-registro
+condicionado de P3** (PR #26). El paso 1 está hecho (PR #28, `db51d67`). El
+**paso 2a-doc está cerrado el 2026-09-29**, con D-50 a D-57: `analysis_timestamp`,
+cripto fuera de P3, Asia con sesiones cerradas, VIX y tendencia point-in-time,
+cinco cierres reales aprobados, exclusión por historia insuficiente de la
+SMA200, huecos de `^STOXX50E` con el último cierre causal y Bonferroni con
+`m = 20`.
+**El commit de 2a-doc es el pre-registro completo y ejecutable de P3.** P3
+sigue sin poder ejecutarse hasta que estén hechos 2a-code y la revisión previa
+de look-ahead.
 Decisiones cerradas por el propietario: A → **D-45**, B → **D-46**, C →
-**D-47** (C2, estado de transición), VIX → **D-49**. La **D-48** se retiró el
+**D-47** (C2, estado de transición), VIX → **D-49** y **D-53**,
+`analysis_timestamp` → **D-50**, cripto → **D-51**, Asia (PR-1) → **D-52**,
+cierres extraordinarios → **D-54**, SMA200 → **D-55**, huecos de `^STOXX50E` →
+**D-56**, Bonferroni → **D-57**. La **D-48** se retiró el
 mismo día, antes de fusionarse (mezclaba tres cuestiones). GATE P3 requisito 2
-corregido por D-45 y precisado en la tercera revisión. **La implementación no ha
-empezado** y no empieza hasta que el propietario lo diga.
-Agente: Opus (ficha) → propietario (D-45 a D-47, D-49; PR-1 pendiente) → Codex (implementación) → Claude Code
+corregido por D-45 y precisado en la tercera revisión.
+Agente: Opus (ficha) → propietario (D-45 a D-47, D-49 a D-57) → Codex (implementación) → Claude Code
 (verificación real y commits) → revisor independiente (look-ahead, obligatorio)
 Línea / fase: Línea A, A-03 (P3)
 Gate al que contribuye: **GATE P3** (es la tarea que lo cruza)
@@ -45,7 +52,9 @@ respondidos con evidencia, **salga lo que salga**.
 - No amplía la cosecha, no cambia los bloques (60 swing / 300 medio), no cambia
   el estimador primario y no elige otra métrica para conseguir resolución (FU-1
   de A-02 sigue abierto y **no** se resuelve aquí).
-- No despliega nada en la Pi. La Pi queda en `v0.3.0` (`03e1ec3`), esquema v5.
+- No despliega nada en la Pi. Cuando se escribió la ficha, la Pi estaba en
+  `v0.3.0` (`03e1ec3`), esquema v5; desde el 2026-09-26 está en `v0.4.0`
+  (`84ea28e`), esquema v6.
   Cualquier despliegue es una decisión posterior y separada.
 - No redefine el score después de ver resultados: la ablación publica, no
   selecciona (sección «P3 — ablación»).
@@ -58,9 +67,10 @@ respondidos con evidencia, **salga lo que salga**.
 - **D-45, D-46, D-47 y D-49**, cerradas por el propietario el 2026-09-26 y
   registradas en `docs/decision-log.md`, junto con la corrección de
   `docs/gates.md`. D-48 figura como retirada.
-- **Antes del paso 3 (P3):** el commit documental 2a-doc (PR-1 respondida,
-  regla point-in-time del VIX y `analysis_timestamp` fijados), la
-  implementación 2a-code y la revisión previa de look-ahead; ver «Contexto:
+- **Antes del paso 3 (P3):** el commit documental 2a-doc (**hecho el
+  2026-09-29**: PR-1 respondida, reglas point-in-time del VIX, la tendencia y
+  Asia, y `analysis_timestamp` fijados), la implementación 2a-code y la
+  revisión previa de look-ahead; ver «Contexto:
   paridad y point-in-time» e «Implementación».
 
 ## Hechos verificados sobre el terreno el 2026-09-26
@@ -169,15 +179,21 @@ study **no** llama a `classify()` (P2.3/P2.4).
 
 ### Hechos que condicionan P3 y que se conocen **antes** de medir
 1. **La población del event study no depende del score.** Son todas las barras
-   con niveles válidos (`event_study.py:313–338`); el score solo etiqueta. Por
-   tanto el primario **global** de swing de P3 será el mismo que publicó A-02:
-   `+0.064 R`, IC95 `[-0.060, 0.171]`, anchura 0,231 > 0,200, 21 bloques,
-   `INSUFICIENTE`/`LOW`. No es un resultado de P3: es aritmética.
-2. **Con 21 bloques, `SUFICIENTE`/`HIGH` es inalcanzable** en swing, porque
+   con niveles válidos (`event_study.py:313–338`); el score solo etiqueta.
+   **Actualizado en 2a-doc:** A-02 publicó un primario global de swing de
+   `+0.064 R`, IC95 `[-0.060, 0.171]`, 21 bloques, `INSUFICIENTE`/`LOW`, sobre
+   106.363 señales. Ese valor **ya no es el de P3 por construcción**: la
+   población de P3 es de 94.094 señales en **19 bloques con señales**. D-51
+   quita cripto, D-52 excluye Asia no calculable y D-55 excluye la historia
+   insuficiente de la SMA200. El bloque 1 de la espina lo vacía D-51, porque
+   solo tenía señales cripto, y el 2, D-55. Su
+   primario global es otra cifra y no debe usarse como control. Lo que sigue
+   valiendo es que la población no depende del score.
+2. **Con 19 bloques, `SUFICIENTE`/`HIGH` es inalcanzable** en swing, porque
    `CapacityThresholds.sufficient_blocks` = 25. El mejor veredicto posible de
    cualquier fila de swing es `LIMITADA`.
 3. **Cualquier subconjunto del score (banda, umbral) tiene como mucho los mismos
-   21 bloques y menos señales por bloque**, así que lo esperable es que sus
+   19 bloques y menos señales por bloque**, así que lo esperable es que sus
    intervalos sean más anchos que el global. Un contraste **pareado por bloque**
    (alta − baja en el mismo bloque) puede estrecharse, porque el régimen común se
    cancela; por eso el contraste es la medida confirmatoria (sección P3).
@@ -208,7 +224,8 @@ study **no** llama a `classify()` (P2.3/P2.4).
   un contexto **sin** Asia (`report/tracking.py:109`), distinto del de la
   pasada diaria. Hay por tanto tres versiones del contexto: la del laboratorio,
   la de `analizar` y la de `seguimiento`. Se trata en tres piezas separadas:
-  PR-1 (componente asiático), D-49 (VIX) y R-CTX (seguimiento); sección
+  PR-1 (componente asiático), D-49 (VIX) y R-CTX (seguimiento), resueltas en
+  2a-doc por D-50 a D-57; sección
   «Contexto: paridad y point-in-time».
 - **H-2 — `position_review.score` sin versión ni manifiesto. SAME_SCOPE.** Con
   dos modelos coexistiendo, una revisión persistida no dice con qué modelo ni
@@ -375,115 +392,245 @@ estaba aprobada, la segunda no es válida metodológicamente y la tercera es un
 requisito técnico, no una decisión estadística. Queda dividida en la sección
 siguiente.
 
-## Contexto: paridad y point-in-time
+## Contexto: paridad y point-in-time — CONGELADO en 2a-doc (2026-09-29)
 
-Las tres piezas de H-1, separadas. Ninguna se resuelve mirando la expectancy de
-nada.
+El 2026-09-26 esta sección tenía tres piezas abiertas: PR-1 (el componente
+asiático), D-49 (el VIX) y R-CTX (el seguimiento). La inspección de 2a-doc
+(`evidence/2026-09-29-T-019-paso2a-doc-inspeccion/`) encontró dos cosas que el
+contrato no decidía: qué pasada de producción representa a una señal
+histórica, y qué hacer con PR-1. El propietario las resolvió el 2026-09-29
+(**D-50 a D-57**). Nada de lo que sigue se eligió mirando la expectancy, los
+desenlaces ni los scores.
 
-### PR-1 — Componente asiático · pregunta de pre-registro PENDIENTE
+**Hechos de la inspección que motivan las reglas:**
+- Producción genera la señal swing **cuatro veces** por día laborable (H1).
+- Su dato asiático es intradía en las pasadas de la mañana, porque
+  `fetch_overview` no recorta la barra abierta (H2).
+- La cosecha solo tiene cierres diarios (H3).
+- Hay plazas cuyo cierre de sesión coincide con la apertura siguiente
+  (cripto, H4).
+- El laboratorio desalinea el VIX y la tendencia, con look-ahead en EE. UU. y
+  cripto (H6).
 
-La dimensión `contexto` **permanece** en Score v2 (D-46) y hoy incluye el
-componente asiático (2 de sus 10 puntos brutos). Excluirlo sería una
-modificación interna de la dimensión y **no está decidido**. Antes de ejecutar
-P3 hay que responder, por inspección del código y de la cosecha y **sin mirar
-su expectancy**:
+### `analysis_timestamp` (D-50)
 
-1. ¿Qué **series exactas** forman la señal? Producción las toma así:
-   `context_assets_of()` reúne los activos vigentes con `analizable: false` y
-   `asia_session_change()` promedia los de `region: ASIA`. Con el universo
-   vigente, la composición observada en producción es de **cinco series de
-   contexto asiático**: `^N225`, `^HSI`, `^KS11` y `^TWII` (índices) y
-   `510300.SS` (ETF de Shanghái). La cosecha congelada contiene las cinco,
-   incluido `510300.SS.csv`.
+> `analysis_timestamp` de una señal con barra de señal `d` y barra de entrada
+> `d+1` (la barra `j+1` de la cosecha, cuya apertura es la entrada del
+> laboratorio) = la **última pasada programada** de producción
+> **estrictamente anterior** a la apertura de la sesión `d+1` de la plaza del
+> activo, siempre que sea **igual o posterior** a `available_at(d)`.
 
-   La composición de la señal no se decide por una lista escrita a mano en
-   T-019: debe derivarse del universo/vintage con la misma regla que
-   producción. La lista anterior documenta la composición vigente para poder
-   auditarla.
+Con fórmula, siendo `P` el conjunto de pasadas programadas:
 
-   Excluir `510300.SS` o cualquier otra de esas cinco series sería una
-   **decisión explícita de composición**, antes del SHA del paso 2a-doc; no
-   puede hacerse porque «parece un ETF» ni por su resultado estadístico.
-2. ¿La señal de sesión asiática puede usarse **point-in-time** para todas las
-   observaciones de P3, es decir, era conocida en el `analysis_timestamp` de
-   cada señal (definido en el paso 2a-doc)?
-3. ¿Existe en la cosecha la **materia prima point-in-time** de ese valor?
-4. ¿Producción y laboratorio pueden reconstruir **exactamente el mismo dato**
-   disponible en `analysis_timestamp`, con **la misma función**?
+    available_at(d)     = session_close_at(plaza, d) + settlement_minutes
+    apertura(d+1)       = session_open(calendario de la plaza, d+1)
+    analysis_timestamp  = max{ p ∈ P : available_at(d) <= p < apertura(d+1) }
 
-Lo que ya se sabe, y condiciona las respuestas:
-- producción lo calcula con `asia_session_change(fetch_overview(…))`
-  (`analyzer.py:245–248`, `overview.py:23–35`) como la variación media entre
-  el último precio y el anterior de esas series, **sin recortar la barra
-  abierta** (`overview.py:82–97`);
-- por eso, en algunas pasadas el dato es **intradía**: a las 06 UTC Hong Kong,
-  Tokio y Seúl siguen abiertos, y también Shanghái, donde cotiza `510300.SS`,
-  cuya sesión todavía no ha cerrado a esa hora; esto refuerza el problema de
-  PR-1: producción puede estar usando información intradía que la cosecha
-  diaria congelada no reproduce exactamente;
-- la cosecha `071ddb2b…` contiene **cierres diarios** de esas series, no
-  necesariamente el valor intradía exacto que vio producción;
-- el neutro 1,0 que puntúa hoy el laboratorio **no es una reconstrucción: es
-  una imputación**.
+- **Pasadas programadas `P`.** Son las del timer versionado
+  `deploy/systemd/intradia-bot.timer`, que es el **único horario registrado**
+  (una sola versión, commit `1f31d2d` del 2026-08-30): lunes a viernes a las
+  07:00, 08:30, 14:30 y 21:00 en hora **Europe/London**, la zona de la Pi.
+  Las horas se convierten a UTC con el DST histórico de la base tz, fecha a
+  fecha. Los festivos británicos no cuentan, porque el timer se dispara de
+  lunes a viernes sin mirar festivos. Como no existe otro horario, este se
+  aplica a todo el periodo de la cosecha.
+- **La pasada por evento de las 22:30 no forma parte de `P`.** Se
+  autodescarta salvo que el calendario de eventos la active, esa condición no
+  se puede reconstruir sobre la cosecha y la base de producción no tiene
+  ninguna persistida. Es la única lectura implementable de «pasada
+  programada».
+- **Calendarios.** `session_close_at` y `session_open` salen del calendario de
+  la plaza (`exchange_calendars` + `exchange_overrides.yaml`), con sus
+  festivos, cierres anticipados y DST. `settlement_minutes` = 20
+  (`config.yaml`, `data_quality`).
+- **Conjunto vacío.** Si ninguna pasada cae en el intervalo, la observación no
+  es calculable y se cuenta. En la cosecha hay **0** casos fuera de cripto.
+- **Resultado por plaza.** Es igual en verano y en invierno. **La fórmula
+  prevalece sobre la tabla**, que solo describe el caso habitual:
 
-Si todas las respuestas permiten reproducir el dato exacto, el componente se
-reconstruye en el laboratorio con la misma función y se queda. **Si no:** nada
-de neutralizar ni imputar; **el propietario decide, antes del SHA del paso
-2a-doc**, entre excluir el componente o cambiar su semántica point-in-time de
-forma explícita (por ejemplo, solo sesiones cerradas), con decisión registrada
-en `docs/decision-log.md`. Ninguna de las dos opciones se elige mirando la
-expectancy. Hasta entonces la tabla de Score v2 lo mantiene y P3 **no se
-ejecuta**.
+  | plazas | `analysis_timestamp` |
+  |---|---|
+  | XETRA, PAR, AMS, MCE, MIL | la pasada de las **07:00 de Londres de `d+1`** |
+  | NYSE, NASDAQ | la de las **08:30 de Londres de `d+1`**; la de las 14:30 coincide con la apertura o la sigue, así que no cuenta |
+  | JPX, HKG | la de las **21:00 de Londres del último día laborable anterior a la apertura de `d+1`**, que coincide con `d` salvo cuando un festivo de la plaza separa `d` y `d+1`: 342 de 6.612 pares de barras consecutivas tras el warmup en JPX y 159 de 3.318 en HKG, por ejemplo Golden Week o Semana Santa en Hong Kong |
 
-### D-49 — Alineación del VIX · contrato previo
+### Cripto fuera de P3 (D-51)
 
-Texto de la decisión:
+En las plazas 24/7, el cierre de la barra diaria `d` (00:00 UTC) **coincide**
+con la apertura de `d+1`, así que no existe ninguna pasada entre los dos
+instantes. No se inventa un `analysis_timestamp` que producción nunca
+ejecutó.
 
-> **La regla point-in-time de alineación del VIX se fija y documenta antes de
-> ejecutar P3. El revisor independiente no elige la regla: verifica que la regla
-> pre-registrada no contiene look-ahead y que producción e investigación usan
-> exactamente la misma implementación.**
+`BTC-EUR`, `ETH-EUR` y `SOL-EUR` quedan **fuera de la población confirmatoria
+de P3 y de la trazabilidad de medio**, mientras se mantenga la semántica diaria
+«señal al cierre → entrada en la apertura siguiente». **No** salen del
+universo ni de producción.
 
-Obligación de esta ficha, dentro del paso **2a-doc** (antes de código y antes
-de P3). No basta «por fecha» ni «por plaza»; hay que definir:
+Es una enmienda del pre-registro condicionado anterior al SHA de 2a-doc,
+motivada solo por una imposibilidad temporal detectada antes de mirar P3. La
+espina de sesiones de los bloques ya se construía sin cripto
+(`capacity.py:619`), así que la espina y los bloques no cambian: 22 bloques en
+swing, el último de 42 sesiones, y 5 en medio, el último de 102. Cuántos de
+ellos tienen señales lo fija el censo tras todas las exclusiones: 19 en swing
+y 5 en medio (`07-ocupacion-de-bloques.txt`).
 
-1. **El `analysis_timestamp` histórico de cada señal**, en UTC, que sale de
-   inspeccionar **cómo y cuándo producción habría generado esa señal**
-   (horario de las pasadas, recorte de la barra no cerrada y asentamiento). Hoy
-   el laboratorio no tiene ese instante: tiene el cierre de la barra de señal y
-   una entrada en la apertura siguiente.
-2. **El `available_at` de cada observación del VIX**, en UTC, con el
-   **calendario real del VIX**: cierre normal, sesiones especiales o recortadas,
-   festivos de EE. UU. (días con sesión europea y sin barra de VIX), cambios de
-   hora (DST) y el margen de asentamiento si aplica.
-3. **La regla**: `available_at(observación del VIX) <= analysis_timestamp`. Un
-   valor futuro o todavía abierto no entra. Es la forma de INV-09.
+### Componente asiático, con sesiones cerradas (PR-1 → D-52)
 
-Caminos actuales que se inspeccionan: laboratorio y backtest,
-`_align(vix_close, …).shift(1)` en `event_study.py:308–309` y
-`backtest/runner.py:208–210`; producción, último VIX cerrado tras
-`trim_unclosed_bar` a la hora de la pasada en `market_context.py:159–170`.
+**Composición.** Las cinco series, derivadas del universo con la regla de
+producción (`context_assets_of` + `region: ASIA`): `^N225`, `^HSI`, `^KS11`,
+`^TWII` y `510300.SS`.
 
-Si quedan **varias definiciones plausibles** del `analysis_timestamp` o de la
-regla y ningún contrato previo decide entre ellas, **se vuelve al propietario
-antes de cerrar 2a-doc**. Ni el implementador ni el revisor la eligen. P3 no se
-ejecuta hasta que el revisor independiente confirme la ausencia de look-ahead
-en la regla congelada (revisión 1 del paso 2a-code).
+**Cálculo, para cada serie y cada `analysis_timestamp`:**
+1. `L` = la última sesión de su propia plaza cuyo cierre más
+   `settlement_minutes` es ≤ `analysis_timestamp`
+   (`latest_expected_closed_session`).
+2. `P` = la sesión de su calendario inmediatamente anterior a `L`.
+3. `variación = (cierre(L) / cierre(P) − 1) · 100`.
 
-### R-CTX — Contexto del seguimiento · requisito técnico (INV-06)
+`asia_session_change` es la **media simple de las cinco variaciones**. Nunca se
+usan barras intradía.
 
-> `review_positions` debe construir el contexto con la misma semántica temporal
-> y la misma función que una pasada normal para el mismo `analysis_timestamp`
-> (INV-06).
+**Festivo frente a hueco.**
+- **Festivo o cierre de plaza**, aunque dure varios días: no es un dato
+  ausente. `L` y `P` son las sesiones realmente cerradas de esa plaza.
+- **Hueco del proveedor**: el calendario exige `L` o `P` y la cosecha no tiene
+  su barra. Entonces no hay forward fill, ni proxy, ni imputación, ni cálculo
+  con cuatro series. La observación es **no calculable por input de contexto
+  ausente**, se excluye de P3 y se publican su contador y su motivo. La
+  composición **nunca** pasa de cinco a cuatro series.
 
-Hoy no lo hace: `report/tracking.py:109` llama a `fetch_market_context` sin el
-dato asiático ni la referencia temporal de la pasada. Se corrige en el paso
-2a-code; no se modifica código en esta entrega.
+**Cierres reales que el calendario no conoce.** La inspección encontró
+sesiones que `exchange_calendars` da como abiertas y que fueron **cierres
+reales verificados**. El propietario los **aprobó como festivos en D-54**: no
+son huecos del proveedor. **2a-code debe añadirlos a `exchange_overrides.yaml`
+antes de P3**, con estas mismas fuentes, y la población de P3 se congela con
+ellos incluidos:
+
+| plaza | fecha | motivo | fuente |
+|---|---|---|---|
+| XHKG | 2023-09-01 | tifón Saola (T8): HKEX canceló la sesión completa | CNBC 2023-09-01; SCMP |
+| XHKG | 2023-09-08 | aviso de lluvia negra todo el día: HKEX canceló la sesión | HKEX, comunicado 230908; SCMP |
+| XTAI | 2023-01-18 | la TWSE no negoció antes del Año Nuevo Lunar («市場無交易，僅辦理結算交割作業»); `exchange_calendars` la da como abierta | calendario oficial de la TWSE, año 112 |
+| XTAI | 2024-10-31 | tifón Kong-rey: la TWSE suspendió la sesión | Bloomberg 2024-10-30/31 |
+| XTAI | 2026-07-10 | tifón Bavi: la TWSE suspendió la sesión | Bloomberg 2026-07-10; Reuters vía TradingView |
+
+Las sesiones sin cierre verificado siguen siendo **huecos del proveedor**:
+
+| serie | sesión | nota |
+|---|---|---|
+| `^KS11` | 2022-05-09 | sin fuente |
+| `510300.SS` | 2025-10-24 | sin fuente |
+| `510300.SS` | 2026-08-28 | la cosecha se congeló el 2026-08-30 sin esa barra |
+
+**Alcance.** Esta semántica es la de **Score v2, P3 y la futura producción
+v2**. **Score v1 queda intacto** mientras D-47 lo mantenga activo: 2a-code no
+cambia el comportamiento productivo de v1 antes de la activación atómica de
+v2.
+
+### VIX y tendencia (D-49 → D-53)
+
+**VIX.**
+
+> Para cada `analysis_timestamp` se usa la **última observación diaria de
+> `^VIX` presente en los datos** cuya sesión `s` cumple
+> `available_at(s) <= analysis_timestamp`, con
+> `available_at(s) = session_close_at("NYSE", s) + settlement_minutes`.
+
+- **Calendario.** La plaza del VIX se resuelve por símbolo, como en producción
+  (`market_for_symbol("^VIX") = "NYSE"`, calendario XNYS con festivos de
+  EE. UU., cierres anticipados y DST). El universo declara
+  `primary_market: CBOE`, que no tiene sesión en `MARKET_SESSIONS`; la función
+  compartida no lo usa.
+- **Disponibilidad de la barra del proveedor.** La barra diaria del VIX que
+  sirve el proveedor está fechada a la medianoche de Nueva York (`05:00Z` o
+  `04:00Z`, `05-materia-prima-cosecha.txt`), así que `session_date_of("NYSE")`
+  le asigna su sesión. Producción la acepta con la misma regla
+  (`trim_unclosed_bar` en `fetch_market_context`): solo después del cierre
+  XNYS más 20 minutos. Esa es la semántica que se congela.
+- **Sin forward fill ni imputación.** «Última observación presente» significa
+  eso: si el proveedor no tiene la barra de `s`, la última disponible es la
+  anterior que exista. No se rellena ni se imputa nada. En la cosecha no
+  aparece **ningún** hueco del VIX en los `analysis_timestamp` de P3.
+- **Sin `shift(1)` por posición de fila ni alineación por fecha civil.**
+- **Barras en días sin sesión.** Solo cuentan las barras cuya fecha de sesión
+  es una sesión del calendario de su plaza (XNYS para el VIX, XETR para
+  `^STOXX50E`). Las demás se ignoran, como hace `trim_unclosed_bar` con
+  `latest_expected_closed_session`. Ejemplo: la cosecha tiene una barra `^VIX`
+  del 2026-05-25, Memorial Day, con XNYS cerrado; no se usa. Es la única barra
+  de contexto de la cosecha en un día sin sesión.
+
+**Tendencia `^STOXX50E`.** Es la misma regla con la plaza XETRA: el último
+cierre presente cuya sesión cumple `available_at <= analysis_timestamp`. La
+SMA de 200 se calcula **solo** con los cierres presentes hasta esa misma
+sesión.
+
+Dos situaciones distintas, con tratamiento distinto:
+
+- **Hueco puntual de `^STOXX50E` → último cierre causal disponible (D-56).**
+  La sesión exigible por XETR no tiene barra del índice (Ascensión, lunes de
+  Pentecostés, 1 de agosto, 2 de enero…). Se usa el último cierre presente y
+  causalmente disponible antes de `analysis_timestamp`, y la observación
+  **no** se excluye.
+  - Se declara que ese dato puede ser más antiguo que la sesión exigible.
+  - En la población de P3 afecta a **1.406 señales swing y 1.312 de medio**:
+    el cierre usado tiene 1, 3 o 4 días naturales más que el exigible.
+  - Listado en `06-stoxx_hueco_intermedio-{swing,medio}.tsv`, y P3 publica el
+    contador.
+- **Historia inicial insuficiente para la SMA200 → exclusión (D-55,
+  `NO_CALCULABLE_CONTEXT_HISTORY`).** Si en `analysis_timestamp` no hay 200
+  cierres de `^STOXX50E` causalmente disponibles en la cosecha, la
+  observación **se excluye de P3**. No se neutraliza con 2 de 4, porque no es
+  un dato que producción desconociera: es un límite de profundidad de la
+  cosecha.
+  - Afecta a **6.937 señales swing**, las del principio de la cosecha; 176 de
+    ellas también están excluidas por Asia. En medio, 0.
+  - Listado en `06-excluded_trend_sma_history-{swing,medio}.tsv`.
+
+**El defecto del laboratorio, registrado.** `_naive_dates` normaliza las
+fechas en UTC (`event_study._align`, `runner._align`). En la cosecha eso dio:
+- en las barras de EE. UU. (78 %) y de cripto (69 %), una tendencia de una
+  sesión **posterior** a la barra;
+- en Europa y Asia, un VIX de dos sesiones atrás.
+
+A-02 se midió con ese defecto. **Su evidencia no se modifica**: queda como
+resultado publicado con esa limitación. P3 usa el camino corregido.
+
+### R-CTX — una sola función de contexto
+
+> Producción v2, backtest, event study y seguimiento llaman a **la misma
+> función de contexto point-in-time**. Para el mismo `analysis_timestamp`
+> obtienen exactamente el mismo VIX, la misma tendencia y SMA, y el mismo dato
+> asiático.
+
+`seguimiento` usa como `analysis_timestamp` el instante de su propio
+manifiesto, nunca «lo último disponible ahora» calculado aparte.
+
+### `contexto` de Score v2 — composición congelada
+
+| componente | puntos | valor | semántica temporal |
+|---|---|---|---|
+| tendencia | 4 | `^STOXX50E` > SMA 200 → 4; ≤ → 0 | D-53 |
+| VIX | 4 | ≤ 0,6·umbral → 4; < umbral → 2,8; < 1,4·umbral → 1,2; resto → 0 (umbral 25) | D-53 |
+| Asia | 2 | ≥ +0,5 % → 2; (−0,5, +0,5) → 1; (−1,5, −0,5] → 0,5; ≤ −1,5 % → 0 | D-52 |
+| **total** | **10** | | |
+
+- Los tramos son los de v1 (`MarketContext.points`): no se redistribuye nada.
+- No se añade ninguna señal. `^SOX`, `^RUT`, `^TNX`, `DX-Y.NYB`, `CL=F` y
+  `GC=F` son FOLLOW_UP con medición propia.
+- **Datos ausentes en P3:**
+  - SMA200 sin 200 cierres causalmente disponibles: la observación **se
+    excluye** (D-55).
+  - Asia no calculable: la observación **se excluye** (D-52). No puntúa 1,0.
+  - Hueco puntual de `^STOXX50E`: último cierre causal disponible (D-56).
+  - VIX: la cosecha no tiene ningún hueco del VIX en los `analysis_timestamp`
+    de P3.
+
+  La regla v1 de dato ausente (la mitad de los puntos) solo sigue en v1.
 
 ## Score v2 — especificación
 
-Con D-43 (RR fuera) y D-46 (convicción fuera). El contenido del contexto queda
-pendiente de PR-1.
+Con D-43 (RR fuera) y D-46 (convicción fuera). Contexto congelado en 2a-doc
+(D-50 a D-57).
 
 | Dimensión | v1 | v2 | Cambio |
 |---|---|---|---|
@@ -491,7 +638,7 @@ pendiente de PR-1.
 | fundamental | 20 | **20** | ninguno: sigue no disponible y fuera del denominador |
 | técnico | 20 | **20** | ninguno |
 | beneficio/riesgo | 20 | — | **sale** (D-43) |
-| contexto | 10 | **10** | ninguno por ahora (tendencia 4 + VIX 4 + Asia 2). Si PR-1 lleva a excluir el componente asiático, se decide antes de P3 y esta fila se corrige |
+| contexto | 10 | **10** | mismos puntos y tramos (tendencia 4 + VIX 4 + Asia 2). **Cambia la semántica temporal** de los tres (D-50, D-52, D-53; sección «Contexto: paridad y point-in-time») |
 | convicción | 10 | — | **sale** (D-46) |
 
 - **`score_model_version = "2.0"`.** v1 conserva `"1.0"` y su código, porque
@@ -637,9 +784,10 @@ pre-registro cerrado.**
 **Paso 0 — Pre-registro condicionado (PR #26). HECHO el 2026-09-26.** D-45,
 D-46, D-47 y D-49 registradas (D-48 retirada) en `docs/decision-log.md`,
 requisito 2 de GATE P3 corregido en `docs/gates.md` y esta ficha en la rama
-`docs/t019-preregistro-p3`, pendiente de fusionar por PR tras revisión. Fija todo el diseño
-estadístico de P3, **pero no es el SHA que autoriza a ejecutarlo**: PR-1 y la
-semántica point-in-time concreta del VIX siguen abiertas.
+`docs/t019-preregistro-p3`, fusionada después por PR. Fija todo el diseño
+estadístico de P3, **pero no es el SHA que autoriza a ejecutarlo**: en ese
+momento PR-1 y la semántica point-in-time concreta del VIX seguían abiertas.
+Se cerraron en 2a-doc (D-50 a D-57).
 
 **Paso 1 — Contrato de umbrales y persistencia v7, con v1 activo y sin cambio de
 comportamiento. HECHO el 2026-09-29** en `research/a03-score-v2`; evidencia en
@@ -684,7 +832,8 @@ solo los de `horizontes`), porque `abrir` acepta cualquiera.
   - **base nueva:** se crea en v1 y recorre la cadena hasta la vigente en la
     misma apertura (`db.py:227–243`), así que llega directamente a v7;
   - **base de `main`:** v6 → v7, con su backup `pre-v7`;
-  - **la Pi:** sigue en **v5** y no se toca en A-03;
+  - **la Pi:** estaba en **v5** al escribirse la ficha y desde el 2026-09-26
+    está en **v6** (`v0.4.0`); no se toca en A-03;
   - **futuro despliegue que contenga T-018 y P3:** v5 → v6 → v7, cada paso con su
     backup;
   - **rollback de código:** no deshace **ninguna** de las dos migraciones
@@ -693,10 +842,14 @@ solo los de `horizontes`), porque `abrir` acepta cualquiera.
 - Verificación: `backtest --vintage 071ddb2b…` **idéntico byte a byte** al de
   A-02 (866 operaciones; hash normalizado `49b12c85…`), salvo lo que cambie por
   `config_hash`. Informe: solo cambia la etiqueta «no calibrado».
-- **Aviso de esquema:** este paso migra a v7. La Pi sigue en v5 y no se toca.
+- **Aviso de esquema:** este paso migra a v7. La Pi (v6 desde el 2026-09-26)
+  no se toca.
 
 **Paso 2a-doc — Cerrar el contexto point-in-time. Solo documentación, antes de
-tocar código.**
+tocar código. HECHO el 2026-09-29** (D-50 a D-57; evidencia en
+`evidence/2026-09-29-T-019-paso2a-doc-inspeccion/`). Una primera inspección se
+detuvo en OWNER_DECISION_REQUIRED, el propietario decidió y la inspección se
+completó con el censo de la población.
 1. Resolver PR-1 por inspección de la materia prima y de la semántica temporal.
 2. Si exige decisión del propietario, **detenerse y obtenerla**.
 3. Fijar exactamente la regla point-in-time del VIX (D-49).
@@ -707,15 +860,37 @@ tocar código.**
 7. Commit **exclusivamente documental**.
 
 **El SHA de este commit es el pre-registro completo y ejecutable de P3.** Toda
-evidencia de P3 lo cita. **P3 no se puede ejecutar antes.** 2a-doc solo
-completa lo que el paso 0 dejó abierto (PR-1, VIX, `analysis_timestamp`,
-composición de `contexto`); no puede tocar ninguna otra parte del diseño
-estadístico.
+evidencia de P3 lo cita. **P3 no se puede ejecutar antes.** 2a-doc completa lo
+que el paso 0 dejó abierto: PR-1, VIX, `analysis_timestamp` y composición de
+`contexto`. No toca ninguna otra parte del diseño estadístico, **salvo las
+enmiendas explícitas del propietario anteriores al SHA de 2a-doc**, decididas
+el 2026-09-29 sin mirar desenlaces, expectancy ni scores:
+- **D-51:** cripto fuera de la población, por imposibilidad temporal.
+- **D-55:** historia insuficiente para la SMA200 → exclusión. Sustituye a la
+  regla v1 de dato ausente para ese caso.
+- **D-57:** Bonferroni con `m = 20`, que sustituye a `m = 14`.
+
+Ninguna otra parte del diseño cambia.
 
 **Paso 2a-code — Implementar exactamente lo congelado.** (Después del SHA de
 2a-doc.)
-- Implementar la regla del VIX y, si se queda, la del componente asiático, en
-  una sola función.
+- Implementar en **una sola función** de contexto point-in-time la regla de
+  `analysis_timestamp` (D-50) y las de VIX, tendencia y SMA (D-53) y de Asia
+  (D-52). Solo la usa Score v2: v1 no cambia (D-47).
+- Sustituir `_align` y `shift(1)` en el laboratorio y el backtest. Es el
+  defecto de `_naive_dates` registrado en D-53.
+- Añadir a `exchange_overrides.yaml` los cinco cierres aprobados en D-54, con
+  sus fuentes.
+- Excluir de P3, como unión y publicando contador y listado por motivo:
+  - `excluded_crypto` (D-51);
+  - `excluded_asia_missing` (D-52);
+  - `excluded_trend_sma_history`, con el código `NO_CALCULABLE_CONTEXT_HISTORY`
+    (D-55).
+- Controles:
+  - población de 94.094 señales en swing y 89.333 en medio;
+  - sha256 de la lista ordenada «activo, sesión de señal» igual al del censo
+    `06`;
+  - 19 y 5 bloques con señales.
 - Producción, backtest, event study y seguimiento usan la misma semántica
   (R-CTX): `review_positions` construye el contexto con esa función y la misma
   referencia temporal que la pasada.
@@ -770,6 +945,11 @@ pre-registro de P3, en **dos niveles**:
   fijo, salvo lo que el paso 2a-doc tiene que completar: PR-1, la regla del VIX,
   el `analysis_timestamp` histórico y la composición definitiva de `contexto`.
   No autoriza a ejecutar P3.
+- **Enmiendas del propietario al pre-registro condicionado**, anteriores al
+  SHA de 2a-doc y decididas sin mirar desenlaces: **D-51** (cripto fuera de la
+  población), **D-55** (exclusión por historia insuficiente de la SMA200) y
+  **D-57** (Bonferroni `m = 20`). Son las únicas partes del diseño estadístico
+  del paso 0 que cambian en 2a-doc.
 - **SHA del paso 2a-doc = pre-registro completo y ejecutable.** Es el que se
   cita en toda la evidencia de P3; P3 no puede ejecutarse antes.
 
@@ -777,8 +957,10 @@ Cualquier cambio posterior a ese SHA es un estudio nuevo con decisión propia.
 
 **Datos e identidad.**
 - `data_vintage_id = 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841`.
-- Población `vigente`, 93 activos, `universe_vintage_id =
-  237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19`.
+- Universo `vigente` (93 analizables), `universe_vintage_id =
+  237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19`. **La
+  población de P3 son sus 90 activos no cripto** (D-51), en cinco regiones:
+  ASIA 16, EUROPA 30, USA 40, GLOBAL 3 y EMERGING_MARKETS 1.
 - `score_model_version = "2.0"` (y `"1.0"` solo para el antes/después).
 - En la cabecera de cada salida: SHA del paso 2a-doc (pre-registro), SHA del
   código que ejecuta y `config_hash`.
@@ -790,11 +972,37 @@ mismo código y se publica **solo por trazabilidad**, con el veredicto forzado
 «NO CONCLUYENTE — inválido (bloque parcial 102 ≤ 250)», independiente de sus
 números (A-02, D-42). Intradía no tiene laboratorio y no se mide.
 
-**Población de señales.** La de P2.3: todas las barras elegibles, sin
+**Población de señales.** Parte de la de P2.3: todas las barras elegibles, sin
 `classify()`, sin estado de posición, con solapamiento, warmup 120, horizonte
 máximo 40 (swing) / 250 (medio), geometría de la línea 0 (`config.levels`
-vigente), modo administrado. Es la misma población de A-02: 106.363 señales en
-swing.
+vigente), modo administrado. Sobre ella se aplican **tres motivos de
+exclusión**, ninguno por rendimiento. Recuento sin leer desenlaces (censo
+`06` de la evidencia de 2a-doc):
+
+| | swing | medio |
+|---|---|---|
+| población de A-02 (93 activos) | 106.363 | 94.273 |
+| − cripto (D-51, 3 activos) | −5.112 | −4.722 |
+| − Asia no calculable por hueco del proveedor (D-52) | −396 | −218 |
+| − SMA200 sin historia causal suficiente (D-55) | −6.937 | 0 |
+| (solapamiento Asia ∩ SMA200, contado una vez) | +176 | 0 |
+| exclusiones, unión deduplicada | 12.269 | 4.940 |
+| **población de P3 (90 activos)** | **94.094** | **89.333** |
+| bloques con señales | 19 | 5 |
+
+El censo `06` calcula la población de P3 como la unión de los motivos, por
+observación. No resta cifras. Evidencia:
+- **Listados por motivo:** `06-excluded_crypto-*`,
+  `06-excluded_asia_missing-*` y `06-excluded_trend_sma_history-*`, uno por
+  horizonte.
+- **Hash de la población:** sha256 de la lista ordenada «activo, sesión de
+  señal», que 2a-code debe reproducir:
+  - swing: `4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a`
+  - medio: `4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8`
+- **Origen de las exclusiones de Asia:** tres sesiones ausentes sin cierre
+  verificado, `^KS11` 2022-05-09 y `510300.SS` 2025-10-24 y 2026-08-28.
+
+Cualquier diferencia se explica antes de ejecutar P3.
 
 **Coste.** 0,20 % ida y vuelta (`cost_pct = 0.2`), `net_R = gross_R − cost_pct
 / risk_pp` (INV-07).
@@ -809,9 +1017,12 @@ agrupada; tasa `TARGET_FIRST/(TARGET_FIRST+STOP_FIRST)`; `P(objetivo antes de
 stop)` como intervalo [seguros, seguros+ambiguos]; profit factor agrupado; MAE
 de ganadoras y MFE sin objetivo; censura `EXIT_FINAL`; ambigüedad.
 
-**Bloques.** Longitud 60 sesiones en swing (21 bloques; el último de 42) y 300
-en medio (5; el último de 102), sobre la espina de sesiones de A-02. Sin
-cambios.
+**Bloques.** Longitud 60 sesiones en swing y 300 en medio, sobre la espina de
+sesiones de A-02, sin cambios. La espina tiene 22 bloques en swing, el último
+de 42 sesiones, y 5 en medio, el último de 102. Tras las exclusiones de 2a-doc,
+la población de P3 ocupa **19 bloques en swing** (A-02 ocupaba 21: el bloque 1
+lo vacía D-51, porque solo tenía señales cripto, y el 2, D-55) y 5 en medio
+(`07-ocupacion-de-bloques.txt`, con el desglose por motivo).
 
 **Bloque parcial.** La regla de A-02 (`_classify_capacity`, `<=`): un horizonte
 con un bloque **ocupado** de longitud ≤ `MAX_HOLD_BARS` es inválido. En swing el
@@ -832,7 +1043,7 @@ dependa del redondeo en coma flotante (en coma flotante, `0,07 · 100` da
 
 **Bandas v2 — quintiles, fijados sin mirar resultados.** Los cortes son
 `cut(0,20)`, `cut(0,40)`, `cut(0,60)` y `cut(0,80)` de `Score.value` v2 sobre las
-106.363 señales de swing, calculados **solo con la nota** (ningún campo de
+94.094 señales de swing de P3, calculados **solo con la nota** (ningún campo de
 desenlace entra en su cálculo; el revisor lo comprueba). Bandas `v2-Q1` …
 `v2-Q5`: `Q1 = [mín, c20)`, `Q2 = [c20, c40)`, `Q3 = [c40, c60)`,
 `Q4 = [c60, c80)`, `Q5 = [c80, máx]`; una observación exactamente igual a un
@@ -871,12 +1082,12 @@ Los números 12, 25, 0,12 y 0,20 son los de `CapacityThresholds` vigentes, **no*
 se ajustan para P3. En este veredicto «INSUFICIENTE» significa «ordenación
 insuficiente medida con resolución», distinto de la etiqueta de **capacidad**
 `INSUFICIENTE` de A-02; las salidas imprimen los dos con nombres distintos
-(`veredicto_ordenacion` y `capacidad`). Con 21 bloques, SUFICIENTE es
+(`veredicto_ordenacion` y `capacidad`). Con 19 bloques, SUFICIENTE es
 inalcanzable en swing y se dice así en el resultado.
 
 **Se publica siempre, además del veredicto:** el primario con IC95, `n`,
 bloques y `experimental_resolution` por quintil; la tabla **por bloque**
-(21 × 5: media de `net_R` y `n`); los cuatro contrastes adyacentes (Q2−Q1 …
+(19 × 5: media de `net_R` y `n`); los cuatro contrastes adyacentes (Q2−Q1 …
 Q5−Q4) como descriptivos; las secundarias por quintil. La monotonía no entra en
 el veredicto: es descriptiva.
 
@@ -892,11 +1103,22 @@ candidatos efectivos son los **valores distintos, ordenados**.
   IC95, 2.000 remuestreos, semilla `20260830` y `CapacityThresholds` vigentes,
   sin modificar el instrumento de INV-14.
 - **Intervalos de decisión (condiciones 3 y 4 de OPERAR y cota de VIGILAR):
-  familia Bonferroni.** **m = 14**, fijo (5 candidatos × 2 condiciones de
-  OPERAR + 4 de VIGILAR), que se mantiene como cota conservadora pre-registrada
-  aunque haya menos candidatos distintos; nivel `1 − 0,05/14` (≈ 99,64 %),
-  **20.000** remuestreos y la misma semilla, porque 2.000 no estabilizan una
-  cola del 0,18 %. Se implementa con un envoltorio propio de P3 que pasa
+  familia Bonferroni. `m = 20`, fijo (D-57)**, es decir, la familia
+  inferencial completa, definida antes de mirar P3:
+  - **10 contrastes de OPERAR:** para cada uno de los 5 candidatos `c`, la
+    cota inferior del primario de `[c, ∞)` (condición 3) y la del contraste
+    pareado `[c, ∞) − [0, c)` (condición 4);
+  - **10 pares potenciales de VIGILAR:** todas las bandas `[v, operar)` con
+    `v < operar` entre los 5 candidatos, `C(5,2) = 10`, porque antes de medir
+    no se sabe qué candidato será `operar`.
+
+  Nivel `1 − 0,05/20` (= 99,75 %), **20.000** remuestreos y la misma semilla,
+  porque 2.000 no estabilizan una cola del 0,125 %.
+  - **m permanece en 20** aunque varios percentiles colapsen en el mismo score:
+    la selección opera sobre los valores distintos, se informa del colapso, y
+    ni el número de candidatos distintos ni el de pares realmente evaluados
+    cambian m.
+  - La regla mecánica de selección de VIGILAR no cambia. Se implementa con un envoltorio propio de P3 que pasa
   `confidence` y `n_resamples` al bootstrap, sin cambiar los valores por
   defecto del instrumento de INV-14.
 
@@ -939,28 +1161,35 @@ La familia Bonferroni **no sustituye** al instrumento estándar de capacidad.
 **Multiplicidad.** Se cuentan y publican todas las comparaciones. Swing, con la
 lista vigente:
 - confirmatoria: **1** (Δ Q5−Q1, IC95);
-- familia de umbrales: **14**, corregida por Bonferroni;
+- familia inferencial de umbrales: **20** (10 de OPERAR + 10 pares potenciales
+  de VIGILAR), corregida por Bonferroni (D-57);
 - descriptivas, sin corrección y **sin** valor inferencial por separado:
   - quintiles: 5;
   - adyacentes: 4;
   - regiones, primario + Δ: 5 × 2 = 10;
-  - activos, primario + Δ: 93 × 2 = 186;
+  - activos, primario + Δ: 90 × 2 = 180;
   - intra-activo agregado: 1;
-  - intra-activo por activo: 93;
+  - intra-activo por activo: 90;
   - 3 ablaciones × (5 quintiles + 1 Δ): 18;
 
-  total descriptivas = **317**;
-- **total swing = 1 + 14 + 317 = 332**.
+  total descriptivas = **308**;
+- **total swing = 1 + 20 + 308 = 329**.
 
-**Medio** no ejecuta la familia de 14 umbrales, porque D-45 prohíbe intentar
+Antes de 2a-doc eran 317 descriptivas, 332 en swing y 318 en medio. Las
+descriptivas cambian solo por los activos, de 93 a 90 (D-51), y la familia de
+umbrales pasa de 14 a 20 (D-57). El censo confirma que las cinco regiones y los
+90 activos siguen presentes en los dos horizontes tras todas las exclusiones.
+
+**Medio** no ejecuta la familia de 20 umbrales, porque D-45 prohíbe intentar
 calibrarlo; se cuenta por separado todo lo que realmente se calcule por
-trazabilidad (con la misma lista, 1 + 317 = 318 si las cinco regiones y los 93
-activos producen señales en medio).
+trazabilidad (con la misma lista, 1 + 308 = **309**: el censo confirma que las
+cinco regiones y los 90 activos producen señales en medio). Total =
+329 + 309 = **638**.
 
 Se publican **tres contadores calculados por el código**:
 `comparaciones_swing`, `comparaciones_medio_trazabilidad` y
 `comparaciones_totales`. Ningún total se codifica como verdad: el test los
-deriva de las salidas previstas y falla si divergen. Las cifras 332 y 318 de
+deriva de las salidas previstas y falla si divergen. Las cifras 329 y 309 de
 arriba son la aritmética de la lista vigente, no un valor que el código deba
 reproducir a la fuerza; cualquier diferencia se explica antes de publicar.
 
@@ -990,7 +1219,7 @@ Cualquiera de esas cosas es un estudio nuevo, con decisión propia y
   (o un Score v3).
 
 ### P3 — sesgo de universo
-- Primario y Δ Q5−Q1 **global**, **por región** (5) y **por activo** (93).
+- Primario y Δ Q5−Q1 **global**, **por región** (5) y **por activo** (90).
 - **Ordenación dentro de cada activo por bloques temporales** (roadmap,
   «Universo»): para cada activo y bloque, `media net_R(Q4∪Q5) − media
   net_R(Q1∪Q2)` con los quintiles globales; primario intra-activo = media por
@@ -1015,13 +1244,13 @@ Cualquiera de esas cosas es un estudio nuevo, con decisión propia y
 - `min_rr_ratio`, `compute_levels*`, `entry_max_rr`, `RR_TOO_LOW`,
   `evaluate_trade_at_entry` y la geometría (`config.levels`).
 - Los componentes y tramos de catalizador, técnico y contexto, salvo lo que
-  decida el propietario al responder PR-1 y la alineación que fije D-49.
+  fijaron D-52 (Asia) y D-53 (VIX y tendencia).
 - `advisor/`, `tests/` y `config.yaml` **mientras el propietario no autorice
   empezar la implementación**.
 - El estimador, los bloques, la semilla, `CapacityThresholds`, la cosecha y
   `universe.yaml`.
 - La evidencia de A-02.
-- La Pi y su esquema (v5).
+- La Pi y su esquema (v6 desde el 2026-09-26).
 
 ## Tests unitarios
 Números cerrados, calculados a mano en el propio test.
@@ -1087,14 +1316,63 @@ Tests:
   fusionar bandas; se publican los percentiles, sus valores, el número de
   distintos y el `n` por banda.
 - `test_candidatos_p50_igual_p60`: se evalúa un solo candidato para los dos, se
-  publica el colapso y m sigue siendo 14.
+  publica el colapso y m sigue siendo 20.
 - `test_candidatos_varios_percentiles_mismo_valor`: p60 = p70 = p80 → tres
   candidatos distintos en total; la meseta opera sobre ellos.
 - `test_vigilar_con_candidatos_repetidos`: el recorrido de VIGILAR usa los
   valores distintos, no los percentiles.
 - `test_intervalos_capacidad_estandar_y_bonferroni_separados`: la condición 2
-  usa IC95 con 2.000 remuestreos; las 3 y 4, nivel `1 − 0,05/14` con 20.000;
+  usa IC95 con 2.000 remuestreos; las 3 y 4 y la cota de VIGILAR, nivel
+  `1 − 0,05/20` con 20.000;
   los valores por defecto del instrumento de INV-14 no cambian.
+- `test_familia_bonferroni_m20`:
+  - la familia enumera exactamente 20 intervalos: 5 candidatos × (primario
+    `[c, ∞)` + contraste `[c, ∞) − [0, c)`) y los 10 pares `[v, operar)` con
+    `v < operar` entre los 5 candidatos;
+  - `confidence = 1 − 0,05/20`, 20.000 remuestreos, semilla `20260830`;
+  - con p50 = p60 = p70 (colapso), m sigue siendo 20 y se publica el colapso.
+- `test_exclusiones_p3_union_sin_doble_conteo`:
+  - una observación con Asia no calculable **y** SMA200 sin historia cuenta
+    una vez en la unión y aparece en los dos listados;
+  - cripto se excluye antes de calcular `analysis_timestamp`.
+- `test_sma200_sin_historia_excluye`: con 199 cierres de `^STOXX50E`
+  causalmente disponibles, la observación queda
+  `NO_CALCULABLE_CONTEXT_HISTORY` y se excluye; con 200, no.
+- `test_hueco_stoxx_usa_ultimo_cierre_causal`:
+  - si falta la barra de la sesión exigible, se usa el último cierre presente
+    con `available_at <= analysis_timestamp`, la observación no se excluye y
+    se publica su antigüedad;
+  - nunca se usa un cierre posterior a `analysis_timestamp`.
+- `test_analysis_timestamp_por_plaza` (D-50). Casos calculados en 2a-doc con
+  los calendarios del repo, `settlement_minutes = 20` y el timer de Londres:
+
+  | plaza | `d` | `d+1` | `analysis_timestamp` | qué cubre |
+  |---|---|---|---|---|
+  | XETRA | 2026-08-26 | 2026-08-27 | 2026-08-27 07:00 BST (06:00Z) | caso normal en verano |
+  | XETRA | 2025-03-12 | 2025-03-13 | 2025-03-13 07:00 GMT (07:00Z) | invierno |
+  | NYSE | 2026-08-26 | 2026-08-27 | 2026-08-27 08:30 BST (07:30Z) | 14:30 BST coincide con la apertura y no cuenta |
+  | NYSE | 2025-03-12 | 2025-03-13 | 2025-03-13 08:30 GMT (08:30Z) | desfase de DST EE. UU./Reino Unido |
+  | NYSE | 2025-10-29 | 2025-10-30 | 2025-10-30 08:30 GMT (08:30Z) | desfase de DST de otoño |
+  | JPX | 2026-08-26 | 2026-08-27 | 2026-08-26 21:00 BST (20:00Z) | caso normal: pasada del día `d` |
+  | JPX | 2022-04-28 | 2022-05-02 | 2022-04-29 21:00 BST (20:00Z) | festivo de la plaza entre `d` y `d+1` |
+  | HKG | 2022-04-14 | 2022-04-19 | 2022-04-18 21:00 BST (20:00Z) | Semana Santa en Hong Kong |
+- `test_vix_tendencia_point_in_time` (D-53). Sesión de VIX (XNYS) y de
+  `^STOXX50E` (XETR) disponible en cada `analysis_timestamp` de la tabla
+  anterior:
+  - XETRA 2026-08-26 → VIX 2026-08-26 y STOXX 2026-08-26;
+  - XETRA 2025-03-12 → VIX 2025-03-12 y STOXX 2025-03-12;
+  - NYSE 2026-08-26 → VIX 2026-08-26 y STOXX 2026-08-26, **no** 2026-08-27
+    (el look-ahead de `_naive_dates`);
+  - NYSE 2025-03-12 → VIX 2025-03-12 y STOXX 2025-03-12;
+  - NYSE 2025-10-29 → VIX 2025-10-29 y STOXX 2025-10-29;
+  - JPX 2026-08-26 → VIX **2026-08-25**, porque el 26 no estaba disponible a
+    las 20:00Z, y STOXX 2026-08-26;
+  - JPX 2022-04-28 → VIX 2022-04-28 y STOXX 2022-04-29;
+  - HKG 2022-04-14 → VIX 2022-04-14 y STOXX 2022-04-14, por el Viernes Santo
+    y el Lunes de Pascua cerrados.
+
+  Además, los cuatro caminos (producción v2, backtest, event study y
+  seguimiento) devuelven esos mismos valores para esos instantes.
 - `test_intra_activo_excluye_pares_incompletos`: activo-bloque sin Q1∪Q2 se
   excluye (no cuenta como 0) y se publica; bloque sin activos calculables sale
   del bootstrap; por debajo del mínimo aplicable según
@@ -1102,7 +1380,7 @@ Tests:
 - `test_contadores_de_comparaciones_derivados`: los tres contadores se derivan
   de las salidas previstas; medio no incluye la familia de umbrales.
 - `test_veredicto_ordenacion_tabla`: cuatro casos sintéticos con bloques de
-  tamaños distintos, uno por fila de la tabla del veredicto, incluido 21 bloques
+  tamaños distintos, uno por fila de la tabla del veredicto, incluido 19 bloques
   con anchura 0,10 → LIMITADA (no SUFICIENTE).
 - `test_regla_de_umbral_meseta`: candidatos que cumplen {p60, p80, p90} pero no
   p70 → operar = p80, no p60.
@@ -1126,7 +1404,7 @@ Tests:
 - **Equivalencia v2 ↔ ablación:** en los mismos tres activos, `Score.value` v2
   == `100·(points − rr − conviccion)/(evaluable_max − 20 − 10)` reconstruido
   desde las `DimensionObservation` v1 (P2.2), con `assert_allclose` estrecho.
-  Si PR-1 o D-49 cambian el contexto, la reconstrucción parte de observaciones
+  Como D-52 y D-53 cambian el contexto, la reconstrucción parte de observaciones
   v1 recalculadas con el contexto nuevo, y el test lo refleja.
 - **Recomendación persistida:** una pasada con versión activa X deja
   `analysis_run.score_model_version = X` y un `scoring_contract_json` con esa

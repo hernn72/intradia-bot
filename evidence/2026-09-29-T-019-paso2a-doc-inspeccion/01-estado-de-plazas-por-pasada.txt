@@ -1,0 +1,89 @@
+settlement_minutes = 20
+context_assets_of(universe) region ASIA -> ['510300.SS', '^HSI', '^KS11', '^N225', '^TWII']
+mercado por serie: {'510300.SS': 'SHH', '^HSI': 'HKG', '^KS11': 'KSC', '^N225': 'JPX', '^TWII': 'TAI', '^VIX': 'NYSE', '^STOXX50E': 'XETRA'}
+vix_symbol = ^VIX | trend_symbol = ^STOXX50E
+
+=== 2026-09-29 (BST, UTC+1) ===
+-- pasada 07:00 Londres = 06:00 UTC
+   510300.SS  SHH    estado=OPEN      ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 07:00Z
+   ^HSI       HKG    estado=OPEN      ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 08:00Z
+   ^KS11      KSC    estado=OPEN      ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 06:30Z
+   ^N225      JPX    estado=OPEN      ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 06:30Z
+   ^TWII      TAI    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 05:30Z
+   ^VIX       NYSE   estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 20:00Z
+   ^STOXX50E  XETRA  estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 15:30Z
+-- pasada 08:30 Londres = 07:30 UTC
+   510300.SS  SHH    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 07:00Z
+   ^HSI       HKG    estado=OPEN      ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 08:00Z
+   ^KS11      KSC    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 06:30Z
+   ^N225      JPX    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 06:30Z
+   ^TWII      TAI    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 05:30Z
+   ^VIX       NYSE   estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 20:00Z
+   ^STOXX50E  XETRA  estado=OPEN      ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 15:30Z
+-- pasada 14:30 Londres = 13:30 UTC
+   510300.SS  SHH    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 07:00Z
+   ^HSI       HKG    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 08:00Z
+   ^KS11      KSC    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 06:30Z
+   ^N225      JPX    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 06:30Z
+   ^TWII      TAI    estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 05:30Z
+   ^VIX       NYSE   estado=OPEN      ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 20:00Z
+   ^STOXX50E  XETRA  estado=OPEN      ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 15:30Z
+-- pasada 21:00 Londres = 20:00 UTC
+   510300.SS  SHH    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 07:00Z
+   ^HSI       HKG    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 08:00Z
+   ^KS11      KSC    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 06:30Z
+   ^N225      JPX    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 06:30Z
+   ^TWII      TAI    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 05:30Z
+   ^VIX       NYSE   estado=OPEN      ultima_cerrada_exigible=2026-09-28 cierre=2026-09-28 20:00Z
+   ^STOXX50E  XETRA  estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 15:30Z
+-- pasada 22:30 Londres = 21:30 UTC
+   510300.SS  SHH    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 07:00Z
+   ^HSI       HKG    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 08:00Z
+   ^KS11      KSC    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 06:30Z
+   ^N225      JPX    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 06:30Z
+   ^TWII      TAI    estado=PRE_OPEN  ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 05:30Z
+   ^VIX       NYSE   estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 20:00Z
+   ^STOXX50E  XETRA  estado=CLOSED    ultima_cerrada_exigible=2026-09-29 cierre=2026-09-29 15:30Z
+
+=== 2026-01-13 (GMT, UTC+0) ===
+-- pasada 07:00 Londres = 07:00 UTC
+   510300.SS  SHH    estado=OPEN      ultima_cerrada_exigible=2026-01-12 cierre=2026-01-12 07:00Z
+   ^HSI       HKG    estado=OPEN      ultima_cerrada_exigible=2026-01-12 cierre=2026-01-12 08:00Z
+   ^KS11      KSC    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^N225      JPX    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^TWII      TAI    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 05:30Z
+   ^VIX       NYSE   estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-12 cierre=2026-01-12 21:00Z
+   ^STOXX50E  XETRA  estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-12 cierre=2026-01-12 16:30Z
+-- pasada 08:30 Londres = 08:30 UTC
+   510300.SS  SHH    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 07:00Z
+   ^HSI       HKG    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 08:00Z
+   ^KS11      KSC    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^N225      JPX    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^TWII      TAI    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 05:30Z
+   ^VIX       NYSE   estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-12 cierre=2026-01-12 21:00Z
+   ^STOXX50E  XETRA  estado=OPEN      ultima_cerrada_exigible=2026-01-12 cierre=2026-01-12 16:30Z
+-- pasada 14:30 Londres = 14:30 UTC
+   510300.SS  SHH    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 07:00Z
+   ^HSI       HKG    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 08:00Z
+   ^KS11      KSC    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^N225      JPX    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^TWII      TAI    estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 05:30Z
+   ^VIX       NYSE   estado=OPEN      ultima_cerrada_exigible=2026-01-12 cierre=2026-01-12 21:00Z
+   ^STOXX50E  XETRA  estado=OPEN      ultima_cerrada_exigible=2026-01-12 cierre=2026-01-12 16:30Z
+-- pasada 21:00 Londres = 21:00 UTC
+   510300.SS  SHH    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 07:00Z
+   ^HSI       HKG    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 08:00Z
+   ^KS11      KSC    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^N225      JPX    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^TWII      TAI    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 05:30Z
+   ^VIX       NYSE   estado=OPEN      ultima_cerrada_exigible=2026-01-12 cierre=2026-01-12 21:00Z
+   ^STOXX50E  XETRA  estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 16:30Z
+-- pasada 22:30 Londres = 22:30 UTC
+   510300.SS  SHH    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 07:00Z
+   ^HSI       HKG    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 08:00Z
+   ^KS11      KSC    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^N225      JPX    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 06:30Z
+   ^TWII      TAI    estado=PRE_OPEN  ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 05:30Z
+   ^VIX       NYSE   estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 21:00Z
+   ^STOXX50E  XETRA  estado=CLOSED    ultima_cerrada_exigible=2026-01-13 cierre=2026-01-13 16:30Z
+

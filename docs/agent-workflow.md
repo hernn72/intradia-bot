@@ -9,7 +9,7 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-29 (T-019 paso 1 hecho en `research/a03-score-v2`: contrato de umbrales y esquema v7; la Pi sigue en `v0.4.0`, esquema v6)
+# START HERE — actualizado 2026-09-29 (T-019 2a-doc cerrado: pre-registro completo y ejecutable de P3; siguiente 2a-code; la Pi sigue en `v0.4.0`, esquema v6)
 
 ## Dónde está todo
 
@@ -36,21 +36,37 @@ abre la base**, así que no migra ni usa la caché. El procedimiento corregido
 pasada: la primera con caché midió 16 sesiones exigibles nunca observadas en 16
 ETF de XETRA.
 
-## Lo primero: T-019 paso 2a-doc (A-03 / P3)
+## Lo primero: T-019 paso 2a-code (A-03 / P3)
 
-**El paso 1 de T-019 está hecho** (2026-09-29) en la rama
-`research/a03-score-v2`: contrato de umbrales por horizonte (v1 70/60
-`calibrated: false`), `analysis_run.scoring_contract_json`,
-`position_review.run_id` y la **migración v7**, sin cambio de comportamiento:
-el backtest de la cosecha sale idéntico byte a byte al de A-02. Evidencia en
-`evidence/2026-09-29-T-019-paso1-contrato-umbrales-v7/`. **Ojo: `main` con este
-paso migra a v7**, y un despliegue desde `v0.4.0` hará v6 → v7 con su backup
-`pre-v7`; el rollback de código no la deshace (D-32).
+**2a-doc está cerrado (2026-09-29).** Su commit es el **pre-registro completo y
+ejecutable de P3**, y toda la evidencia de P3 lo cita. La primera inspección
+paró en OWNER_DECISION_REQUIRED y el propietario resolvió **D-50 a D-57**:
+- `analysis_timestamp` es la última pasada programada, en hora de Londres,
+  estrictamente anterior a la apertura de entrada.
+- Cripto queda fuera de P3.
+- Asia se calcula con sesiones cerradas, con las cinco series y sin imputar.
+- VIX y tendencia son point-in-time, con una sola función de contexto.
+- Cinco cierres reales de plaza cuentan como festivos.
+- Si falta historia para la SMA200, la observación se excluye.
+- Un hueco puntual de `^STOXX50E` usa el último cierre causal.
+- La familia Bonferroni tiene `m = 20`.
 
-Lo siguiente es **2a-doc**: cerrar el componente asiático (PR-1) y la regla
-point-in-time del VIX, solo documentación y **deteniéndose si exige decisión
-del propietario**. Después 2a-code, antes de Score v2 y de P3. El orden completo
-está en la ficha.
+Población de P3: **90 activos, 94.094 señales swing en 19 bloques y 89.333 de
+medio en 5 bloques**. Hay 329 comparaciones en swing y 309 en medio. Evidencia
+en `evidence/2026-09-29-T-019-paso2a-doc-inspeccion/`.
+
+**2a-code** implementa exactamente lo congelado:
+- una sola función de contexto point-in-time, solo para v2 (v1 no cambia,
+  D-47);
+- sustituir `_align` y `shift(1)`, que tienen look-ahead de tendencia en
+  EE. UU.;
+- añadir los cinco cierres de D-54 a `exchange_overrides.yaml`;
+- las tres exclusiones como unión, con listados por motivo.
+
+Los controles son las poblaciones de 94.094 y 89.333 y sus sha256 del censo
+`06`. Después viene la revisión previa de look-ahead, y **solo entonces** P3.
+**P3 no se ejecuta antes.** El paso 1 (PR #28, `db51d67`) migra a v7; la Pi
+sigue en v6.
 
 ## T-018 (C-09), ya en producción
 
@@ -254,7 +270,8 @@ ejecutó de verdad (restaurar backup → `v0.1.0` → pasada real → volver a
 3b. **A-03 (P3, score v2)** → **ficha T-019 con pre-registro condicionado en
    `main`** (PR #26; D-45, D-46, D-47 y D-49). **Paso 1 hecho** el 2026-09-29
    (contrato de umbrales y persistencia v7, sin cambio de comportamiento).
-   Siguiente: **paso 2a-doc**.
+   **2a-doc cerrado** el 2026-09-29 (D-50 a D-57: pre-registro ejecutable de
+   P3). Siguiente: **2a-code**.
 3c. ~~**T-018 (C-09)** caché de barras validadas~~ **ACEPTADA** el 2026-09-25 (PR
    #24 fusionado) y **DESPLEGADA** el 2026-09-26 como `v0.4.0`, esquema v6. Le
    queda **OD-02 bis**, que se decide con semanas de datos y acumula desde ese

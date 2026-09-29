@@ -1,0 +1,23 @@
+Pasadas reales de produccion (copia de solo lectura de la base de la Pi tomada el 2026-09-29, esquema v6; consulta sobre la copia, no sobre la Pi).
+Timers: deploy/systemd/intradia-bot.timer = Mon..Fri 07:00, 08:30, 14:30, 21:00 hora local de la Pi; intradia-bot-event.timer = 22:30 (autodescartable).
+La Pi usa Europe/London: systemctl list-timers mostro 'Tue 2026-09-29 14:30:00 BST'.
+
+command | HH:MM UTC | pasadas | primera | ultima
+analizar|06:00|11|2026-09-15|2026-09-29
+analizar|07:30|11|2026-09-15|2026-09-29
+analizar|08:22|1|2026-09-16|2026-09-16
+analizar|08:29|1|2026-09-17|2026-09-17
+analizar|09:36|1|2026-09-14|2026-09-14
+analizar|11:26|1|2026-09-18|2026-09-18
+analizar|11:31|1|2026-09-17|2026-09-17
+analizar|12:02|1|2026-09-17|2026-09-17
+analizar|12:06|1|2026-09-17|2026-09-17
+analizar|12:51|1|2026-09-17|2026-09-17
+analizar|13:30|11|2026-09-14|2026-09-28
+analizar|14:37|1|2026-09-18|2026-09-18
+analizar|16:08|1|2026-09-20|2026-09-20
+analizar|17:39|1|2026-09-26|2026-09-26
+analizar|20:00|11|2026-09-14|2026-09-28
+
+Pasadas pasada-evento persistidas:
+0

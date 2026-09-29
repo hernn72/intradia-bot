@@ -778,6 +778,228 @@ plausibles** y ningún contrato previo decide entre ellas, **se eleva al
 propietario antes de ejecutar el laboratorio**; ni el implementador ni el
 revisor eligen.
 
+**Completada el 2026-09-29 por D-53**, con la regla concreta.
+
+### D-50 — 2026-09-29 — `analysis_timestamp` de una señal histórica: la última pasada programada antes de la apertura de entrada (T-A)
+Decisión del propietario tras la parada OWNER_DECISION_REQUIRED de T-019 2a-doc.
+
+**Hallazgo que la motiva.** Producción genera la señal swing **cuatro veces**
+por día laborable (07:00, 08:30, 14:30 y 21:00, hora de Londres), y ningún
+contrato decía cuál de esas pasadas representa una señal histórica. Había dos
+lecturas plausibles:
+- **T-A:** la última pasada anterior a la apertura de entrada.
+- **T-B:** la primera pasada posterior a que la barra esté disponible.
+
+Las dos dan un VIX y un dato asiático distintos a la misma señal. Evidencia en
+`evidence/2026-09-29-T-019-paso2a-doc-inspeccion/`.
+
+**Qué se decide (T-A).**
+
+> `analysis_timestamp` = la última pasada programada de producción
+> estrictamente anterior a la apertura de la sesión de entrada `d+1`, siempre
+> que la barra de señal `d` ya estuviera cerrada y disponible después de
+> `settlement_minutes`.
+
+Finalidad: reproducir el último estado real que el bot podía observar antes de
+la apertura que el laboratorio usa como entrada.
+
+**Cómo se resuelve**, derivado del contrato existente:
+- Calendario y zona de la plaza (`exchange_calendars` +
+  `exchange_overrides.yaml`), con DST histórico, festivos y cierres especiales.
+- `settlement_minutes` = 20.
+- Pasadas programadas: las del **único horario registrado**,
+  `deploy/systemd/intradia-bot.timer` (commit `1f31d2d`), lunes a viernes en
+  hora Europe/London.
+- La pasada por evento de las 22:30 no cuenta: es condicional y no se puede
+  reconstruir.
+
+La fórmula y la tabla por plaza están en T-019, sección «Contexto: paridad y
+point-in-time».
+
+### D-51 — 2026-09-29 — Cripto fuera de la población de P3: enmienda del pre-registro condicionado
+Decisión del propietario.
+
+**Hallazgo.** En las plazas 24/7, el cierre de la barra diaria `d` (00:00 UTC)
+coincide con la apertura de `d+1`. No existe ninguna pasada real entre los dos
+instantes, así que la regla de D-50 no tiene solución, y no se inventa un
+`analysis_timestamp` que producción nunca ejecutó.
+
+**Qué se decide.**
+- Los activos cripto (`BTC-EUR`, `ETH-EUR` y `SOL-EUR`) quedan **fuera de la
+  población confirmatoria de P3 y de su trazabilidad de medio**, mientras se
+  mantenga la semántica diaria «señal al cierre → entrada en la apertura
+  siguiente».
+- **No** salen del universo ni de producción.
+- Es una enmienda explícita del pre-registro condicionado (PR #26), anterior
+  al SHA de 2a-doc y motivada **solo** por una imposibilidad causal o
+  temporal detectada antes de mirar P3. No es una selección por rendimiento.
+
+**Consecuencias recalculadas** sin leer desenlaces:
+- De 93 a **90 activos**.
+- Señales swing: de 106.363 a 101.251 antes de D-52.
+- Señales medio: de 94.273 a 89.551 antes de D-52.
+- Comparaciones: de 332/318 a 323/309 por los activos. D-57 las lleva después
+  a 329/309.
+- Los bloques no cambian, porque la espina ya excluía cripto.
+
+### D-52 — 2026-09-29 — PR-1 respondida: Asia point-in-time con sesiones cerradas, las cinco series y sin imputar
+Decisión del propietario (opción 2 de la parada de 2a-doc).
+
+**Hallazgo.** El dato asiático de producción es intradía en las pasadas de la
+mañana: `fetch_overview` no recorta la barra abierta. La cosecha solo tiene
+cierres diarios, así que PR-1 era el caso B con cualquier
+`analysis_timestamp`.
+
+**Qué se decide.**
+- **Composición.** Se conservan las cinco series: `^N225`, `^HSI`, `^KS11`,
+  `^TWII` y `510300.SS`.
+- **Cálculo**, para cada serie y cada `analysis_timestamp`:
+  1. con su propio calendario, la última sesión cerrada y con
+     `settlement_minutes` superado;
+  2. su cierre, y el de la sesión cerrada inmediatamente anterior de esa serie;
+  3. la variación porcentual entre los dos.
+
+  `asia_session_change` es la media simple de las cinco variaciones. Nunca se
+  usan barras intradía.
+- **Un festivo o un cierre de plaza**, aunque dure varios días, **no es un
+  dato ausente**.
+- **Un hueco del proveedor** es una sesión que el calendario exige y que no
+  tiene barra. Ante un hueco no hay forward fill, ni proxy, ni imputación, ni
+  cálculo con cuatro series. La observación de P3 es **no calculable por input
+  de contexto ausente**: se excluye y se publican su contador y su motivo. La
+  composición nunca pasa de cinco a cuatro series.
+- **Alcance.** Es la semántica de Score v2, de P3 y de la futura producción
+  v2. **Score v1 queda intacto** mientras D-47 lo mantenga activo.
+
+**Aplicación en 2a-doc.**
+- Cinco sesiones que `exchange_calendars` da como abiertas fueron cierres
+  reales verificados con fuente, **aprobados como festivos por el propietario
+  en D-54**: tifón y lluvia negra en XHKG el 2023-09-01 y
+  el 2023-09-08; en XTAI, el día sin negociación del 2023-01-18 (calendario
+  oficial de la TWSE) y los tifones del 2024-10-31 y el 2026-07-10. Por esta decisión
+  son festivos. 2a-code los añade a `exchange_overrides.yaml` antes de P3, y
+  la población se congela con ellos.
+- Sin fuente quedan tres sesiones, que siguen siendo huecos del proveedor:
+  `^KS11` 2022-05-09, `510300.SS` 2025-10-24 y `510300.SS` 2026-08-28.
+- Exclusiones: **396 señales swing y 218 de medio**, listadas en
+  `06-excluded_asia_missing-*.tsv`.
+
+### D-53 — 2026-09-29 — Regla point-in-time del VIX (completa D-49) y de la tendencia, y una sola función de contexto
+Decisión del propietario. Completa D-49 con la regla concreta.
+
+**VIX.**
+- Para cada `analysis_timestamp` se usa la última observación diaria de `^VIX`
+  cuya sesión `s` esté cerrada y cumpla `available_at(s) <= analysis_timestamp`.
+- `available_at(s) = session_close_at("NYSE", s) + settlement_minutes`, con
+  el calendario XNYS: zona, DST, festivos de EE. UU. y cierres anticipados.
+- Es la misma semántica con la que producción acepta la **barra diaria del
+  proveedor** (`trim_unclosed_bar` en `fetch_market_context`).
+- No hay `shift(1)` por posición de fila ni alineación por fecha civil.
+
+**Tendencia.**
+- El último cierre de `^STOXX50E` disponible en `analysis_timestamp`, con la
+  misma regla sobre XETRA.
+- La SMA de 200 se calcula solo con observaciones que ya estaban disponibles
+  en ese instante.
+- Solo cuentan barras cuya fecha de sesión es sesión del calendario de su plaza
+  (XNYS o XETR); las demás se ignoran, como `trim_unclosed_bar`.
+- **Dato ausente de tendencia en P3:** si la SMA no tiene 200 cierres
+  causalmente disponibles, la observación se excluye (**D-55**). Un hueco
+  puntual de `^STOXX50E` usa el último cierre causal disponible (**D-56**).
+
+**R-CTX.** Seguimiento, producción v2, backtest y event study llaman a la
+**misma función** de contexto point-in-time. Para el mismo `analysis_timestamp`
+obtienen el mismo VIX, la misma tendencia y SMA y el mismo dato asiático.
+
+**Contexto de Score v2, congelado.**
+- Tendencia 4, VIX 4 y Asia 2: total 10, con los tramos de v1.
+- No se redistribuye nada.
+- No se añade ninguna señal nueva: ni `^SOX`, ni `^RUT`, ni `^TNX`, ni
+  `DX-Y.NYB`, ni `CL=F`, ni `GC=F`.
+
+**Defecto registrado.** `_naive_dates` (`event_study._align`, `runner._align`)
+normaliza las fechas en UTC. En la cosecha eso dio:
+- en el 78 % de las barras de EE. UU. y el 69 % de las de cripto, una
+  tendencia de una sesión posterior a la barra (look-ahead);
+- en Europa y Asia, un VIX de dos sesiones atrás.
+
+**A-02 se midió con ese defecto y su evidencia no se modifica**: queda
+publicada con esa limitación. P3 usa el camino corregido, que implementa
+2a-code.
+
+### D-54 — 2026-09-29 — Cinco cierres extraordinarios son cierres reales de plaza, no huecos del proveedor
+Decisión del propietario, antes de P3.
+
+**Qué se decide.** Estas sesiones se tratan como cierres reales o festivos a
+efectos de D-52:
+- XHKG: 2023-09-01 y 2023-09-08;
+- XTAI: 2023-01-18, 2024-10-31 y 2026-07-10.
+
+`exchange_calendars` las da como abiertas y la cosecha no tiene barra en ellas.
+Las fuentes están en T-019 y en la evidencia de 2a-doc. **2a-code las
+incorpora a `exchange_overrides.yaml`**, con sus fuentes, antes de P3.
+
+### D-55 — 2026-09-29 — Historia insuficiente para la SMA200: la observación se excluye de P3 (`NO_CALCULABLE_CONTEXT_HISTORY`)
+Decisión del propietario, antes de P3. **Es una enmienda del pre-registro
+condicionado anterior al SHA de 2a-doc**, decidida sin mirar desenlaces.
+**Sustituye** la propuesta de 2a-doc de aplicar a esas observaciones la regla v1
+de dato ausente (2 de 4).
+
+**Qué se decide.** Si la cosecha no permite reconstruir causalmente, en
+`analysis_timestamp`, los 200 cierres de `^STOXX50E` que necesita la SMA, la
+observación **se excluye de P3**, con el código conceptual
+`NO_CALCULABLE_CONTEXT_HISTORY`, y se publican su contador y su listado.
+
+**Motivo.** No es un dato que producción desconociera: es un límite de
+profundidad histórica de la cosecha. No se neutraliza.
+
+**Consecuencias medidas por el censo 06, sin leer desenlaces:**
+- 6.937 señales swing excluidas, 176 de ellas también excluidas por Asia; 0 de
+  medio.
+- La población de P3 en swing ocupa **19 bloques con señales**, frente a los
+  21 de A-02. El bloque 2 de la espina lo vacía esta decisión. El bloque 1 ya
+  lo había vaciado D-51, porque solo tenía señales cripto
+  (`07-ocupacion-de-bloques.txt`, con el desglose por motivo).
+
+### D-56 — 2026-09-29 — Hueco puntual de `^STOXX50E`: último cierre presente y causalmente disponible, sin excluir
+Decisión del propietario, antes de P3. Confirma la lectura de D-53.
+
+**Qué se decide.** Si falta la barra de la sesión exigible de `^STOXX50E`, se
+usa el **último cierre presente y causalmente disponible** antes de
+`analysis_timestamp`, y la observación **no** se excluye.
+- Se declara que ese dato puede ser más antiguo que la sesión exigible.
+- Se publica el contador: 1.406 señales swing y 1.312 de medio en la
+  población de P3, con una antigüedad de 1, 3 o 4 días naturales.
+
+**Distinción con D-55:**
+- un hueco intermedio usa la última observación causal disponible;
+- la historia inicial insuficiente para la SMA200 excluye la observación.
+
+### D-57 — 2026-09-29 — Familia Bonferroni de P3: `m = 20` fijo
+Decisión del propietario, antes de P3. **Es una enmienda del pre-registro
+condicionado anterior al SHA de 2a-doc**, decidida sin mirar desenlaces.
+**Sustituye `m = 14`**.
+
+**Qué se decide.** La familia inferencial completa, definida antes de mirar P3,
+tiene **20** intervalos:
+- **10 de OPERAR:** 5 candidatos × 2 contrastes (el primario de `[c, ∞)` y el
+  contraste pareado `[c, ∞) − [0, c)`);
+- **10 de VIGILAR:** todos los pares posibles `[v, operar)` entre los cinco
+  candidatos, `C(5,2) = 10`.
+
+**Parámetros:**
+- `confidence = 1 − 0,05/20`, con 20.000 remuestreos y la semilla `20260830`.
+- La capacidad sigue aparte, con el instrumento estándar P2.5: IC95 y 2.000
+  remuestreos.
+- Si varios percentiles colapsan en el mismo score, la selección opera sobre
+  los valores distintos y se informa del colapso, pero **m sigue en 20**.
+- La regla mecánica de selección de VIGILAR no cambia.
+
+**Contadores resultantes:**
+- swing = 1 confirmatoria + 20 de la familia + 308 descriptivas = **329**;
+- medio = **309**, sin familia de umbrales;
+- total = **638**.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

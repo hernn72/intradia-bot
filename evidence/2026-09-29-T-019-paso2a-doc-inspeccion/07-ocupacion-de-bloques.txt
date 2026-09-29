@@ -1,0 +1,37 @@
+
+=== swing (bloque 60 sesiones) ===
+bloques en la espina: 22 | sesiones del último: 42
+bloques con señales A-02: 21 | P3: 19
+bloque | señales A-02 | señales P3 | excluidas asia_missing | excluidas asia_missing ∩ trend_sma_history | excluidas crypto | excluidas trend_sma_history
+     0 |            0 |          0 | 0 | 0 | 0 | 0
+     1 |          144 |          0 | 0 | 0 | 144 | 0
+     2 |         5034 |          0 | 0 | 42 | 252 | 4740
+     3 |         5400 |       2993 | 0 | 134 | 252 | 2021
+     4 |         5461 |       5209 | 0 | 0 | 252 | 0
+     5 |         5336 |       5084 | 0 | 0 | 252 | 0
+     6 |         5348 |       5096 | 0 | 0 | 252 | 0
+     7 |         5344 |       5092 | 0 | 0 | 252 | 0
+     8 |         5425 |       5173 | 0 | 0 | 252 | 0
+     9 |         5469 |       5217 | 0 | 0 | 252 | 0
+    10 |         5299 |       5044 | 0 | 0 | 255 | 0
+    11 |         5353 |       5101 | 0 | 0 | 252 | 0
+    12 |         5492 |       5240 | 0 | 0 | 252 | 0
+    13 |         5516 |       5264 | 0 | 0 | 252 | 0
+    14 |         5252 |       4997 | 0 | 0 | 255 | 0
+    15 |         5347 |       5095 | 0 | 0 | 252 | 0
+    16 |         5517 |       5265 | 0 | 0 | 252 | 0
+    17 |         5580 |       5328 | 0 | 0 | 252 | 0
+    18 |         5379 |       4944 | 180 | 0 | 255 | 0
+    19 |         5402 |       5150 | 0 | 0 | 252 | 0
+    20 |         5495 |       5243 | 0 | 0 | 252 | 0
+    21 |         3770 |       3559 | 40 | 0 | 171 | 0
+
+=== medio (bloque 300 sesiones) ===
+bloques en la espina: 5 | sesiones del último: 102
+bloques con señales A-02: 5 | P3: 5
+bloque | señales A-02 | señales P3 | excluidas asia_missing | excluidas crypto
+     0 |         4209 |       3699 | 0 | 510
+     1 |        26922 |      25662 | 0 | 1260
+     2 |        26782 |      25516 | 0 | 1266
+     3 |        27095 |      25654 | 178 | 1263
+     4 |         9265 |       8802 | 40 | 423
