@@ -1,0 +1,36 @@
+=== swing ===
+A-02 población: 106363 | saltados: 0
+excluded_crypto: 5112
+excluded_asia_missing: 396
+excluded_trend_sma_history: 6937
+excluidas unión deduplicada: 12269
+POBLACION FINAL: 94094 señales | 90 activos
+bloques con señales: 19
+sha256 población final: 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a
+hueco intermedio de ^STOXX50E: 1406 | antigüedad: {1: 624, 3: 700, 4: 82}
+control cruzado event_study PIT swing:
+  señales: 94094 (OK)
+  sha256: 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a (OK)
+comparación TSV swing:
+  06-excluded_crypto-swing.tsv: OK
+  06-excluded_asia_missing-swing.tsv: OK
+  06-excluded_trend_sma_history-swing.tsv: OK
+  06-stoxx_hueco_intermedio-swing.tsv: OK
+=== medio ===
+A-02 población: 94273 | saltados: 0
+excluded_crypto: 4722
+excluded_asia_missing: 218
+excluded_trend_sma_history: 0
+excluidas unión deduplicada: 4940
+POBLACION FINAL: 89333 señales | 90 activos
+bloques con señales: 5
+sha256 población final: 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8
+hueco intermedio de ^STOXX50E: 1312 | antigüedad: {1: 620, 3: 610, 4: 82}
+control cruzado event_study PIT medio:
+  señales: 89333 (OK)
+  sha256: 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8 (OK)
+comparación TSV medio:
+  06-excluded_crypto-medio.tsv: OK
+  06-excluded_asia_missing-medio.tsv: OK
+  06-excluded_trend_sma_history-medio.tsv: OK
+  06-stoxx_hueco_intermedio-medio.tsv: OK

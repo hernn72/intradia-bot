@@ -17,8 +17,10 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import pandas as pd
 
 from advisor.analysis.benchmark import resolve_benchmark_symbol
+from advisor.analysis.overview import context_assets_of
 from advisor.backtest.engine import POLICY_OPERAR, POLICY_TODAS, BacktestTrade, simulate_asset
 from advisor.config import AdvisorConfig
+from advisor.context.point_in_time import ContextMode, PointInTimeContextResolver, resolve_context_mode
 from advisor.data.freshness import mercado_para_simbolo
 from advisor.data.market_data import MarketDataProvider
 from advisor.data.sessions import trim_unclosed_bar
@@ -108,6 +110,7 @@ def run_backtest(
     vintage: Optional[VintageLoad] = None,
     reference: Optional[datetime] = None,
     settlement_minutes: int = 20,
+    context_mode: Optional[ContextMode] = None,
 ) -> BacktestResult:
     """Simula el asesor sobre histórico diario.
 
@@ -155,8 +158,27 @@ def run_backtest(
         assert provider is not None
         return _fetch_close(provider, symbol) if symbol is not None else None
 
-    vix_close = cierres(config.market_context.vix_symbol)
-    trend_close = cierres(config.market_context.trend_symbol)
+    context_mode = resolve_context_mode(config.scoring.score_model_version, context_mode)
+
+    asia_symbols = (
+        tuple(sorted(asset.primary_symbol for asset in context_assets_of(universe) if asset.region == "ASIA"))
+        if context_mode == "point_in_time"
+        else ()
+    )
+    context_symbols = (config.market_context.vix_symbol, config.market_context.trend_symbol, *asia_symbols)
+    context_closes = {symbol: cierres(symbol) for symbol in context_symbols}
+    pit_resolver = (
+        PointInTimeContextResolver(
+            {symbol: close for symbol, close in context_closes.items() if close is not None},
+            config.market_context,
+            asia_symbols=asia_symbols,
+            settlement_minutes=config.data_quality.settlement_minutes,
+        )
+        if context_mode == "point_in_time"
+        else None
+    )
+    vix_close = context_closes[config.market_context.vix_symbol]
+    trend_close = context_closes[config.market_context.trend_symbol]
     trend_sma_close = sma(trend_close, config.market_context.trend_sma) if trend_close is not None else None
     benchmark_cache: Dict[str, Optional[pd.Series]] = {}
     if trend_close is not None:
@@ -205,12 +227,26 @@ def run_backtest(
             )
             continue
 
-        # VIX con una vela de retraso (sin mirar el futuro); tendencia y
-        # benchmark al cierre del mismo día, simultáneo al del activo.
-        vix_aligned = _align(vix_close, df.index)
-        vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
-        trend_at = _as_optional_list(_align(trend_close, df.index))
-        trend_sma_at = _as_optional_list(_align(trend_sma_close, df.index))
+        market_context_at = None
+        vix_at = None
+        trend_at = None
+        trend_sma_at = None
+        if context_mode == "point_in_time":
+            assert pit_resolver is not None
+            market_context_at = [
+                resolved.context if resolved is not None and resolved.calculable else None
+                for resolved in pit_resolver.contexts_for_index(
+                    df.index,
+                    signal_market=mercado_de(asset),
+                )
+            ]
+        else:
+            # Camino legacy de Score v1/A-02: VIX con una vela de retraso,
+            # tendencia al cierre del mismo día y alineación por fecha civil.
+            vix_aligned = _align(vix_close, df.index)
+            vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
+            trend_at = _as_optional_list(_align(trend_close, df.index))
+            trend_sma_at = _as_optional_list(_align(trend_sma_close, df.index))
         benchmark_symbol = resolve_benchmark_symbol(asset, config.report)
         benchmark_close = None
         if benchmark_symbol is not None:
@@ -223,6 +259,7 @@ def run_backtest(
                     asset, df, config, horizonte, policy, cost_pct,
                     benchmark_close=benchmark_close, vix_at=vix_at,
                     trend_price_at=trend_at, trend_sma_at=trend_sma_at,
+                    market_context_at=market_context_at,
                 )
             )
 

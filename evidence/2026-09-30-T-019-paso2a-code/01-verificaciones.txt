@@ -1,0 +1,36 @@
+# Verificaciones finales del supervisor sobre el árbol que se commitea (2026-09-30)
+
+$ .venv/bin/ruff check .
+All checks passed!
+exit=0
+$ .venv/bin/mypy advisor
+Success: no issues found in 70 source files
+exit=0
+$ .venv/bin/python -m pytest -q
+717 passed, 3 warnings in 120.52s (0:02:00)
+$ backtest --horizonte swing --vintage 071ddb2b… (normalizado)
+exit=0
+49b12c855c2d2681d9ecd0f592248cd03b11cd8428273014238e04f0ddefbc3c  -
+866 operaciones
+$ p3_population_control.py
+
+$ grep operaciones de la misma salida del backtest v1 (control de A-02, métricas ya publicadas)
+Cosecha congelada 071ddb2b2c43… | 2021-08-29 → 2026-08-30 — resultado reproducible.
+  866 operaciones | win rate 42% | expectancy R 0,17 | profit factor 1,25 | payoff 1,74 | R mediana -1,03 | R total 145,10 | desv. R 1,67 | P10/P25/P50/P75/P90 -1,17/-1,07/-1,03/1,67/2,13 | 10 velas de media
+  COMPRAR    475 operaciones | win rate 45% | expectancy R 0,26 | profit factor 1,43 | payoff 1,75 | R mediana -1,03 | R total 125,59 | desv. R 1,71 | P10/P25/P50/P75/P90 -1,11/-1,06/-1,03/1,71/2,18 | 10 velas de media
+  VERIFICAR_BROKER sin operaciones
+  ESPERAR    1922 operaciones | win rate 41% | expectancy R 0,13 | profit factor 1,19 | payoff 1,73 | R mediana -1,03 | R total 250,16 | desv. R 1,76 | P10/P25/P50/P75/P90 -1,20/-1,08/-1,03/1,63/2,13 | 10 velas de media
+  DESCARTAR  6972 operaciones | win rate 35% | expectancy R 0,15 | profit factor 1,19 | payoff 2,19 | R mediana -1,04 | R total 1030,93 | desv. R 2,81 | P10/P25/P50/P75/P90 -1,29/-1,10/-1,04/1,62/2,52 | 9 velas de media
+Resultados pasados sobre este grupo y periodo: no garantizan nada y con pocas operaciones el azar pesa más que el criterio.
+
+$ .venv/bin/python evidence/2026-09-30-T-019-paso2a-code/p3_population_control.py  (y cmp con la salida anterior)
+exit=0
+IGUAL 06-excluded_asia_missing-medio.tsv
+IGUAL 06-excluded_asia_missing-swing.tsv
+IGUAL 06-excluded_crypto-medio.tsv
+IGUAL 06-excluded_crypto-swing.tsv
+IGUAL 06-excluded_trend_sma_history-medio.tsv
+IGUAL 06-excluded_trend_sma_history-swing.tsv
+IGUAL 06-stoxx_hueco_intermedio-medio.tsv
+IGUAL 06-stoxx_hueco_intermedio-swing.tsv
+IGUAL p3_population_control.txt

@@ -18,10 +18,12 @@ import pandas as pd
 
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.levels import Levels, compute_levels, compute_levels_from_inputs
-from advisor.analysis.market_context import build_market_context
+from advisor.analysis.market_context import MarketContext, build_market_context
+from advisor.analysis.overview import context_assets_of
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import SnapshotSeries, build_snapshot_series, snapshot_from_series
 from advisor.config import AdvisorConfig, LevelsConfig
+from advisor.context.point_in_time import ContextMode, PointInTimeContextResolver, resolve_context_mode
 from advisor.data.freshness import mercado_para_simbolo
 from advisor.data.sessions import market_for_symbol, market_session
 from advisor.indicators.technical import sma
@@ -220,6 +222,7 @@ def run_event_study(
     cost_pct: float = 0.2,
     root_dir: str = "data/vintages",
     population_name: str = "vigente",
+    context_mode: Optional[ContextMode] = None,
 ) -> EventStudyResult:
     """Ejecuta P2.3 sobre una cosecha ya congelada y verificada."""
 
@@ -231,6 +234,7 @@ def run_event_study(
         horizonte=horizonte,
         cost_pct=cost_pct,
         population_name=population_name,
+        context_mode=context_mode,
     )
 
 
@@ -242,11 +246,13 @@ def run_event_study_on_vintage(
     horizonte: str = "swing",
     cost_pct: float = 0.2,
     population_name: str = "vigente",
+    context_mode: Optional[ContextMode] = None,
 ) -> EventStudyResult:
     """Núcleo con I/O ya resuelto, útil para tests y para la CLI."""
 
     if horizonte not in MAX_HOLD_BARS:
         raise ValueError(f"el event study solo cubre swing y medio: '{horizonte}'")
+    context_mode = resolve_context_mode(config.scoring.score_model_version, context_mode)
 
     window = config.horizonte(horizonte)
     warmup = window.min_bars
@@ -261,8 +267,25 @@ def run_event_study_on_vintage(
         population_name=population_name,
     )
 
-    vix_close = frozen_close(vintage, config.market_context.vix_symbol)
-    trend_close = frozen_close(vintage, config.market_context.trend_symbol)
+    asia_symbols = (
+        tuple(sorted(asset.primary_symbol for asset in context_assets_of(universe) if asset.region == "ASIA"))
+        if context_mode == "point_in_time"
+        else ()
+    )
+    context_symbols = (config.market_context.vix_symbol, config.market_context.trend_symbol, *asia_symbols)
+    context_closes = {symbol: frozen_close(vintage, symbol) for symbol in context_symbols}
+    pit_resolver = (
+        PointInTimeContextResolver(
+            {symbol: close for symbol, close in context_closes.items() if close is not None},
+            config.market_context,
+            asia_symbols=asia_symbols,
+            settlement_minutes=config.data_quality.settlement_minutes,
+        )
+        if context_mode == "point_in_time"
+        else None
+    )
+    vix_close = context_closes[config.market_context.vix_symbol]
+    trend_close = context_closes[config.market_context.trend_symbol]
     trend_sma_close = sma(trend_close, config.market_context.trend_sma) if trend_close is not None else None
     benchmark_cache: Dict[str, Optional[pd.Series]] = {}
 
@@ -305,10 +328,24 @@ def run_event_study_on_vintage(
             result.skipped.append((symbol, str(exc)))
             continue
 
-        vix_aligned = _align(vix_close, signal_df.index) if vix_close is not None else None
-        vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
-        trend_at = _as_optional_list(_align(trend_close, signal_df.index))
-        trend_sma_at = _as_optional_list(_align(trend_sma_close, signal_df.index))
+        market_context_at = None
+        vix_at = None
+        trend_at = None
+        trend_sma_at = None
+        if context_mode == "point_in_time":
+            assert pit_resolver is not None
+            market_context_at = [
+                resolved.context if resolved is not None and resolved.calculable else None
+                for resolved in pit_resolver.contexts_for_index(
+                    signal_df.index,
+                    signal_market=mercado_para_simbolo(asset, symbol),
+                )
+            ]
+        else:
+            vix_aligned = _align(vix_close, signal_df.index) if vix_close is not None else None
+            vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
+            trend_at = _as_optional_list(_align(trend_close, signal_df.index))
+            trend_sma_at = _as_optional_list(_align(trend_sma_close, signal_df.index))
 
         for j in range(warmup, len(signal_df) - 1):
             signal = _build_event_signal(
@@ -321,6 +358,7 @@ def run_event_study_on_vintage(
                 vix_at,
                 trend_at,
                 trend_sma_at,
+                market_context_at,
             )
             if signal is None:
                 continue
@@ -632,6 +670,7 @@ def _build_event_signal(
     vix_at: Optional[Sequence[Optional[float]]],
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
 ) -> Optional[Tuple[Levels, SignalObservation]]:
     try:
         snapshot = snapshot_from_series(asset.symbol, snapshot_series, j)
@@ -640,12 +679,17 @@ def _build_event_signal(
     levels = compute_levels(snapshot, config.levels, config.risk.min_rr_ratio)
     if levels is None:
         return None
-    context = build_market_context(
-        vix_at[j] if vix_at is not None else None,
-        trend_price_at[j] if trend_price_at is not None else None,
-        trend_sma_at[j] if trend_sma_at is not None else None,
-        config.market_context,
-    )
+    if market_context_at is not None:
+        context = market_context_at[j]
+        if context is None:
+            return None
+    else:
+        context = build_market_context(
+            vix_at[j] if vix_at is not None else None,
+            trend_price_at[j] if trend_price_at is not None else None,
+            trend_sma_at[j] if trend_sma_at is not None else None,
+            config.market_context,
+        )
     score = compute_score(snapshot, levels, context, config.scoring, min_bars)
     observation = build_signal_observation(asset=asset, horizonte=horizonte, signal_idx=j, snapshot=snapshot, score=score)
     primitive_levels = compute_levels_from_inputs(

@@ -29,7 +29,7 @@ import pandas as pd
 
 from advisor.analysis.execution import evaluate_trade_at_entry
 from advisor.analysis.levels import compute_levels
-from advisor.analysis.market_context import build_market_context
+from advisor.analysis.market_context import MarketContext, build_market_context
 from advisor.analysis.opportunity import (
     ACCION_COMPRAR,
     ACCION_VERIFICAR_BROKER,
@@ -160,17 +160,23 @@ def _signal_from_snapshot(
     vix_at: Optional[Sequence[Optional[float]]],
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
 ) -> Optional[Dict[str, Any]]:
     levels = compute_levels(snapshot, config.levels, config.risk.min_rr_ratio)
     if levels is None:
         return None
 
-    context = build_market_context(
-        vix_at[j] if vix_at is not None else None,
-        trend_price_at[j] if trend_price_at is not None else None,
-        trend_sma_at[j] if trend_sma_at is not None else None,
-        config.market_context,
-    )
+    if market_context_at is not None:
+        context = market_context_at[j]
+        if context is None:
+            return None
+    else:
+        context = build_market_context(
+            vix_at[j] if vix_at is not None else None,
+            trend_price_at[j] if trend_price_at is not None else None,
+            trend_sma_at[j] if trend_sma_at is not None else None,
+            config.market_context,
+        )
     score = compute_score(snapshot, levels, context, config.scoring, min_bars)
     setup_radar, setup_accion, _ = classify_setup(score, levels, context, config.scoring, config.risk, horizonte)
     radar, accion, _ = classify(score, levels, context, config.scoring, config.risk, asset, horizonte)
@@ -207,6 +213,7 @@ def _signal_prefix(
     vix_at: Optional[Sequence[Optional[float]]],
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Evalúa la señal al cierre de la vela ``j`` con datos hasta esa vela."""
 
@@ -217,7 +224,8 @@ def _signal_prefix(
         return None
 
     return _signal_from_snapshot(
-        asset, snapshot, j, config, horizonte, min_bars, vix_at, trend_price_at, trend_sma_at
+        asset, snapshot, j, config, horizonte, min_bars,
+        vix_at, trend_price_at, trend_sma_at, market_context_at,
     )
 
 
@@ -231,6 +239,7 @@ def _signal(
     vix_at: Optional[Sequence[Optional[float]]],
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Evalúa la señal al cierre de la vela ``j`` desde indicadores precalculados."""
 
@@ -239,7 +248,8 @@ def _signal(
     except ValueError:
         return None
     return _signal_from_snapshot(
-        asset, snapshot, j, config, horizonte, min_bars, vix_at, trend_price_at, trend_sma_at
+        asset, snapshot, j, config, horizonte, min_bars,
+        vix_at, trend_price_at, trend_sma_at, market_context_at,
     )
 
 
@@ -273,6 +283,7 @@ def simulate_asset(
     vix_at: Optional[Sequence[Optional[float]]] = None,
     trend_price_at: Optional[Sequence[Optional[float]]] = None,
     trend_sma_at: Optional[Sequence[Optional[float]]] = None,
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
     min_bars: Optional[int] = None,
     entry_discipline: EntryDiscipline = ENTRY_RESPECT_ENTRY_MAX,
     rejected_signals: Optional[List[ExecutionRejectedSignal]] = None,
@@ -369,7 +380,7 @@ def simulate_asset(
         if position is None and j < len(df) - 1:
             signal = _signal(
                 asset, snapshot_series, j, config, horizonte, warmup,
-                vix_at, trend_price_at, trend_sma_at,
+                vix_at, trend_price_at, trend_sma_at, market_context_at,
             )
             if signal is not None and (
                 policy == POLICY_TODAS

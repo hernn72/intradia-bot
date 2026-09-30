@@ -29,6 +29,10 @@ from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_ove
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
 from advisor.config import AdvisorConfig
+from advisor.context.point_in_time import (
+    context_mode_for,
+    fetch_point_in_time_market_context,
+)
 from advisor.data.bar_cache import BarCacheReport
 from advisor.data.freshness import DataFreshness, FreshnessRow, calcular_frescura_serie, mercado_para_simbolo
 from advisor.data.market_data import MarketDataProvider
@@ -242,13 +246,22 @@ def run_analysis(
     # contexto en vez de quedarse en un adorno del informe.
     reference = now or datetime.now(timezone.utc)
     overview = fetch_overview(provider, universe)
-    context = fetch_market_context(
-        provider,
-        config.market_context,
-        asia_session_change(overview),
-        reference=reference,
-        settlement_minutes=config.data_quality.settlement_minutes,
-    )
+    if context_mode_for(config.scoring.score_model_version) == "point_in_time":
+        context = fetch_point_in_time_market_context(
+            provider,
+            config.market_context,
+            universe,
+            reference,
+            settlement_minutes=config.data_quality.settlement_minutes,
+        )
+    else:
+        context = fetch_market_context(
+            provider,
+            config.market_context,
+            asia_session_change(overview),
+            reference=reference,
+            settlement_minutes=config.data_quality.settlement_minutes,
+        )
     benchmark_cache: Dict[str, Optional[pd.Series]] = {}
 
     opportunities: List[Opportunity] = []
