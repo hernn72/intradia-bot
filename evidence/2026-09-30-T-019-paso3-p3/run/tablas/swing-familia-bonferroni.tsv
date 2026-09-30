@@ -1,0 +1,23 @@
+# preregistro=8b2dddb8fd66423d9550df496d1a2a85abd066b6 executor=87309da148772f834fd49c3f2357692e48ed9273 data_vintage_id=071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841 universe_vintage_id=237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19 config_hash=89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387 score_model_version=2.0 cost_pct=0.2 seed=20260830
+# condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+miembro	estado	ic_lower	ic_upper
+OPERAR primario [p50=43.6,∞)	evaluado	-0.1414915953823933	0.22795070921665608
+OPERAR contraste [p50,∞)−[0,p50)	evaluado	-0.343864062485335	-0.050251112250778524
+OPERAR primario [p60=49.6,∞)	evaluado	-0.16078221910348048	0.23406608191282324
+OPERAR contraste [p60,∞)−[0,p60)	evaluado	-0.3504996740719791	-0.018421178264262997
+OPERAR primario [p70=53.6,∞)	evaluado	-0.15888294621402166	0.23426387836935167
+OPERAR contraste [p70,∞)−[0,p70)	evaluado	-0.3268159969788946	-0.01239653508522529
+OPERAR primario [p80=57.6,∞)	evaluado	-0.1440724699007119	0.24430491564828488
+OPERAR contraste [p80,∞)−[0,p80)	evaluado	-0.2561656166408635	0.00505480090650359
+OPERAR primario [p90=63.6,∞)	evaluado	-0.16145829089828012	0.2509478850099564
+OPERAR contraste [p90,∞)−[0,p90)	evaluado	-0.3165146446865784	0.03143696314837602
+VIGILAR par [p50,p60)	no evaluado: no existe min_score_operar		
+VIGILAR par [p50,p70)	no evaluado: no existe min_score_operar		
+VIGILAR par [p50,p80)	no evaluado: no existe min_score_operar		
+VIGILAR par [p50,p90)	no evaluado: no existe min_score_operar		
+VIGILAR par [p60,p70)	no evaluado: no existe min_score_operar		
+VIGILAR par [p60,p80)	no evaluado: no existe min_score_operar		
+VIGILAR par [p60,p90)	no evaluado: no existe min_score_operar		
+VIGILAR par [p70,p80)	no evaluado: no existe min_score_operar		
+VIGILAR par [p70,p90)	no evaluado: no existe min_score_operar		
+VIGILAR par [p80,p90)	no evaluado: no existe min_score_operar		
