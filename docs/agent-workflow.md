@@ -9,16 +9,29 @@ Quién hace qué, con qué prompt, y por dónde se empieza. Complementa a
 ## START HERE
 
 ```markdown
-# START HERE — actualizado 2026-09-29 (T-019 2a-doc cerrado: pre-registro completo y ejecutable de P3; siguiente 2a-code; la Pi sigue en `v0.4.0`, esquema v6)
+# START HERE — actualizado 2026-09-30 (`v0.4.1` desplegado y aceptado: esquema v7 con Score v1, D-58; siguiente T-019 2a-code, todavía no iniciado)
 
 ## Dónde está todo
 
     main / origin/main    este commit    CI verde
-    la Pi                 v0.4.0 = 84ea28e    esquema v6    EN_TAG    timers activos
+    la Pi                 v0.4.1 = 8b2dddb    esquema v7    EN_TAG    timers activos
     graphify-out/         sin seguimiento, ignorar
     ultima_cerrada        sin seguimiento, del propietario, no tocar
 
-**Producción: `v0.4.0` = `84ea28e`, esquema v6, desde el 2026-09-26.** T-018
+**Producción: `v0.4.1` = `8b2dddb`, esquema v7, desde el 2026-09-30 (D-58),
+despliegue ACEPTADO, sin rollback.** Score v1 activo; 70/60 legacy con
+`calibrated: false`. Es el paso 1 de T-019 (contrato de umbrales persistido y `position_review.run_id`)
+sin 2a-code: Score v1, 70/60 con `calibrated: false`. La migración v6 → v7 se
+aplicó aislada y se verificó antes de la primera pasada persistente
+(`693c7e1d…`: 93 recomendaciones, manifiesto en `v0.4.1` / esquema 7). Copias v6
+válidas para volver atrás: la manual `intradia.db.bak-manual-20260930-110208` y
+la automática `intradia.db.bak-20260930-110539-pre-v7`. Evidencia en
+`evidence/2026-09-30-despliegue-v041/`.
+**FOLLOW_UP de T-018, sin investigar y fuera de T-019:** en esa pasada el log
+dice 32 barras de TTE.PA descartadas por reajuste y la tabla registra 30
+`REAJUSTE`.
+
+**Antes, `v0.4.0` = `84ea28e`, esquema v6, desde el 2026-09-26.** T-018
 está **aceptada y desplegada**. La migración v5 → v6 se aplicó de forma aislada y
 se verificó antes de la primera pasada persistente (`ea08c727…`: 93
 recomendaciones, `validated_bar = 3228`). Hay dos copias v5 válidas para volver
@@ -38,8 +51,12 @@ ETF de XETRA.
 
 ## Lo primero: T-019 paso 2a-code (A-03 / P3)
 
-**2a-doc está cerrado (2026-09-29).** Su commit es el **pre-registro completo y
-ejecutable de P3**, y toda la evidencia de P3 lo cita. La primera inspección
+**Estado: 2a-doc cerrado; `v0.4.1` aceptado en producción; 2a-code todavía NO
+iniciado; P3 todavía NO ejecutado.**
+
+**2a-doc está cerrado (2026-09-29).** Su commit, `8b2dddb`, es el **pre-registro
+completo y ejecutable de P3**, y toda la evidencia de P3 lo cita. Desplegarlo
+como `v0.4.1` (D-58) no lo modifica. La primera inspección
 paró en OWNER_DECISION_REQUIRED y el propietario resolvió **D-50 a D-57**:
 - `analysis_timestamp` es la última pasada programada, en hora de Londres,
   estrictamente anterior a la apertura de entrada.

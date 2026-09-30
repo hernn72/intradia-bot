@@ -1,0 +1,125 @@
+$ manifiesto --run-id 693c7e1d-a086-4d62-a3b0-b97abb4fa304
+{
+  "analysis_timestamp": "2026-09-30T11:06:02.216096+00:00",
+  "clock_drift_seconds": 0.0008169999999999999,
+  "clock_status": "CLOCK_OK",
+  "command": "analizar",
+  "config_hash": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+  "config_hash_version": 2,
+  "context_model_version": null,
+  "data_vintage_id": null,
+  "environment": "pi",
+  "git_dirty": false,
+  "git_dirty_reason": null,
+  "git_sha": "8b2dddb8fd66423d9550df496d1a2a85abd066b6",
+  "groups": null,
+  "provider_versions": {
+    "exchange_calendars": "4.13.2",
+    "exchange_overrides_hash": "b17cb2eba2f17dab8e3a7ca03fb259cf0c66f2cb128ec83ad4d4c2632b4c7f6b",
+    "pandas": "3.0.5",
+    "yfinance": "1.7.0"
+  },
+  "python_version": "3.13.5",
+  "release_tag": "v0.4.1",
+  "run_id": "693c7e1d-a086-4d62-a3b0-b97abb4fa304",
+  "schema_version": 7,
+  "score_model_version": "1.0",
+  "scoring_contract_json": "{\"fundamentals_enabled\":false,\"score_model_version\":\"1.0\",\"thresholds\":{\"intradia\":{\"calibrated\":false,\"calibration_ref\":null,\"min_score_operar\":70.0,\"min_score_vigilar\":60.0,\"score_model_version\":\"1.0\"},\"medio\":{\"calibrated\":false,\"calibration_ref\":null,\"min_score_operar\":70.0,\"min_score_vigilar\":60.0,\"score_model_version\":\"1.0\"},\"swing\":{\"calibrated\":false,\"calibration_ref\":null,\"min_score_operar\":70.0,\"min_score_vigilar\":60.0,\"score_model_version\":\"1.0\"}}}",
+  "universe_vintage_id": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19"
+}
+
+Recomendaciones:
+- MRVL · OPERAR · COMPRAR · score 71.62
+- ASML.AS · OPERAR · COMPRAR · score 71.62
+- 6857.T · OPERAR · COMPRAR · score 71.62
+- VVSM.DE · VIGILAR · ESPERAR · score 68.50
+- IQQK.DE · VIGILAR · ESPERAR · score 67.88
+- MU · VIGILAR · ESPERAR · score 67.88
+- ARM · VIGILAR · ESPERAR · score 67.25
+- ENI.MI · VIGILAR · ESPERAR · score 66.00
+- COIN · VIGILAR · ESPERAR · score 66.00
+- TSM · VIGILAR · ESPERAR · score 66.00
+- IQQT.DE · VIGILAR · ESPERAR · score 66.00
+- IS3N.DE · VIGILAR · ESPERAR · score 66.00
+- IFX.DE · VIGILAR · ESPERAR · score 65.38
+- EUNL.DE · VIGILAR · ESPERAR · score 64.75
+- SU.PA · VIGILAR · ESPERAR · score 64.75
+- QCOM · VIGILAR · ESPERAR · score 64.12
+- META · VIGILAR · ESPERAR · score 64.12
+- AMD · VIGILAR · ESPERAR · score 64.12
+- SXR8.DE · VIGILAR · ESPERAR · score 62.25
+- EQQQ.DE · VIGILAR · ESPERAR · score 62.25
+- RRU.DE · VIGILAR · ESPERAR · score 62.25
+- NVDA · VIGILAR · ESPERAR · score 62.25
+- 6501.T · VIGILAR · ESPERAR · score 62.25
+- INTC · VIGILAR · ESPERAR · score 61.62
+- 8035.T · VIGILAR · ESPERAR · score 61.62
+- AMAT · VIGILAR · ESPERAR · score 61.62
+- EUNN.DE · VIGILAR · ESPERAR · score 61.00
+- R6C0.DE · VIGILAR · ESPERAR · score 61.00
+- BBVA.MC · VIGILAR · ESPERAR · score 61.00
+- CRWD · VIGILAR · ESPERAR · score 60.38
+- PANW · VIGILAR · ESPERAR · score 60.38
+- APP · DESCARTAR · DESCARTAR · score 59.12
+- IBE.MC · DESCARTAR · DESCARTAR · score 58.50
+- OR.PA · DESCARTAR · DESCARTAR · score 58.50
+- MUV2.DE · DESCARTAR · DESCARTAR · score 58.50
+- ICGA.DE · DESCARTAR · DESCARTAR · score 57.25
+- LLY · DESCARTAR · DESCARTAR · score 57.25
+- ABBV · DESCARTAR · DESCARTAR · score 57.25
+- SAP.DE · DESCARTAR · DESCARTAR · score 57.25
+- AAPL · DESCARTAR · DESCARTAR · score 57.25
+- 9988.HK · DESCARTAR · DESCARTAR · score 56.62
+- PLTR · DESCARTAR · DESCARTAR · score 56.62
+- BTC-EUR · DESCARTAR · DESCARTAR · score 56.37
+- 0700.HK · DESCARTAR · DESCARTAR · score 56.00
+- RACE.MI · DESCARTAR · DESCARTAR · score 56.00
+- CAT · DESCARTAR · DESCARTAR · score 56.00
+- MSFT · DESCARTAR · DESCARTAR · score 56.00
+- SIE.DE · DESCARTAR · DESCARTAR · score 56.00
+- SAF.PA · DESCARTAR · DESCARTAR · score 56.00
+- SOL-EUR · DESCARTAR · DESCARTAR · score 55.74
+- ZPRR.DE · DESCARTAR · DESCARTAR · score 54.75
+- MC.PA · DESCARTAR · DESCARTAR · score 54.75
+- AIR.PA · DESCARTAR · DESCARTAR · score 54.75
+- TTE.PA · DESCARTAR · DESCARTAR · score 54.75
+- EXH1.DE · DESCARTAR · DESCARTAR · score 54.75
+- GOOGL · DESCARTAR · DESCARTAR · score 54.75
+- 6758.T · DESCARTAR · DESCARTAR · score 54.75
+- QDV5.DE · DESCARTAR · DESCARTAR · score 53.50
+- MBG.DE · DESCARTAR · DESCARTAR · score 53.50
+- EXSA.DE · DESCARTAR · DESCARTAR · score 53.50
+- VRTX · DESCARTAR · DESCARTAR · score 53.50
+- EXV1.DE · DESCARTAR · DESCARTAR · score 53.50
+- Q8Y0.DE · DESCARTAR · DESCARTAR · score 52.25
+- MA · DESCARTAR · DESCARTAR · score 51.00
+- XOM · DESCARTAR · DESCARTAR · score 51.00
+- AZN · DESCARTAR · DESCARTAR · score 51.00
+- V · DESCARTAR · DESCARTAR · score 51.00
+- NOW · DESCARTAR · DESCARTAR · score 50.37
+- ENR.DE · DESCARTAR · DESCARTAR · score 50.37
+- ETH-EUR · DESCARTAR · DESCARTAR · score 49.86
+- EUNH.DE · DESCARTAR · DESCARTAR · score 49.75
+- GS · DESCARTAR · DESCARTAR · score 49.75
+- 7011.T · DESCARTAR · DESCARTAR · score 49.12
+- BRK-B · DESCARTAR · DESCARTAR · score 48.50
+- ALV.DE · DESCARTAR · DESCARTAR · score 48.50
+- CVX · DESCARTAR · DESCARTAR · score 48.50
+- DBK.DE · DESCARTAR · DESCARTAR · score 48.50
+- AVGO · DESCARTAR · DESCARTAR · score 48.50
+- CRM · DESCARTAR · DESCARTAR · score 47.87
+- BSP.DE · DESCARTAR · DESCARTAR · score 47.25
+- 1810.HK · DESCARTAR · DESCARTAR · score 45.37
+- 7203.T · DESCARTAR · DESCARTAR · score 43.50
+- TSLA · DESCARTAR · DESCARTAR · score 42.87
+- ITX.MC · DESCARTAR · DESCARTAR · score 42.25
+- AMZN · DESCARTAR · DESCARTAR · score 42.25
+- ORCL · DESCARTAR · DESCARTAR · score 40.37
+- NFLX · DESCARTAR · DESCARTAR · score 39.12
+- INFY · DESCARTAR · DESCARTAR · score 37.25
+- LMT · DESCARTAR · DESCARTAR · score 37.25
+- DTE.DE · DESCARTAR · DESCARTAR · score 37.25
+- UBER · DESCARTAR · DESCARTAR · score 37.25
+- ADYEN.AS · DESCARTAR · DESCARTAR · score 36.62
+- ADBE · DESCARTAR · DESCARTAR · score 36.62
+exit=0

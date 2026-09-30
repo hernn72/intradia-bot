@@ -1000,6 +1000,32 @@ tiene **20** intervalos:
 - medio = **309**, sin familia de umbrales;
 - total = **638**.
 
+### D-58 — 2026-09-30 — La migración v7 se despliega sola, como `v0.4.1`, antes de 2a-code
+Decisión del propietario, **separada del pre-registro de P3**. Enmienda el «no
+despliega nada en la Pi» de la ficha T-019 solo para lo que ya está en `main`
+(el paso 1). **No modifica el pre-registro de P3**: `8b2dddb` sigue siendo su
+SHA, con las mismas reglas, población, exclusiones y familia (D-50 a D-57).
+Desplegar ese SHA en producción no ejecuta ni adelanta nada de P3.
+
+**Qué se decide.** Antes de empezar 2a-code, producción pasa al estado de
+`main` = `8b2dddb` (el SHA del pre-registro de P3, sin commits añadidos) con el
+tag `v0.4.1`. La Pi migra de v6 a v7 y sigue en **Score v1**, con 70/60 legacy y
+`calibrated: false`. No se activa v2, no se implementa 2a-code, no se ejecuta P3
+y no se aplican en producción las exclusiones de P3 (D-51, D-52, D-55).
+
+**Por qué.** Aislar y validar la migración v7 en producción antes de introducir
+los cambios point-in-time: si algo falla después, no se mezcla un fallo de
+esquema con uno de contexto.
+
+**Rollback.** Por D-32, `checkout v0.4.0` no es un rollback válido; hay que
+restaurar el backup `pre-v7` (esquema v6) verificado.
+
+**Resultado (2026-09-30):** desplegado, verificado y **aceptado por el
+propietario**; sin rollback (`evidence/2026-09-30-despliegue-v041/`).
+Observaciones que no bloquean: `position_review` sin filas históricas, y
+TTE.PA con 32 barras descartadas en el log frente a 30 `REAJUSTE` persistidos,
+que queda como **FOLLOW_UP de T-018**, fuera de T-019.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

@@ -7,9 +7,14 @@ cripto fuera de P3, Asia con sesiones cerradas, VIX y tendencia point-in-time,
 cinco cierres reales aprobados, exclusión por historia insuficiente de la
 SMA200, huecos de `^STOXX50E` con el último cierre causal y Bonferroni con
 `m = 20`.
-**El commit de 2a-doc es el pre-registro completo y ejecutable de P3.** P3
+**El commit de 2a-doc es el pre-registro completo y ejecutable de P3: SHA
+`8b2dddb8fd66423d9550df496d1a2a85abd066b6`.** P3
 sigue sin poder ejecutarse hasta que estén hechos 2a-code y la revisión previa
 de look-ahead.
+**2026-09-30 — ese SHA está en producción como `v0.4.1`** (D-58, despliegue
+aceptado): esquema v7, Score v1 y 70/60 con `calibrated: false`. Es una decisión
+separada que no modifica el pre-registro. **Siguiente paso: 2a-code, todavía NO
+iniciado. P3 todavía NO ejecutado.**
 Decisiones cerradas por el propietario: A → **D-45**, B → **D-46**, C →
 **D-47** (C2, estado de transición), VIX → **D-49** y **D-53**,
 `analysis_timestamp` → **D-50**, cripto → **D-51**, Asia (PR-1) → **D-52**,
@@ -55,7 +60,9 @@ respondidos con evidencia, **salga lo que salga**.
 - No despliega nada en la Pi. Cuando se escribió la ficha, la Pi estaba en
   `v0.3.0` (`03e1ec3`), esquema v5; desde el 2026-09-26 está en `v0.4.0`
   (`84ea28e`), esquema v6.
-  Cualquier despliegue es una decisión posterior y separada.
+  Cualquier despliegue es una decisión posterior y separada. **Por D-58, el
+  paso 1 se desplegó solo el 2026-09-30 como `v0.4.1` (`8b2dddb`)**: la Pi está
+  en esquema v7 con Score v1; nada de 2a-code ni de P3 está en producción.
 - No redefine el score después de ver resultados: la ablación publica, no
   selecciona (sección «P3 — ablación»).
 
@@ -833,7 +840,9 @@ solo los de `horizontes`), porque `abrir` acepta cualquiera.
     misma apertura (`db.py:227–243`), así que llega directamente a v7;
   - **base de `main`:** v6 → v7, con su backup `pre-v7`;
   - **la Pi:** estaba en **v5** al escribirse la ficha y desde el 2026-09-26
-    está en **v6** (`v0.4.0`); no se toca en A-03;
+    está en **v6** (`v0.4.0`); no se toca en A-03. **Enmendado por D-58:**
+    el 2026-09-30 migró a **v7** como `v0.4.1`, con backup `pre-v7` válido
+    (`evidence/2026-09-30-despliegue-v041/`);
   - **futuro despliegue que contenga T-018 y P3:** v5 → v6 → v7, cada paso con su
     backup;
   - **rollback de código:** no deshace **ninguna** de las dos migraciones
@@ -843,7 +852,8 @@ solo los de `horizontes`), porque `abrir` acepta cualquiera.
   A-02 (866 operaciones; hash normalizado `49b12c85…`), salvo lo que cambie por
   `config_hash`. Informe: solo cambia la etiqueta «no calibrado».
 - **Aviso de esquema:** este paso migra a v7. La Pi (v6 desde el 2026-09-26)
-  no se toca.
+  no se toca. **Enmendado por D-58:** la Pi migró a v7 el 2026-09-30
+  (`v0.4.1`).
 
 **Paso 2a-doc — Cerrar el contexto point-in-time. Solo documentación, antes de
 tocar código. HECHO el 2026-09-29** (D-50 a D-57; evidencia en
@@ -1250,7 +1260,7 @@ Cualquiera de esas cosas es un estudio nuevo, con decisión propia y
 - El estimador, los bloques, la semilla, `CapacityThresholds`, la cosecha y
   `universe.yaml`.
 - La evidencia de A-02.
-- La Pi y su esquema (v6 desde el 2026-09-26).
+- La Pi y su esquema (v7 desde el 2026-09-30, `v0.4.1`, por D-58).
 
 ## Tests unitarios
 Números cerrados, calculados a mano en el propio test.
