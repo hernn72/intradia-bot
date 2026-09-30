@@ -19,7 +19,8 @@ Decisiones cerradas por el propietario: A → **D-45**, B → **D-46**, C →
 **D-47** (C2, estado de transición), VIX → **D-49** y **D-53**,
 `analysis_timestamp` → **D-50**, cripto → **D-51**, Asia (PR-1) → **D-52**,
 cierres extraordinarios → **D-54**, SMA200 → **D-55**, huecos de `^STOXX50E` →
-**D-56**, Bonferroni → **D-57**. La **D-48** se retiró el
+**D-56**, Bonferroni → **D-57**, Score v2 exige PIT → **D-59**, producción v2
+falla cerrada sin contexto calculable → **D-60**. La **D-48** se retiró el
 mismo día, antes de fusionarse (mezclaba tres cuestiones). GATE P3 requisito 2
 corregido por D-45 y precisado en la tercera revisión.
 Agente: Opus (ficha) → propietario (D-45 a D-47, D-49 a D-57) → Codex (implementación) → Claude Code
@@ -928,6 +929,10 @@ Ninguna otra parte del diseño cambia.
 - Las bandas v1 de investigación (H-7) quedan etiquetadas `v1` y rechazan
   observaciones de otra versión.
 - Producción **no cambia**: `scoring.score_model_version` sigue en `"1.0"`.
+- **D-59 (2026-09-30):** `model_version = "2.0"` implica contexto
+  point-in-time obligatorio. El modo de contexto se deriva de la versión
+  **pedida** para el cálculo, no de la activa en la configuración, y calcular
+  Score v2 con `legacy_v1` es un error, con test.
 
 **Paso 3 — P3 ejecutado una sola vez** sobre el pre-registro completo del SHA de
 2a-doc (sección siguiente), y solo después de la revisión 1 de look-ahead.
@@ -945,7 +950,10 @@ registra que swing queda `calibrated: false`. Medio e intradía,
 permiten, en un solo commit:** `scoring.score_model_version: "2.0"` y los tres
 bloques de umbrales `"2.0"` a la vez, válidos por las reglas 7 y 8. Con swing
 sin calibrar, este paso **no se hace** en A-03. Sin despliegue: la Pi es
-decisión aparte.
+decisión aparte. **D-60:** antes de activar, producción v2 debe fallar cerrada
+si el contexto PIT no es calculable: sin fallback a legacy, sin imputación ni
+score parcial, sin recomendaciones v2 basadas en ese contexto y con el motivo
+registrado.
 
 ## P3 — experimento pre-registrado
 

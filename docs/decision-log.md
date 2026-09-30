@@ -1026,6 +1026,51 @@ Observaciones que no bloquean: `position_review` sin filas históricas, y
 TTE.PA con 32 barras descartadas en el log frente a 30 `REAJUSTE` persistidos,
 que queda como **FOLLOW_UP de T-018**, fuera de T-019.
 
+### D-59 — 2026-09-30 — Score v2 exige contexto point-in-time
+Decisión del propietario, tomada después de 2a-code (`782e462`) y **antes** de
+implementar Score v2. No modifica el pre-registro de P3 (`8b2dddb`): concreta
+cómo se aplica D-53/R-CTX al código de Score v2.
+
+**Qué se decide.**
+- `model_version = "2.0"` implica contexto **point-in-time obligatoriamente**.
+- **Nunca** se puede combinar Score v2 con `legacy_v1`, aunque `config.yaml`
+  siga teniendo `"1.0"` activo, como ocurrirá durante P3.
+- El modo de contexto depende de la **versión de score pedida para el cálculo**,
+  no de `config.scoring.score_model_version`. Pedir `"2.0"` selecciona PIT
+  automáticamente.
+- Intentar calcular Score v2 con contexto legacy es un **error**, no una
+  advertencia.
+
+**Por qué.** En 2a-code el selector deriva el modo de la versión activa de la
+configuración. Con `"1.0"` activo, un cálculo de Score v2 que no pidiera PIT
+explícitamente atravesaría el camino legacy, con el look-ahead de tendencia que
+D-53 corrige. La revisión previa a P3 lo registró como observación.
+
+**Efecto.** Lo implementa el paso 2 de T-019, con un test que demuestre que
+Score v2 con contexto legacy falla.
+
+### D-60 — 2026-09-30 — Producción v2 falla cerrada si el contexto point-in-time no es calculable
+Decisión del propietario. Queda **fijada ahora** y solo tendrá efecto si algún
+día se activa v2 en producción (paso 5 de T-019). Hasta entonces el
+comportamiento productivo no cambia: v1 sigue activo.
+
+**Qué se decide.** Si en una pasada de producción v2 el contexto PIT no es
+calculable (Asia ausente, SMA200 sin historia, VIX ausente o cualquier otro
+motivo no calculable):
+- **ningún fallback a legacy**, **ninguna imputación** ni neutralización y
+  **ningún score parcial**;
+- la pasada v2 **no produce recomendaciones** basadas en ese contexto;
+- la pasada **registra claramente el motivo** (el código de no calculable y su
+  detalle).
+
+**Por qué.** La regla v1 de dato ausente (la mitad de los puntos) solo sigue en
+v1. En v2, un contexto incompleto no se puede presentar como un score completo.
+
+**Efecto.** Hoy `fetch_point_in_time_market_context` lanza `RuntimeError` y
+aborta la pasada entera: es código inerte mientras v1 esté activo. Antes del
+paso 5 se sustituye por la política de D-60, y la forma exacta de declarar el
+motivo en la pasada y en el manifiesto se implementa entonces.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
