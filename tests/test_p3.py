@@ -558,7 +558,7 @@ def test_preflight_reproduce_poblacion_y_hash_swing_sin_desenlaces() -> None:
     from advisor.research.vintage import load_vintage
     from advisor.universe.loader import load_universe
 
-    if not (Path("data/vintages") / p3.DATA_VINTAGE_ID).exists():
+    if not (Path("data/vintages") / p3.DATA_VINTAGE_ID / "AAPL.csv").is_file():
         pytest.skip("data/vintages no está disponible")
     config = load_config("config.yaml")
     universe = load_universe(config.universe_path)
