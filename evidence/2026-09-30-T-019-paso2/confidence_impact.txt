@@ -1,0 +1,23 @@
+# Impacto D-46 en Opportunity.confianza
+
+cosecha=071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+desenlaces=parcheados_a_None
+
+=== swing ===
+senales_A02_v1=106363
+matriz antigua -> nueva:
+  Alta: Alta=0 Media=0 Baja=0
+  Media: Alta=0 Media=106363 Baja=0
+  Baja: Alta=0 Media=0 Baja=0
+motivos:
+  Media->Media sin_cambio: 106363
+
+=== medio ===
+senales_A02_v1=94273
+matriz antigua -> nueva:
+  Alta: Alta=0 Media=0 Baja=0
+  Media: Alta=0 Media=94273 Baja=0
+  Baja: Alta=0 Media=0 Baja=0
+motivos:
+  Media->Media sin_cambio: 94273
+

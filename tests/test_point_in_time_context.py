@@ -11,6 +11,7 @@ import advisor.analysis.analyzer as analyzer_module
 import advisor.backtest.runner as backtest_runner
 import advisor.report.tracking as tracking_module
 import advisor.research.event_study as event_study_module
+import advisor.research.execution_filter as execution_filter_module
 from advisor.config import AdvisorConfig, DataQualityConfig, MarketContextConfig
 from advisor.context.point_in_time import (
     EXCLUDED_ASIA_MISSING,
@@ -290,12 +291,17 @@ def test_hueco_stoxx_usa_ultimo_cierre_causal() -> None:
 def test_vix_ausente_pit_no_usa_regla_legacy() -> None:
     config = MarketContextConfig()
     sessions = expected_sessions("XETRA", date(2025, 1, 1), date(2026, 8, 26))
+    asia_closes = {
+        symbol: series
+        for symbol, series in _full_context_closes().items()
+        if symbol in {"^N225", "^HSI", "^KS11", "^TWII", "510300.SS"}
+    }
 
     resolved = resolve_point_in_time_context(
         datetime(2026, 8, 26, 20, 0, tzinfo=timezone.utc),
-        {"^STOXX50E": _series_for_sessions("XETRA", sessions[-220:])},
+        {"^STOXX50E": _series_for_sessions("XETRA", sessions[-220:]), **asia_closes},
         config,
-        asia_symbols=(),
+        asia_symbols=("^N225", "^HSI", "^KS11", "^TWII", "510300.SS"),
         settlement_minutes=20,
     )
 
@@ -303,6 +309,23 @@ def test_vix_ausente_pit_no_usa_regla_legacy() -> None:
     assert not resolved.calculable
     assert resolved.exclusions == ()
     assert resolved.no_calculable_codes == (NO_CALCULABLE_CONTEXT_VIX,)
+
+
+def test_asia_vacia_pit_no_es_calculable() -> None:
+    config = MarketContextConfig()
+    closes = _full_context_closes()
+    resolved = resolve_point_in_time_context(
+        datetime(2026, 8, 26, 20, 0, tzinfo=timezone.utc),
+        closes,
+        config,
+        asia_symbols=(),
+        settlement_minutes=20,
+    )
+
+    assert resolved.context is None
+    assert not resolved.calculable
+    assert resolved.exclusions == (EXCLUDED_ASIA_MISSING,)
+    assert resolved.asia_missing[0].missing == "sin series asiáticas en el universo"
 
 
 def test_censo_p3_falla_si_vix_pit_no_calculable(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -457,6 +480,79 @@ def test_context_mode_deriva_de_version_y_legacy_v2_falla() -> None:
     assert resolve_context_mode("1.0", None) == "legacy_v1"
     assert resolve_context_mode("1.0", "point_in_time") == "point_in_time"
 
+    with pytest.raises(ValueError, match="legacy_v1 solo"):
+        resolve_context_mode("2.0", "legacy_v1")
+
+
+def test_d59_v1_legacy_permitido_v2_pit_automatico_y_v2_legacy_falla(monkeypatch: pytest.MonkeyPatch) -> None:
+    advisor_config = _parity_config()
+    asset = _parity_asset("XETRA")
+    universe = _parity_universe(asset)
+    provider = FakeProvider({})
+    seen: list[tuple[str, str | None]] = []
+
+    monkeypatch.setattr(analyzer_module, "fetch_overview", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(analyzer_module, "fetch_market_context", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("legacy")))
+    monkeypatch.setattr(
+        analyzer_module,
+        "fetch_point_in_time_market_context",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("pit")),
+    )
+    with pytest.raises(RuntimeError, match="pit"):
+        analyzer_module.run_analysis(
+            advisor_config,
+            universe,
+            provider,
+            horizonte="swing",
+            score_model_version="2.0",
+        )
+    with pytest.raises(RuntimeError, match="legacy"):
+        analyzer_module.run_analysis(advisor_config, universe, provider, horizonte="swing", score_model_version="1.0")
+
+    def spy(score_model_version: str, explicit: str | None) -> str:
+        mode = resolve_context_mode(score_model_version, explicit)
+        seen.append((score_model_version, explicit))
+        raise RuntimeError(f"resolved {mode}")
+
+    for module, call in (
+        (
+            backtest_runner,
+            lambda: backtest_runner.run_backtest(
+                advisor_config,
+                universe,
+                provider,
+                horizonte="swing",
+                score_model_version="2.0",
+            ),
+        ),
+        (
+            event_study_module,
+            lambda: event_study_module.run_event_study_on_vintage(
+                advisor_config,
+                universe,
+                VintageLoad(data_vintage_id="test", manifest={}, by_symbol={}),
+                horizonte="swing",
+                score_model_version="2.0",
+            ),
+        ),
+    ):
+        monkeypatch.setattr(module, "resolve_context_mode", spy)
+        with pytest.raises(RuntimeError, match="resolved point_in_time"):
+            call()
+
+    with pytest.raises(ValueError, match="score_model_version 1\\.0"):
+        execution_filter_module.run_execution_filter_study(
+            advisor_config,
+            universe,
+            "missing",
+            horizonte="swing",
+            root_dir="/private/tmp/no-vintage",
+            score_model_version="2.0",
+        )
+
+    assert ("2.0", None) in seen
+    assert resolve_context_mode("1.0", None) == "legacy_v1"
+    assert resolve_context_mode("2.0", None) == "point_in_time"
     with pytest.raises(ValueError, match="legacy_v1 solo"):
         resolve_context_mode("2.0", "legacy_v1")
 

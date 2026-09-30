@@ -8,14 +8,22 @@ from datetime import date, datetime, timedelta, timezone
 import pandas as pd
 import pytest
 
+from advisor.ai.agents import build_user_message
 from advisor.analysis.analyzer import AnalysisResult, SkippedAnalysis
 from advisor.analysis.execution import ABOVE_MAX_ENTRY, RR_TOO_LOW
 from advisor.analysis.levels import Levels, compute_levels
 from advisor.analysis.opportunity import LOW_SCORE, RADAR_DESCARTAR, RADAR_VIGILAR, build_opportunity
 from advisor.analysis.overview import IndexQuote
 from advisor.analysis.scoring import Component, Dimension, Score, compute_score
-from advisor.analysis.sizing import calculate_position_sizing
-from advisor.config import AdvisorConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
+from advisor.analysis.sizing import calculate_position_sizing, conviction_label
+from advisor.config import (
+    AdvisorConfig,
+    LevelsConfig,
+    PortfolioConfig,
+    RiskConfig,
+    ScoringConfig,
+    scoring_for_requested_model,
+)
 from advisor.data.freshness import DataFreshness
 from advisor.data.fx import FxConverter
 from advisor.data.quality import (
@@ -60,12 +68,33 @@ def _opportunity(asset, context, horizonte: str = "swing", portfolio: PortfolioC
     return build_opportunity(
         asset=asset, horizonte=horizonte, snapshot=snapshot, levels=levels,
         score=score, context=context, scoring=ScoringConfig(), risk=RiskConfig(), portfolio=portfolio,
+        confidence_min_bars=250,
         data_freshness=data_freshness,
     )
 
 
 def _score_value(value: float) -> Score:
     return Score([Dimension("test", 100.0, [Component("test", value, 100.0)])])
+
+
+def _v2_opportunity(asset, context):
+    context = replace(context, source="point_in_time", asia_change_pct=0.0)
+    snapshot = make_snapshot()
+    levels = compute_levels(snapshot, LevelsConfig(), RiskConfig().min_rr_ratio)
+    scoring = scoring_for_requested_model(ScoringConfig(), "2.0")
+    score = compute_score(snapshot, context, scoring, model_version="2.0")
+    return build_opportunity(
+        asset=asset,
+        horizonte="swing",
+        snapshot=snapshot,
+        levels=levels,
+        score=score,
+        context=context,
+        scoring=scoring,
+        risk=RiskConfig(),
+        portfolio=PortfolioConfig(),
+        confidence_min_bars=250,
+    )
 
 
 class TestFormatoDeImportes:
@@ -154,6 +183,23 @@ class TestFormatOpportunity:
     def test_precios_de_un_activo_en_euros_llevan_simbolo(self, asset_eur, benign_context, fx: FxConverter) -> None:
         ficha = format_opportunity(_opportunity(asset_eur, benign_context), fx, REPORT_REFERENCE)
         assert "€" in ficha
+
+    def test_presentacion_v1_no_se_filtra_a_v2(self, asset_eur, benign_context, fx: FxConverter) -> None:
+        opportunity = _v2_opportunity(asset_eur, benign_context)
+        ficha = format_opportunity(opportunity, fx, REPORT_REFERENCE)
+        mensaje_llm = build_user_message(opportunity)
+        forbidden = {
+            *(Score([Dimension("test", 100.0, [Component("test", value, 100.0)])]).grade for value in (95, 85, 75, 65, 55)),
+            *(conviction_label(Score([Dimension("test", 100.0, [Component("test", value, 100.0)])])) for value in (85, 75, 65)),
+        }
+
+        assert "sin umbral calibrado" in ficha
+        assert "sin umbral calibrado" in mensaje_llm
+        for text in forbidden:
+            assert text not in ficha
+            assert text not in mensaje_llm
+        with pytest.raises(ValueError, match=r"score_model_version 1\.0"):
+            _ = opportunity.score.grade
 
     def test_precios_en_dolares_muestran_equivalente_en_euros(self, asset_usd, benign_context, fx: FxConverter) -> None:
         ficha = format_opportunity(_opportunity(asset_usd, benign_context), fx, REPORT_REFERENCE)
@@ -600,6 +646,7 @@ class TestFormatReport:
             scoring=scoring,
             risk=RiskConfig(),
             portfolio=PortfolioConfig(),
+            confidence_min_bars=config.horizonte("swing").min_bars,
         )
         assert vigilado.radar == RADAR_VIGILAR
         assert vigilado.warnings
@@ -866,6 +913,7 @@ class TestFormatReport:
                 scoring=scoring,
                 risk=RiskConfig(),
                 portfolio=PortfolioConfig(),
+                confidence_min_bars=250,
                 data_freshness=freshness,
             )
 

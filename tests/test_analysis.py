@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from typing import ClassVar, List
 
 import pandas as pd
@@ -23,6 +23,7 @@ from advisor.analysis.levels import (
 )
 from advisor.analysis.levels import compute_levels as _compute_levels
 from advisor.analysis.levels import compute_levels_from_inputs as _compute_levels_from_inputs
+from advisor.analysis.market_context import MarketContext
 from advisor.analysis.opportunity import (
     ACCION_COMPRAR,
     ACCION_DESCARTAR,
@@ -40,7 +41,14 @@ from advisor.analysis.opportunity import (
 from advisor.analysis.scoring import Component, Dimension, Score, compute_score
 from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, calculate_position_sizing, conviction_label
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
-from advisor.config import HorizonThresholds, IndicatorsConfig, LevelsConfig, PortfolioConfig, RiskConfig, ScoringConfig
+from advisor.config import (
+    IndicatorsConfig,
+    LevelsConfig,
+    PortfolioConfig,
+    RiskConfig,
+    ScoringConfig,
+    scoring_for_requested_model,
+)
 from advisor.data.freshness import QUALITY_DEGRADED, QUALITY_INCOMPLETE, DataFreshness
 from advisor.data.quality import INVALID_INDICATORS, DataQuality, FreshnessState, Severity
 from advisor.universe.loader import load_universe
@@ -48,6 +56,39 @@ from advisor.universe.models import Asset
 from tests.conftest import make_ohlcv
 
 MIN_RR = RiskConfig().min_rr_ratio
+
+
+def scoring_v2_calibrated_for_test() -> ScoringConfig:
+    return ScoringConfig.model_validate(
+        {
+            "score_model_version": "2.0",
+            "fundamentals_enabled": False,
+            "thresholds": {
+                "swing": {
+                    "score_model_version": "2.0",
+                    "calibrated": True,
+                    "min_score_operar": 60.0,
+                    "min_score_vigilar": 50.0,
+                    "calibration_ref": "D-00 · evidence/test",
+                },
+                "medio": {
+                    "score_model_version": "2.0",
+                    "calibrated": False,
+                    "min_score_operar": None,
+                    "min_score_vigilar": None,
+                    "calibration_ref": None,
+                },
+                "intradia": {
+                    "score_model_version": "2.0",
+                    "calibrated": False,
+                    "min_score_operar": None,
+                    "min_score_vigilar": None,
+                    "calibration_ref": None,
+                },
+            },
+        },
+        context={"allow_non_activable_score_model": True},
+    )
 
 
 def compute_levels(snapshot: TechnicalSnapshot, config: LevelsConfig):
@@ -373,6 +414,223 @@ class TestComputeLevels:
 
 
 class TestScoring:
+    class _PointInTimeContext(MarketContext):
+        @property
+        def points(self) -> float:
+            return 7.0
+
+    def _base_case(self) -> tuple[TechnicalSnapshot, Levels, MarketContext]:
+        snapshot = make_snapshot(
+            bars=250,
+            volume_ratio=1.5,
+            gap_pct=0.0,
+            high_lookback=101.0,
+            macd_hist=0.0,
+            relative_strength=1.0,
+            atr=2.0,
+            price=100.0,
+        )
+        levels = Levels(
+            price=100.0,
+            entry_ideal_low=99.0,
+            entry_ideal_high=100.0,
+            entry_max=100.0,
+            stop=95.0,
+            invalidation_level=95.0,
+            invalidation_reason="test",
+            stop_basis="test",
+            target1=105.0,
+            target2=107.5,
+            target3=115.0,
+            risk_pp=5.0,
+            reward_pct=7.5,
+            rr_ratio=1.5,
+            extension_atr=None,
+            chase=False,
+        )
+        context = self._PointInTimeContext(
+            vix_value=25.0,
+            vix_threshold=25.0,
+            trend_price=5000.0,
+            trend_sma=4800.0,
+            label="RISK_ON",
+            reason="test",
+            asia_change_pct=0.0,
+            source="point_in_time",
+        )
+        return snapshot, levels, context
+
+    def test_v1_y_v2_caso_base_y_versiones(self) -> None:
+        snapshot, levels, context = self._base_case()
+
+        v1 = compute_score(snapshot, context, ScoringConfig(), model_version="1.0", levels=levels, min_bars=250)
+        v2 = compute_score(snapshot, context, ScoringConfig(), model_version="2.0")
+
+        assert v1.points == pytest.approx(51.0)
+        assert v1.evaluable_max == pytest.approx(80.0)
+        assert v1.value == pytest.approx(63.75)
+        assert v1.model_version == "1.0"
+        assert v2.points == pytest.approx(31.0)
+        assert v2.evaluable_max == pytest.approx(50.0)
+        assert v2.value == pytest.approx(62.0)
+        assert v2.model_version == "2.0"
+
+    def test_v2_el_rr_no_cambia_el_score_y_no_acepta_levels(self) -> None:
+        snapshot, levels, context = self._base_case()
+        better_rr = Levels(**{**asdict(levels), "rr_ratio": 3.2})
+        worse_rr = Levels(**{**asdict(levels), "rr_ratio": 1.2})
+
+        assert compute_score(snapshot, context, ScoringConfig(), model_version="2.0").value == pytest.approx(62.0)
+        with pytest.raises(TypeError, match="Score v2 no acepta levels"):
+            compute_score(snapshot, context, ScoringConfig(), model_version="2.0", levels=better_rr)
+        with pytest.raises(TypeError, match="Score v2 no acepta levels"):
+            compute_score(snapshot, context, ScoringConfig(), model_version="2.0", min_bars=250)
+        assert compute_score(snapshot, context, ScoringConfig(), model_version="1.0", levels=better_rr, min_bars=250).value > (
+            compute_score(snapshot, context, ScoringConfig(), model_version="1.0", levels=worse_rr, min_bars=250).value
+        )
+
+    def test_compute_score_v2_rechaza_contexto_legacy(self, benign_context) -> None:
+        snapshot, _, _ = self._base_case()
+
+        with pytest.raises(ValueError, match="point_in_time"):
+            compute_score(snapshot, benign_context, ScoringConfig(), model_version="2.0")
+
+    def test_v2_sin_conviccion_ni_beneficio_riesgo(self) -> None:
+        snapshot, _, context = self._base_case()
+        base = compute_score(snapshot, context, ScoringConfig(), model_version="2.0")
+        changed_snapshot = replace(snapshot, atr=99.0)
+        low_rr = Levels(**{**asdict(self._base_case()[1]), "rr_ratio": 1.2})
+        high_rr = Levels(**{**asdict(self._base_case()[1]), "rr_ratio": 3.2})
+
+        assert [dimension.name for dimension in base.dimensions] == [
+            "catalizador",
+            "fundamental",
+            "tecnico",
+            "contexto",
+        ]
+        assert "beneficio_riesgo" not in {dimension.name for dimension in base.dimensions}
+        assert "conviccion" not in {dimension.name for dimension in base.dimensions}
+        assert compute_score(changed_snapshot, context, ScoringConfig(), model_version="2.0").value == pytest.approx(
+            base.value
+        )
+        assert compute_score(snapshot, context, ScoringConfig(), model_version="1.0", levels=low_rr, min_bars=250).value < (
+            compute_score(snapshot, context, ScoringConfig(), model_version="1.0", levels=high_rr, min_bars=250).value
+        )
+        assert compute_score(snapshot, context, ScoringConfig(), model_version="2.0").value == pytest.approx(base.value)
+
+    def test_min_rr_cambia_ejecutabilidad_y_no_el_score(self) -> None:
+        snapshot, _, context = self._base_case()
+        levels = Levels(
+            price=56.0,
+            entry_ideal_low=55.0,
+            entry_ideal_high=56.0,
+            entry_max=56.106,
+            stop=54.71,
+            invalidation_level=54.71,
+            invalidation_reason="test",
+            stop_basis="test",
+            target1=57.0,
+            target2=58.20,
+            target3=60.0,
+            risk_pp=(56.0 - 54.71) / 56.0 * 100.0,
+            reward_pct=(58.20 / 56.0 - 1.0) * 100.0,
+            rr_ratio=reward_risk(56.0, 58.20, 54.71) or 0.0,
+            extension_atr=None,
+            chase=False,
+            entry_max_rr=56.106,
+            min_rr_ratio=1.5,
+        )
+        strict_levels = Levels(**{**asdict(levels), "entry_max": 55.873, "entry_max_rr": 55.873, "min_rr_ratio": 2.0})
+        score = compute_score(snapshot, context, ScoringConfig(), model_version="2.0")
+        strict_execution = evaluate_trade_at_entry(
+            levels=strict_levels,
+            entry_price=strict_levels.price,
+            risk=RiskConfig(min_rr_ratio=2.0),
+            portfolio=PortfolioConfig(),
+            label="test",
+        )
+        loose_execution = evaluate_trade_at_entry(
+            levels=levels,
+            entry_price=levels.price,
+            risk=RiskConfig(min_rr_ratio=1.5),
+            portfolio=PortfolioConfig(),
+            label="test",
+        )
+
+        assert score.value == pytest.approx(62.0)
+        assert loose_execution.entry_max == pytest.approx(56.106, abs=0.001)
+        assert strict_execution.entry_max == pytest.approx(55.873, abs=0.001)
+        assert strict_execution.reason == ABOVE_MAX_ENTRY
+        assert loose_execution.executable is True
+        assert compute_score(snapshot, context, ScoringConfig(), model_version="2.0").value == pytest.approx(score.value)
+
+    @pytest.mark.parametrize("freshness", [None, QUALITY_DEGRADED, QUALITY_INCOMPLETE])
+    @pytest.mark.parametrize("broker", ["yes", "no", "unknown"])
+    def test_calidad_frescura_broker_no_cambian_el_score(self, freshness, broker) -> None:
+        snapshot, _, context = self._base_case()
+        asset = Asset(
+            symbol="TEST",
+            name="Test",
+            asset_class="stock",
+            region="EUROPA",
+            market="XETRA",
+            currency="EUR",
+            timezone="Europe/Madrid",
+            trade_republic=broker,
+        )
+        data_freshness = None
+        if freshness is not None:
+            data_freshness = DataFreshness(
+                last_bar_date=pd.Timestamp("2026-08-31").date(),
+                natural_days=0,
+                sessions_approx=0,
+                label=freshness,
+                quality=freshness,
+                quality_reasons=(f"{freshness}: control",),
+                data_quality=DataQuality(
+                    freshness=FreshnessState.FRESH,
+                    recent_completeness=Severity.CRITICAL if freshness == QUALITY_INCOMPLETE else Severity.OK,
+                    historical_completeness=Severity.OK,
+                    indicator_readiness=True,
+                    execution_readiness=freshness != QUALITY_INCOMPLETE,
+                ),
+            )
+        score = compute_score(snapshot, context, ScoringConfig(), model_version="2.0")
+        opportunity = build_opportunity(
+            asset=asset,
+            horizonte="swing",
+            snapshot=snapshot,
+            levels=compute_levels(snapshot, LevelsConfig()),
+            score=score,
+            context=context,
+            scoring=scoring_v2_calibrated_for_test(),
+            risk=RiskConfig(),
+            portfolio=PortfolioConfig(),
+            confidence_min_bars=250,
+            data_freshness=data_freshness,
+        )
+
+        assert broker in {"yes", "no", "unknown"}
+        assert freshness in {None, QUALITY_DEGRADED, QUALITY_INCOMPLETE}
+        assert opportunity.score.value == pytest.approx(62.0)
+        observed = (opportunity.accion, tuple(opportunity.decision_reasons), opportunity.execution_code)
+        if freshness == QUALITY_INCOMPLETE:
+            assert observed[2] == "DATA_NOT_EXECUTABLE"
+        elif broker == "unknown":
+            assert observed[2] == BROKER_UNVERIFIED
+        elif broker == "no":
+            assert observed[2] == "BROKER_UNAVAILABLE"
+        else:
+            assert observed[2] == "EXECUTABLE"
+
+    def test_v2_exige_contexto_point_in_time_y_version_desconocida_falla(self, benign_context) -> None:
+        snapshot, _, context = self._base_case()
+
+        with pytest.raises(ValueError, match="point_in_time"):
+            compute_score(snapshot, benign_context, ScoringConfig(), model_version="2.0")
+        with pytest.raises(ValueError, match="desconocida"):
+            compute_score(snapshot, context, ScoringConfig(), model_version="9.9")
+
     def test_el_objetivo2_estructural_arrastra_la_nota_no_solo_el_veto(self, benign_context) -> None:
         """Recortar el objetivo 2 no solo dispara el veto de ratio: se lleva
         por delante puntos de la nota, que no se recuperan bajando
@@ -553,19 +811,7 @@ class TestClassify:
         assert "por debajo del mínimo" in motivos[0]
 
     def test_threshold_null_devuelve_vigilar_esperar_sin_calibracion(self, benign_context) -> None:
-        scoring = ScoringConfig.model_construct(
-            score_model_version="2.0",
-            fundamentals_enabled=False,
-            thresholds={
-                "swing": HorizonThresholds.model_construct(
-                    score_model_version="2.0",
-                    calibrated=False,
-                    min_score_operar=None,
-                    min_score_vigilar=None,
-                    calibration_ref=None,
-                )
-            },
-        )
+        scoring = scoring_for_requested_model(ScoringConfig(), "2.0")
         result = classify_setup_detailed(
             self._score_con_valor(85.0),
             compute_levels(make_snapshot(), LevelsConfig()),
@@ -579,6 +825,61 @@ class TestClassify:
             RADAR_VIGILAR,
             ACCION_ESPERAR,
             SCORE_UNCALIBRATED,
+        )
+
+    def _opportunity_confianza(self, asset_eur, benign_context, snapshot: TechnicalSnapshot, score: Score) -> str:
+        levels = compute_levels(make_snapshot(), LevelsConfig())
+        opportunity = build_opportunity(
+            asset_eur,
+            "swing",
+            snapshot,
+            levels,
+            score,
+            benign_context,
+            ScoringConfig(),
+            RiskConfig(),
+            PortfolioConfig(),
+            confidence_min_bars=250,
+        )
+        return opportunity.confianza
+
+    def test_confianza_sin_dimension_conviccion_y_sin_atr_pct(self, asset_eur, benign_context) -> None:
+        available_score = Score(
+            [Dimension("prueba", 100.0, [Component("factor", 80.0, 100.0)])],
+            score_model_version="1.0",
+        )
+        missing_fundamental = Score(
+            [
+                Dimension("prueba", 80.0, [Component("factor", 80.0, 100.0)]),
+                Dimension("fundamental", 20.0, [], unavailable_reason="sin dato"),
+            ],
+            score_model_version="1.0",
+        )
+
+        assert self._opportunity_confianza(asset_eur, benign_context, make_snapshot(bars=250), available_score) == "Alta"
+        assert self._opportunity_confianza(asset_eur, benign_context, make_snapshot(bars=250), missing_fundamental) == "Media"
+        assert self._opportunity_confianza(
+            asset_eur,
+            benign_context,
+            make_snapshot(bars=150, sma_long=None, macd_hist=None),
+            missing_fundamental,
+        ) == "Media"
+        assert self._opportunity_confianza(
+            asset_eur,
+            benign_context,
+            make_snapshot(bars=100, sma_long=None, macd_hist=None, atr=None),
+            missing_fundamental,
+        ) == "Baja"
+        assert self._opportunity_confianza(
+            asset_eur,
+            benign_context,
+            make_snapshot(bars=250, atr=1.0),
+            missing_fundamental,
+        ) == self._opportunity_confianza(
+            asset_eur,
+            benign_context,
+            make_snapshot(bars=250, atr=20.0),
+            missing_fundamental,
         )
 
     def test_setup_bueno_con_rr_malo_espera_sin_tocar_score(self, asset_eur, benign_context) -> None:
@@ -672,6 +973,7 @@ class TestClassify:
             scoring=ScoringConfig(),
             risk=RiskConfig(),
             portfolio=PortfolioConfig(),
+            confidence_min_bars=250,
         )
         assert any("extendido" in warning for warning in opportunity.warnings)
 
@@ -790,6 +1092,7 @@ class TestClassify:
             scoring=ScoringConfig(),
             risk=RiskConfig(),
             portfolio=PortfolioConfig(),
+            confidence_min_bars=250,
             data_freshness=DataFreshness(
                 last_bar_date=pd.Timestamp("2026-09-11").date(),
                 natural_days=3,
@@ -833,6 +1136,7 @@ class TestClassify:
             scoring=ScoringConfig(),
             risk=RiskConfig(),
             portfolio=PortfolioConfig(),
+            confidence_min_bars=250,
             data_freshness=DataFreshness(
                 last_bar_date=pd.Timestamp("2026-09-11").date(),
                 natural_days=3,
@@ -921,6 +1225,7 @@ class TestExecutionEvaluation:
             scoring=ScoringConfig(),
             risk=RiskConfig(),
             portfolio=PortfolioConfig(),
+            confidence_min_bars=250,
         )
 
     def test_reevaluacion_por_encima_de_entry_max_da_rr_too_low(self, asset_eur, benign_context) -> None:
@@ -969,6 +1274,7 @@ class TestExecutionEvaluation:
             scoring=ScoringConfig(),
             risk=RiskConfig(),
             portfolio=PortfolioConfig(),
+            confidence_min_bars=250,
         )
 
         assert opportunity.accion == ACCION_COMPRAR
@@ -1024,6 +1330,7 @@ class TestExecutionEvaluation:
             scoring=ScoringConfig(),
             risk=RiskConfig(),
             portfolio=PortfolioConfig(),
+            confidence_min_bars=250,
         )
 
         assert opportunity.score.value == 90.0, "el score no lo toca ninguna capa (INV-03)"

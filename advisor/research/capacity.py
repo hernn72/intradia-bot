@@ -341,7 +341,15 @@ def preregistered_estimators(
         primary_interval_lower=primary_global.interval_lower,
         primary_interval_upper=primary_global.interval_upper,
         primary_by_band=[
-            _primary_expectancy_row(label, [signal for signal in result.signals if score_band(signal.observation.score_value) == label], lookup)
+            _primary_expectancy_row(
+                label,
+                [
+                    signal
+                    for signal in result.signals
+                    if score_band(signal.observation.score_value, observation=signal.observation) == label
+                ],
+                lookup,
+            )
             for label, _, _ in SCORE_BANDS
         ],
         primary_by_region=_primary_rows_by_region(result.signals, lookup),

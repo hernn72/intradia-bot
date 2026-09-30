@@ -39,6 +39,12 @@ _SCORE_BUCKETS: List[Tuple[str, float, float]] = [
 _MIN_SAMPLE = 10
 
 
+def _ensure_v1_backtest_report(result: BacktestResult) -> None:
+    versions = {trade.score_model_version for trade in (*result.trades_operar, *result.trades_todas)}
+    if any(version != "1.0" for version in versions):
+        raise ValueError("El informe de backtest por tramos solo está definido para score_model_version 1.0")
+
+
 def _n(value: float, decimals: int = 1) -> str:
     return f"{value:.{decimals}f}".replace(".", ",")
 
@@ -158,6 +164,7 @@ def _procedencia(result: BacktestResult) -> List[str]:
 
 
 def format_backtest_report(result: BacktestResult) -> str:
+    _ensure_v1_backtest_report(result)
     periodo = f"cosecha {result.data_vintage_id[:8]}…" if result.data_vintage_id else f"periodo {result.period}"
     lines: List[str] = [
         _LINE,

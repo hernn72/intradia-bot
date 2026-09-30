@@ -22,7 +22,7 @@ from advisor.analysis.market_context import MarketContext, build_market_context
 from advisor.analysis.overview import context_assets_of
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import SnapshotSeries, build_snapshot_series, snapshot_from_series
-from advisor.config import AdvisorConfig, LevelsConfig
+from advisor.config import AdvisorConfig, LevelsConfig, scoring_for_requested_model
 from advisor.context.point_in_time import ContextMode, PointInTimeContextResolver, resolve_context_mode
 from advisor.data.freshness import mercado_para_simbolo
 from advisor.data.sessions import market_for_symbol, market_session
@@ -223,6 +223,7 @@ def run_event_study(
     root_dir: str = "data/vintages",
     population_name: str = "vigente",
     context_mode: Optional[ContextMode] = None,
+    score_model_version: Optional[str] = None,
 ) -> EventStudyResult:
     """Ejecuta P2.3 sobre una cosecha ya congelada y verificada."""
 
@@ -235,6 +236,7 @@ def run_event_study(
         cost_pct=cost_pct,
         population_name=population_name,
         context_mode=context_mode,
+        score_model_version=score_model_version,
     )
 
 
@@ -247,12 +249,14 @@ def run_event_study_on_vintage(
     cost_pct: float = 0.2,
     population_name: str = "vigente",
     context_mode: Optional[ContextMode] = None,
+    score_model_version: Optional[str] = None,
 ) -> EventStudyResult:
     """Núcleo con I/O ya resuelto, útil para tests y para la CLI."""
 
     if horizonte not in MAX_HOLD_BARS:
         raise ValueError(f"el event study solo cubre swing y medio: '{horizonte}'")
-    context_mode = resolve_context_mode(config.scoring.score_model_version, context_mode)
+    requested_score_model = score_model_version or config.scoring.score_model_version
+    context_mode = resolve_context_mode(requested_score_model, context_mode)
 
     window = config.horizonte(horizonte)
     warmup = window.min_bars
@@ -359,6 +363,7 @@ def run_event_study_on_vintage(
                 trend_at,
                 trend_sma_at,
                 market_context_at,
+                requested_score_model,
             )
             if signal is None:
                 continue
@@ -560,7 +565,7 @@ def evaluate_potential_event(
 
 
 def band_of_full_score(signal: EventStudySignal) -> str:
-    return score_band(signal.observation.score_value)
+    return score_band(signal.observation.score_value, observation=signal.observation)
 
 
 def summarize_by_score_band(
@@ -671,6 +676,7 @@ def _build_event_signal(
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
     market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
+    score_model_version: Optional[str] = None,
 ) -> Optional[Tuple[Levels, SignalObservation]]:
     try:
         snapshot = snapshot_from_series(asset.symbol, snapshot_series, j)
@@ -690,7 +696,16 @@ def _build_event_signal(
             trend_sma_at[j] if trend_sma_at is not None else None,
             config.market_context,
         )
-    score = compute_score(snapshot, levels, context, config.scoring, min_bars)
+    requested_score_model = score_model_version or config.scoring.score_model_version
+    scoring = scoring_for_requested_model(config.scoring, requested_score_model)
+    score = compute_score(
+        snapshot,
+        context,
+        scoring,
+        model_version=requested_score_model,
+        levels=levels if requested_score_model == "1.0" else None,
+        min_bars=min_bars if requested_score_model == "1.0" else None,
+    )
     observation = build_signal_observation(asset=asset, horizonte=horizonte, signal_idx=j, snapshot=snapshot, score=score)
     primitive_levels = compute_levels_from_inputs(
         price=observation.price,
@@ -723,10 +738,16 @@ def _with_vintage_id(observation: SignalObservation, data_vintage_id: str) -> Si
         low_lookback=observation.low_lookback,
         high_lookback=observation.high_lookback,
         ema_fast=observation.ema_fast,
+        score_model_version=observation.score_model_version,
+        bars=observation.bars,
+        confidence_indicators_present=observation.confidence_indicators_present,
     )
 
 
-def score_band(score: float) -> str:
+def score_band(score: float, *, score_model_version: str = "1.0", observation: Optional[SignalObservation] = None) -> str:
+    version = observation.score_model_version if observation is not None else score_model_version
+    if version != "1.0":
+        raise ValueError("score_band solo está definido para score_model_version 1.0")
     for label, lower, upper in SCORE_BANDS:
         if score >= lower and (upper is None or score < upper):
             return label

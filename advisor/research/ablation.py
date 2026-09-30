@@ -154,8 +154,8 @@ def build_ablation_record(signal: EventStudySignal, cost_pct: float) -> Tuple[Op
             risk_pp=signal.managed.risk_pp,
             rr_gross=rr_gross,
             rr_net=rr_net,
-            band_full=score_band(obs.score_value),
-            band_without_rr=score_band(score_without_rr),
+            band_full=score_band(obs.score_value, observation=obs),
+            band_without_rr=score_band(score_without_rr, observation=obs),
             exit_status=signal.managed.exit_status,
             net_r_multiple=signal.managed.net_r_multiple,
             bars_held=signal.managed.bars_held,
@@ -185,7 +185,7 @@ def run_ablation(
     scores_without_rr = {record.signal_id: record.score_without_rr for record in records}
 
     def band_of_ablated(signal: EventStudySignal) -> str:
-        return score_band(scores_without_rr[signal.observation.signal_id])
+        return score_band(scores_without_rr[signal.observation.signal_id], observation=signal.observation)
 
     comparable = replace(result, signals=valid_signals)
     bands_full_summary = summarize_by_score_band(valid_signals)

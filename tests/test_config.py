@@ -161,9 +161,17 @@ class TestScoringConfig:
                 }
             )
 
-    def test_rechaza_score_model_version_no_implementada(self) -> None:
-        with pytest.raises(ValidationError, match=r"score_model_version no implementada: 2\.0"):
+    def test_rechaza_score_model_version_implementada_pero_no_activable(self) -> None:
+        with pytest.raises(ValidationError, match=r"score_model_version no activable en producción: 2\.0"):
             ScoringConfig(score_model_version="2.0", thresholds={h: _threshold("2.0", None, None) for h in _thresholds_all()})
+
+    def test_config_no_puede_activar_v2(self) -> None:
+        with pytest.raises(ValidationError, match=r"score_model_version no activable en producción: 2\.0"):
+            ScoringConfig(score_model_version="2.0", thresholds={h: _threshold("2.0", None, None) for h in _thresholds_all()})
+
+    def test_config_rechaza_version_desconocida(self) -> None:
+        with pytest.raises(ValidationError, match=r"score_model_version no implementada: 9\.9"):
+            ScoringConfig(score_model_version="9.9", thresholds={h: _threshold("9.9", None, None) for h in _thresholds_all()})
 
     def test_rechaza_threshold_score_model_version_distinta(self) -> None:
         thresholds = _thresholds_all()

@@ -111,6 +111,7 @@ def run_backtest(
     reference: Optional[datetime] = None,
     settlement_minutes: int = 20,
     context_mode: Optional[ContextMode] = None,
+    score_model_version: Optional[str] = None,
 ) -> BacktestResult:
     """Simula el asesor sobre histórico diario.
 
@@ -158,7 +159,8 @@ def run_backtest(
         assert provider is not None
         return _fetch_close(provider, symbol) if symbol is not None else None
 
-    context_mode = resolve_context_mode(config.scoring.score_model_version, context_mode)
+    requested_score_model = score_model_version or config.scoring.score_model_version
+    context_mode = resolve_context_mode(requested_score_model, context_mode)
 
     asia_symbols = (
         tuple(sorted(asset.primary_symbol for asset in context_assets_of(universe) if asset.region == "ASIA"))
@@ -260,6 +262,7 @@ def run_backtest(
                     benchmark_close=benchmark_close, vix_at=vix_at,
                     trend_price_at=trend_at, trend_sma_at=trend_sma_at,
                     market_context_at=market_context_at,
+                    score_model_version=requested_score_model,
                 )
             )
 

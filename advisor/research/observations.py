@@ -41,6 +41,9 @@ class SignalObservation:
     low_lookback: Optional[float]
     high_lookback: Optional[float]
     ema_fast: Optional[float]
+    score_model_version: str = "1.0"
+    bars: int = 0
+    confidence_indicators_present: int = 0
 
 
 def stable_signal_id(asset: str, horizonte: str, timestamp: object) -> str:
@@ -84,4 +87,18 @@ def build_signal_observation(
         low_lookback=snapshot.low_lookback,
         high_lookback=snapshot.high_lookback,
         ema_fast=snapshot.ema_fast,
+        score_model_version=score.score_model_version,
+        bars=snapshot.bars,
+        confidence_indicators_present=sum(
+            1
+            for value in (
+                snapshot.ema_fast,
+                snapshot.ema_slow,
+                snapshot.sma_long,
+                snapshot.rsi,
+                snapshot.atr,
+                snapshot.macd_hist,
+            )
+            if value is not None
+        ),
     )

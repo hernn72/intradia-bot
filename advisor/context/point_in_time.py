@@ -345,6 +345,16 @@ def _resolve_point_in_time_context_prepared(
             config,
             asia_change_pct=asia_change,
         )
+        context = MarketContext(
+            vix_value=context.vix_value,
+            vix_threshold=context.vix_threshold,
+            trend_price=context.trend_price,
+            trend_sma=context.trend_sma,
+            label=context.label,
+            reason=context.reason,
+            asia_change_pct=context.asia_change_pct,
+            source="point_in_time",
+        )
 
     return PointInTimeContextResult(
         analysis_timestamp=reference,
@@ -437,6 +447,8 @@ def _asia_change(
     changes: list[float] = []
     sessions: dict[str, tuple[date, date]] = {}
     missing: list[AsiaMissing] = []
+    if not asia_symbols:
+        return None, sessions, [AsiaMissing("ASIA", "sin series asiáticas en el universo", reference.date())]
     for symbol in asia_symbols:
         market = market_for_symbol(symbol)
         latest = _latest_expected(market, reference, settlement_minutes)

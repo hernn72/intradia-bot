@@ -39,6 +39,7 @@ class MarketContext:
     # Asia cierra antes de que abra Europa: su sesión es la señal más
     # temprana disponible sobre el tono del día (§5 de la especificación).
     asia_change_pct: Optional[float] = None
+    source: str = "legacy_v1"
 
     @property
     def trend_up(self) -> Optional[bool]:
@@ -115,6 +116,7 @@ def build_market_context(
             label="INDETERMINADO",
             reason="sin datos de volatilidad ni de tendencia del índice de referencia",
             asia_change_pct=asia_change_pct,
+            source="legacy_v1",
         )
 
     vix_high = vix_value is not None and vix_value >= config.vix_threshold
@@ -140,6 +142,7 @@ def build_market_context(
         label=label,
         reason=reason,
         asia_change_pct=asia_change_pct,
+        source="legacy_v1",
     )
 
 

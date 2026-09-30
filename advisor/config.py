@@ -14,10 +14,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 VALID_HORIZONTES = ("intradia", "swing", "medio")
-IMPLEMENTED_SCORE_MODEL_VERSIONS = frozenset({"1.0"})
+IMPLEMENTED_SCORE_MODEL_VERSIONS = frozenset({"1.0", "2.0"})
+ACTIVABLE_SCORE_MODEL_VERSIONS = frozenset({"1.0"})
 CALIBRATABLE_HORIZONS_BY_SCORE_MODEL = {
     "1.0": frozenset(),
     "2.0": frozenset({"swing"}),
@@ -164,9 +165,12 @@ class ScoringConfig(BaseModel):
         return data
 
     @model_validator(mode="after")
-    def _validate_thresholds(self) -> ScoringConfig:
+    def _validate_thresholds(self, info: ValidationInfo) -> ScoringConfig:
         if self.score_model_version not in IMPLEMENTED_SCORE_MODEL_VERSIONS:
             raise ValueError(f"score_model_version no implementada: {self.score_model_version}")
+        allow_non_activable = bool(info.context and info.context.get("allow_non_activable_score_model"))
+        if not allow_non_activable and self.score_model_version not in ACTIVABLE_SCORE_MODEL_VERSIONS:
+            raise ValueError(f"score_model_version no activable en producción: {self.score_model_version}")
         for horizon, thresholds in self.thresholds.items():
             if thresholds.score_model_version != self.score_model_version:
                 raise ValueError(
@@ -220,6 +224,38 @@ class ScoringConfig(BaseModel):
                 for horizon, thresholds in sorted(self.thresholds.items())
             },
         }
+
+
+def scoring_for_requested_model(scoring: ScoringConfig, score_model_version: str) -> ScoringConfig:
+    """Devuelve la configuracion efectiva para una version de score pedida.
+
+    Produccion solo puede activar versiones en ``ACTIVABLE_SCORE_MODEL_VERSIONS``.
+    Investigacion puede pedir v2 desde una config activa v1, pero siempre con
+    umbrales no calibrados/nulos y fundamentales desactivados, validado por
+    ``ScoringConfig`` con un contexto explicito.
+    """
+
+    if score_model_version == scoring.score_model_version:
+        return scoring
+    if score_model_version not in IMPLEMENTED_SCORE_MODEL_VERSIONS:
+        raise ValueError(f"score_model_version desconocida: {score_model_version}")
+    if score_model_version != "2.0":
+        raise ValueError(f"score_model_version no disponible para investigacion: {score_model_version}")
+    payload = {
+        "score_model_version": "2.0",
+        "fundamentals_enabled": False,
+        "thresholds": {
+            horizon: {
+                "score_model_version": "2.0",
+                "calibrated": False,
+                "min_score_operar": None,
+                "min_score_vigilar": None,
+                "calibration_ref": None,
+            }
+            for horizon in VALID_HORIZONTES
+        },
+    }
+    return ScoringConfig.model_validate(payload, context={"allow_non_activable_score_model": True})
 
 
 class RiskConfig(BaseModel):

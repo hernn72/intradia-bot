@@ -421,6 +421,36 @@ class TestPoblacionDeOperarYBroker:
         informe = format_backtest_report(result)
         assert ACCION_VERIFICAR_BROKER in informe
 
+    def test_el_informe_del_backtest_rechaza_operaciones_v2(self) -> None:
+        trade = BacktestTrade(
+            symbol="TEST",
+            score=62.0,
+            radar="OPERAR",
+            accion=ACCION_COMPRAR,
+            entry_date=pd.Timestamp("2026-01-01", tz="UTC"),
+            exit_date=pd.Timestamp("2026-01-02", tz="UTC"),
+            entry_price=100.0,
+            exit_price=110.0,
+            stop=95.0,
+            target=110.0,
+            exit_reason=EXIT_TARGET,
+            bars_held=1,
+            cost_pct=0.20,
+            score_model_version="2.0",
+        )
+        result = BacktestResult(
+            horizonte="swing",
+            period="5y",
+            cost_pct=0.20,
+            warmup_bars=WARMUP,
+            trades_operar=[trade],
+            trades_todas=[trade],
+            evaluated=["TEST"],
+        )
+
+        with pytest.raises(ValueError, match=r"score_model_version 1\.0"):
+            format_backtest_report(result)
+
 
 class TestCosechaCongelada:
     """T-015: el backtest deja de depender del minuto en que se ejecuta."""

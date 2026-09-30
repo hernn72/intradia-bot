@@ -47,6 +47,7 @@ from advisor.analysis.opportunity import (
     Opportunity,
 )
 from advisor.analysis.overview import REGION_ORDER, IndexQuote
+from advisor.analysis.scoring import score_label
 from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, POSITION_LIMIT_RISK_BUDGET
 from advisor.config import AdvisorConfig, PortfolioConfig
 from advisor.data.bar_cache import BarCacheReport
@@ -275,7 +276,7 @@ def format_opportunity(
     lines.append(_price_reference_line(opportunity, money, reference))
     lines.append(f"**Tipo de operación:** {opportunity.tipo_operacion}")
     freshness = _freshness_for_opportunity(opportunity, reference)
-    lines.append(f"Score: {score.value:.0f}/100 ({score.grade})")
+    lines.append(f"Score: {score_label(score)}")
     lines.append(f"Setup: {_setup_status(opportunity)}")
     lines.append(f"Ejecución: {_execution_status(opportunity)}")
     lines.append(f"Dato: {_data_quality_status(opportunity, freshness)}")
@@ -308,7 +309,7 @@ def format_opportunity(
             "⚠️ Barra potencialmente parcial: la última barra es de hoy y puede no ser un cierre."
         )
     lines.append(
-        f"**Puntuación:** {score.value:.0f}/100 ({score.grade})"
+        f"**Puntuación:** {score_label(score)}"
         + (
             f" — calculada sobre {score.evaluable_max:.0f} puntos evaluables"
             if score.missing_dimensions
