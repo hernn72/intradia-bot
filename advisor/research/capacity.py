@@ -392,12 +392,16 @@ def _summary(
     block_lookup: TemporalBlockMap,
     thresholds: CapacityThresholds,
     max_hold_bars: int,
-    band_of: Callable[[EventStudySignal], str] = band_of_full_score,
+    band_of: Optional[Callable[[EventStudySignal], str]] = band_of_full_score,
 ) -> CapacitySummary:
     nominal_n = len(signals)
-    n_by_band = {band: 0 for band, _, _ in SCORE_BANDS}
-    for signal in signals:
-        n_by_band[band_of(signal)] += 1
+    # Las bandas H-7 son de Score v1: con otra versión (P3) no hay reparto que
+    # publicar, y el resto del veredicto P2.5 no depende de él.
+    n_by_band: Dict[str, int] = {}
+    if band_of is not None:
+        n_by_band = {band: 0 for band, _, _ in SCORE_BANDS}
+        for signal in signals:
+            n_by_band[band_of(signal)] += 1
 
     n_blocks = _temporal_blocks(signals, block_lookup)
     primary = _primary_expectancy_row(label, signals, block_lookup)
