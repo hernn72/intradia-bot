@@ -1,0 +1,22 @@
+$ .venv/bin/ruff check .
+All checks passed!
+$ .venv/bin/mypy advisor
+Success: no issues found in 72 source files
+$ .venv/bin/python -m pytest -v --durations=15 (sobre el código de d531d1d, antes del commit)
+============================= slowest 15 durations =============================
+65.17s call     tests/test_timestamps.py::test_cosecha_real_mantiene_hashes_y_bytes_tras_parsear_y_serializar_salidas
+48.29s call     tests/test_p3.py::test_preflight_reproduce_poblacion_y_hash_swing_sin_desenlaces
+34.42s call     tests/test_p4.py::test_preflight_real_reproduce_poblacion_bloques_y_recuento_sin_desenlaces
+24.62s call     tests/test_p4.py::test_regresion_backtest_v1
+14.03s call     tests/test_backtest_real_vintage.py::test_dos_pasadas_sobre_la_cosecha_dan_las_mismas_operaciones
+13.43s call     tests/test_population_real_vintage.py::test_las_tres_poblaciones_se_anidan_y_ninguna_senal_cambia_de_valor
+9.29s setup    tests/test_score_v2_real_vintage.py::test_inv06_score_v2_coincide_en_analyzer_engine_y_event_study
+9.28s setup    tests/test_score_v2_real_vintage.py::test_score_v2_equivale_a_reconstruccion_desde_observaciones_v1
+6.11s call     tests/test_capacity_real_vintage.py::test_bloques_de_sesion_reales_no_desplazan_europa_ni_incluyen_fines_de_semana
+2.48s call     tests/test_research.py::test_senal_vectorizada_equivale_al_prefijo_causal[nan_interiores]
+2.44s call     tests/test_research.py::test_senal_vectorizada_equivale_al_prefijo_causal[alineado_sin_huecos]
+2.34s call     tests/test_research.py::test_senal_vectorizada_equivale_al_prefijo_causal[alineado_por_runner]
+1.93s call     tests/test_research.py::test_senal_vectorizada_equivale_al_prefijo_causal[sin_benchmark]
+1.80s call     tests/test_point_in_time_context.py::test_paridad_r_ctx_cuatro_caminos_pit
+1.26s call     tests/test_p3.py::test_calibracion_con_desenlaces_fabricados_encuentra_meseta
+================= 820 passed, 3 warnings in 258.43s (0:04:18) ==================

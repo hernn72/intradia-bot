@@ -1,0 +1,4520 @@
+{
+  "fase": "preflight",
+  "modo": "DEFINITIVO",
+  "identidad": {
+    "p4_prereg_sha": "48b884722ef027e99857a4e65f9ab6b11da4758f",
+    "p4_executor_sha": "d531d1d7f1e6fe344834b9f1b6e5b0c4fedf75bf",
+    "git_dirty": false,
+    "prereg_en_historia": true,
+    "data_vintage_id": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+    "universe_vintage_id": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+    "config_hash": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+    "config_score_model_version": "1.0",
+    "cost_pct": 0.2,
+    "seed": 20260830,
+    "standard": {
+      "confidence": 0.95,
+      "resamples": 2000
+    },
+    "bonferroni": {
+      "m": 4,
+      "confidence": 0.9875,
+      "resamples": 20000
+    },
+    "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)"
+  },
+  "inicio_utc": "2026-10-01T21:42:30.497498+00:00",
+  "outcomes_read": false,
+  "p4_confirmatory_executed": false,
+  "poblacion": {
+    "a02_swing": 106363,
+    "cripto_excluido": 5112,
+    "cripto_activos": [
+      "BTC-EUR",
+      "ETH-EUR",
+      "SOL-EUR"
+    ],
+    "p4": 101251,
+    "activos": 90,
+    "p4_population_sha256": "78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141",
+    "signal_ids_sha256": "9faa4a45beaba3eb8dafabf7990906cd8c89e8e06ae2f25edec7839cd48e629f",
+    "regiones": {
+      "ASIA": 17953,
+      "EMERGING_MARKETS": 1151,
+      "EUROPA": 34622,
+      "GLOBAL": 2627,
+      "USA": 44898
+    },
+    "exclusiones_p3_aplicadas": false
+  },
+  "bloques": {
+    "40": {
+      "espina_sesiones": 1302,
+      "bloques_espina": 33,
+      "bloques_ocupados": 30,
+      "primer_y_ultimo_ocupado": [
+        3,
+        32
+      ],
+      "bloque_ocupado_mas_corto": 22,
+      "valida_P2_5": false,
+      "senales_min_por_bloque": 1845,
+      "papel": "INVÁLIDA (bloque ocupado más corto ≤ 40): publicada, fuera de toda condición"
+    },
+    "60": {
+      "espina_sesiones": 1302,
+      "bloques_espina": 22,
+      "bloques_ocupados": 20,
+      "primer_y_ultimo_ocupado": [
+        2,
+        21
+      ],
+      "bloque_ocupado_mas_corto": 42,
+      "valida_P2_5": true,
+      "senales_min_por_bloque": 3599,
+      "papel": "PRIMARIA"
+    },
+    "80": {
+      "espina_sesiones": 1302,
+      "bloques_espina": 17,
+      "bloques_ocupados": 16,
+      "primer_y_ultimo_ocupado": [
+        1,
+        16
+      ],
+      "bloque_ocupado_mas_corto": 22,
+      "valida_P2_5": false,
+      "senales_min_por_bloque": 1845,
+      "papel": "INVÁLIDA (bloque ocupado más corto ≤ 40): publicada, fuera de toda condición"
+    },
+    "120": {
+      "espina_sesiones": 1302,
+      "bloques_espina": 11,
+      "bloques_ocupados": 10,
+      "primer_y_ultimo_ocupado": [
+        1,
+        10
+      ],
+      "bloque_ocupado_mas_corto": 102,
+      "valida_P2_5": true,
+      "senales_min_por_bloque": 8842,
+      "papel": "SENSIBILIDAD (condición 2)"
+    }
+  },
+  "contexto_pit": {
+    "regimen": {
+      "CAUTELA": 12431,
+      "NO_CALCULABLE_CONTEXT": 7157,
+      "RISK_OFF": 7944,
+      "RISK_ON": 73719
+    },
+    "no_calculable_por_codigo": {
+      "excluded_asia_missing": 396,
+      "excluded_trend_sma_history": 6937
+    },
+    "nota": "NO_CALCULABLE_CONTEXT permanece en la primaria; no se le inventa régimen"
+  },
+  "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
+  "rejilla": {
+    "C0": {
+      "id": "C0",
+      "atr_stop_multiple": 2.0,
+      "target_atr_multiples": [
+        1.5,
+        3.0,
+        5.0
+      ],
+      "target2_structural": false,
+      "entry_max_atr": 0.75,
+      "min_rr": 1.5,
+      "regla_soporte": "E (el soporte nunca aleja el stop)",
+      "rol": "CONTROL",
+      "confirmatory": false,
+      "eligible_for_p5": false,
+      "bonferroni": false,
+      "etiqueta": null
+    },
+    "B1": {
+      "id": "B1",
+      "atr_stop_multiple": 2.0,
+      "target_atr_multiples": [
+        1.5,
+        3.5,
+        5.0
+      ],
+      "target2_structural": false,
+      "entry_max_atr": 0.75,
+      "min_rr": 1.5,
+      "regla_soporte": "E (el soporte nunca aleja el stop)",
+      "rol": "DESCRIPTIVA",
+      "confirmatory": false,
+      "eligible_for_p5": false,
+      "bonferroni": false,
+      "etiqueta": "previamente expuesta en esta misma cosecha; no confirmatoria; no elegible para sustituir C0"
+    },
+    "B2": {
+      "id": "B2",
+      "atr_stop_multiple": 2.0,
+      "target_atr_multiples": [
+        1.5,
+        4.875,
+        5.0
+      ],
+      "target2_structural": false,
+      "entry_max_atr": 0.75,
+      "min_rr": 1.5,
+      "regla_soporte": "E (el soporte nunca aleja el stop)",
+      "rol": "CANDIDATA",
+      "confirmatory": true,
+      "eligible_for_p5": true,
+      "bonferroni": true,
+      "etiqueta": null
+    },
+    "S1": {
+      "id": "S1",
+      "atr_stop_multiple": 1.5,
+      "target_atr_multiples": [
+        1.5,
+        2.25,
+        5.0
+      ],
+      "target2_structural": false,
+      "entry_max_atr": 0.75,
+      "min_rr": 1.5,
+      "regla_soporte": "E (el soporte nunca aleja el stop)",
+      "rol": "CANDIDATA",
+      "confirmatory": true,
+      "eligible_for_p5": true,
+      "bonferroni": true,
+      "etiqueta": null
+    },
+    "S2": {
+      "id": "S2",
+      "atr_stop_multiple": 2.5,
+      "target_atr_multiples": [
+        1.5,
+        3.75,
+        5.0
+      ],
+      "target2_structural": false,
+      "entry_max_atr": 0.75,
+      "min_rr": 1.5,
+      "regla_soporte": "E (el soporte nunca aleja el stop)",
+      "rol": "CANDIDATA",
+      "confirmatory": true,
+      "eligible_for_p5": true,
+      "bonferroni": true,
+      "etiqueta": null
+    }
+  },
+  "algebra": {
+    "C0": {
+      "formula": {
+        "rr_en_p": 1.5,
+        "holgura_rr_atr": 0.0,
+        "holgura_efectiva_atr": 0.0
+      },
+      "niveles_sinteticos_P100_A2": {
+        "rr_en_p": 1.5,
+        "holgura_rr_atr": 0.0,
+        "holgura_efectiva_atr": 0.0
+      }
+    },
+    "B1": {
+      "formula": {
+        "rr_en_p": 1.75,
+        "holgura_rr_atr": 0.2,
+        "holgura_efectiva_atr": 0.2
+      },
+      "niveles_sinteticos_P100_A2": {
+        "rr_en_p": 1.75,
+        "holgura_rr_atr": 0.20000000000000284,
+        "holgura_efectiva_atr": 0.20000000000000284
+      }
+    },
+    "B2": {
+      "formula": {
+        "rr_en_p": 2.4375,
+        "holgura_rr_atr": 0.75,
+        "holgura_efectiva_atr": 0.75
+      },
+      "niveles_sinteticos_P100_A2": {
+        "rr_en_p": 2.4375,
+        "holgura_rr_atr": 0.75,
+        "holgura_efectiva_atr": 0.75
+      }
+    },
+    "S1": {
+      "formula": {
+        "rr_en_p": 1.5,
+        "holgura_rr_atr": 0.0,
+        "holgura_efectiva_atr": 0.0
+      },
+      "niveles_sinteticos_P100_A2": {
+        "rr_en_p": 1.5,
+        "holgura_rr_atr": 0.0,
+        "holgura_efectiva_atr": 0.0
+      }
+    },
+    "S2": {
+      "formula": {
+        "rr_en_p": 1.5,
+        "holgura_rr_atr": 0.0,
+        "holgura_efectiva_atr": 0.0
+      },
+      "niveles_sinteticos_P100_A2": {
+        "rr_en_p": 1.5,
+        "holgura_rr_atr": 0.0,
+        "holgura_efectiva_atr": 0.0
+      }
+    }
+  },
+  "niveles": {
+    "C0": {
+      "senales": 101251,
+      "validos": 101251,
+      "none": 0,
+      "none_por_motivo": {},
+      "stop_basis": {
+        "SOPORTE": 17143,
+        "VOLATILIDAD": 84108
+      },
+      "stop_basis_pares_c0_variante": null,
+      "rr_efectivo_en_p": {
+        "n": 101251,
+        "media": 1.8098824239140394,
+        "min": 1.499999999999983,
+        "max": 11.92873920062797,
+        "p10": 1.4999999999999976,
+        "p25": 1.499999999999999,
+        "p50": 1.5,
+        "p75": 1.5000000000000027,
+        "p90": 2.2318328008792996
+      },
+      "rr_efectivo_bajo_min_rr": 0,
+      "incoherentes": 0,
+      "incoherencias_por_tipo": {},
+      "coherentes": true,
+      "entry_max_frente_a_c0": {
+        "igual": 101251
+      }
+    },
+    "B1": {
+      "senales": 101251,
+      "validos": 101251,
+      "none": 0,
+      "none_por_motivo": {},
+      "stop_basis": {
+        "SOPORTE": 17143,
+        "VOLATILIDAD": 84108
+      },
+      "stop_basis_pares_c0_variante": null,
+      "rr_efectivo_en_p": {
+        "n": 101251,
+        "media": 2.1115294945663794,
+        "min": 1.7499999999999754,
+        "max": 13.91686240073262,
+        "p10": 1.7499999999999978,
+        "p25": 1.7499999999999991,
+        "p50": 1.7500000000000004,
+        "p75": 1.7500000000000024,
+        "p90": 2.6038049343591787
+      },
+      "rr_efectivo_bajo_min_rr": 0,
+      "incoherentes": 0,
+      "incoherencias_por_tipo": {},
+      "coherentes": true,
+      "entry_max_frente_a_c0": {
+        "igual": 4282,
+        "mayor": 96969
+      }
+    },
+    "B2": {
+      "senales": 101251,
+      "validos": 101251,
+      "none": 0,
+      "none_por_motivo": {},
+      "stop_basis": {
+        "SOPORTE": 17143,
+        "VOLATILIDAD": 84108
+      },
+      "stop_basis_pares_c0_variante": null,
+      "rr_efectivo_en_p": {
+        "n": 101251,
+        "media": 2.9410589388603143,
+        "min": 2.437499999999961,
+        "max": 19.384201201020442,
+        "p10": 2.4374999999999964,
+        "p25": 2.4374999999999996,
+        "p50": 2.4375,
+        "p75": 2.437500000000004,
+        "p90": 3.626728301428853
+      },
+      "rr_efectivo_bajo_min_rr": 0,
+      "incoherentes": 0,
+      "incoherencias_por_tipo": {},
+      "coherentes": true,
+      "entry_max_frente_a_c0": {
+        "igual": 4282,
+        "mayor": 96969
+      }
+    },
+    "S1": {
+      "senales": 101251,
+      "validos": 101251,
+      "none": 0,
+      "none_por_motivo": {},
+      "stop_basis": {
+        "SOPORTE": 11669,
+        "VOLATILIDAD": 89582
+      },
+      "stop_basis_pares_c0_variante": {
+        "VOL/VOL": 84108,
+        "SOP/SOP": 11669,
+        "MIXTO": 5474
+      },
+      "rr_efectivo_en_p": {
+        "n": 101251,
+        "media": 1.6800836246178787,
+        "min": 1.4999999999999782,
+        "max": 8.946554400470978,
+        "p10": 1.4999999999999973,
+        "p25": 1.499999999999999,
+        "p50": 1.5,
+        "p75": 1.5000000000000022,
+        "p90": 1.673874600659469
+      },
+      "rr_efectivo_bajo_min_rr": 0,
+      "incoherentes": 0,
+      "incoherencias_por_tipo": {},
+      "coherentes": true,
+      "entry_max_frente_a_c0": {
+        "igual": 84108,
+        "menor": 17143
+      }
+    },
+    "S2": {
+      "senales": 101251,
+      "validos": 101251,
+      "none": 0,
+      "none_por_motivo": {},
+      "stop_basis": {
+        "SOPORTE": 22650,
+        "VOLATILIDAD": 78601
+      },
+      "stop_basis_pares_c0_variante": {
+        "VOL/VOL": 78601,
+        "SOP/SOP": 17143,
+        "MIXTO": 5507
+      },
+      "rr_efectivo_en_p": {
+        "n": 101251,
+        "media": 1.9602652677108825,
+        "min": 1.4999999999999862,
+        "max": 14.910924000784947,
+        "p10": 1.4999999999999982,
+        "p25": 1.4999999999999993,
+        "p50": 1.5000000000000002,
+        "p75": 1.5000000000000029,
+        "p90": 2.7897910010991223
+      },
+      "rr_efectivo_bajo_min_rr": 0,
+      "incoherentes": 0,
+      "incoherencias_por_tipo": {},
+      "coherentes": true,
+      "entry_max_frente_a_c0": {
+        "igual": 82883,
+        "mayor": 18368
+      }
+    }
+  },
+  "holgura_d06": {
+    "C0": {
+      "GLOBAL": {
+        "n": 101251,
+        "holgura": {
+          "rr_precio": {
+            "n": 101251,
+            "media": 1.5843409700914384,
+            "min": 0.0,
+            "max": 1829.25,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.9483009338378849
+          },
+          "rr_atr": {
+            "n": 101251,
+            "media": 0.08383146209079224,
+            "min": 0.0,
+            "max": 1.0491039187188145,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.3934879712804462
+          },
+          "rr_pct": {
+            "n": 101251,
+            "media": 0.2929715152905477,
+            "min": 0.0,
+            "max": 23.883561268354136,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.05146353544376
+          },
+          "efectiva_precio": {
+            "n": 101251,
+            "media": 1.478816542463414,
+            "min": 0.0,
+            "max": 1829.25,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.9074981689453097
+          },
+          "efectiva_atr": {
+            "n": 101251,
+            "media": 0.07783161705536984,
+            "min": 0.0,
+            "max": 0.7500000000000167,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.3934879712804462
+          },
+          "efectiva_pct": {
+            "n": 101251,
+            "media": 0.27113667847779604,
+            "min": 0.0,
+            "max": 19.907787577891686,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.0323849358076198
+          }
+        },
+        "manda": {
+          "RR": 96969,
+          "TECNICO": 4282,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9577090596636083,
+          "TECNICO": 0.04229094033639174,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 1028,
+          "INVALID_TARGET": 148,
+          "ABOVE_MAX_ENTRY": 46744,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 53331
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.010152986143346733,
+          "INVALID_TARGET": 0.001461713958380658,
+          "ABOVE_MAX_ENTRY": 0.4616645761523343,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.5267207237459383
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.04481982542090473,
+          "p25": 0.10945119822633069,
+          "p50": 0.2361060280281196,
+          "p75": 0.4308229839499828,
+          "p90": 0.7067278066325441
+        }
+      },
+      "region:ASIA": {
+        "n": 17953,
+        "holgura": {
+          "rr_precio": {
+            "n": 17953,
+            "media": 6.287765714503102,
+            "min": 0.0,
+            "max": 1829.25,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.455625057220459
+          },
+          "rr_atr": {
+            "n": 17953,
+            "media": 0.08636607424902616,
+            "min": 0.0,
+            "max": 1.0491039187188145,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.41979214980628227
+          },
+          "rr_pct": {
+            "n": 17953,
+            "media": 0.2519872042728498,
+            "min": 0.0,
+            "max": 8.042104620682567,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.986175435393779
+          },
+          "efectiva_precio": {
+            "n": 17953,
+            "media": 5.884957339622189,
+            "min": 0.0,
+            "max": 1829.25,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.40553559575762144
+          },
+          "efectiva_atr": {
+            "n": 17953,
+            "media": 0.0799593183440648,
+            "min": 0.0,
+            "max": 0.750000000000012,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.41979214980628227
+          },
+          "efectiva_pct": {
+            "n": 17953,
+            "media": 0.2337034565139195,
+            "min": 0.0,
+            "max": 6.749574829931965,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.9483877590458193
+          }
+        },
+        "manda": {
+          "RR": 17130,
+          "TECNICO": 823,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9541580794296218,
+          "TECNICO": 0.04584192057037821,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 314,
+          "INVALID_TARGET": 29,
+          "ABOVE_MAX_ENTRY": 8238,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 9372
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.01749011307302401,
+          "INVALID_TARGET": 0.0016153289143875675,
+          "ABOVE_MAX_ENTRY": 0.45886481368016485,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.5220297443324236
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.06716417910447761,
+          "p25": 0.16129031690991955,
+          "p50": 0.3450704225352113,
+          "p75": 0.6222222222222222,
+          "p90": 0.9783314618049083
+        }
+      },
+      "region:EMERGING_MARKETS": {
+        "n": 1151,
+        "holgura": {
+          "rr_precio": {
+            "n": 1151,
+            "media": 0.023895564315424712,
+            "min": 0.0,
+            "max": 0.8704499244689927,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.06352443695068288
+          },
+          "rr_atr": {
+            "n": 1151,
+            "media": 0.05465613940310839,
+            "min": 0.0,
+            "max": 1.0333716675107605,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.12766137649634712
+          },
+          "rr_pct": {
+            "n": 1151,
+            "media": 0.080240629254143,
+            "min": 0.0,
+            "max": 2.4037699326310142,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.22061099933508582
+          },
+          "efectiva_precio": {
+            "n": 1151,
+            "media": 0.02260980952299454,
+            "min": 0.0,
+            "max": 0.7198928424290258,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.06352443695068288
+          },
+          "efectiva_atr": {
+            "n": 1151,
+            "media": 0.05170300594001793,
+            "min": 0.0,
+            "max": 0.7500000000000063,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.12766137649634712
+          },
+          "efectiva_pct": {
+            "n": 1151,
+            "media": 0.07581531912121205,
+            "min": 0.0,
+            "max": 1.9942099978049606,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.22061099933508582
+          }
+        },
+        "manda": {
+          "RR": 1124,
+          "TECNICO": 27,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9765421372719374,
+          "TECNICO": 0.023457862728062554,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 17,
+          "INVALID_TARGET": 1,
+          "ABOVE_MAX_ENTRY": 579,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 554
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.014769765421372719,
+          "INVALID_TARGET": 0.0008688097306689834,
+          "ABOVE_MAX_ENTRY": 0.5030408340573415,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.48132059079061684
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.06676435447411723,
+          "p25": 0.16412655244311486,
+          "p50": 0.35460405537841455,
+          "p75": 0.6564084986492963,
+          "p90": 1.0544127118102355
+        }
+      },
+      "region:EUROPA": {
+        "n": 34622,
+        "holgura": {
+          "rr_precio": {
+            "n": 34622,
+            "media": 0.5284127610864445,
+            "min": 0.0,
+            "max": 115.64247436523442,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.3918745994567878
+          },
+          "rr_atr": {
+            "n": 34622,
+            "media": 0.07508732639690448,
+            "min": 0.0,
+            "max": 1.0466647318269797,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.32963269549417035
+          },
+          "rr_pct": {
+            "n": 34622,
+            "media": 0.21430667909751727,
+            "min": 0.0,
+            "max": 11.976232133710546,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.7493789445489941
+          },
+          "efectiva_precio": {
+            "n": 34622,
+            "media": 0.4915314842959823,
+            "min": 0.0,
+            "max": 91.78392464773992,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.37574973106384135
+          },
+          "efectiva_atr": {
+            "n": 34622,
+            "media": 0.07025942446941999,
+            "min": 0.0,
+            "max": 0.7500000000000167,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.32963269549417035
+          },
+          "efectiva_pct": {
+            "n": 34622,
+            "media": 0.20041014685992037,
+            "min": 0.0,
+            "max": 8.722804838883647,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.7449836002022405
+          }
+        },
+        "manda": {
+          "RR": 33391,
+          "TECNICO": 1231,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9644445728149731,
+          "TECNICO": 0.03555542718502686,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 278,
+          "INVALID_TARGET": 34,
+          "ABOVE_MAX_ENTRY": 16237,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 18073
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.008029576569811103,
+          "INVALID_TARGET": 0.0009820345445092716,
+          "ABOVE_MAX_ENTRY": 0.4689792617410895,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.5220091271445901
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.04630463009289526,
+          "p25": 0.10452418473081958,
+          "p50": 0.21852466831771797,
+          "p75": 0.38248226754700554,
+          "p90": 0.6081406362014202
+        }
+      },
+      "region:GLOBAL": {
+        "n": 2627,
+        "holgura": {
+          "rr_precio": {
+            "n": 2627,
+            "media": 0.047816321366088294,
+            "min": 0.0,
+            "max": 3.093000984191889,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "rr_atr": {
+            "n": 2627,
+            "media": 0.0473563260271008,
+            "min": 0.0,
+            "max": 1.0345975944961086,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "rr_pct": {
+            "n": 2627,
+            "media": 0.11837939056927257,
+            "min": 0.0,
+            "max": 3.8641819073525605,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "efectiva_precio": {
+            "n": 2627,
+            "media": 0.04480829587139087,
+            "min": 0.0,
+            "max": 3.093000984191889,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "efectiva_atr": {
+            "n": 2627,
+            "media": 0.04418450599065613,
+            "min": 0.0,
+            "max": 0.7500000000000042,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "efectiva_pct": {
+            "n": 2627,
+            "media": 0.11040638139469669,
+            "min": 0.0,
+            "max": 3.687851297128923,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          }
+        },
+        "manda": {
+          "RR": 2564,
+          "TECNICO": 63,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9760182717929197,
+          "TECNICO": 0.02398172820708032,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 24,
+          "INVALID_TARGET": 2,
+          "ABOVE_MAX_ENTRY": 1401,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 1200
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.009135896459840122,
+          "INVALID_TARGET": 0.0007613247049866769,
+          "ABOVE_MAX_ENTRY": 0.5333079558431671,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.4567948229920061
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.05708592831322678,
+          "p25": 0.13857476330447022,
+          "p50": 0.29388248411785217,
+          "p75": 0.5206359772823426,
+          "p90": 0.8165392299685498
+        }
+      },
+      "region:USA": {
+        "n": 44898,
+        "holgura": {
+          "rr_precio": {
+            "n": 44898,
+            "media": 0.64777998586047,
+            "min": 0.0,
+            "max": 44.01495208740232,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.9582511901855497
+          },
+          "rr_atr": {
+            "n": 44898,
+            "media": 0.09244290475571831,
+            "min": 0.0,
+            "max": 1.0485433537248807,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.4453883999832224
+          },
+          "rr_pct": {
+            "n": 44898,
+            "media": 0.38568905406391224,
+            "min": 0.0,
+            "max": 23.883561268354136,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.444479720623479
+          },
+          "efectiva_precio": {
+            "n": 44898,
+            "media": 0.5995250632414665,
+            "min": 0.0,
+            "max": 34.17428479875838,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.8855079650878679
+          },
+          "efectiva_atr": {
+            "n": 44898,
+            "media": 0.0854584784441976,
+            "min": 0.0,
+            "max": 0.7500000000000059,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.4453883999832224
+          },
+          "efectiva_pct": {
+            "n": 44898,
+            "media": 0.35505547189060505,
+            "min": 0.0,
+            "max": 19.907787577891686,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.4070698314079235
+          }
+        },
+        "manda": {
+          "RR": 42760,
+          "TECNICO": 2138,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9523809523809523,
+          "TECNICO": 0.047619047619047616,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 395,
+          "INVALID_TARGET": 82,
+          "ABOVE_MAX_ENTRY": 20289,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 24132
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.008797719274800659,
+          "INVALID_TARGET": 0.0018263619760345673,
+          "ABOVE_MAX_ENTRY": 0.4518909528264065,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.5374849659227583
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.03763527693220348,
+          "p25": 0.09580191847565518,
+          "p50": 0.21272486504323146,
+          "p75": 0.3935178895334602,
+          "p90": 0.6246163450263481
+        }
+      }
+    },
+    "B1": {
+      "GLOBAL": {
+        "n": 101251,
+        "holgura": {
+          "rr_precio": {
+            "n": 101251,
+            "media": 6.6182004157719385,
+            "min": 0.005799997704369675,
+            "max": 2745.678571428565,
+            "p10": 0.07514288766043364,
+            "p25": 0.20685719081333787,
+            "p50": 0.8319999694824247,
+            "p75": 2.041857038225487,
+            "p90": 6.7857125418527175
+          },
+          "rr_atr": {
+            "n": 101251,
+            "media": 0.2838314620907923,
+            "min": 0.19999999999991983,
+            "max": 1.2491039187188135,
+            "p10": 0.199999999999996,
+            "p25": 0.19999999999999843,
+            "p50": 0.20000000000000073,
+            "p75": 0.20000000000000465,
+            "p90": 0.5934879712804485
+          },
+          "rr_pct": {
+            "n": 101251,
+            "media": 0.8560706068452423,
+            "min": 0.03697751863960729,
+            "max": 29.192304622458607,
+            "p10": 0.26147425496018484,
+            "p25": 0.3642932482556677,
+            "p50": 0.5305411260937158,
+            "p75": 0.8460059653373618,
+            "p90": 1.7211217509570707
+          },
+          "efectiva_precio": {
+            "n": 101251,
+            "media": 6.29923243244442,
+            "min": 0.005799997704369675,
+            "max": 2745.678571428565,
+            "p10": 0.07454294477190615,
+            "p25": 0.20592858450754647,
+            "p50": 0.8217143467494736,
+            "p75": 2.005714634486594,
+            "p90": 6.25435720171248
+          },
+          "efectiva_atr": {
+            "n": 101251,
+            "media": 0.26626504349392127,
+            "min": 0.19999999999991983,
+            "max": 0.7500000000000168,
+            "p10": 0.199999999999996,
+            "p25": 0.19999999999999843,
+            "p50": 0.20000000000000073,
+            "p75": 0.20000000000000465,
+            "p90": 0.5934879712804485
+          },
+          "efectiva_pct": {
+            "n": 101251,
+            "media": 0.79342479293049,
+            "min": 0.03697751863960729,
+            "max": 19.907787577891686,
+            "p10": 0.261388942154482,
+            "p25": 0.3641101610155379,
+            "p50": 0.5301494026542538,
+            "p75": 0.843723139531597,
+            "p90": 1.5998054878936112
+          }
+        },
+        "manda": {
+          "RR": 93829,
+          "TECNICO": 7422,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9266970202763429,
+          "TECNICO": 0.07330297972365706,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 1028,
+          "INVALID_TARGET": 98,
+          "ABOVE_MAX_ENTRY": 26552,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 73573
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.010152986143346733,
+          "INVALID_TARGET": 0.0009678916751439492,
+          "ABOVE_MAX_ENTRY": 0.26223938529002183,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.7266397368914875
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.031431788099780505,
+          "p25": 0.08389316134984091,
+          "p50": 0.19889429772338194,
+          "p75": 0.3965572375578106,
+          "p90": 0.7152555523227621
+        }
+      },
+      "region:ASIA": {
+        "n": 17953,
+        "holgura": {
+          "rr_precio": {
+            "n": 17953,
+            "media": 29.093232286739447,
+            "min": 0.0066642863409862585,
+            "max": 2745.678571428565,
+            "p10": 0.026985759394508868,
+            "p25": 0.11107155936105073,
+            "p50": 1.0428569248744566,
+            "p75": 13.385714285714585,
+            "p90": 63.767480468750364
+          },
+          "rr_atr": {
+            "n": 17953,
+            "media": 0.2863660742490262,
+            "min": 0.19999999999996795,
+            "max": 1.2491039187188135,
+            "p10": 0.19999999999999585,
+            "p25": 0.19999999999999837,
+            "p50": 0.20000000000000082,
+            "p75": 0.20000000000000462,
+            "p90": 0.6197921498062865
+          },
+          "rr_pct": {
+            "n": 17953,
+            "media": 0.7910830669489431,
+            "min": 0.09596343694729524,
+            "max": 9.614034322867713,
+            "p10": 0.23021465500159283,
+            "p25": 0.34423420807318317,
+            "p50": 0.5582080831258063,
+            "p75": 0.8191332602864053,
+            "p90": 1.5282723426969056
+          },
+          "efectiva_precio": {
+            "n": 17953,
+            "media": 27.84703727427597,
+            "min": 0.0066642863409862585,
+            "max": 2745.678571428565,
+            "p10": 0.026985759394508868,
+            "p25": 0.11057150704519358,
+            "p50": 1.0217143467494338,
+            "p75": 13.157142857142844,
+            "p90": 59.242857142858156
+          },
+          "efectiva_atr": {
+            "n": 17953,
+            "media": 0.2672969397991696,
+            "min": 0.19999999999996795,
+            "max": 0.750000000000012,
+            "p10": 0.19999999999999585,
+            "p25": 0.19999999999999837,
+            "p50": 0.20000000000000082,
+            "p75": 0.20000000000000462,
+            "p90": 0.6197921498062865
+          },
+          "efectiva_pct": {
+            "n": 17953,
+            "media": 0.7360323719790169,
+            "min": 0.09596343694729524,
+            "max": 6.749574829931965,
+            "p10": 0.23021465500159283,
+            "p25": 0.34423420807318317,
+            "p50": 0.5582080831258063,
+            "p75": 0.8159117305458742,
+            "p90": 1.4228268788880871
+          }
+        },
+        "manda": {
+          "RR": 16527,
+          "TECNICO": 1426,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.92057037820977,
+          "TECNICO": 0.07942962179023004,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 314,
+          "INVALID_TARGET": 20,
+          "ABOVE_MAX_ENTRY": 5770,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 11849
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.01749011307302401,
+          "INVALID_TARGET": 0.0011140199409569432,
+          "ABOVE_MAX_ENTRY": 0.3213947529660781,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.660001114019941
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.0514367816091924,
+          "p25": 0.12784191590630825,
+          "p50": 0.2929596004776458,
+          "p75": 0.5618586088939582,
+          "p90": 0.9421046714035902
+        }
+      },
+      "region:EMERGING_MARKETS": {
+        "n": 1151,
+        "holgura": {
+          "rr_precio": {
+            "n": 1151,
+            "media": 0.10674168807601798,
+            "min": 0.028299985613141843,
+            "max": 1.0624213491167325,
+            "p10": 0.048314258030483614,
+            "p25": 0.055957167489189885,
+            "p50": 0.06788580758230722,
+            "p75": 0.11185711451939184,
+            "p90": 0.20569748878478933
+          },
+          "rr_atr": {
+            "n": 1151,
+            "media": 0.25465613940310866,
+            "min": 0.19999999999997803,
+            "max": 1.2333716675107573,
+            "p10": 0.19999999999999085,
+            "p25": 0.19999999999999607,
+            "p50": 0.200000000000001,
+            "p75": 0.20000000000000842,
+            "p90": 0.32766137649633514
+          },
+          "rr_pct": {
+            "n": 1151,
+            "media": 0.328764526975321,
+            "min": 0.10054352597965778,
+            "max": 2.9355592653789992,
+            "p10": 0.15498066375713662,
+            "p25": 0.1846781137883446,
+            "p50": 0.22033281484409756,
+            "p75": 0.32765251889423613,
+            "p90": 0.5744421102322889
+          },
+          "efectiva_precio": {
+            "n": 1151,
+            "media": 0.10251593440641649,
+            "min": 0.028299985613141843,
+            "max": 0.7198928424290258,
+            "p10": 0.048314258030483614,
+            "p25": 0.055957167489189885,
+            "p50": 0.06788580758230722,
+            "p75": 0.11185711451939184,
+            "p90": 0.20428567613873838
+          },
+          "efectiva_atr": {
+            "n": 1151,
+            "media": 0.24481627363484396,
+            "min": 0.19999999999997803,
+            "max": 0.7500000000000063,
+            "p10": 0.19999999999999085,
+            "p25": 0.19999999999999607,
+            "p50": 0.200000000000001,
+            "p75": 0.20000000000000842,
+            "p90": 0.32766137649633514
+          },
+          "efectiva_pct": {
+            "n": 1151,
+            "media": 0.3143505927168136,
+            "min": 0.10054352597965778,
+            "max": 1.9942099978049606,
+            "p10": 0.15498066375713662,
+            "p25": 0.1846781137883446,
+            "p50": 0.22033281484409756,
+            "p75": 0.32765251889423613,
+            "p90": 0.5744421102322889
+          }
+        },
+        "manda": {
+          "RR": 1101,
+          "TECNICO": 50,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9565595134665508,
+          "TECNICO": 0.043440486533449174,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 17,
+          "INVALID_TARGET": 0,
+          "ABOVE_MAX_ENTRY": 403,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 731
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.014769765421372719,
+          "INVALID_TARGET": 0.0,
+          "ABOVE_MAX_ENTRY": 0.3501303214596003,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.6350999131190269
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.0454293558351418,
+          "p25": 0.13996827528116929,
+          "p50": 0.31695815227255153,
+          "p75": 0.6089650788738055,
+          "p90": 0.9726775817494365
+        }
+      },
+      "region:EUROPA": {
+        "n": 34622,
+        "holgura": {
+          "rr_precio": {
+            "n": 34622,
+            "media": 1.5766715385011785,
+            "min": 0.005799997704369675,
+            "max": 139.54390084402917,
+            "p10": 0.048928587777274046,
+            "p25": 0.09635696411132244,
+            "p50": 0.3474273545401445,
+            "p75": 1.1678582327706408,
+            "p90": 3.5707144601004757
+          },
+          "rr_atr": {
+            "n": 34622,
+            "media": 0.27508732639690453,
+            "min": 0.19999999999991983,
+            "max": 1.2466647318269861,
+            "p10": 0.19999999999999538,
+            "p25": 0.19999999999999812,
+            "p50": 0.20000000000000082,
+            "p75": 0.20000000000000484,
+            "p90": 0.5296326954941715
+          },
+          "rr_pct": {
+            "n": 34622,
+            "media": 0.6848434469183117,
+            "min": 0.03697751863960729,
+            "max": 14.302313424079511,
+            "p10": 0.2600038018660118,
+            "p25": 0.33377872626246635,
+            "p50": 0.44590733793773446,
+            "p75": 0.6559301841073855,
+            "p90": 1.321261091869302
+          },
+          "efectiva_precio": {
+            "n": 34622,
+            "media": 1.4681050118171528,
+            "min": 0.005799997704369675,
+            "max": 91.78392464773992,
+            "p10": 0.048885720116752296,
+            "p25": 0.09635696411132244,
+            "p50": 0.3364279610770211,
+            "p75": 1.1445709228515568,
+            "p90": 3.487142508370539
+          },
+          "efectiva_atr": {
+            "n": 34622,
+            "media": 0.26034476085911656,
+            "min": 0.19999999999991983,
+            "max": 0.7500000000000168,
+            "p10": 0.19999999999999538,
+            "p25": 0.19999999999999812,
+            "p50": 0.20000000000000082,
+            "p75": 0.20000000000000484,
+            "p90": 0.5296326954941715
+          },
+          "efectiva_pct": {
+            "n": 34622,
+            "media": 0.6427891499700131,
+            "min": 0.03697751863960729,
+            "max": 8.722804838883647,
+            "p10": 0.2599278551703804,
+            "p25": 0.3334685095221593,
+            "p50": 0.4453944219080786,
+            "p75": 0.6545699422393322,
+            "p90": 1.2719327960818794
+          }
+        },
+        "manda": {
+          "RR": 32431,
+          "TECNICO": 2191,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9367165386170643,
+          "TECNICO": 0.06328346138293571,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 278,
+          "INVALID_TARGET": 18,
+          "ABOVE_MAX_ENTRY": 8740,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 25586
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.008029576569811103,
+          "INVALID_TARGET": 0.0005199006412107909,
+          "ABOVE_MAX_ENTRY": 0.2524406446767951,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.739009878112183
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.028615666830873247,
+          "p25": 0.07295833586146624,
+          "p50": 0.16671788192200152,
+          "p75": 0.3374535843126017,
+          "p90": 0.596359762091261
+        }
+      },
+      "region:GLOBAL": {
+        "n": 2627,
+        "holgura": {
+          "rr_precio": {
+            "n": 2627,
+            "media": 0.23886010422650356,
+            "min": 0.028028569902694755,
+            "max": 3.9392868859427352,
+            "p10": 0.09042827061243486,
+            "p25": 0.11735709054129373,
+            "p50": 0.16800003051757528,
+            "p75": 0.2334996904645834,
+            "p90": 0.42573187010629
+          },
+          "rr_atr": {
+            "n": 2627,
+            "media": 0.24735632602710103,
+            "min": 0.19999999999997561,
+            "max": 1.2345975944961067,
+            "p10": 0.19999999999999388,
+            "p25": 0.1999999999999977,
+            "p50": 0.20000000000000062,
+            "p75": 0.20000000000000465,
+            "p90": 0.20000000000002316
+          },
+          "rr_pct": {
+            "n": 2627,
+            "media": 0.49514993099171506,
+            "min": 0.09465718768218537,
+            "max": 4.696896097458723,
+            "p10": 0.15321203307955844,
+            "p25": 0.2058568597097016,
+            "p50": 0.3724819867296533,
+            "p75": 0.5303092249833345,
+            "p90": 0.8378511250313034
+          },
+          "efectiva_precio": {
+            "n": 2627,
+            "media": 0.22929682756521783,
+            "min": 0.028028569902694755,
+            "max": 3.173572131565635,
+            "p10": 0.09042827061243486,
+            "p25": 0.11735709054129373,
+            "p50": 0.16800003051757528,
+            "p75": 0.2334996904645834,
+            "p90": 0.4091321672712098
+          },
+          "efectiva_atr": {
+            "n": 2627,
+            "media": 0.23763298595617288,
+            "min": 0.19999999999997561,
+            "max": 0.7500000000000042,
+            "p10": 0.19999999999999388,
+            "p25": 0.1999999999999977,
+            "p50": 0.20000000000000062,
+            "p75": 0.20000000000000465,
+            "p90": 0.20000000000002316
+          },
+          "efectiva_pct": {
+            "n": 2627,
+            "media": 0.47070661812064235,
+            "min": 0.09465718768218537,
+            "max": 3.783918001236703,
+            "p10": 0.15321203307955844,
+            "p25": 0.2058568597097016,
+            "p50": 0.3724819867296533,
+            "p75": 0.5303092249833345,
+            "p90": 0.8338262705143684
+          }
+        },
+        "manda": {
+          "RR": 2515,
+          "TECNICO": 112,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9573658165207461,
+          "TECNICO": 0.0426341834792539,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 24,
+          "INVALID_TARGET": 1,
+          "ABOVE_MAX_ENTRY": 914,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 1688
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.009135896459840122,
+          "INVALID_TARGET": 0.00038066235249333843,
+          "ABOVE_MAX_ENTRY": 0.34792539017891133,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.6425580510087552
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.04374963773014591,
+          "p25": 0.1017233276103809,
+          "p50": 0.23450885114162837,
+          "p75": 0.47618544279401603,
+          "p90": 0.7572629217713612
+        }
+      },
+      "region:USA": {
+        "n": 44898,
+        "holgura": {
+          "rr_precio": {
+            "n": 44898,
+            "media": 2.0591283324585716,
+            "min": 0.05835715021405896,
+            "max": 52.85903004237588,
+            "p10": 0.34778573172432914,
+            "p25": 0.6701424734932289,
+            "p50": 1.1921425955636096,
+            "p75": 2.204715401785677,
+            "p90": 4.5083513532366055
+          },
+          "rr_atr": {
+            "n": 44898,
+            "media": 0.2924429047557183,
+            "min": 0.1999999999999759,
+            "max": 1.2485433537248851,
+            "p10": 0.19999999999999668,
+            "p25": 0.1999999999999987,
+            "p50": 0.2000000000000007,
+            "p75": 0.20000000000000434,
+            "p90": 0.6453883999832205
+          },
+          "rr_pct": {
+            "n": 44898,
+            "media": 1.0487298778182466,
+            "min": 0.10367688615452128,
+            "max": 29.192304622458607,
+            "p10": 0.3153895031137693,
+            "p25": 0.4280370210704245,
+            "p50": 0.6253112917858495,
+            "p75": 1.0232876065273484,
+            "p90": 2.1954559445414685
+          },
+          "efectiva_precio": {
+            "n": 44898,
+            "media": 1.9225050671901718,
+            "min": 0.05835715021405896,
+            "max": 36.56919806344172,
+            "p10": 0.34657135009766193,
+            "p25": 0.6681427001952898,
+            "p50": 1.1844281877790195,
+            "p75": 2.1709863935197973,
+            "p90": 4.210508619036034
+          },
+          "efectiva_atr": {
+            "n": 44898,
+            "media": 0.2726428407292892,
+            "min": 0.1999999999999759,
+            "max": 0.7500000000000062,
+            "p10": 0.19999999999999668,
+            "p25": 0.1999999999999987,
+            "p50": 0.2000000000000007,
+            "p75": 0.20000000000000434,
+            "p90": 0.6453883999832205
+          },
+          "efectiva_pct": {
+            "n": 44898,
+            "media": 0.9636967073496361,
+            "min": 0.10367688615452128,
+            "max": 19.907787577891686,
+            "p10": 0.3153895031137693,
+            "p25": 0.4280370210704245,
+            "p50": 0.6253112917858495,
+            "p75": 1.02130004617394,
+            "p90": 1.9911121291350073
+          }
+        },
+        "manda": {
+          "RR": 41255,
+          "TECNICO": 3643,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9188605283086106,
+          "TECNICO": 0.08113947169138937,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 395,
+          "INVALID_TARGET": 59,
+          "ABOVE_MAX_ENTRY": 10725,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 33719
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.008797719274800659,
+          "INVALID_TARGET": 0.0013140897144638959,
+          "ABOVE_MAX_ENTRY": 0.2388747828411065,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.7510134081696289
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.027667847166262062,
+          "p25": 0.07495548482210551,
+          "p50": 0.18102326859267856,
+          "p75": 0.3523209813780086,
+          "p90": 0.6230465877451321
+        }
+      }
+    },
+    "B2": {
+      "GLOBAL": {
+        "n": 101251,
+        "holgura": {
+          "rr_precio": {
+            "n": 101251,
+            "media": 20.461313891393317,
+            "min": 0.021749991391386225,
+            "max": 5265.857142857138,
+            "p10": 0.272678681782315,
+            "p25": 0.7178571428571416,
+            "p50": 2.9153578622000538,
+            "p75": 6.7264284406389265,
+            "p90": 17.924998692103713
+          },
+          "rr_atr": {
+            "n": 101251,
+            "media": 0.8338314620907923,
+            "min": 0.7499999999999429,
+            "max": 1.7991039187188151,
+            "p10": 0.7499999999999946,
+            "p25": 0.7499999999999976,
+            "p50": 0.7500000000000011,
+            "p75": 0.750000000000006,
+            "p90": 1.1434879712804449
+          },
+          "rr_pct": {
+            "n": 101251,
+            "media": 2.404593108620652,
+            "min": 0.13866569489854652,
+            "max": 43.79134884624582,
+            "p10": 0.9740272475044652,
+            "p25": 1.3557133113357986,
+            "p50": 1.9460060181214873,
+            "p75": 2.8875893219441933,
+            "p90": 4.308830914282076
+          },
+          "efectiva_precio": {
+            "n": 101251,
+            "media": 18.876972921301856,
+            "min": 0.021749991391386225,
+            "max": 3699.642857142855,
+            "p10": 0.2630357061113635,
+            "p25": 0.6669639178684719,
+            "p50": 2.7439282281058155,
+            "p75": 6.0669675554548235,
+            "p90": 15.375003269740546
+          },
+          "efectiva_atr": {
+            "n": 101251,
+            "media": 0.7499999999999986,
+            "min": 0.7499999999999429,
+            "max": 0.7500000000000293,
+            "p10": 0.7499999999999944,
+            "p25": 0.7499999999999971,
+            "p50": 0.7499999999999989,
+            "p75": 0.75,
+            "p90": 0.7500000000000024
+          },
+          "efectiva_pct": {
+            "n": 101251,
+            "media": 2.1116215933301015,
+            "min": 0.13866569489854652,
+            "max": 19.907787577891686,
+            "p10": 0.9570107442893907,
+            "p25": 1.3185883497262907,
+            "p50": 1.8459736422749906,
+            "p75": 2.601517321925821,
+            "p90": 3.576858756421506
+          }
+        },
+        "manda": {
+          "RR": 0,
+          "TECNICO": 17143,
+          "EMPATE": 84108
+        },
+        "manda_fraccion": {
+          "RR": 0.0,
+          "TECNICO": 0.16931190803053797,
+          "EMPATE": 0.830688091969462
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 1028,
+          "INVALID_TARGET": 40,
+          "ABOVE_MAX_ENTRY": 4680,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 95503
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.010152986143346733,
+          "INVALID_TARGET": 0.00039505782658936703,
+          "ABOVE_MAX_ENTRY": 0.04622176571095594,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.9432301903191079
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.035388200573818904,
+          "p25": 0.09848423547091939,
+          "p50": 0.2610656288232418,
+          "p75": 0.5868720267005371,
+          "p90": 1.1216461819186871
+        }
+      },
+      "region:ASIA": {
+        "n": 17953,
+        "holgura": {
+          "rr_precio": {
+            "n": 17953,
+            "media": 91.80826536038941,
+            "min": 0.024991073778697803,
+            "max": 5265.857142857138,
+            "p10": 0.08879996027265324,
+            "p25": 0.40767860412597656,
+            "p50": 3.519641876220703,
+            "p75": 48.26785714285734,
+            "p90": 176.05714285714294
+          },
+          "rr_atr": {
+            "n": 17953,
+            "media": 0.8363660742490262,
+            "min": 0.7499999999999714,
+            "max": 1.7991039187188151,
+            "p10": 0.7499999999999944,
+            "p25": 0.7499999999999977,
+            "p50": 0.7500000000000009,
+            "p75": 0.7500000000000061,
+            "p90": 1.1697921498062858
+          },
+          "rr_pct": {
+            "n": 17953,
+            "media": 2.2735966893082,
+            "min": 0.3598628885523031,
+            "max": 13.936841003876872,
+            "p10": 0.8616995188239506,
+            "p25": 1.276638724550975,
+            "p50": 2.0242172211350296,
+            "p75": 2.827497294462493,
+            "p90": 3.944005694026486
+          },
+          "efectiva_precio": {
+            "n": 17953,
+            "media": 85.52049964588622,
+            "min": 0.02499107377869736,
+            "max": 3699.642857142855,
+            "p10": 0.07794642448425293,
+            "p25": 0.3811612129211426,
+            "p50": 3.141963550022666,
+            "p75": 46.23214285714266,
+            "p90": 156.64285714285688
+          },
+          "efectiva_atr": {
+            "n": 17953,
+            "media": 0.7499999999999986,
+            "min": 0.7499999999999714,
+            "max": 0.750000000000018,
+            "p10": 0.7499999999999943,
+            "p25": 0.749999999999997,
+            "p50": 0.7499999999999989,
+            "p75": 0.7500000000000004,
+            "p90": 0.7500000000000024
+          },
+          "efectiva_pct": {
+            "n": 17953,
+            "media": 2.021609485035347,
+            "min": 0.35986288855228143,
+            "max": 7.579670952488902,
+            "p10": 0.8462345840986618,
+            "p25": 1.208192679558539,
+            "p50": 1.9130262759002405,
+            "p75": 2.6029098651525904,
+            "p90": 3.311363931740168
+          }
+        },
+        "manda": {
+          "RR": 0,
+          "TECNICO": 2985,
+          "EMPATE": 14968
+        },
+        "manda_fraccion": {
+          "RR": 0.0,
+          "TECNICO": 0.16626747618782375,
+          "EMPATE": 0.8337325238121762
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 314,
+          "INVALID_TARGET": 3,
+          "ABOVE_MAX_ENTRY": 1651,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 15985
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.01749011307302401,
+          "INVALID_TARGET": 0.00016710299114354148,
+          "ABOVE_MAX_ENTRY": 0.09196234612599566,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.8903804378098368
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.04032461832531507,
+          "p25": 0.1159791685920506,
+          "p50": 0.2773402578762235,
+          "p75": 0.6039088409628863,
+          "p90": 1.0418088737201374
+        }
+      },
+      "region:EMERGING_MARKETS": {
+        "n": 1151,
+        "holgura": {
+          "rr_precio": {
+            "n": 1151,
+            "media": 0.3345685284176491,
+            "min": 0.10612494604928457,
+            "max": 1.5903427668980186,
+            "p10": 0.18117846761431267,
+            "p25": 0.20983937808445674,
+            "p50": 0.2542501177106615,
+            "p75": 0.4025893551962696,
+            "p90": 0.6361067635672484
+          },
+          "rr_atr": {
+            "n": 1151,
+            "media": 0.8046561394031084,
+            "min": 0.749999999999975,
+            "max": 1.7833716675107518,
+            "p10": 0.7499999999999898,
+            "p25": 0.7499999999999944,
+            "p50": 0.75,
+            "p75": 0.7500000000000091,
+            "p90": 0.8776613764963441
+          },
+          "rr_pct": {
+            "n": 1151,
+            "media": 1.0122052457085593,
+            "min": 0.37703822242372614,
+            "max": 4.397979930435975,
+            "p10": 0.5811774890892569,
+            "p25": 0.6925429267063459,
+            "p50": 0.8237356057244544,
+            "p75": 1.202721629107902,
+            "p90": 1.6623271411172535
+          },
+          "efectiva_precio": {
+            "n": 1151,
+            "media": 0.31067296410222345,
+            "min": 0.10612494604928102,
+            "max": 0.894268104008269,
+            "p10": 0.1811784676143091,
+            "p25": 0.20780335153851937,
+            "p50": 0.2486251422337098,
+            "p75": 0.3560353006635424,
+            "p90": 0.5753038951328762
+          },
+          "efectiva_atr": {
+            "n": 1151,
+            "media": 0.7499999999999976,
+            "min": 0.749999999999975,
+            "max": 0.750000000000013,
+            "p10": 0.7499999999999898,
+            "p25": 0.7499999999999941,
+            "p50": 0.7499999999999977,
+            "p75": 0.75,
+            "p90": 0.7500000000000051
+          },
+          "efectiva_pct": {
+            "n": 1151,
+            "media": 0.9319646164544134,
+            "min": 0.3770382224237135,
+            "max": 2.571226654475463,
+            "p10": 0.5811774890892354,
+            "p25": 0.6891317074111003,
+            "p50": 0.8132749071987503,
+            "p75": 1.1075844447644934,
+            "p90": 1.456847535245723
+          }
+        },
+        "manda": {
+          "RR": 0,
+          "TECNICO": 135,
+          "EMPATE": 1016
+        },
+        "manda_fraccion": {
+          "RR": 0.0,
+          "TECNICO": 0.11728931364031277,
+          "EMPATE": 0.8827106863596872
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 17,
+          "INVALID_TARGET": 0,
+          "ABOVE_MAX_ENTRY": 124,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 1010
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.014769765421372719,
+          "INVALID_TARGET": 0.0,
+          "ABOVE_MAX_ENTRY": 0.10773240660295395,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.8774978279756733
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.03694344299003499,
+          "p25": 0.1232589037291063,
+          "p50": 0.30441271181022794,
+          "p75": 0.5467336255970833,
+          "p90": 0.9461727121700065
+        }
+      },
+      "region:EUROPA": {
+        "n": 34622,
+        "holgura": {
+          "rr_precio": {
+            "n": 34622,
+            "media": 4.459383176391698,
+            "min": 0.021749991391386225,
+            "max": 205.2728236607145,
+            "p10": 0.1819288730621338,
+            "p25": 0.3524999959128259,
+            "p50": 1.048928873879575,
+            "p75": 4.060715266636464,
+            "p90": 11.073214939662307
+          },
+          "rr_atr": {
+            "n": 34622,
+            "media": 0.8250873263969044,
+            "min": 0.7499999999999429,
+            "max": 1.7966647318269797,
+            "p10": 0.749999999999994,
+            "p25": 0.749999999999997,
+            "p50": 0.7500000000000013,
+            "p75": 0.7500000000000061,
+            "p90": 1.0796326954941708
+          },
+          "rr_pct": {
+            "n": 34622,
+            "media": 1.9788195584254962,
+            "min": 0.13866569489854652,
+            "max": 20.69903697259418,
+            "p10": 0.963295153595867,
+            "p25": 1.242597094068284,
+            "p50": 1.6498258628037321,
+            "p75": 2.3197951350389476,
+            "p90": 3.4171478666877904
+          },
+          "efectiva_precio": {
+            "n": 34622,
+            "media": 3.930970415305248,
+            "min": 0.021749991391386225,
+            "max": 97.25892203194735,
+            "p10": 0.17689296177455205,
+            "p25": 0.3396431718553785,
+            "p50": 0.9299994196210619,
+            "p75": 3.830357142857167,
+            "p90": 9.525005885532892
+          },
+          "efectiva_atr": {
+            "n": 34622,
+            "media": 0.7499999999999984,
+            "min": 0.7499999999999429,
+            "max": 0.7500000000000293,
+            "p10": 0.7499999999999939,
+            "p25": 0.7499999999999966,
+            "p50": 0.7499999999999987,
+            "p75": 0.75,
+            "p90": 0.7500000000000027
+          },
+          "efectiva_pct": {
+            "n": 34622,
+            "media": 1.764512879327976,
+            "min": 0.13866569489854652,
+            "max": 8.722804838883647,
+            "p10": 0.9503875547473913,
+            "p25": 1.2240589254267737,
+            "p50": 1.5877498101127763,
+            "p75": 2.119854581368703,
+            "p90": 2.841280241378849
+          }
+        },
+        "manda": {
+          "RR": 0,
+          "TECNICO": 5454,
+          "EMPATE": 29168
+        },
+        "manda_fraccion": {
+          "RR": 0.0,
+          "TECNICO": 0.15752989428686962,
+          "EMPATE": 0.8424701057131304
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 278,
+          "INVALID_TARGET": 4,
+          "ABOVE_MAX_ENTRY": 1168,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 33172
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.008029576569811103,
+          "INVALID_TARGET": 0.00011553347582462019,
+          "ABOVE_MAX_ENTRY": 0.033735774940789096,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.9581191150135752
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.030711666528456007,
+          "p25": 0.09065320275856893,
+          "p50": 0.2356173485859608,
+          "p75": 0.5149303107676857,
+          "p90": 1.1443899176039953
+        }
+      },
+      "region:GLOBAL": {
+        "n": 2627,
+        "holgura": {
+          "rr_precio": {
+            "n": 2627,
+            "media": 0.7642305070926447,
+            "min": 0.10510713713509645,
+            "max": 6.266573115757552,
+            "p10": 0.3388391222272631,
+            "p25": 0.4382144042423768,
+            "p50": 0.622500147138318,
+            "p75": 0.8477141516549267,
+            "p90": 1.2789643151419625
+          },
+          "rr_atr": {
+            "n": 2627,
+            "media": 0.7973563260271009,
+            "min": 0.749999999999974,
+            "max": 1.7845975944961032,
+            "p10": 0.7499999999999911,
+            "p25": 0.7499999999999963,
+            "p50": 0.75,
+            "p75": 0.7500000000000064,
+            "p90": 0.7500000000000222
+          },
+          "rr_pct": {
+            "n": 2627,
+            "media": 1.531268917153431,
+            "min": 0.3549644538081686,
+            "max": 7.47176929836566,
+            "p10": 0.5745451240483141,
+            "p25": 0.7712975583713124,
+            "p50": 1.3863911410702223,
+            "p75": 1.9449297946687654,
+            "p90": 2.570961194765762
+          },
+          "efectiva_precio": {
+            "n": 2627,
+            "media": 0.7164141857265546,
+            "min": 0.10510713713509645,
+            "max": 3.8083926609584324,
+            "p10": 0.3364286082131507,
+            "p25": 0.42862497057233284,
+            "p50": 0.6018750326974001,
+            "p75": 0.8202851159231983,
+            "p90": 1.1501784324645996
+          },
+          "efectiva_atr": {
+            "n": 2627,
+            "media": 0.7499999999999979,
+            "min": 0.749999999999974,
+            "max": 0.750000000000016,
+            "p10": 0.7499999999999911,
+            "p25": 0.7499999999999954,
+            "p50": 0.7499999999999984,
+            "p75": 0.75,
+            "p90": 0.7500000000000036
+          },
+          "efectiva_pct": {
+            "n": 2627,
+            "media": 1.4128895265841555,
+            "min": 0.3549644538081686,
+            "max": 5.272837264179826,
+            "p10": 0.5745451240483141,
+            "p25": 0.7694848734669927,
+            "p50": 1.3099652370276922,
+            "p75": 1.8616146215033598,
+            "p90": 2.350202344159494
+          }
+        },
+        "manda": {
+          "RR": 0,
+          "TECNICO": 259,
+          "EMPATE": 2368
+        },
+        "manda_fraccion": {
+          "RR": 0.0,
+          "TECNICO": 0.09859154929577464,
+          "EMPATE": 0.9014084507042254
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 24,
+          "INVALID_TARGET": 0,
+          "ABOVE_MAX_ENTRY": 189,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 2414
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.009135896459840122,
+          "INVALID_TARGET": 0.0,
+          "ABOVE_MAX_ENTRY": 0.07194518462124096,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.918918918918919
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.02881017320006381,
+          "p25": 0.08132305109255923,
+          "p50": 0.20898763158549635,
+          "p75": 0.5098305389810461,
+          "p90": 0.9258527514476973
+        }
+      },
+      "region:USA": {
+        "n": 44898,
+        "holgura": {
+          "rr_precio": {
+            "n": 44898,
+            "media": 5.940336285603351,
+            "min": 0.21883931330272066,
+            "max": 82.52519008091508,
+            "p10": 1.2342873982020848,
+            "p25": 2.4080371856689453,
+            "p50": 4.2328928538731105,
+            "p75": 7.129286629813009,
+            "p90": 12.348752158028788
+          },
+          "rr_atr": {
+            "n": 44898,
+            "media": 0.8424429047557184,
+            "min": 0.7499999999999681,
+            "max": 1.798543353724888,
+            "p10": 0.7499999999999954,
+            "p25": 0.7499999999999979,
+            "p50": 0.7500000000000011,
+            "p75": 0.7500000000000057,
+            "p90": 1.19538839998322
+          },
+          "rr_pct": {
+            "n": 44898,
+            "media": 2.872092143142665,
+            "min": 0.3887883230794232,
+            "max": 43.79134884624582,
+            "p10": 1.1795944728163692,
+            "p25": 1.594510772045183,
+            "p50": 2.2866286785713936,
+            "p75": 3.4569486095219837,
+            "p90": 5.117240488090215
+          },
+          "efectiva_precio": {
+            "n": 44898,
+            "media": 5.2925562997428734,
+            "min": 0.21107145718165832,
+            "max": 82.52519008091508,
+            "p10": 1.1303562436784915,
+            "p25": 2.2687486921037703,
+            "p50": 3.954109464372891,
+            "p75": 6.304286956787109,
+            "p90": 10.83751242501387
+          },
+          "efectiva_atr": {
+            "n": 44898,
+            "media": 0.7499999999999989,
+            "min": 0.7499999999999681,
+            "max": 0.7500000000000142,
+            "p10": 0.7499999999999953,
+            "p25": 0.7499999999999976,
+            "p50": 0.7499999999999991,
+            "p75": 0.75,
+            "p90": 0.7500000000000021
+          },
+          "efectiva_pct": {
+            "n": 44898,
+            "media": 2.48640308907875,
+            "min": 0.3887883230794106,
+            "max": 19.907787577891686,
+            "p10": 1.159575306806551,
+            "p25": 1.547636354235984,
+            "p50": 2.156738354692448,
+            "p75": 3.063755912714039,
+            "p90": 4.207984249132431
+          }
+        },
+        "manda": {
+          "RR": 0,
+          "TECNICO": 8310,
+          "EMPATE": 36588
+        },
+        "manda_fraccion": {
+          "RR": 0.0,
+          "TECNICO": 0.185086195376186,
+          "EMPATE": 0.814913804623814
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 395,
+          "INVALID_TARGET": 33,
+          "ABOVE_MAX_ENTRY": 1548,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 42922
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.008797719274800659,
+          "INVALID_TARGET": 0.0007349993318187892,
+          "ABOVE_MAX_ENTRY": 0.03447815047440866,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.9559891309189719
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.03374196498325876,
+          "p25": 0.08931565690745118,
+          "p50": 0.25758372341332664,
+          "p75": 0.6267430505087209,
+          "p90": 1.338626236535884
+        }
+      }
+    },
+    "S1": {
+      "GLOBAL": {
+        "n": 101251,
+        "holgura": {
+          "rr_precio": {
+            "n": 101251,
+            "media": 0.7710494193706253,
+            "min": 0.0,
+            "max": 1250.3035714285688,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.1173264639717786
+          },
+          "rr_atr": {
+            "n": 101251,
+            "media": 0.04119040382788808,
+            "min": 0.0,
+            "max": 0.7491039187188118,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.09348797128044281
+          },
+          "rr_pct": {
+            "n": 101251,
+            "media": 0.1453328107324519,
+            "min": 0.0,
+            "max": 15.920446237197469,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.2351600834242722
+          },
+          "efectiva_precio": {
+            "n": 101251,
+            "media": 0.7710494193706253,
+            "min": 0.0,
+            "max": 1250.3035714285688,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.1173264639717786
+          },
+          "efectiva_atr": {
+            "n": 101251,
+            "media": 0.04119040382788808,
+            "min": 0.0,
+            "max": 0.7491039187188118,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.09348797128044281
+          },
+          "efectiva_pct": {
+            "n": 101251,
+            "media": 0.1453328107324519,
+            "min": 0.0,
+            "max": 15.920446237197469,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.2351600834242722
+          }
+        },
+        "manda": {
+          "RR": 101251,
+          "TECNICO": 0,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 1.0,
+          "TECNICO": 0.0,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 1427,
+          "INVALID_TARGET": 330,
+          "ABOVE_MAX_ENTRY": 48949,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 50545
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.014093687963575668,
+          "INVALID_TARGET": 0.003259227069362278,
+          "ABOVE_MAX_ENTRY": 0.48344213884307313,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.4992049461239889
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.044321825206342286,
+          "p25": 0.10940297675026878,
+          "p50": 0.23611882056792458,
+          "p75": 0.43005829600072154,
+          "p90": 0.694656877554809
+        }
+      },
+      "region:ASIA": {
+        "n": 17953,
+        "holgura": {
+          "rr_precio": {
+            "n": 17953,
+            "media": 3.057628133163385,
+            "min": 0.0,
+            "max": 1250.3035714285688,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0452784878867023
+          },
+          "rr_atr": {
+            "n": 17953,
+            "media": 0.04387625775149722,
+            "min": 0.0,
+            "max": 0.7491039187188118,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.11979214980628414
+          },
+          "rr_pct": {
+            "n": 17953,
+            "media": 0.12764733494639732,
+            "min": 0.0,
+            "max": 5.684210067404844,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.2734013048228699
+          },
+          "efectiva_precio": {
+            "n": 17953,
+            "media": 3.057628133163385,
+            "min": 0.0,
+            "max": 1250.3035714285688,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0452784878867023
+          },
+          "efectiva_atr": {
+            "n": 17953,
+            "media": 0.04387625775149722,
+            "min": 0.0,
+            "max": 0.7491039187188118,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.11979214980628414
+          },
+          "efectiva_pct": {
+            "n": 17953,
+            "media": 0.12764733494639732,
+            "min": 0.0,
+            "max": 5.684210067404844,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.2734013048228699
+          }
+        },
+        "manda": {
+          "RR": 17953,
+          "TECNICO": 0,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 1.0,
+          "TECNICO": 0.0,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 453,
+          "INVALID_TARGET": 76,
+          "ABOVE_MAX_ENTRY": 8521,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 8903
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.02523255166267476,
+          "INVALID_TARGET": 0.004233275775636384,
+          "ABOVE_MAX_ENTRY": 0.4746281958447056,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.4959059767169832
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.06733746594796268,
+          "p25": 0.16128642035530855,
+          "p50": 0.34414181019583745,
+          "p75": 0.6176470588235294,
+          "p90": 0.9611934921051727
+        }
+      },
+      "region:EMERGING_MARKETS": {
+        "n": 1151,
+        "holgura": {
+          "rr_precio": {
+            "n": 1151,
+            "media": 0.010795145974615533,
+            "min": 0.0,
+            "max": 0.5824927874973795,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "rr_atr": {
+            "n": 1151,
+            "media": 0.025254387561592512,
+            "min": 0.0,
+            "max": 0.7333716675107468,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "rr_pct": {
+            "n": 1151,
+            "media": 0.036528309857624376,
+            "min": 0.0,
+            "max": 1.6060859335090298,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "efectiva_precio": {
+            "n": 1151,
+            "media": 0.010795145974615533,
+            "min": 0.0,
+            "max": 0.5824927874973795,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "efectiva_atr": {
+            "n": 1151,
+            "media": 0.025254387561592512,
+            "min": 0.0,
+            "max": 0.7333716675107468,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "efectiva_pct": {
+            "n": 1151,
+            "media": 0.036528309857624376,
+            "min": 0.0,
+            "max": 1.6060859335090298,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          }
+        },
+        "manda": {
+          "RR": 1151,
+          "TECNICO": 0,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 1.0,
+          "TECNICO": 0.0,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 33,
+          "INVALID_TARGET": 4,
+          "ABOVE_MAX_ENTRY": 586,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 528
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.028670721112076455,
+          "INVALID_TARGET": 0.0034752389226759338,
+          "ABOVE_MAX_ENTRY": 0.5091225021720244,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.4587315377932233
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.07045142481567525,
+          "p25": 0.16619982675373304,
+          "p50": 0.36421284534772946,
+          "p75": 0.6732877673416121,
+          "p90": 1.038863691373776
+        }
+      },
+      "region:EUROPA": {
+        "n": 34622,
+        "holgura": {
+          "rr_precio": {
+            "n": 34622,
+            "media": 0.254733123858727,
+            "min": 0.0,
+            "max": 79.79033464704253,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.02233918394361112
+          },
+          "rr_atr": {
+            "n": 34622,
+            "media": 0.035773971423495164,
+            "min": 0.0,
+            "max": 0.7466647318269861,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.02963269549417015
+          },
+          "rr_pct": {
+            "n": 34622,
+            "media": 0.10200976380388158,
+            "min": 0.0,
+            "max": 8.48711019815707,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.06233897571818938
+          },
+          "efectiva_precio": {
+            "n": 34622,
+            "media": 0.254733123858727,
+            "min": 0.0,
+            "max": 79.79033464704253,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.02233918394361112
+          },
+          "efectiva_atr": {
+            "n": 34622,
+            "media": 0.035773971423495164,
+            "min": 0.0,
+            "max": 0.7466647318269861,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.02963269549417015
+          },
+          "efectiva_pct": {
+            "n": 34622,
+            "media": 0.10200976380388158,
+            "min": 0.0,
+            "max": 8.48711019815707,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.06233897571818938
+          }
+        },
+        "manda": {
+          "RR": 34622,
+          "TECNICO": 0,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 1.0,
+          "TECNICO": 0.0,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 402,
+          "INVALID_TARGET": 85,
+          "ABOVE_MAX_ENTRY": 17046,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 17089
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.011611114320374328,
+          "INVALID_TARGET": 0.002455086361273179,
+          "ABOVE_MAX_ENTRY": 0.4923459072266189,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.4935878920917336
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.045560049883732315,
+          "p25": 0.10376868044724877,
+          "p50": 0.21848919211076634,
+          "p75": 0.38374435342734875,
+          "p90": 0.6025697577890637
+        }
+      },
+      "region:GLOBAL": {
+        "n": 2627,
+        "holgura": {
+          "rr_precio": {
+            "n": 2627,
+            "media": 0.02233994526370155,
+            "min": 0.0,
+            "max": 1.8235721315656548,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "rr_atr": {
+            "n": 2627,
+            "media": 0.02276016442177093,
+            "min": 0.0,
+            "max": 0.7345975944961002,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "rr_pct": {
+            "n": 2627,
+            "media": 0.05661841074788284,
+            "min": 0.0,
+            "max": 2.718514000844018,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "efectiva_precio": {
+            "n": 2627,
+            "media": 0.02233994526370155,
+            "min": 0.0,
+            "max": 1.8235721315656548,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "efectiva_atr": {
+            "n": 2627,
+            "media": 0.02276016442177093,
+            "min": 0.0,
+            "max": 0.7345975944961002,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "efectiva_pct": {
+            "n": 2627,
+            "media": 0.05661841074788284,
+            "min": 0.0,
+            "max": 2.718514000844018,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          }
+        },
+        "manda": {
+          "RR": 2627,
+          "TECNICO": 0,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 1.0,
+          "TECNICO": 0.0,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 35,
+          "INVALID_TARGET": 7,
+          "ABOVE_MAX_ENTRY": 1424,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 1161
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.013323182337266844,
+          "INVALID_TARGET": 0.0026646364674533687,
+          "ABOVE_MAX_ENTRY": 0.542063189950514,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.4419489912447659
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.057658246476225194,
+          "p25": 0.13885623647818207,
+          "p50": 0.29388248411785217,
+          "p75": 0.5307508507013164,
+          "p90": 0.8085651196641286
+        }
+      },
+      "region:USA": {
+        "n": 44898,
+        "holgura": {
+          "rr_precio": {
+            "n": 44898,
+            "media": 0.31817551834272273,
+            "min": 0.0,
+            "max": 31.247937665666882,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.5410712855202817
+          },
+          "rr_atr": {
+            "n": 44898,
+            "media": 0.04578007777453855,
+            "min": 0.0,
+            "max": 0.7485433537248846,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.14538839998321929
+          },
+          "rr_pct": {
+            "n": 44898,
+            "media": 0.19379208702124848,
+            "min": 0.0,
+            "max": 15.920446237197469,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.4799067809920927
+          },
+          "efectiva_precio": {
+            "n": 44898,
+            "media": 0.31817551834272273,
+            "min": 0.0,
+            "max": 31.247937665666882,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.5410712855202817
+          },
+          "efectiva_atr": {
+            "n": 44898,
+            "media": 0.04578007777453855,
+            "min": 0.0,
+            "max": 0.7485433537248846,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.14538839998321929
+          },
+          "efectiva_pct": {
+            "n": 44898,
+            "media": 0.19379208702124848,
+            "min": 0.0,
+            "max": 15.920446237197469,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.4799067809920927
+          }
+        },
+        "manda": {
+          "RR": 44898,
+          "TECNICO": 0,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 1.0,
+          "TECNICO": 0.0,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 504,
+          "INVALID_TARGET": 158,
+          "ABOVE_MAX_ENTRY": 21372,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 22864
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.011225444340505144,
+          "INVALID_TARGET": 0.003519087709920264,
+          "ABOVE_MAX_ENTRY": 0.4760122945342777,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.5092431734152969
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.037451560221920324,
+          "p25": 0.09622812280252965,
+          "p50": 0.21360708072142265,
+          "p75": 0.3916221759251122,
+          "p90": 0.6135585624445691
+        }
+      }
+    },
+    "S2": {
+      "GLOBAL": {
+        "n": 101251,
+        "holgura": {
+          "rr_precio": {
+            "n": 101251,
+            "media": 2.772250908796926,
+            "min": -4.547473508864641e-13,
+            "max": 3203.892857142855,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 2.502216339111328
+          },
+          "rr_atr": {
+            "n": 101251,
+            "media": 0.14276510006522863,
+            "min": -1.9236932806800112e-15,
+            "max": 1.3491039187188132,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.6934879712804496
+          },
+          "rr_pct": {
+            "n": 101251,
+            "media": 0.4947601955367938,
+            "min": -1.4014649409620734e-14,
+            "max": 31.84667629951082,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.9381802300811368
+          },
+          "efectiva_precio": {
+            "n": 101251,
+            "media": 2.298519484458376,
+            "min": -4.547473508864641e-13,
+            "max": 3203.892857142855,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 2.257495880126953
+          },
+          "efectiva_atr": {
+            "n": 101251,
+            "media": 0.11700448789364905,
+            "min": -1.9236932806800112e-15,
+            "max": 0.7500000000000168,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.6934879712804496
+          },
+          "efectiva_pct": {
+            "n": 101251,
+            "media": 0.40338099779690983,
+            "min": -1.4014649409620734e-14,
+            "max": 19.907787577891686,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.68553917250151
+          }
+        },
+        "manda": {
+          "RR": 92148,
+          "TECNICO": 9103,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9100947151139248,
+          "TECNICO": 0.0899052848860752,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 870,
+          "INVALID_TARGET": 81,
+          "ABOVE_MAX_ENTRY": 44156,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 56144
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.008592507728318733,
+          "INVALID_TARGET": 0.0007999920988434683,
+          "ABOVE_MAX_ENTRY": 0.4361043347720023,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.5545031654008356
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.044675940120655226,
+          "p25": 0.10922065329373977,
+          "p50": 0.23622202978006449,
+          "p75": 0.43261127455037485,
+          "p90": 0.7136455472551171
+        }
+      },
+      "region:ASIA": {
+        "n": 17953,
+        "holgura": {
+          "rr_precio": {
+            "n": 17953,
+            "media": 11.104720597874726,
+            "min": -4.547473508864641e-13,
+            "max": 3203.892857142855,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 2.2027501651218984
+          },
+          "rr_atr": {
+            "n": 17953,
+            "media": 0.14409505426632366,
+            "min": -1.9236932806800112e-15,
+            "max": 1.3491039187188132,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.7197921498062805
+          },
+          "rr_pct": {
+            "n": 17953,
+            "media": 0.4222650229963703,
+            "min": -1.3949305241916079e-14,
+            "max": 10.399999173960287,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.7150831676664673
+          },
+          "efectiva_precio": {
+            "n": 17953,
+            "media": 9.239941703824782,
+            "min": -4.547473508864641e-13,
+            "max": 3203.892857142855,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.8107140404837452
+          },
+          "efectiva_atr": {
+            "n": 17953,
+            "media": 0.11622122637296503,
+            "min": -1.9236932806800112e-15,
+            "max": 0.750000000000012,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.7197921498062805
+          },
+          "efectiva_pct": {
+            "n": 17953,
+            "media": 0.34143485786643496,
+            "min": -1.3949305241916079e-14,
+            "max": 6.749574829931965,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.4871415107041768
+          }
+        },
+        "manda": {
+          "RR": 16241,
+          "TECNICO": 1712,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9046398930540857,
+          "TECNICO": 0.09536010694591433,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 269,
+          "INVALID_TARGET": 11,
+          "ABOVE_MAX_ENTRY": 7904,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 9769
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.014983568205870886,
+          "INVALID_TARGET": 0.0006127109675263188,
+          "ABOVE_MAX_ENTRY": 0.4402606806661839,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.5441430401604189
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.06670421118767826,
+          "p25": 0.16000162760416667,
+          "p50": 0.3438429975817862,
+          "p75": 0.6208904109589041,
+          "p90": 0.9905004300860868
+        }
+      },
+      "region:EMERGING_MARKETS": {
+        "n": 1151,
+        "holgura": {
+          "rr_precio": {
+            "n": 1151,
+            "media": 0.0427535691035804,
+            "min": 0.0,
+            "max": 1.1584070614405988,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.1756822994777103
+          },
+          "rr_atr": {
+            "n": 1151,
+            "media": 0.09593546780207832,
+            "min": 0.0,
+            "max": 1.3333716675107496,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.42766137649634317
+          },
+          "rr_pct": {
+            "n": 1151,
+            "media": 0.14234840679499897,
+            "min": 0.0,
+            "max": 3.2014539317529858,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.6126316606495812
+          },
+          "efectiva_precio": {
+            "n": 1151,
+            "media": 0.036347215519185766,
+            "min": 0.0,
+            "max": 0.7229465757097486,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.1756822994777103
+          },
+          "efectiva_atr": {
+            "n": 1151,
+            "media": 0.08098388599944405,
+            "min": 0.0,
+            "max": 0.7500000000000063,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.42766137649634317
+          },
+          "efectiva_pct": {
+            "n": 1151,
+            "media": 0.12059300634890942,
+            "min": 0.0,
+            "max": 1.9942099978049606,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.6126316606495812
+          }
+        },
+        "manda": {
+          "RR": 1083,
+          "TECNICO": 68,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9409209383145091,
+          "TECNICO": 0.059079061685490875,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 12,
+          "INVALID_TARGET": 0,
+          "ABOVE_MAX_ENTRY": 561,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 578
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.010425716768027803,
+          "INVALID_TARGET": 0.0,
+          "ABOVE_MAX_ENTRY": 0.48740225890529976,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.5021720243266724
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.06206861559833508,
+          "p25": 0.15507198739047612,
+          "p50": 0.3400992430508186,
+          "p75": 0.6644887667992188,
+          "p90": 1.0392592458241598
+        }
+      },
+      "region:EUROPA": {
+        "n": 34622,
+        "holgura": {
+          "rr_precio": {
+            "n": 34622,
+            "media": 0.9092010929718612,
+            "min": -7.105427357601002e-15,
+            "max": 151.49461408342654,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.0676240852900882
+          },
+          "rr_atr": {
+            "n": 34622,
+            "media": 0.13057137242602027,
+            "min": -1.872665514877421e-15,
+            "max": 1.3466647318269893,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.6296326954941736
+          },
+          "rr_pct": {
+            "n": 34622,
+            "media": 0.3724391857616241,
+            "min": -1.4014649409620734e-14,
+            "max": 15.465354069263991,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.5411619146206472
+          },
+          "efectiva_precio": {
+            "n": 34622,
+            "media": 0.7504223552844493,
+            "min": -7.105427357601002e-15,
+            "max": 91.78392464773992,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.9053486415318162
+          },
+          "efectiva_atr": {
+            "n": 34622,
+            "media": 0.10865969092286266,
+            "min": -1.872665514877421e-15,
+            "max": 0.7500000000000168,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.6296326954941736
+          },
+          "efectiva_pct": {
+            "n": 34622,
+            "media": 0.3099666915245451,
+            "min": -1.4014649409620734e-14,
+            "max": 8.722804838883647,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 1.3890858706339158
+          }
+        },
+        "manda": {
+          "RR": 31863,
+          "TECNICO": 2759,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.9203107850499682,
+          "TECNICO": 0.07968921495003177,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 232,
+          "INVALID_TARGET": 16,
+          "ABOVE_MAX_ENTRY": 15287,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 19087
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.0067009415978279705,
+          "INVALID_TARGET": 0.00046213390329848076,
+          "ABOVE_MAX_ENTRY": 0.4415400612327422,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.5512968632661314
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.04632971471850543,
+          "p25": 0.1046883804146408,
+          "p50": 0.21848914208255862,
+          "p75": 0.3835611427496446,
+          "p90": 0.6129595450690877
+        }
+      },
+      "region:GLOBAL": {
+        "n": 2627,
+        "holgura": {
+          "rr_precio": {
+            "n": 2627,
+            "media": 0.08559893221416678,
+            "min": 0.0,
+            "max": 4.3624298368181655,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.24910624367850076
+          },
+          "rr_atr": {
+            "n": 2627,
+            "media": 0.08199366231697243,
+            "min": 0.0,
+            "max": 1.334597594496102,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.28670649732887
+          },
+          "rr_pct": {
+            "n": 2627,
+            "media": 0.2058056867658589,
+            "min": 0.0,
+            "max": 5.2014184976236315,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.6349763146336348
+          },
+          "efectiva_precio": {
+            "n": 2627,
+            "media": 0.07156601944511158,
+            "min": 0.0,
+            "max": 3.173572131565635,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.24910624367850076
+          },
+          "efectiva_atr": {
+            "n": 2627,
+            "media": 0.06772955055511218,
+            "min": 0.0,
+            "max": 0.7500000000000054,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.28670649732887
+          },
+          "efectiva_pct": {
+            "n": 2627,
+            "media": 0.1701293098674264,
+            "min": 0.0,
+            "max": 3.9097119128320603,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.6316944753526488
+          }
+        },
+        "manda": {
+          "RR": 2500,
+          "TECNICO": 127,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.951655881233346,
+          "TECNICO": 0.048344118766653975,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 20,
+          "INVALID_TARGET": 1,
+          "ABOVE_MAX_ENTRY": 1363,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 1243
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.007613247049866768,
+          "INVALID_TARGET": 0.00038066235249333843,
+          "ABOVE_MAX_ENTRY": 0.5188427864484203,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.47316330414921964
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.05316695869788949,
+          "p25": 0.13245091190985617,
+          "p50": 0.28700057306030086,
+          "p75": 0.521586892072329,
+          "p90": 0.8250452073214083
+        }
+      },
+      "region:USA": {
+        "n": 44898,
+        "holgura": {
+          "rr_precio": {
+            "n": 44898,
+            "media": 1.1042293616445273,
+            "min": -2.842170943040401e-14,
+            "max": 57.41367285592213,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 3.7910362243652287
+          },
+          "rr_atr": {
+            "n": 44898,
+            "media": 0.15639247866231465,
+            "min": -1.8970391464704473e-15,
+            "max": 1.3485433537248852,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.7453883999832226
+          },
+          "rr_pct": {
+            "n": 44898,
+            "media": 0.6440143559991127,
+            "min": -1.3980181507015605e-14,
+            "max": 31.84667629951082,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 2.49505334941179
+          },
+          "efectiva_precio": {
+            "n": 44898,
+            "media": 0.9049792986174352,
+            "min": -2.842170943040401e-14,
+            "max": 36.56919806344172,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 3.313392162322998
+          },
+          "efectiva_atr": {
+            "n": 44898,
+            "media": 0.12755908783066122,
+            "min": -1.8970391464704473e-15,
+            "max": 0.7500000000000062,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 0.7453883999832226
+          },
+          "efectiva_pct": {
+            "n": 44898,
+            "media": 0.5210822389274953,
+            "min": -1.3980181507015605e-14,
+            "max": 19.907787577891686,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p90": 2.140584045511719
+          }
+        },
+        "manda": {
+          "RR": 40461,
+          "TECNICO": 4437,
+          "EMPATE": 0
+        },
+        "manda_fraccion": {
+          "RR": 0.90117599893091,
+          "TECNICO": 0.09882400106908994,
+          "EMPATE": 0.0
+        },
+        "categoria_open_t1": {
+          "INVALID_STOP": 337,
+          "INVALID_TARGET": 53,
+          "ABOVE_MAX_ENTRY": 19041,
+          "RR_TOO_LOW": 0,
+          "EXECUTABLE": 25467
+        },
+        "categoria_open_t1_fraccion": {
+          "INVALID_STOP": 0.007505902267361575,
+          "INVALID_TARGET": 0.0011804534723150251,
+          "ABOVE_MAX_ENTRY": 0.4240946144594414,
+          "RR_TOO_LOW": 0.0,
+          "EXECUTABLE": 0.567219029800882
+        },
+        "distancia_above_max_entry_atr": {
+          "p10": 0.03718545206956226,
+          "p25": 0.09564018079755648,
+          "p50": 0.21283818222987852,
+          "p75": 0.39484725637735274,
+          "p90": 0.6321221432713702
+        }
+      }
+    }
+  },
+  "volatilidad": {
+    "metodo": "nearest-rank, cut(k/3) = x[⌈k·n/3⌉−1]; un valor igual a un corte sube de tercil",
+    "cortes_atr_sobre_precio": [
+      0.019819359544096908,
+      0.030590062111801243
+    ],
+    "n_por_tercil": {
+      "T1": 33750,
+      "T2": 33750,
+      "T3": 33751
+    }
+  },
+  "estratos": {
+    "B1": {
+      "regiones": {
+        "ASIA": 17953,
+        "EMERGING_MARKETS": 1151,
+        "EUROPA": 34622,
+        "GLOBAL": 2627,
+        "USA": 44898
+      },
+      "regimenes": {
+        "CAUTELA": 12431,
+        "RISK_OFF": 7944,
+        "RISK_ON": 73719
+      },
+      "terciles": {
+        "T1": 33750,
+        "T2": 33750,
+        "T3": 33751
+      },
+      "activos": {
+        "0700.HK": 1106,
+        "1810.HK": 1106,
+        "6501.T": 1102,
+        "6758.T": 1102,
+        "6857.T": 1102,
+        "7011.T": 1102,
+        "7203.T": 1102,
+        "8035.T": 1102,
+        "9988.HK": 1106,
+        "AAPL": 1134,
+        "ABBV": 1134,
+        "ADBE": 1134,
+        "ADYEN.AS": 1159,
+        "AIR.PA": 1159,
+        "ALV.DE": 1153,
+        "AMAT": 1134,
+        "AMD": 1134,
+        "AMZN": 1134,
+        "APP": 1134,
+        "ARM": 621,
+        "ASML.AS": 1159,
+        "AVGO": 1134,
+        "AZN": 1134,
+        "BBVA.MC": 1158,
+        "BRK-B": 1134,
+        "BSP.DE": 1153,
+        "CAT": 1134,
+        "COIN": 1134,
+        "CRM": 1134,
+        "CRWD": 1134,
+        "CVX": 1134,
+        "DBK.DE": 1153,
+        "DTE.DE": 1153,
+        "ENI.MI": 1149,
+        "ENR.DE": 1153,
+        "EQQQ.DE": 1151,
+        "EUNH.DE": 1153,
+        "EUNL.DE": 1151,
+        "EUNN.DE": 1151,
+        "EXH1.DE": 1152,
+        "EXSA.DE": 1152,
+        "EXV1.DE": 1152,
+        "GOOGL": 1134,
+        "GS": 1134,
+        "IBE.MC": 1158,
+        "ICGA.DE": 1151,
+        "IFX.DE": 1153,
+        "INFY": 1134,
+        "INTC": 1134,
+        "IQQK.DE": 1151,
+        "IQQT.DE": 1151,
+        "IS3N.DE": 1151,
+        "ITX.MC": 1157,
+        "LLY": 1134,
+        "LMT": 1134,
+        "MA": 1134,
+        "MBG.DE": 1153,
+        "MC.PA": 1159,
+        "META": 1134,
+        "MRVL": 1134,
+        "MSFT": 1134,
+        "MU": 1134,
+        "MUV2.DE": 1153,
+        "NFLX": 1134,
+        "NOW": 1134,
+        "NVDA": 1134,
+        "OR.PA": 1159,
+        "ORCL": 1134,
+        "PANW": 1134,
+        "PLTR": 1134,
+        "Q8Y0.DE": 325,
+        "QCOM": 1134,
+        "QDV5.DE": 1151,
+        "R6C0.DE": 1153,
+        "RACE.MI": 1149,
+        "RRU.DE": 1153,
+        "SAF.PA": 1159,
+        "SAP.DE": 1153,
+        "SIE.DE": 1153,
+        "SU.PA": 1159,
+        "SXR8.DE": 1151,
+        "TSLA": 1134,
+        "TSM": 1134,
+        "TTE.PA": 1159,
+        "UBER": 1134,
+        "V": 1134,
+        "VRTX": 1134,
+        "VVSM.DE": 1151,
+        "XOM": 1134,
+        "ZPRR.DE": 1151
+      },
+      "stop_basis": {},
+      "no_calculable_context_contado": {
+        "NO_CALCULABLE_CONTEXT": 7157
+      }
+    },
+    "B2": {
+      "regiones": {
+        "ASIA": 17953,
+        "EMERGING_MARKETS": 1151,
+        "EUROPA": 34622,
+        "GLOBAL": 2627,
+        "USA": 44898
+      },
+      "regimenes": {
+        "CAUTELA": 12431,
+        "RISK_OFF": 7944,
+        "RISK_ON": 73719
+      },
+      "terciles": {
+        "T1": 33750,
+        "T2": 33750,
+        "T3": 33751
+      },
+      "activos": {
+        "0700.HK": 1106,
+        "1810.HK": 1106,
+        "6501.T": 1102,
+        "6758.T": 1102,
+        "6857.T": 1102,
+        "7011.T": 1102,
+        "7203.T": 1102,
+        "8035.T": 1102,
+        "9988.HK": 1106,
+        "AAPL": 1134,
+        "ABBV": 1134,
+        "ADBE": 1134,
+        "ADYEN.AS": 1159,
+        "AIR.PA": 1159,
+        "ALV.DE": 1153,
+        "AMAT": 1134,
+        "AMD": 1134,
+        "AMZN": 1134,
+        "APP": 1134,
+        "ARM": 621,
+        "ASML.AS": 1159,
+        "AVGO": 1134,
+        "AZN": 1134,
+        "BBVA.MC": 1158,
+        "BRK-B": 1134,
+        "BSP.DE": 1153,
+        "CAT": 1134,
+        "COIN": 1134,
+        "CRM": 1134,
+        "CRWD": 1134,
+        "CVX": 1134,
+        "DBK.DE": 1153,
+        "DTE.DE": 1153,
+        "ENI.MI": 1149,
+        "ENR.DE": 1153,
+        "EQQQ.DE": 1151,
+        "EUNH.DE": 1153,
+        "EUNL.DE": 1151,
+        "EUNN.DE": 1151,
+        "EXH1.DE": 1152,
+        "EXSA.DE": 1152,
+        "EXV1.DE": 1152,
+        "GOOGL": 1134,
+        "GS": 1134,
+        "IBE.MC": 1158,
+        "ICGA.DE": 1151,
+        "IFX.DE": 1153,
+        "INFY": 1134,
+        "INTC": 1134,
+        "IQQK.DE": 1151,
+        "IQQT.DE": 1151,
+        "IS3N.DE": 1151,
+        "ITX.MC": 1157,
+        "LLY": 1134,
+        "LMT": 1134,
+        "MA": 1134,
+        "MBG.DE": 1153,
+        "MC.PA": 1159,
+        "META": 1134,
+        "MRVL": 1134,
+        "MSFT": 1134,
+        "MU": 1134,
+        "MUV2.DE": 1153,
+        "NFLX": 1134,
+        "NOW": 1134,
+        "NVDA": 1134,
+        "OR.PA": 1159,
+        "ORCL": 1134,
+        "PANW": 1134,
+        "PLTR": 1134,
+        "Q8Y0.DE": 325,
+        "QCOM": 1134,
+        "QDV5.DE": 1151,
+        "R6C0.DE": 1153,
+        "RACE.MI": 1149,
+        "RRU.DE": 1153,
+        "SAF.PA": 1159,
+        "SAP.DE": 1153,
+        "SIE.DE": 1153,
+        "SU.PA": 1159,
+        "SXR8.DE": 1151,
+        "TSLA": 1134,
+        "TSM": 1134,
+        "TTE.PA": 1159,
+        "UBER": 1134,
+        "V": 1134,
+        "VRTX": 1134,
+        "VVSM.DE": 1151,
+        "XOM": 1134,
+        "ZPRR.DE": 1151
+      },
+      "stop_basis": {},
+      "no_calculable_context_contado": {
+        "NO_CALCULABLE_CONTEXT": 7157
+      }
+    },
+    "S1": {
+      "regiones": {
+        "ASIA": 17953,
+        "EMERGING_MARKETS": 1151,
+        "EUROPA": 34622,
+        "GLOBAL": 2627,
+        "USA": 44898
+      },
+      "regimenes": {
+        "CAUTELA": 12431,
+        "RISK_OFF": 7944,
+        "RISK_ON": 73719
+      },
+      "terciles": {
+        "T1": 33750,
+        "T2": 33750,
+        "T3": 33751
+      },
+      "activos": {
+        "0700.HK": 1106,
+        "1810.HK": 1106,
+        "6501.T": 1102,
+        "6758.T": 1102,
+        "6857.T": 1102,
+        "7011.T": 1102,
+        "7203.T": 1102,
+        "8035.T": 1102,
+        "9988.HK": 1106,
+        "AAPL": 1134,
+        "ABBV": 1134,
+        "ADBE": 1134,
+        "ADYEN.AS": 1159,
+        "AIR.PA": 1159,
+        "ALV.DE": 1153,
+        "AMAT": 1134,
+        "AMD": 1134,
+        "AMZN": 1134,
+        "APP": 1134,
+        "ARM": 621,
+        "ASML.AS": 1159,
+        "AVGO": 1134,
+        "AZN": 1134,
+        "BBVA.MC": 1158,
+        "BRK-B": 1134,
+        "BSP.DE": 1153,
+        "CAT": 1134,
+        "COIN": 1134,
+        "CRM": 1134,
+        "CRWD": 1134,
+        "CVX": 1134,
+        "DBK.DE": 1153,
+        "DTE.DE": 1153,
+        "ENI.MI": 1149,
+        "ENR.DE": 1153,
+        "EQQQ.DE": 1151,
+        "EUNH.DE": 1153,
+        "EUNL.DE": 1151,
+        "EUNN.DE": 1151,
+        "EXH1.DE": 1152,
+        "EXSA.DE": 1152,
+        "EXV1.DE": 1152,
+        "GOOGL": 1134,
+        "GS": 1134,
+        "IBE.MC": 1158,
+        "ICGA.DE": 1151,
+        "IFX.DE": 1153,
+        "INFY": 1134,
+        "INTC": 1134,
+        "IQQK.DE": 1151,
+        "IQQT.DE": 1151,
+        "IS3N.DE": 1151,
+        "ITX.MC": 1157,
+        "LLY": 1134,
+        "LMT": 1134,
+        "MA": 1134,
+        "MBG.DE": 1153,
+        "MC.PA": 1159,
+        "META": 1134,
+        "MRVL": 1134,
+        "MSFT": 1134,
+        "MU": 1134,
+        "MUV2.DE": 1153,
+        "NFLX": 1134,
+        "NOW": 1134,
+        "NVDA": 1134,
+        "OR.PA": 1159,
+        "ORCL": 1134,
+        "PANW": 1134,
+        "PLTR": 1134,
+        "Q8Y0.DE": 325,
+        "QCOM": 1134,
+        "QDV5.DE": 1151,
+        "R6C0.DE": 1153,
+        "RACE.MI": 1149,
+        "RRU.DE": 1153,
+        "SAF.PA": 1159,
+        "SAP.DE": 1153,
+        "SIE.DE": 1153,
+        "SU.PA": 1159,
+        "SXR8.DE": 1151,
+        "TSLA": 1134,
+        "TSM": 1134,
+        "TTE.PA": 1159,
+        "UBER": 1134,
+        "V": 1134,
+        "VRTX": 1134,
+        "VVSM.DE": 1151,
+        "XOM": 1134,
+        "ZPRR.DE": 1151
+      },
+      "stop_basis": {
+        "MIXTO": 5474,
+        "SOP/SOP": 11669,
+        "VOL/VOL": 84108
+      },
+      "no_calculable_context_contado": {
+        "NO_CALCULABLE_CONTEXT": 7157
+      }
+    },
+    "S2": {
+      "regiones": {
+        "ASIA": 17953,
+        "EMERGING_MARKETS": 1151,
+        "EUROPA": 34622,
+        "GLOBAL": 2627,
+        "USA": 44898
+      },
+      "regimenes": {
+        "CAUTELA": 12431,
+        "RISK_OFF": 7944,
+        "RISK_ON": 73719
+      },
+      "terciles": {
+        "T1": 33750,
+        "T2": 33750,
+        "T3": 33751
+      },
+      "activos": {
+        "0700.HK": 1106,
+        "1810.HK": 1106,
+        "6501.T": 1102,
+        "6758.T": 1102,
+        "6857.T": 1102,
+        "7011.T": 1102,
+        "7203.T": 1102,
+        "8035.T": 1102,
+        "9988.HK": 1106,
+        "AAPL": 1134,
+        "ABBV": 1134,
+        "ADBE": 1134,
+        "ADYEN.AS": 1159,
+        "AIR.PA": 1159,
+        "ALV.DE": 1153,
+        "AMAT": 1134,
+        "AMD": 1134,
+        "AMZN": 1134,
+        "APP": 1134,
+        "ARM": 621,
+        "ASML.AS": 1159,
+        "AVGO": 1134,
+        "AZN": 1134,
+        "BBVA.MC": 1158,
+        "BRK-B": 1134,
+        "BSP.DE": 1153,
+        "CAT": 1134,
+        "COIN": 1134,
+        "CRM": 1134,
+        "CRWD": 1134,
+        "CVX": 1134,
+        "DBK.DE": 1153,
+        "DTE.DE": 1153,
+        "ENI.MI": 1149,
+        "ENR.DE": 1153,
+        "EQQQ.DE": 1151,
+        "EUNH.DE": 1153,
+        "EUNL.DE": 1151,
+        "EUNN.DE": 1151,
+        "EXH1.DE": 1152,
+        "EXSA.DE": 1152,
+        "EXV1.DE": 1152,
+        "GOOGL": 1134,
+        "GS": 1134,
+        "IBE.MC": 1158,
+        "ICGA.DE": 1151,
+        "IFX.DE": 1153,
+        "INFY": 1134,
+        "INTC": 1134,
+        "IQQK.DE": 1151,
+        "IQQT.DE": 1151,
+        "IS3N.DE": 1151,
+        "ITX.MC": 1157,
+        "LLY": 1134,
+        "LMT": 1134,
+        "MA": 1134,
+        "MBG.DE": 1153,
+        "MC.PA": 1159,
+        "META": 1134,
+        "MRVL": 1134,
+        "MSFT": 1134,
+        "MU": 1134,
+        "MUV2.DE": 1153,
+        "NFLX": 1134,
+        "NOW": 1134,
+        "NVDA": 1134,
+        "OR.PA": 1159,
+        "ORCL": 1134,
+        "PANW": 1134,
+        "PLTR": 1134,
+        "Q8Y0.DE": 325,
+        "QCOM": 1134,
+        "QDV5.DE": 1151,
+        "R6C0.DE": 1153,
+        "RACE.MI": 1149,
+        "RRU.DE": 1153,
+        "SAF.PA": 1159,
+        "SAP.DE": 1153,
+        "SIE.DE": 1153,
+        "SU.PA": 1159,
+        "SXR8.DE": 1151,
+        "TSLA": 1134,
+        "TSM": 1134,
+        "TTE.PA": 1159,
+        "UBER": 1134,
+        "V": 1134,
+        "VRTX": 1134,
+        "VVSM.DE": 1151,
+        "XOM": 1134,
+        "ZPRR.DE": 1151
+      },
+      "stop_basis": {
+        "MIXTO": 5507,
+        "SOP/SOP": 17143,
+        "VOL/VOL": 78601
+      },
+      "no_calculable_context_contado": {
+        "NO_CALCULABLE_CONTEXT": 7157
+      }
+    }
+  },
+  "familia_confirmatoria": {
+    "miembros": [
+      "B2_vs_C0",
+      "S1_vs_C0",
+      "S2_vs_C0",
+      "E1"
+    ],
+    "m": 4,
+    "confidence": 0.9875,
+    "remuestreos": 20000,
+    "fuera_de_la_familia": {
+      "B1": "previamente expuesta en esta misma cosecha; no confirmatoria; no elegible para sustituir C0"
+    }
+  },
+  "e1": {
+    "definicion": "E1: entrada a open(t+1) con veto de producción frente a entrada al cierre, bajo C0; no es geometría ni candidata a P5",
+    "categorias_open_t1_c0": {
+      "INVALID_STOP": 1028,
+      "INVALID_TARGET": 148,
+      "ABOVE_MAX_ENTRY": 46744,
+      "RR_TOO_LOW": 0,
+      "EXECUTABLE": 53331
+    },
+    "estimaciones_previstas": 1
+  },
+  "recuento": {
+    "componentes": {
+      "B1": {
+        "primaria_60": 1,
+        "otras_longitudes": 3,
+        "cotas_ambiguedad": 2,
+        "regiones": 5,
+        "regimenes": 3,
+        "terciles": 3,
+        "mitades": 2,
+        "nivel": 1,
+        "activos": 90
+      },
+      "B2": {
+        "primaria_60": 1,
+        "otras_longitudes": 3,
+        "cotas_ambiguedad": 2,
+        "regiones": 5,
+        "regimenes": 3,
+        "terciles": 3,
+        "mitades": 2,
+        "nivel": 1,
+        "activos": 90
+      },
+      "S1": {
+        "primaria_60": 1,
+        "otras_longitudes": 3,
+        "cotas_ambiguedad": 2,
+        "regiones": 5,
+        "regimenes": 3,
+        "terciles": 3,
+        "mitades": 2,
+        "nivel": 1,
+        "activos": 90,
+        "stop_basis": 3
+      },
+      "S2": {
+        "primaria_60": 1,
+        "otras_longitudes": 3,
+        "cotas_ambiguedad": 2,
+        "regiones": 5,
+        "regimenes": 3,
+        "terciles": 3,
+        "mitades": 2,
+        "nivel": 1,
+        "activos": 90,
+        "stop_basis": 3
+      },
+      "E1": {
+        "primaria_60": 1
+      }
+    },
+    "subtotales": {
+      "B1": 110,
+      "B2": 110,
+      "S1": 113,
+      "S2": 113,
+      "E1": 1
+    },
+    "total": 447,
+    "confirmatorias": 4
+  },
+  "bloques_mitades": {
+    "primera": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "segunda": [
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21
+    ],
+    "rotulo": "robustez temporal interna sobre datos de desarrollo"
+  },
+  "decisiones_de_implementacion": [
+    "Terciles de ATR/P: nearest-rank cut(k/3) = x[⌈k·n/3⌉−1]; un valor igual a un corte sube de tercil (regla de P3).",
+    "Tasa de descarte por ambigüedad (condición 3): descartes / señales con niveles en la variante (en E1, / población); el emparejamiento por niveles se publica aparte.",
+    "EXIT_FINAL del brazo B de E1: sobre toda la población, incluidas las no ejecutadas (R = 0).",
+    "Nivel de la geometría (condición 10): media por bloque de 60 y PF agrupado sobre todos sus net_R observables, como en P3.",
+    "Heterogeneidad publicada: contrato P2.6 (2.000 remuestreos) sobre los mismos pares de la primaria, también en B2/S1/S2/E1; los 20.000 solo para el IC de Bonferroni y la anchura IC95 de capacidad.",
+    "Anchura IC95 de capacidad en B2/S1/S2/E1: cuantiles 2,5/97,5 de las mismas 20.000 medias remuestreadas del IC de Bonferroni.",
+    "Pares (condición 9): pares con net_R observable en C0 y en G sobre 101.251.",
+    "Réplica de C0 idéntica al event study (test 3 de la ficha): se comprueba sobre toda la población en la confirmatoria, antes de cualquier estimación; en este paso no se calcula ningún net_R sobre la cosecha."
+  ],
+  "checks": [
+    {
+      "control": "A-02 swing",
+      "observado": 106363,
+      "esperado": 106363,
+      "ok": true
+    },
+    {
+      "control": "cripto excluido",
+      "observado": 5112,
+      "esperado": 5112,
+      "ok": true
+    },
+    {
+      "control": "activos cripto",
+      "observado": [
+        "BTC-EUR",
+        "ETH-EUR",
+        "SOL-EUR"
+      ],
+      "esperado": [
+        "BTC-EUR",
+        "ETH-EUR",
+        "SOL-EUR"
+      ],
+      "ok": true
+    },
+    {
+      "control": "población P4",
+      "observado": 101251,
+      "esperado": 101251,
+      "ok": true
+    },
+    {
+      "control": "activos",
+      "observado": 90,
+      "esperado": 90,
+      "ok": true
+    },
+    {
+      "control": "(activo, sesión) únicos",
+      "observado": 101251,
+      "esperado": 101251,
+      "ok": true
+    },
+    {
+      "control": "p4_population_sha256",
+      "observado": "78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141",
+      "esperado": "78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141",
+      "ok": true
+    },
+    {
+      "control": "signal_ids_sha256",
+      "observado": "9faa4a45beaba3eb8dafabf7990906cd8c89e8e06ae2f25edec7839cd48e629f",
+      "esperado": "9faa4a45beaba3eb8dafabf7990906cd8c89e8e06ae2f25edec7839cd48e629f",
+      "ok": true
+    },
+    {
+      "control": "regiones",
+      "observado": {
+        "ASIA": 17953,
+        "EMERGING_MARKETS": 1151,
+        "EUROPA": 34622,
+        "GLOBAL": 2627,
+        "USA": 44898
+      },
+      "esperado": {
+        "ASIA": 17953,
+        "EMERGING_MARKETS": 1151,
+        "EUROPA": 34622,
+        "GLOBAL": 2627,
+        "USA": 44898
+      },
+      "ok": true
+    },
+    {
+      "control": "régimen PIT",
+      "observado": {
+        "CAUTELA": 12431,
+        "NO_CALCULABLE_CONTEXT": 7157,
+        "RISK_OFF": 7944,
+        "RISK_ON": 73719
+      },
+      "esperado": {
+        "CAUTELA": 12431,
+        "NO_CALCULABLE_CONTEXT": 7157,
+        "RISK_OFF": 7944,
+        "RISK_ON": 73719
+      },
+      "ok": true
+    },
+    {
+      "control": "espina de sesiones",
+      "observado": 1302,
+      "esperado": 1302,
+      "ok": true
+    },
+    {
+      "control": "bloques 40: ocupados",
+      "observado": 30,
+      "esperado": 30,
+      "ok": true
+    },
+    {
+      "control": "bloques 40: más corto",
+      "observado": 22,
+      "esperado": 22,
+      "ok": true
+    },
+    {
+      "control": "bloques 40: válida P2.5",
+      "observado": false,
+      "esperado": false,
+      "ok": true
+    },
+    {
+      "control": "bloques 60: ocupados",
+      "observado": 20,
+      "esperado": 20,
+      "ok": true
+    },
+    {
+      "control": "bloques 60: más corto",
+      "observado": 42,
+      "esperado": 42,
+      "ok": true
+    },
+    {
+      "control": "bloques 60: válida P2.5",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "bloques 80: ocupados",
+      "observado": 16,
+      "esperado": 16,
+      "ok": true
+    },
+    {
+      "control": "bloques 80: más corto",
+      "observado": 22,
+      "esperado": 22,
+      "ok": true
+    },
+    {
+      "control": "bloques 80: válida P2.5",
+      "observado": false,
+      "esperado": false,
+      "ok": true
+    },
+    {
+      "control": "bloques 120: ocupados",
+      "observado": 10,
+      "esperado": 10,
+      "ok": true
+    },
+    {
+      "control": "bloques 120: más corto",
+      "observado": 102,
+      "esperado": 102,
+      "ok": true
+    },
+    {
+      "control": "bloques 120: válida P2.5",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "bloques 60 = mitades 2–11 ∪ 12–21",
+      "observado": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "esperado": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "ok": true
+    },
+    {
+      "control": "data_vintage_id",
+      "observado": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+      "esperado": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+      "ok": true
+    },
+    {
+      "control": "universe_vintage_id",
+      "observado": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+      "esperado": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+      "ok": true
+    },
+    {
+      "control": "config.yaml score_model_version",
+      "observado": "1.0",
+      "esperado": "1.0",
+      "ok": true
+    },
+    {
+      "control": "config_hash",
+      "observado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+      "esperado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+      "ok": true
+    },
+    {
+      "control": "P4_PREREG_SHA en la historia",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "C0 = niveles de producción",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "min_rr = risk.min_rr_ratio",
+      "observado": 1.5,
+      "esperado": 1.5,
+      "ok": true
+    },
+    {
+      "control": "C0 recalculado = niveles de la enumeración",
+      "observado": 0,
+      "esperado": 0,
+      "ok": true
+    },
+    {
+      "control": "álgebra C0 rr_en_p",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra C0 holgura_rr_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra C0 holgura_efectiva_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra B1 rr_en_p",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra B1 holgura_rr_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra B1 holgura_efectiva_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra B2 rr_en_p",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra B2 holgura_rr_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra B2 holgura_efectiva_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra S1 rr_en_p",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra S1 holgura_rr_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra S1 holgura_efectiva_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra S2 rr_en_p",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra S2 holgura_rr_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "álgebra S2 holgura_efectiva_atr",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "C0 sin niveles None",
+      "observado": 0,
+      "esperado": 0,
+      "ok": true
+    },
+    {
+      "control": "C0 coherente",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "RR_TOO_LOW inalcanzable en C0",
+      "observado": 0,
+      "esperado": 0,
+      "ok": true
+    },
+    {
+      "control": "recuento estructural de comparaciones",
+      "observado": 447,
+      "esperado": 447,
+      "ok": true
+    },
+    {
+      "control": "confirmatorias",
+      "observado": 4,
+      "esperado": 4,
+      "ok": true
+    },
+    {
+      "control": "familia confirmatoria",
+      "observado": [
+        "B2_vs_C0",
+        "S1_vs_C0",
+        "S2_vs_C0",
+        "E1"
+      ],
+      "esperado": [
+        "B2_vs_C0",
+        "S1_vs_C0",
+        "S2_vs_C0",
+        "E1"
+      ],
+      "ok": true
+    },
+    {
+      "control": "BONFERRONI_M = len(familia)",
+      "observado": 4,
+      "esperado": 4,
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "definitivo": true,
+  "fin_utc": "2026-10-01T21:43:00.545981+00:00"
+}

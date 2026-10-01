@@ -1,0 +1,59 @@
+# P4 — preflight sin desenlaces (DEFINITIVO)
+
+_condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)_
+
+P4_PREREG_SHA=48b884722ef027e99857a4e65f9ab6b11da4758f
+P4_EXECUTOR_SHA=d531d1d7f1e6fe344834b9f1b6e5b0c4fedf75bf (git_dirty=False; prereg en historia=True)
+data_vintage_id=071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+universe_vintage_id=237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
+config_hash=89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387; config score_model_version=1.0
+coste=0.2%; semilla=20260830; estándar {'confidence': 0.95, 'resamples': 2000}; Bonferroni {'m': 4, 'confidence': 0.9875, 'resamples': 20000}
+outcomes_read=False; p4_confirmatory_executed=False
+
+## Población (A-02 swing sin cripto; sin exclusiones de P3)
+A-02 swing 106363 − cripto 5112 ['BTC-EUR', 'ETH-EUR', 'SOL-EUR'] = 101251 señales, 90 activos
+p4_population_sha256=78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141
+signal_ids_sha256=9faa4a45beaba3eb8dafabf7990906cd8c89e8e06ae2f25edec7839cd48e629f
+regiones={'ASIA': 17953, 'EMERGING_MARKETS': 1151, 'EUROPA': 34622, 'GLOBAL': 2627, 'USA': 44898}
+régimen PIT (solo estratos)={'CAUTELA': 12431, 'NO_CALCULABLE_CONTEXT': 7157, 'RISK_OFF': 7944, 'RISK_ON': 73719}; códigos={'excluded_asia_missing': 396, 'excluded_trend_sma_history': 6937}
+
+## Bloques
+  40: ocupados 30 [3, 32], más corto 22, válida=False → INVÁLIDA (bloque ocupado más corto ≤ 40): publicada, fuera de toda condición
+  60: ocupados 20 [2, 21], más corto 42, válida=True → PRIMARIA
+  80: ocupados 16 [1, 16], más corto 22, válida=False → INVÁLIDA (bloque ocupado más corto ≤ 40): publicada, fuera de toda condición
+ 120: ocupados 10 [1, 10], más corto 102, válida=True → SENSIBILIDAD (condición 2)
+
+## Rejilla y álgebra (stop por volatilidad)
+C0: s=2.0 m=[1.5, 3.0, 5.0] rol=CONTROL confirmatory=False eligible_for_p5=False bonferroni=False | RR en P 1.5000, holgura RR 0.0000·A, efectiva 0.0000·A
+B1: s=2.0 m=[1.5, 3.5, 5.0] rol=DESCRIPTIVA confirmatory=False eligible_for_p5=False bonferroni=False | RR en P 1.7500, holgura RR 0.2000·A, efectiva 0.2000·A | «previamente expuesta en esta misma cosecha; no confirmatoria; no elegible para sustituir C0»
+B2: s=2.0 m=[1.5, 4.875, 5.0] rol=CANDIDATA confirmatory=True eligible_for_p5=True bonferroni=True | RR en P 2.4375, holgura RR 0.7500·A, efectiva 0.7500·A
+S1: s=1.5 m=[1.5, 2.25, 5.0] rol=CANDIDATA confirmatory=True eligible_for_p5=True bonferroni=True | RR en P 1.5000, holgura RR 0.0000·A, efectiva 0.0000·A
+S2: s=2.5 m=[1.5, 3.75, 5.0] rol=CANDIDATA confirmatory=True eligible_for_p5=True bonferroni=True | RR en P 1.5000, holgura RR 0.0000·A, efectiva 0.0000·A
+
+## Niveles reales (sin desenlaces)
+C0: válidos 101251, None 0 {}, stop_basis {'SOPORTE': 17143, 'VOLATILIDAD': 84108}, pares stop_basis None, RR<min 0, incoherentes 0 {}, entry_max vs C0 {'igual': 101251}
+B1: válidos 101251, None 0 {}, stop_basis {'SOPORTE': 17143, 'VOLATILIDAD': 84108}, pares stop_basis None, RR<min 0, incoherentes 0 {}, entry_max vs C0 {'igual': 4282, 'mayor': 96969}
+B2: válidos 101251, None 0 {}, stop_basis {'SOPORTE': 17143, 'VOLATILIDAD': 84108}, pares stop_basis None, RR<min 0, incoherentes 0 {}, entry_max vs C0 {'igual': 4282, 'mayor': 96969}
+S1: válidos 101251, None 0 {}, stop_basis {'SOPORTE': 11669, 'VOLATILIDAD': 89582}, pares stop_basis {'VOL/VOL': 84108, 'SOP/SOP': 11669, 'MIXTO': 5474}, RR<min 0, incoherentes 0 {}, entry_max vs C0 {'igual': 84108, 'menor': 17143}
+S2: válidos 101251, None 0 {}, stop_basis {'SOPORTE': 22650, 'VOLATILIDAD': 78601}, pares stop_basis {'VOL/VOL': 78601, 'SOP/SOP': 17143, 'MIXTO': 5507}, RR<min 0, incoherentes 0 {}, entry_max vs C0 {'igual': 82883, 'mayor': 18368}
+
+## Holgura D-06 y categorías a open(t+1) (global; sin IC, no son comparaciones)
+C0: holgura RR p50 0.0000·A (0.0000 %), efectiva p50 0.0000·A; manda {'RR': 96969, 'TECNICO': 4282, 'EMPATE': 0}; open(t+1) {'INVALID_STOP': 1028, 'INVALID_TARGET': 148, 'ABOVE_MAX_ENTRY': 46744, 'RR_TOO_LOW': 0, 'EXECUTABLE': 53331}; distancia ABOVE_MAX_ENTRY {'p10': 0.04481982542090473, 'p25': 0.10945119822633069, 'p50': 0.2361060280281196, 'p75': 0.4308229839499828, 'p90': 0.7067278066325441}
+B1: holgura RR p50 0.2000·A (0.5305 %), efectiva p50 0.2000·A; manda {'RR': 93829, 'TECNICO': 7422, 'EMPATE': 0}; open(t+1) {'INVALID_STOP': 1028, 'INVALID_TARGET': 98, 'ABOVE_MAX_ENTRY': 26552, 'RR_TOO_LOW': 0, 'EXECUTABLE': 73573}; distancia ABOVE_MAX_ENTRY {'p10': 0.031431788099780505, 'p25': 0.08389316134984091, 'p50': 0.19889429772338194, 'p75': 0.3965572375578106, 'p90': 0.7152555523227621}
+B2: holgura RR p50 0.7500·A (1.9460 %), efectiva p50 0.7500·A; manda {'RR': 0, 'TECNICO': 17143, 'EMPATE': 84108}; open(t+1) {'INVALID_STOP': 1028, 'INVALID_TARGET': 40, 'ABOVE_MAX_ENTRY': 4680, 'RR_TOO_LOW': 0, 'EXECUTABLE': 95503}; distancia ABOVE_MAX_ENTRY {'p10': 0.035388200573818904, 'p25': 0.09848423547091939, 'p50': 0.2610656288232418, 'p75': 0.5868720267005371, 'p90': 1.1216461819186871}
+S1: holgura RR p50 0.0000·A (0.0000 %), efectiva p50 0.0000·A; manda {'RR': 101251, 'TECNICO': 0, 'EMPATE': 0}; open(t+1) {'INVALID_STOP': 1427, 'INVALID_TARGET': 330, 'ABOVE_MAX_ENTRY': 48949, 'RR_TOO_LOW': 0, 'EXECUTABLE': 50545}; distancia ABOVE_MAX_ENTRY {'p10': 0.044321825206342286, 'p25': 0.10940297675026878, 'p50': 0.23611882056792458, 'p75': 0.43005829600072154, 'p90': 0.694656877554809}
+S2: holgura RR p50 0.0000·A (0.0000 %), efectiva p50 0.0000·A; manda {'RR': 92148, 'TECNICO': 9103, 'EMPATE': 0}; open(t+1) {'INVALID_STOP': 870, 'INVALID_TARGET': 81, 'ABOVE_MAX_ENTRY': 44156, 'RR_TOO_LOW': 0, 'EXECUTABLE': 56144}; distancia ABOVE_MAX_ENTRY {'p10': 0.044675940120655226, 'p25': 0.10922065329373977, 'p50': 0.23622202978006449, 'p75': 0.43261127455037485, 'p90': 0.7136455472551171}
+
+## Estratos
+terciles ATR/P: cortes [0.019819359544096908, 0.030590062111801243] (nearest-rank, cut(k/3) = x[⌈k·n/3⌉−1]; un valor igual a un corte sube de tercil); n {'T1': 33750, 'T2': 33750, 'T3': 33751}
+B1: regiones 5, regímenes {'CAUTELA': 12431, 'RISK_OFF': 7944, 'RISK_ON': 73719}, terciles {'T1': 33750, 'T2': 33750, 'T3': 33751}, activos 90, stop_basis {}, {'NO_CALCULABLE_CONTEXT': 7157}
+B2: regiones 5, regímenes {'CAUTELA': 12431, 'RISK_OFF': 7944, 'RISK_ON': 73719}, terciles {'T1': 33750, 'T2': 33750, 'T3': 33751}, activos 90, stop_basis {}, {'NO_CALCULABLE_CONTEXT': 7157}
+S1: regiones 5, regímenes {'CAUTELA': 12431, 'RISK_OFF': 7944, 'RISK_ON': 73719}, terciles {'T1': 33750, 'T2': 33750, 'T3': 33751}, activos 90, stop_basis {'MIXTO': 5474, 'SOP/SOP': 11669, 'VOL/VOL': 84108}, {'NO_CALCULABLE_CONTEXT': 7157}
+S2: regiones 5, regímenes {'CAUTELA': 12431, 'RISK_OFF': 7944, 'RISK_ON': 73719}, terciles {'T1': 33750, 'T2': 33750, 'T3': 33751}, activos 90, stop_basis {'MIXTO': 5507, 'SOP/SOP': 17143, 'VOL/VOL': 78601}, {'NO_CALCULABLE_CONTEXT': 7157}
+
+## Familia confirmatoria: ['B2_vs_C0', 'S1_vs_C0', 'S2_vs_C0', 'E1'] (m=4, 0.9875, 20000 remuestreos); fuera: {'B1': 'previamente expuesta en esta misma cosecha; no confirmatoria; no elegible para sustituir C0'}
+## Recuento estructural: {'B1': 110, 'B2': 110, 'S1': 113, 'S2': 113, 'E1': 1} → total 447, confirmatorias 4
+Mitades: {'primera': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 'segunda': [12, 13, 14, 15, 16, 17, 18, 19, 20, 21], 'rotulo': 'robustez temporal interna sobre datos de desarrollo'}
+
+## Controles: 54/54 correctos
+ok=True; definitivo=True
