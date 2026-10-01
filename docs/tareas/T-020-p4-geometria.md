@@ -303,7 +303,8 @@ Esta ficha debe declararlo antes de medir:
    - P3, con primarios por región y por activo.
 5. **B1 informa del sentido de B2.** El punto exacto 4,875 no se ha medido nunca, pero hay
    exposición previa a B1 en la misma dirección. **B2 no se llama ciega del todo** en ninguna
-   salida, y una lectura «meseta B1 + B2» solo es ciega a medias.
+   salida, y una lectura «meseta B1 + B2» solo es ciega a medias. Esa lectura es descriptiva y **no
+   interviene en el criterio de B2** (sección 22).
 
 Consecuencia: la conclusión sobre B1 no es ciega, y por eso D-63 la deja **solo descriptiva** (OD-P4-1
 = B).
@@ -380,8 +381,9 @@ Convención: ΔR > 0 significa que la variante gana más R neto que C0 sobre las
 
 ## 11. Secundarias (descriptivas; no deciden solas)
 
-Por variante, con el mismo estimador:
-- primario de nivel (media por bloque de `net_R`);
+Por variante, con el mismo estimador. **Solo el primario de nivel lleva IC** (del 95 %) y cuenta
+como comparación. **Todas las demás secundarias son puntuales, sin IC**, y no cuentan:
+- primario de nivel (media por bloque de `net_R`), **con IC del 95 %**;
 - media agrupada de ΔR;
 - `P(objetivo antes que stop)` como intervalo `[seguros, seguros + ambiguos]` (P2.3);
 - tasa de salida por tiempo y `EXIT_FINAL`;
@@ -459,8 +461,13 @@ salida.
 
 Esto separa la dispersión compatible con ruido de la heterogeneidad real.
 
-**Estratos pre-registrados** (descriptivos, cada uno con ΔR por bloque e IC):
-- **bloque temporal:** las 19 medias, una por bloque;
+**Estratos pre-registrados** (descriptivos), solo para las geometrías B1, B2, S1 y S2, **no para E1**
+(sección 18.1):
+- **bloque temporal:** las **20 medias** de ΔR, una por bloque ocupado (del 2 al 21). Son
+  **puntos sin IC**: un solo bloque no admite el bootstrap de bloques completos. No cuentan como
+  comparaciones (sección 20);
+- **los demás estratos** (región, activo, régimen, volatilidad y `stop_basis`) llevan cada uno su ΔR
+  por bloque y su IC del 95 % (2.000 remuestreos) y cuentan en la sección 20:
 - **región:** ASIA, EUROPA, USA, GLOBAL y EMERGING_MARKETS;
 - **activo:** los 90, descriptivo;
 - **régimen:** la etiqueta point-in-time de `MarketContext` en el `analysis_timestamp` de la señal
@@ -483,9 +490,13 @@ mostró con datos sintéticos, sin datos reales: con un efecto constante y un fa
 solapamiento de 40, dio ALTA en 20 de 20 réplicas; con ruido independiente, COMPATIBLE en 10 de 10.
 
 **Papel en P4 (D-63, OD-P4-12 = B):** la heterogeneidad es una **bandera obligatoria, no un veto**.
-- Se publica siempre, para cada comparación.
-- **Si sale ALTA**, antes de cerrar GATE P4 hay que publicar y discutir los estratos
-  pre-registrados: región, régimen, volatilidad, activo y, en S1 y S2, `stop_basis`.
+- Se publica siempre, para cada comparación, E1 incluida.
+- **Si sale ALTA en B1, B2, S1 o S2**, antes de cerrar GATE P4 hay que publicar y discutir los
+  estratos pre-registrados: región, régimen, volatilidad, activo y, en S1 y S2, `stop_basis`. Esos
+  estratos ya se calculan siempre para las geometrías, así que la ALTA no añade ninguna estimación.
+- **En E1 la bandera se publica sin estratos**, aunque salga ALTA. E1 no se elige ni selecciona
+  nada, así que el requisito 2 del gate («ninguna se elige por el promedio… sin explicar») no la
+  alcanza. Calcular estratos de E1 añadiría comparaciones que D-63 no prevé.
 - En P4 no se permite crear una política condicionada por estrato.
 - **ALTA por sí sola no aprueba ni veta una variante.**
 - No hay calibración sintética que convierta la bandera en veto.
@@ -635,7 +646,7 @@ del censo, sin desenlaces: 5 regiones, 3 regímenes calculables y 90 activos.
 
 | Por geometría (B1, B2, S1 y S2, frente a C0) | Número | Tipo |
 |---|---|---|
-| Primaria, bloque 60 | 1 | **confirmatoria** en B2, S1 y S2; descriptiva en B1 |
+| Primaria, bloque 60 | 1 | **confirmatoria** en B2, S1 y S2 (IC de Bonferroni); en B1 es **descriptiva, con IC del 95 %** (2.000 remuestreos), nunca de Bonferroni |
 | Bloques 40 y 80 (inválidos, publicados) y 120 | 3 | descriptiva; el 120 es veto sin corrección (condición 2) |
 | Cotas de ambigüedad | 2 | descriptiva; la conservadora es veto sin corrección (condición 5) |
 | Regiones (censo: 5) | 5 | descriptiva |
@@ -653,15 +664,22 @@ del censo, sin desenlaces: 5 regiones, 3 regímenes calculables y 90 activos.
 | E1 (sección 18.1) | **+1** |
 | **Total** | **447 comparaciones, de las que 4 son confirmatorias** |
 
-- **Fórmula, que el ejecutor tiene que reproducir desde sus propias salidas** (test 11):
-  `4 × (1 + 3 + 2 + R + K + 3 + 2 + 1 + A) + 2 × 3 + 1`, con `R` = regiones con señales, `K` =
-  regímenes calculables con señales y `A` = activos con pares.
-  - Con el censo vale 447: R = 5, K = 3 y A = 90.
-  - Si en la ejecución un estrato quedara sin pares (por ejemplo, un activo cuyas señales sean todas
-    ambiguas en un brazo), el número cambia por esa razón estructural. Se publica el recuento
-    derivado y el motivo de la diferencia, **nunca** un 447 escrito a mano.
-- Las medidas de holgura de la sección 18 y las tasas de categoría de E1 no tienen IC: no cuentan
-  como comparaciones inferenciales.
+- **Fórmula, que el ejecutor reproduce desde sus propias salidas** (test 11): la suma, para cada
+  geometría g de {B1, B2, S1, S2}, de `(1 + 3 + 2 + R_g + K_g + 3 + 2 + 1 + A_g)`, más
+  `3 × [g ∈ {S1, S2}]`, más 1 por E1. `R_g`, `K_g` y `A_g` son las regiones, los regímenes
+  calculables y los activos con pares **en esa geometría**.
+  - Con el censo, `R_g = 5`, `K_g = 3` y `A_g = 90` en las cuatro geometrías: 4 × 110 + 2 × 3 + 1 =
+    **447**.
+  - Si en la ejecución un estrato quedara sin pares en alguna geometría (por ejemplo, un activo
+    cuyas señales sean todas ambiguas en un brazo), el número cambia por esa razón estructural. Se
+    publica el recuento derivado, con sus componentes por geometría y el motivo de la diferencia,
+    **nunca** un 447 escrito a mano.
+- **No cuentan como comparaciones**, porque no tienen IC:
+  - las medidas de holgura de la sección 18 y las tasas de categoría de E1;
+  - las 20 medias por bloque (sección 16);
+  - las secundarias puntuales de la sección 11.
+
+  Si alguna recibiera un IC, sería una comparación nueva que este pre-registro no autoriza.
 - Las condiciones que usan comparaciones descriptivas como veto se rotulan **«veto sin
   corrección»**. Como el criterio exige que se cumplan todas, solo pueden quitar candidatas.
 
@@ -745,7 +763,8 @@ ninguna cumple, C0 permanece.
       y `net_R` con el coste del 0,20 %;
     - una vela de entrada que toca los dos niveles es `AMBIGUOUS`;
     - el brazo A coincide exactamente con el `ManagedEvent` de C0;
-    - E1 produce exactamente 1 estimación con IC.
+    - E1 produce exactamente 1 estimación con IC, también cuando su bandera de heterogeneidad sale
+      ALTA (0 estratos y 0 cotas).
 11. **Recuento de comparaciones:** derivado de las salidas con la fórmula de la sección 20 y
     publicado con sus componentes (R, K y A).
 12. **Criterio:** sobre resultados sintéticos, la función que evalúa las condiciones da el
@@ -918,6 +937,8 @@ D-63 y el cuerpo de esta ficha.
     par.
 - **Recomendación:** **B**, aceptando y registrando la lectura del requisito 1. C es preferible si
   el propietario quiere cerrar el requisito sin interpretación; en ese caso `m` pasa a 5.
+  *(Historial: D-63 eligió C acotada y, a la vez, sacó B1 de la familia, así que `m` queda en 4:
+  B2, S1, S2 y E1.)*
 - **Bloquea:** la sección 18, el recuento y OD-P4-7.
 
 ### OD-P4-6 — Longitudes de bloque inválidas según P2.5 (40 y 80) · **CERRADA (D-63): A**
@@ -1035,7 +1056,8 @@ D-63 y el cuerpo de esta ficha.
   - **A** cumple el requisito 2 del gate («explicar en qué régimen, región o volatilidad mejora»).
   - **B** pierde la explicación por régimen y volatilidad que pide el gate.
   - **C** multiplica las políticas y las comparaciones.
-- **Nota:** EMERGING_MARKETS son 1.068 señales de prácticamente un solo activo (revisión, O-3). Su
+- **Nota:** EMERGING_MARKETS es prácticamente un solo activo: 1.068 señales en la población de P3 y
+  **1.151 en la de P4** (censo). Revisión, O-3. Su
   fila es casi un estrato por activo y se rotula así.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 16.
@@ -1228,5 +1250,33 @@ ABIERTOS, más 2 defectos nuevos, ninguno BLOCKER ni IMPORTANTE. Todos quedan co
 
 El revisor confirmó que el recuento de 451 está bien sumado.
 
-**Pendiente.** Una tercera revisión breve, después de que el propietario cierre las OD y antes del
+**Tercera revisión, sobre la versión con D-63 (`4de6beb`).** La hizo un agente `revisor` nuevo,
+solo leyendo y sin desenlaces: **0 BLOCKER, 2 IMPORTANTE, 2 MENOR y 3 OBSERVACIÓN**. Los diez
+puntos que pidió el propietario salieron OK:
+- B1 no puede entrar en el criterio;
+- la población no hereda las exclusiones de P3;
+- E1 está definida;
+- `m = 4`;
+- la heterogeneidad no veta;
+- las mitades no se llaman validación;
+- las señales sin contexto PIT se quedan;
+- el recuento es derivable;
+- no se leyó ningún desenlace;
+- no hay cambios fuera de alcance.
+
+Lo corregido después:
+- **I-1:** la obligación de publicar estratos con ALTA es solo para las geometrías. E1 publica la
+  bandera sin estratos (sección 16; test 10).
+- **I-2:** las 20 medias por bloque son puntos sin IC y no cuentan (secciones 16 y 20).
+- **M-1:** 19 → 20 bloques.
+- **M-2:** solo el primario de nivel lleva IC entre las secundarias; la primaria de B1 lleva un IC
+  del 95 %, no de Bonferroni (secciones 11 y 20).
+- **O-1:** la lectura «meseta B1 + B2» no interviene en el criterio (7.1).
+- **O-2:** notas de historial aclaradas (OD-P4-5, OD-P4-11).
+- **O-3:** fórmula del recuento como suma por geometría.
+
+Restos del borrador que siguen en la sección «Revisión de la ficha» (por ejemplo, «451») son
+historial de las vueltas anteriores. Lo vinculante es D-63 y el cuerpo de la ficha.
+
+**Pendiente (antes de esta tercera revisión).** Una tercera revisión breve, después de que el propietario cierre las OD y antes del
 SHA del pre-registro, para comprobar que la versión definitiva no reintroduce grados de libertad.
