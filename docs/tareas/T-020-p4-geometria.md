@@ -704,7 +704,7 @@ ninguna cumple, C0 permanece.
 |---|---|---|---|
 | 1 | El IC de Bonferroni (`m = 4`) de ΔR neto en el bloque 60 tiene el **límite inferior > 0** | veta | sección 14 |
 | 2 | **Estabilidad de longitud:** en 120, la única sensibilidad válida, ΔR puntual > 0 y límite inferior del IC del 95 % > 0. Las longitudes 40 y 80 se publican y no cuentan | veta (sin corrección) | sección 13 |
-| 3 | **Capacidad P2.5**, en el bloque 60: ≥ 12 bloques con pares; ningún bloque con < 5 pares; descarte por ambigüedad ≤ 25 %; `EXIT_FINAL` ≤ 10 % en C0 y en G; anchura del IC del 95 % de ΔR ≤ 0,20 (`limited_interval_width`, como en P3) | veta | `CapacityThresholds` vigentes |
+| 3 | **Capacidad P2.5**, en el bloque 60: ≥ 12 bloques con pares; ningún bloque con < 5 pares; descarte por ambigüedad ≤ 25 %; `EXIT_FINAL` ≤ 10 % en C0 y en G; anchura del IC del 95 % de ΔR ≤ 0,20 (`limited_interval_width`, como en P3). Esa anchura del 95 % se calcula **sobre la misma estimación primaria** que el IC de Bonferroni y **no cuenta aparte** como comparación; lo mismo vale para E1 | veta | `CapacityThresholds` vigentes |
 | 4 | **Heterogeneidad:** se publica siempre. Si es ALTA, se publican y discuten los estratos pre-registrados (región, régimen, volatilidad, activo y, en S1/S2, `stop_basis`). No se crea ninguna política por estrato | **no veta ni aprueba** | sección 16 |
 | 5 | **Ambigüedad:** con la cota conservadora para G, ΔR puntual > 0 | veta (sin corrección) | sección 17 |
 | 6 | **Coherencia del RR** sobre los **niveles efectivos** (tras soporte y resistencia), en toda señal: RR en P ≥ `min_rr`; `target1 ≤ target2 < target3`; `stop < P ≤ entry_max` | veta | preflight sin desenlaces y test 2 |
@@ -766,7 +766,7 @@ ninguna cumple, C0 permanece.
     - E1 produce exactamente 1 estimación con IC, también cuando su bandera de heterogeneidad sale
       ALTA (0 estratos y 0 cotas).
 11. **Recuento de comparaciones:** derivado de las salidas con la fórmula de la sección 20 y
-    publicado con sus componentes (R, K y A).
+    publicado con sus componentes por geometría (`R_g`, `K_g` y `A_g`).
 12. **Criterio:** sobre resultados sintéticos, la función que evalúa las condiciones da el
     resultado esperado:
     - incluido el caso «ninguna cumple → C0 permanece»;
