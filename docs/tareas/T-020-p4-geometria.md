@@ -1,19 +1,18 @@
 # T-020 — P4 Geometría: stop, objetivo y holgura de entrada, con pre-registro (A-04)
 
-Estado: **EN DISEÑO / PRE-REGISTRO.** Ficha escrita el 2026-10-01 desde `main` = `a15e695`. **P4 NO se
-ha ejecutado.** Para escribirla no se calculó ningún resultado de ninguna variante: no hay
-expectancy, `net_R`, PF, MAE/MFE, ΔR, intervalos ni heterogeneidad. Las cifras de esta ficha son
-de tres tipos:
+Estado: **PRE-REGISTRO — OD cerradas el 2026-10-01 (D-63).** P4 **NO se ha ejecutado**, y no se ha
+calculado ningún resultado de ninguna variante: ni expectancy, ni `net_R`, ni PF, ni MAE/MFE, ni ΔR,
+ni intervalos, ni heterogeneidad. Las cifras de esta ficha son de cuatro tipos:
 - algebraicas, derivadas de las fórmulas de `advisor/analysis/levels.py`;
-- recuentos de la población, ya publicados en P3 y sin desenlaces;
-- resultados **anteriores** que esta ficha declara como exposición previa (sección 7.1).
+- el **censo de la población de P4**, calculado sin desenlaces (`evidence/2026-10-01-T-020-censo-p4/`);
+- recuentos de primitivas en el instante de la señal, de la revisión de la ficha;
+- resultados **anteriores** declarados como exposición previa (sección 7.1).
 
-Las cuestiones metodológicas que la ficha no puede cerrar por sí misma están en «OWNER_DECISION_REQUIRED»
-(OD-P4-1 a OD-P4-13). **Mientras alguna siga abierta, esta ficha es un borrador de pre-registro, no
-un pre-registro ejecutable.** La rejilla, el criterio de la sección 22 y el recuento de la sección
-20 son **propuestas que solo serán vinculantes** cuando el propietario cierre las OD. En ese momento
-se eliminan las alternativas no elegidas (pasan al historial) y el SHA de ese commit documental
-será el pre-registro. Revisión independiente y cruzada de este borrador: «Revisión de la ficha».
+El primer borrador (`8512b0e`) proponía las OD-P4-1 a OD-P4-13. El propietario las cerró en
+**D-63**, y esta versión aplica esas decisiones. Las alternativas no elegidas se conservan como
+historial en la sección 27. El candidato a **`P4_PREREG_SHA`** es el HEAD documental que quede
+después de la tercera revisión independiente y de sus correcciones (sección «Revisión de la
+ficha»).
 
 Agente: Claude (inventario y ficha) → revisión independiente de la ficha → propietario (OD-P4-x)
 → implementación (Codex programa y Claude supervisa) → revisión de look-ahead → una ejecución.
@@ -25,16 +24,22 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 ## 1. Objetivo
 
-Comparar un número pequeño de geometrías de salida y entrada (stop, objetivo 2 y holgura de
-entrada) contra la geometría vigente:
+Comparar un número pequeño de geometrías (stop y objetivo 2) y una política de entrada contra la
+vigente:
 - **pareadas por `signal_id`**, sobre la misma cosecha congelada;
 - con el estimador primario de INV-14 / D-03 (media por bloque del R neto);
 - con bootstrap por bloques temporales completos (P2.6);
 - **midiendo explícitamente la holgura de entrada que D-06 dejó pendiente**.
 
-La salida es un conjunto, quizá vacío, de geometrías que cumplen el criterio pre-registrado de la
-sección 22 y pasan a P5 como candidatas. **Si ninguna lo cumple, la geometría actual permanece, y
-ese es un resultado válido.** P4 no cambia producción.
+**La salida tiene tres partes:**
+- el conjunto, quizá vacío, de geometrías **B2, S1 y S2** que cumplen el criterio de la sección 22
+  y pasan a P5 como candidatas;
+- el resultado propio de **E1** (entrada a la apertura frente a entrada al cierre, bajo C0), que no
+  selecciona geometría;
+- la publicación **descriptiva** de **B1**, que cierra el pendiente de D-02.
+
+**Si ninguna geometría cumple, la geometría actual permanece**, y ese es un resultado válido. P4
+no cambia producción.
 
 ## 2. Pregunta causal
 
@@ -55,8 +60,11 @@ Se separan tres preguntas:
   se rompe, y por eso se descompone por `stop_basis` (sección 7).
 - **P4-B, objetivo.** ¿Cambiar el objetivo 2 mejora la geometría económica y abre holgura de
   entrada? Incluye obligatoriamente el objetivo 2 a 3,5·ATR (D-02).
-- **P4-C, entrada.** ¿Cuánta persecución de precio admite cada geometría manteniendo el RR mínimo?
-  Se mide la **holgura efectiva** (`entry_max − price`), no el parámetro nominal `entry_max_atr`
+- **P4-C, entrada.** Tiene dos partes:
+  - **E1:** ¿la política de entrada de producción (entrar a la apertura siguiente con veto
+    `ABOVE_MAX_ENTRY`) cambia el R neto por señal frente a entrar al cierre, con la geometría C0?
+  - **Holgura:** ¿cuánta persecución de precio admite cada geometría manteniendo el RR mínimo? Se
+    mide la **holgura efectiva** (`entry_max − price`), no el parámetro nominal `entry_max_atr`
   (sección 18).
 
 ## 3. Dependencias
@@ -191,7 +199,7 @@ volatilidad (D-06, hallazgo 4 del protocolo). Por eso variar solo `entry_max_atr
 mientras `entry_max_rr` mande, y la pregunta P4-C se resuelve a través de la geometría, no de ese
 parámetro.
 
-## 7. Variantes candidatas (propuesta; rejilla final sujeta a OD-P4-3/4/5)
+## 7. Rejilla definitiva (D-63)
 
 Las columnas de RR y holgura valen **con stop por volatilidad** en los dos brazos. Con un stop
 apoyado en soporte cambian; ver «La regla de soporte rompe la comparabilidad» más abajo.
@@ -199,17 +207,27 @@ apoyado en soporte cambian; ver «La regla de soporte rompe la comparabilidad» 
 | Id | Pregunta | `s` | `[m1, m2, m3]` | RR en P | Holgura RR (vol.) | Holgura efectiva (vol.) |
 |---|---|---|---|---|---|---|
 | **C0** | control | 2,0 | [1,5, 3,0, 5,0] | 1,50 | 0 | **0** |
-| **B1** | P4-B, D-02 | 2,0 | [1,5, **3,5**, 5,0] | 1,75 | 0,20·A | **0,20·A** |
+| **B1** | P4-B, D-02, **solo descriptiva** | 2,0 | [1,5, **3,5**, 5,0] | 1,75 | 0,20·A | **0,20·A** |
 | **B2** | P4-B, hallazgo 4 | 2,0 | [1,5, **4,875**, 5,0] | 2,44 | 0,75·A | **0,75·A** |
 | **S1** | P4-A, stop estrecho a igual RR | **1,5** | [1,5, **2,25**, 5,0] | 1,50 | 0 | 0 |
 | **S2** | P4-A, stop ancho a igual RR | **2,5** | [1,5, **3,75**, 5,0] | 1,50 | 0 | 0 |
+
+**Papel de cada una (D-63):**
+- **Candidatas a P5:** B2, S1 y S2. Son confirmatorias y son las únicas a las que se aplica el
+  criterio de la sección 22.
+- **B1:** **solo descriptiva**, con la etiqueta «previamente expuesta en esta misma cosecha; no
+  confirmatoria; no elegible para sustituir C0» en toda salida. Se publica con el mismo estimador y
+  los mismos estratos que las demás, pero no entra en la familia confirmatoria ni en el criterio.
+  Así se cierra el pendiente de D-02 sin fingir evidencia independiente.
+- **E1** no es una geometría: es la comparación confirmatoria de la entrada bajo C0 (sección
+  18.1).
 
 ### Justificación de cada punto, sin resultados de P4
 
 - **B1, objetivo 2 a 3,5·ATR.**
   - Lo exige D-02, que lo dejó formalmente pendiente para P4.
   - Algebraicamente es el primer paso que abre holgura: 0,2·A.
-  - Se incluye por obligación documental, no porque se espere que gane.
+  - Ya se midió sobre esta misma cosecha (sección 7.1), así que queda solo descriptiva.
 - **B2, objetivo 2 a 4,875·ATR.**
   - Es el **menor** objetivo con el que el RR deja de mandar y la holgura técnica de 0,75·A queda
     entera. Sale de `(m2 − 3)/2,5 = 0,75`, la cifra que el hallazgo 4 del protocolo ya publicó
@@ -241,8 +259,8 @@ instante de señal y sin desenlaces:
   B2 es **≥**. Con soporte, C0 tiene holgura > 0 y S1 la pierde.
 - **Qué responde de verdad P4-A.** La pregunta pasa a ser **«el ancho del stop bajo la regla E»**:
   el efecto de la política, no el del stop aislado. Las salidas se descomponen por pares de
-  `stop_basis` (sección 16). La alternativa de aislarlo restringiendo la primaria de S está en
-  OD-P4-3.
+  `stop_basis` (sección 16). D-63 eligió esta lectura (OD-P4-3 = A); la alternativa de aislar el
+  stop restringiendo la primaria no se adoptó.
 
 ### Descartados antes de medir, con su motivo
 
@@ -254,8 +272,8 @@ instante de señal y sin desenlaces:
   lo descarta todo. Es S2 llevado más lejos; S2 cubre la dirección «stop ancho» con RR coherente.
 - **Variar solo `entry_max_atr`.** Es inerte en C0, B1, S1 y S2 (sección 6). En B2 el RR deja de
   mandar justo en 0,75, así que mover `entry_max_atr` por debajo de 0,75 solo recortaría holgura.
-  No forma una pregunta económica identificable aparte de la geometría: P4-C se mide como holgura
-  efectiva de cada variante (OD-P4-5).
+  No forma una pregunta económica identificable aparte de la geometría. P4-C se mide como holgura
+  efectiva de cada variante y con la comparación E1 bajo C0 (sección 18.1).
 - **Cualquier rejilla de fuerza bruta.** El protocolo busca meseta, no máximo, y cada punto añadido
   multiplica las comparaciones.
 
@@ -283,27 +301,50 @@ Esta ficha debe declararlo antes de medir:
      por banda, con stop 2·ATR. Esa MFE informa directamente sobre dónde acaban los objetivos de B1
      y B2;
    - P3, con primarios por región y por activo.
-5. **B1 informa del sentido de B2:** una lectura «meseta B1 + B2» solo es ciega a medias.
+5. **B1 informa del sentido de B2.** El punto exacto 4,875 no se ha medido nunca, pero hay
+   exposición previa a B1 en la misma dirección. **B2 no se llama ciega del todo** en ninguna
+   salida, y una lectura «meseta B1 + B2» solo es ciega a medias.
 
-Consecuencia: la conclusión sobre B1 no es ciega. Su tratamiento lo decide OD-P4-1.
+Consecuencia: la conclusión sobre B1 no es ciega, y por eso D-63 la deja **solo descriptiva** (OD-P4-1
+= B).
 
-## 8. Población
+## 8. Población (D-63, OD-P4-2 = C)
 
 - **Cosecha:** `data_vintage_id = 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841`.
 - **Universo:** `universe_vintage_id = 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19`
   (vigente, 93 analizables).
-- **Señales:** todas las barras elegibles del event study, sin `classify()`, sin estado de posición,
-  con solapamiento, con `warmup` = `min_bars` del horizonte y el máximo de 40 barras de swing.
-  **Ningún score selecciona**: ni v1, ni v2, ni sus umbrales.
-- **Propuesta (OD-P4-2):** la **población de P3**: 90 activos y **94.094** señales swing, hash
-  `4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a`, en 19 bloques de 60
-  sesiones.
-  - Se reconstruye con `build_population(..., with_outcomes=False)` y se comprueba por tamaño y
-    hash.
-  - Sus exclusiones (cripto D-51, Asia no calculable D-52, historia de SMA200 D-55) dependen solo
-    del dato en el instante de la señal, nunca del score ni del desenlace.
-  - Usarla mantiene la identidad con D-62 («`score_signal`»).
-  - El score v2 de cada observación se calcula, pero **no se usa**.
+- **Señales:** la **población de A-02 en swing sin cripto**.
+  - Son todas las barras elegibles del event study: sin `classify()`, sin estado de posición, con
+    solapamiento, con `warmup` = `min_bars` del horizonte y como máximo 40 barras.
+  - Se enumeran con `run_event_study_on_vintage(swing, score_model_version="1.0")`, como A-02,
+    con los evaluadores de desenlace sustituidos por funciones que devuelven `None`.
+  - El modo de contexto solo cambia el score, que P4 no lee. En ese modo ninguna señal se descarta
+    por contexto.
+  - **Ningún score selecciona**: ni v1, ni v2, ni sus umbrales.
+- **Sin las exclusiones de P3.** No se aplican las de Asia no calculable (D-52) ni las de la
+  historia de la SMA200 (D-55). Son requisitos del contexto de Score v2, no de la geometría, y P4 no
+  usa `build_population` de P3.
+- **Cripto fuera (D-51).** En las plazas 24/7 la apertura siguiente coincide con el cierre, así que
+  la entrada y la holgura D-06 pierden sentido.
+
+### 8.0 Censo congelado sin desenlaces
+
+Script y salida en `evidence/2026-10-01-T-020-censo-p4/`. El script se para si los recuentos no
+coinciden exactamente.
+
+| | Valor |
+|---|---|
+| A-02 swing | 106.363 |
+| − cripto (`BTC-EUR`, `ETH-EUR`, `SOL-EUR`) | −5.112 |
+| **Población de P4** | **101.251** señales, **90** activos |
+| **`p4_population_sha256`** (activo y sesión de plaza, como en P3) | `78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141` |
+| sha256 de los `signal_id` ordenados | `9faa4a45beaba3eb8dafabf7990906cd8c89e8e06ae2f25edec7839cd48e629f` |
+| Regiones | ASIA 17.953, EUROPA 34.622, USA 44.898, GLOBAL 2.627, EMERGING_MARKETS 1.151 |
+| Espina de sesiones | 1.302 sesiones de bolsa (sin cripto) |
+| Régimen PIT | RISK_ON 73.719, CAUTELA 12.431, RISK_OFF 7.944, **NO_CALCULABLE_CONTEXT 7.157** (Asia ausente 396, historia de la SMA200 6.937; algunas tienen los dos códigos) |
+
+El preflight de la implementación tendrá que reproducir exactamente el tamaño y los dos hashes. Si
+no los reproduce, **STOP**.
 
 ### 8.1 `signal_id` y emparejamiento
 
@@ -357,29 +398,20 @@ Por variante, con el mismo estimador:
 código (sección 5.1). Toda conclusión económica es en R neto. `gross_R` se publica aparte, rotulado
 como diagnóstico.
 
-## 13. Bloques
+## 13. Bloques (D-63, OD-P4-6 = A)
 
-- **Primaria: 60 sesiones** en swing (`PROTOCOL_BLOCK_LENGTH_SESSIONS`, P2.5), sobre la espina de
-  sesiones de P2.5. Es el mapa que usó P3.
-- **Sensibilidad: 80 y 120** sesiones.
-- **40 sesiones:** P2.6 la pide y P2.5 la invalida, porque el bloque debe superar `MAX_HOLD_BARS` =
-  40 y uno de 40 no lo supera. Hoy el código la publica con un asterisco («no supera
-  `MAX_HOLD_BARS`»), pero la cuenta en el veredicto y en la estabilidad.
-- **El bloque final parcial** (revisión de la ficha, I-3). La espina de sesiones mide **1.302
-  sesiones**, así que el último bloque mide `1302 mod L`:
+Sobre la espina de 1.302 sesiones de la población de P4, calculado sin desenlaces en el censo:
 
-  | L | Último bloque | ¿Supera los 40 de `MAX_HOLD_BARS`? |
-  |---|---|---|
-  | 40 | 22 | no |
-  | 60 | 42 | sí (es el «bloque más corto 42» del preflight de P3) |
-  | **80** | **22** | **no** |
-  | 120 | 102 | sí |
+| Longitud | Bloques en la espina | Bloques ocupados | Bloque ocupado más corto | Válida (P2.5: > 40) | Papel |
+|---|---|---|---|---|---|
+| 40 | 33 | 30 | 22 | **no** | publicada, marcada inválida; fuera de toda condición |
+| **60** | 22 | **20** (del 2 al 21) | 42 | sí | **primaria** |
+| 80 | 17 | 16 | 22 | **no** | publicada, marcada inválida; fuera de toda condición |
+| 120 | 11 | 10 | 102 | sí | sensibilidad válida |
 
-  P2.5 declara inválida una ventana más corta que `MAX_HOLD_BARS`, y P3 aplicó `horizon_valid =
-  bloque más corto > max_hold`. Con 80 sesiones el último bloque, que está ocupado, es inválido por
-  la misma regla, y el bootstrap le daría el mismo peso que a uno completo.
-- Las dos son contradicciones entre reglas del protocolo, así que van a **OD-P4-6** y no se
-  resuelven aquí. El preflight publicará la longitud del bloque más corto de cada longitud.
+La primaria **no hereda los 19 bloques de P3**: la población de P4 tiene 20 bloques ocupados con 60
+sesiones. Con 120 sesiones hay 10 bloques, por debajo de los 12 de `limited_blocks`. Por eso la
+condición 2 lee su signo y su IC, pero la capacidad (condición 3) se exige solo en la primaria.
 
 ## 14. Bootstrap (congelado antes de medir)
 
@@ -392,19 +424,29 @@ Contrato P2.6 vigente (`advisor/research/bootstrap.py`), verificado en el códig
 | Remuestreos | **2.000** (`DEFAULT_RESAMPLES`) para los IC del 95 % y la heterogeneidad |
 | Nivel del IC | **0,95**, por cuantiles (implementación propia) |
 | Ruido para heterogeneidad | 0,90 |
-| Confirmatorio con corrección | según OD-P4-7. Si hay Bonferroni, el nivel es `1 − 0,05/m` con **20.000** remuestreos, como en P3, porque 2.000 no resuelven bien cuantiles extremos |
+| Confirmatorio (D-63, OD-P4-7 = A) | familia de **`m = 4`** (B2, S1, S2 y E1). Bonferroni con `confidence = 1 − 0,05/4 = 0,9875`, **20.000** remuestreos y la misma semilla 20260830, en la longitud 60. B1 queda fuera de la familia |
 | Bloques sin pares | no entran en el bootstrap; se publica cuántos y cuáles (`n_blocks` = bloques con al menos un par) |
 | Bloques con < 5 pares | se publican; activan la condición de capacidad de la sección 22 (`min_observations_per_block` = 5) |
 
-No se heredan automáticamente los 20.000 remuestreos de P3: solo se aplican al intervalo corregido
-si OD-P4-7 elige corrección.
+Los 20.000 remuestreos se aplican **solo** al intervalo corregido de las cuatro confirmatorias.
+Todo lo demás usa el contrato P2.6 (2.000, 95 %).
 
-## 15. Validación temporal
+## 15. Robustez temporal interna sobre datos de desarrollo (D-63, OD-P4-10 = B)
 
-El protocolo dice: «P4 y P5 no seleccionan sobre todo el histórico para después validar… la
-comparación se hace ya bajo validación temporal». Pero P2 y P3 ya consumieron esta cosecha (D-62 y
-regla 7 del protocolo: ninguna parte de ella puede ser holdout), y no hay datos posteriores
-congelados. La forma de cumplirlo la decide **OD-P4-10**.
+**P4 no constituye validación temporal.** El protocolo original pedía validación temporal en P4 y
+P5 («la comparación se hace ya bajo validación temporal»). Pero esta cosecha ya fue consumida (D-62
+y regla 7 del protocolo), y no hay ningún holdout sin consumir. **Esta desviación del protocolo
+queda declarada formalmente en D-63.** La validación temporal independiente sigue en P7, bajo
+INV-15.
+
+Lo que P4 sí hace es una **robustez temporal interna sobre datos de desarrollo**, la condición 8:
+- se toman los **20 bloques ocupados** de la primaria (60 sesiones), en orden temporal;
+- se parten en dos mitades **pre-registradas**: los 10 primeros (bloques 2 a 11) y los 10 últimos
+  (bloques 12 a 21);
+- en cada mitad, la media por bloque de ΔR debe ser > 0.
+
+Es un veto de robustez dentro del desarrollo, no una validación, y nunca se llama así en ninguna
+salida.
 
 ## 16. Heterogeneidad
 
@@ -422,8 +464,10 @@ Esto separa la dispersión compatible con ruido de la heterogeneidad real.
 - **región:** ASIA, EUROPA, USA, GLOBAL y EMERGING_MARKETS;
 - **activo:** los 90, descriptivo;
 - **régimen:** la etiqueta point-in-time de `MarketContext` en el `analysis_timestamp` de la señal
-  (`RISK_ON` / `CAUTELA` / `RISK_OFF`). Ya está congelada y es causal (D-50, D-53). Ninguna señal
-  de la población queda en `INDETERMINADO`, porque P3 excluye el contexto no calculable;
+  (`RISK_ON` / `CAUTELA` / `RISK_OFF`). Ya está congelada y es causal (D-50, D-53).
+  - Solo se estratifican las señales con contexto calculable.
+  - Las **7.157** con `NO_CALCULABLE_CONTEXT` (censo) **no se quitan de la primaria ni de ningún
+    otro análisis**: se publica su número aparte y no se les inventa ningún régimen;
 - **volatilidad:** terciles de `atr/price` en la señal, con cortes nearest-rank sobre la población.
   Solo usan insumos del instante de señal; se fijan en el preflight, sin desenlaces;
 - **base del stop, solo para S1 y S2:** el par `stop_basis` (C0, V) — volatilidad/volatilidad,
@@ -431,15 +475,23 @@ Esto separa la dispersión compatible con ruido de la heterogeneidad real.
   corresponde al ancho del stop de la que corresponde a un cambio de objetivo con el mismo stop
   (sección 7). En B1 y B2 el stop es idéntico al de C0, así que no aplica.
 
-**Calibración del instrumento** (revisión de la ficha, B-1). El ruido «bajo efecto constante»
-remuestrea **sesiones como si fueran independientes** dentro de cada bloque. En swing, las señales
-de sesiones contiguas comparten hasta 40 barras de trayectoria, así que su ΔR está autocorrelado y
-el instrumento infravalora la dispersión esperable. El revisor lo mostró con datos sintéticos, sin
-datos reales: con un efecto constante y un factor común con un solapamiento de 40, el instrumento
-dio ALTA en 20 de 20 réplicas, y con ruido independiente dio COMPATIBLE en 10 de 10. Su papel en el
-criterio lo decide **OD-P4-12**.
+**El instrumento puede confundir dependencia con heterogeneidad** (revisión de la ficha, B-1). El
+ruido «bajo efecto constante» remuestrea **sesiones como si fueran independientes** dentro de cada
+bloque. En swing, las señales de sesiones contiguas comparten hasta 40 barras de trayectoria, así
+que su ΔR está autocorrelado y el instrumento infravalora la dispersión esperable. El revisor lo
+mostró con datos sintéticos, sin datos reales: con un efecto constante y un factor común con un
+solapamiento de 40, dio ALTA en 20 de 20 réplicas; con ruido independiente, COMPATIBLE en 10 de 10.
 
-No se crean estratos después de ver resultados. Su uso en el criterio lo decide OD-P4-11.
+**Papel en P4 (D-63, OD-P4-12 = B):** la heterogeneidad es una **bandera obligatoria, no un veto**.
+- Se publica siempre, para cada comparación.
+- **Si sale ALTA**, antes de cerrar GATE P4 hay que publicar y discutir los estratos
+  pre-registrados: región, régimen, volatilidad, activo y, en S1 y S2, `stop_basis`.
+- En P4 no se permite crear una política condicionada por estrato.
+- **ALTA por sí sola no aprueba ni veta una variante.**
+- No hay calibración sintética que convierta la bandera en veto.
+- **FOLLOW_UP:** revisar un instrumento que respete la dependencia por solapamiento antes de darle
+  función de veto en una fase posterior. Queda registrado en `docs/roadmap.md` («Hallazgos
+  abiertos») y en D-63.
 
 ## 17. Ambigüedad OHLC
 
@@ -483,20 +535,76 @@ un requisito explícito de GATE P4.
 - `open_{t+1}` es la apertura de la serie de ejecución en la barra siguiente a la señal: el mismo
   precio que usa producción.
 - Se publica por región y global.
-- Mide ejecutabilidad, no rendimiento. Su papel en el criterio está en la sección 22.
-- La pregunta económica de entrar a la apertura (P4-C económica) la decide **OD-P4-5**.
+- Mide ejecutabilidad, no rendimiento. **Se publica y no veta** (D-63, OD-P4-13 = A).
+- Para B1, B2, S1 y S2 **no** se calcula ningún resultado económico de entrada: solo esta holgura y
+  estas categorías. La única comparación económica de entrada es E1, con C0.
+
+### 18.1 E1 — entrada a la apertura frente a entrada al cierre, bajo C0 (confirmatoria)
+
+E1 es la comparación inferencial de la dimensión entrada, que cumple literalmente el requisito 1
+de GATE P4 (D-63, OD-P4-5 = C, acotada). **No es una geometría, no es candidata a P5 y no altera
+producción.** Sus niveles son los de C0 en los dos brazos.
+
+**Brazo A, entrada al cierre.**
+- Es el `ManagedEvent` de C0 del event study: entra a `P`, el cierre de la señal en `t`, y evalúa
+  las barras `t+1 … t+40` contra el stop y el objetivo 2 de C0.
+- Se aplica el coste pre-registrado del 0,20 %.
+
+**Brazo B, entrada de producción.**
+1. Los niveles son los de C0 calculados en el instante de la señal (`stop`, `target2` y
+   `entry_max`), sin recalcular nada en `t+1`.
+2. La entrada se intenta a `open_{t+1}`, la apertura de la serie de ejecución en la barra siguiente.
+3. Se clasifica en el **orden real** de `evaluate_trade_at_entry` (`execution.py:66-72`):
+   - `INVALID_STOP` si `open_{t+1} ≤ stop`;
+   - `INVALID_TARGET` si `open_{t+1} ≥ target2`;
+   - `ABOVE_MAX_ENTRY` si `open_{t+1} > entry_max`, salvo `isclose(rel 1e-9)`;
+   - si no, **ejecutable**.
+
+   `RR_TOO_LOW` es inalcanzable después de esas tres comprobaciones (D-29). `POSITION_TOO_SMALL`,
+   la calidad del dato y el broker no se aplican, porque el laboratorio no dimensiona posiciones ni
+   tiene esos estados por barra. Se declara así.
+4. **No ejecutada:** `R = 0`, con estado `NO_EJECUTADA_<código>`. El `signal_id` se conserva en el
+   pareado.
+5. **Ejecutada:**
+   - entrada a `E = open_{t+1}`; riesgo = `E − stop`;
+   - mismas reglas de salida que el modo administrado, sobre las **mismas barras `t+1 … t+40`**,
+     que es la misma ventana que el brazo A;
+   - en la barra `t+1` la apertura ya es la entrada: se evalúa el resto de la vela contra stop y
+     objetivo con `classify_target_stop_bar`. Como la apertura queda entre los dos niveles, no hay
+     hueco que resuelva, y una vela que toque los dos es `AMBIGUOUS`;
+   - `net_R = ((salida/E − 1)·100 − 0,20) / ((E − stop)/E·100)`, con la misma `event_economics`;
+   - `TIME_EXIT` al cierre de `t+40` y `FINAL_EXIT` si la serie se acaba antes.
+6. **Ambigüedad:** un `AMBIGUOUS` en cualquiera de los dos brazos sale del par primario, igual que
+   en la sección 17. Se publica cuántos pares salen por ese motivo (solo A, solo B o los dos). **En
+   E1 no se calculan cotas de ΔR**, porque serían comparaciones nuevas. Una no ejecutada (`R = 0`)
+   nunca es ambigua.
+
+**Estimador.** `ΔR_i = R_B,i − R_A,i` por `signal_id`, con la media por bloque de 60 sesiones e IC de
+Bonferroni (`m = 4`, 0,9875, 20.000 remuestreos).
+
+**E1 aporta exactamente 1 comparación** al recuento. Se publican además, con la misma ejecución y
+sin contarlo como comparaciones:
+- la tasa de cada categoría a la apertura;
+- la bandera de heterogeneidad de esa misma estimación;
+- el recuento de descartes por ambigüedad.
+
+**No se calculan para E1** ni sensibilidad de bloque, ni mitades, ni estratos, ni nivel: añadirían
+comparaciones que D-63 no prevé.
+
+**Lectura pre-registrada de E1** (descriptiva, no selecciona nada):
+- «la entrada de producción **gana** frente al cierre» si el IC de Bonferroni tiene el límite
+  inferior > 0;
+- «**pierde**» si tiene el límite superior < 0;
+- **NO CONCLUYENTE** en otro caso, o si la condición 3 de capacidad falla en E1.
 
 ## 19. Medio
 
-Por defecto, **medio queda fuera de P4** (OD-P4-8). Motivos:
+**Medio queda fuera de P4** (D-63, OD-P4-8 = A). Motivos:
 - su evidencia es inválida por capacidad: el bloque parcial mide 102 ≤ 250 y solo hay 5 bloques
   (D-42, D-45);
 - la comparación pareada de P2.6 rechaza bloques ≤ 250 en medio;
 - el dividendo cobrado durante posiciones largas no entra en el P&L del laboratorio (protocolo
   P2.0; nota A-06 del roadmap).
-
-Si el propietario lo incluye, solo puede ser como trazabilidad con un veredicto forzado, igual que
-en P3, y nunca para decidir geometría.
 
 **Limitación que también afecta a swing.** La cosecha está ajustada por splits pero **no por
 dividendos**, y la serie de señal es igual a la de ejecución (`vintage.py:39-40` y `:233-236`). El
@@ -511,70 +619,88 @@ geometría. Por eso el sesgo depende de la geometría:
 
 Se declara como limitación, por variante, y no se corrige en P4.
 
-## 20. Multiplicidad
+## 20. Multiplicidad (D-63)
 
-**Borrador, no vinculante hasta cerrar las OD.** El recuento asume las recomendaciones de todas
-las OD y la convención de P3: cada estimación de ΔR con IC es una comparación. Si cambia alguna OD,
-se rehace **antes** de ejecutar y el valor definitivo se fija en el commit del pre-registro.
+**Familia confirmatoria definitiva, `m = 4`:**
+1. B2 frente a C0;
+2. S1 frente a C0;
+3. S2 frente a C0;
+4. E1: entrada de producción frente a entrada al cierre, bajo C0.
 
-Por variante (4 frente a C0):
+Cada una se estima en la longitud 60 con un IC de Bonferroni (0,9875, 20.000 remuestreos). B1 no
+pertenece a la familia.
 
-| Comparación | Número | Tipo |
+**Recuento** (convención de P3: cada estimación con IC es una comparación). Las piezas se derivan
+del censo, sin desenlaces: 5 regiones, 3 regímenes calculables y 90 activos.
+
+| Por geometría (B1, B2, S1 y S2, frente a C0) | Número | Tipo |
 |---|---|---|
-| Primaria, bloque 60 | 1 | **confirmatoria** |
-| Bloques 40, 80 y 120 (40 y 80 marcados inválidos si OD-P4-6 = A) | 3 | descriptiva; el 120 es veto sin corrección (condición 2) |
+| Primaria, bloque 60 | 1 | **confirmatoria** en B2, S1 y S2; descriptiva en B1 |
+| Bloques 40 y 80 (inválidos, publicados) y 120 | 3 | descriptiva; el 120 es veto sin corrección (condición 2) |
 | Cotas de ambigüedad | 2 | descriptiva; la conservadora es veto sin corrección (condición 5) |
-| Regiones | 5 | descriptiva |
-| Regímenes | 3 | descriptiva |
+| Regiones (censo: 5) | 5 | descriptiva |
+| Regímenes PIT calculables (censo: RISK_ON, CAUTELA, RISK_OFF) | 3 | descriptiva; `NO_CALCULABLE_CONTEXT` se cuenta, no se estima |
 | Terciles de volatilidad | 3 | descriptiva |
-| Mitades temporales | 2 | descriptiva; veto sin corrección (condición 8, OD-P4-10) |
+| Mitades temporales | 2 | descriptiva; veto sin corrección (condición 8) |
 | Nivel de V (media por bloque de `net_R` de V, con IC) | 1 | descriptiva; veto sin corrección (condición 10) |
-| Activos | 90 | descriptiva |
-| **Subtotal por variante** | **110** | |
+| Activos (censo: 90) | 90 | descriptiva |
+| **Subtotal por geometría** | **110** | |
 | Base del stop, solo S1 y S2 (3 pares de `stop_basis`) | +3 | descriptiva |
 
-- Variantes: 2 × 110 (B1, B2) + 2 × 113 (S1, S2) = **446**.
-- Con OD-P4-5 = B se añade la secundaria económica a la apertura: 1 estimación con IC por
-  geometría, C0 incluida. Son **+5**.
-- **Total propuesto: 451 comparaciones, de las que 4 son confirmatorias.**
-- Las medidas de holgura de la sección 18 no tienen IC: se publican, pero no cuentan como
-  comparaciones inferenciales.
+| Total | |
+|---|---|
+| Geometrías: 2 × 110 (B1, B2) + 2 × 113 (S1, S2) | **446** |
+| E1 (sección 18.1) | **+1** |
+| **Total** | **447 comparaciones, de las que 4 son confirmatorias** |
+
+- **Fórmula, que el ejecutor tiene que reproducir desde sus propias salidas** (test 11):
+  `4 × (1 + 3 + 2 + R + K + 3 + 2 + 1 + A) + 2 × 3 + 1`, con `R` = regiones con señales, `K` =
+  regímenes calculables con señales y `A` = activos con pares.
+  - Con el censo vale 447: R = 5, K = 3 y A = 90.
+  - Si en la ejecución un estrato quedara sin pares (por ejemplo, un activo cuyas señales sean todas
+    ambiguas en un brazo), el número cambia por esa razón estructural. Se publica el recuento
+    derivado y el motivo de la diferencia, **nunca** un 447 escrito a mano.
+- Las medidas de holgura de la sección 18 y las tasas de categoría de E1 no tienen IC: no cuentan
+  como comparaciones inferenciales.
 - Las condiciones que usan comparaciones descriptivas como veto se rotulan **«veto sin
-  corrección»**. Como el criterio exige que se cumplan todas a la vez, solo pueden quitar
-  candidatas, nunca añadirlas, y no inflan los falsos positivos.
-- La corrección de las 4 confirmatorias la decide **OD-P4-7**; la propuesta es Bonferroni con
-  `m = 4`.
+  corrección»**. Como el criterio exige que se cumplan todas, solo pueden quitar candidatas.
 
 ## 21. Hipótesis por familia
 
-| Familia | H0 | H1 | Comparaciones confirmatorias |
+| Familia | H0 | H1 | Confirmatorias |
 |---|---|---|---|
 | P4-A (stop) | ΔR(S_k) = 0 | ΔR(S_k) ≠ 0 | S1, S2 |
-| P4-B (objetivo) | ΔR(B_k) = 0 | ΔR(B_k) ≠ 0 | B1, B2 |
-| P4-C (entrada) | — | — | ninguna: se mide como holgura y ejecutabilidad (sección 18, OD-P4-5) |
+| P4-B (objetivo) | ΔR(B2) = 0 | ΔR(B2) ≠ 0 | B2. B1 es solo descriptiva, sin hipótesis confirmatoria |
+| P4-C (entrada) | ΔR(E1) = 0 | ΔR(E1) ≠ 0 | E1 (sección 18.1). La holgura de cada geometría es descriptiva (sección 18) |
 
-## 22. Criterio para que una variante sustituya al control (propuesta, vinculante al cerrar OD-P4-9)
+## 22. Criterio para que una geometría sustituya al control (D-63, OD-P4-9 = A)
 
-«Sustituir» aquí significa **pasar a P5 como candidata en lugar de C0**; producción no cambia hasta
-P7. Una variante V cumple **solo si se dan todas** las condiciones. Si no, C0 permanece.
+**Solo B2, S1 y S2 pueden cumplir este criterio.** No se aplica a B1 (descriptiva) ni a E1 (no es
+una geometría). Ningún resultado de B1 ni de E1 interviene en ninguna condición de B2, S1 o S2.
 
-| # | Condición | Instrumento |
-|---|---|---|
-| 1 | El IC confirmatorio de ΔR neto, en el bloque 60 y con la corrección de OD-P4-7, cumple **límite inferior > 0** | sección 14 |
-| 2 | **Estabilidad de longitud** (veto sin corrección): en cada longitud **válida** distinta de 60 (con OD-P4-6 = A, solo 120), ΔR puntual > 0 y límite inferior del IC del 95 % > 0. Las longitudes inválidas se publican y no cuentan | sección 13 |
-| 3 | **Capacidad P2.5**, en el bloque 60: ≥ 12 bloques con pares; ningún bloque con < 5 pares; descarte por ambigüedad ≤ 25 %; `EXIT_FINAL` ≤ 10 % en C0 y en V; anchura del IC del 95 % de ΔR ≤ 0,20 (`limited_interval_width`, el mismo umbral que P3) | `CapacityThresholds` vigentes |
-| 4 | **Heterogeneidad**, según OD-P4-12. Si el instrumento pasa su calibración: no ALTA en el bloque 60. Si no la pasa: la condición es descriptiva y una ALTA exige la explicación por estrato que pide el gate, sin vetar | sección 16 |
-| 5 | **Ambigüedad** (veto sin corrección): con la cota conservadora para V, ΔR puntual > 0 | sección 17 |
-| 6 | **Coherencia del RR** sobre los **niveles efectivos** (tras soporte y resistencia), en toda señal: RR en P ≥ `min_rr`; `target1 ≤ target2 < target3`; `stop < P ≤ entry_max` | preflight sin desenlaces y test 2 |
-| 7 | **Ejecutabilidad:** se publica la fracción `ABOVE_MAX_ENTRY` de V frente a C0, **sin vetar**. El orden de `entry_max` frente a C0 está fijado por el álgebra (sección 7: S1 ≤ C0 ≤ S2, B1, B2), así que un veto quedaría decidido antes de medir (revisión, I-1). El papel de la ejecutabilidad queda en OD-P4-13 | sección 18 |
-| 8 | **Validación temporal interna** (veto sin corrección; si OD-P4-10 = B): media por bloque de ΔR > 0 en cada mitad. Las mitades son los bloques **ocupados** de la primaria (bloque 60) en orden temporal, partidos por la mitad; con un número impar, el central va a la segunda | sección 15 |
-| 9 | **Pares:** los pares usados de V son ≥ 90 % de las señales de la población | sección 8.1 |
-| 10 | **Nivel de V** (regla 2 del protocolo, como hizo P3; veto sin corrección): primario de nivel de V > 0 (media por bloque del `net_R` de V) y PF agrupado de V > 1. El drawdown no aplica hasta P6 | sección 11 |
+«Sustituir» significa **pasar a P5 como candidata en lugar de C0**; producción no cambia hasta P7.
+Una geometría G ∈ {B2, S1, S2} cumple **solo si se dan todas** las condiciones con efecto. Si
+ninguna cumple, C0 permanece.
 
-- **Si cumplen varias:** se publican todas como candidatas para P5, cuyo gate admite hasta 5. P4 no
-  elige un máximo, porque el protocolo busca meseta.
-- **Si cumplen B1 y B2,** la lectura descriptiva es una meseta en el objetivo, ciega solo a medias
-  (sección 7.1). **Si cumple solo una,** es un punto aislado, y se dice así.
+| # | Condición | Efecto | Instrumento |
+|---|---|---|---|
+| 1 | El IC de Bonferroni (`m = 4`) de ΔR neto en el bloque 60 tiene el **límite inferior > 0** | veta | sección 14 |
+| 2 | **Estabilidad de longitud:** en 120, la única sensibilidad válida, ΔR puntual > 0 y límite inferior del IC del 95 % > 0. Las longitudes 40 y 80 se publican y no cuentan | veta (sin corrección) | sección 13 |
+| 3 | **Capacidad P2.5**, en el bloque 60: ≥ 12 bloques con pares; ningún bloque con < 5 pares; descarte por ambigüedad ≤ 25 %; `EXIT_FINAL` ≤ 10 % en C0 y en G; anchura del IC del 95 % de ΔR ≤ 0,20 (`limited_interval_width`, como en P3) | veta | `CapacityThresholds` vigentes |
+| 4 | **Heterogeneidad:** se publica siempre. Si es ALTA, se publican y discuten los estratos pre-registrados (región, régimen, volatilidad, activo y, en S1/S2, `stop_basis`). No se crea ninguna política por estrato | **no veta ni aprueba** | sección 16 |
+| 5 | **Ambigüedad:** con la cota conservadora para G, ΔR puntual > 0 | veta (sin corrección) | sección 17 |
+| 6 | **Coherencia del RR** sobre los **niveles efectivos** (tras soporte y resistencia), en toda señal: RR en P ≥ `min_rr`; `target1 ≤ target2 < target3`; `stop < P ≤ entry_max` | veta | preflight sin desenlaces y test 2 |
+| 7 | **Ejecutabilidad:** se publica la holgura y la fracción de cada categoría a la apertura de G frente a C0. El álgebra ya fija el orden de `entry_max` (S1 ≤ C0 ≤ S2, B2) | **no veta** | sección 18 |
+| 8 | **Robustez temporal interna sobre datos de desarrollo:** media por bloque de ΔR > 0 en los bloques 2–11 y en los 12–21 (sección 15) | veta (sin corrección) | sección 15 |
+| 9 | **Pares:** los pares usados de G son ≥ 90 % de las 101.251 señales | veta | sección 8.1 |
+| 10 | **Nivel de G** (regla 2 del protocolo, como P3): primario de nivel de G > 0 (media por bloque del `net_R` de G) y PF agrupado de G > 1. El drawdown no aplica hasta P6 | veta (sin corrección) | sección 11 |
+
+- **Si cumplen varias** (de B2, S1 y S2), todas pasan a P5 como candidatas, cuyo gate admite hasta
+  5. P4 no elige un máximo.
+- **B1** se publica junto a B2 como contexto descriptivo, con su etiqueta. Su resultado no cambia el
+  de B2.
+- **E1** se publica con su lectura propia (sección 18.1). No hace pasar ni impide pasar ninguna
+  geometría.
 - **El signo negativo de P3 no interviene en nada.**
 
 ## 23. Tests obligatorios (antes de ejecutar)
@@ -598,18 +724,35 @@ P7. Una variante V cumple **solo si se dan todas** las condiciones. Si no, C0 pe
    y en tolerancia. «Qué manda» declara empate con `isclose` (B2).
 7. **Sin desenlaces en el preflight:** con los evaluadores parcheados para lanzar un error, el
    preflight completo (población, hash, terciles, cortes, recuentos y álgebra) termina.
-8. **Población:** tamaño y hash idénticos a P3 (si OD-P4-2 = A).
+8. **Población:** el censo del preflight reproduce exactamente:
+   - 106.363 señales de A-02 y 5.112 de cripto;
+   - **101.251** señales de **90** activos;
+   - `p4_population_sha256 = 78024050…3141` y el sha256 de los `signal_id`, `9faa4a45…629f`.
+
+   No usa `build_population` de P3 ni sus exclusiones (Asia, SMA200). Las señales con
+   `NO_CALCULABLE_CONTEXT` siguen en la población. Si algo no cuadra, el preflight se para.
 9. **Bootstrap y bloques:**
-   - semilla, remuestreos y niveles fijados; Bonferroni con `m` según OD-P4-7;
-   - para cada longitud se calcula la longitud del bloque ocupado más corto; las inválidas según
-     OD-P4-6 quedan marcadas y fuera de la condición 2.
-10. **Calibración de la heterogeneidad (OD-P4-12):** el instrumento se aplica a datos sintéticos con
-    efecto constante y un factor común con solapamiento de 40 sesiones, **con el modelo, los
-    escenarios, las réplicas, la semilla y el umbral exactos de OD-P4-12 C**. La fracción de ALTA
-    queda registrada y fija el papel de la condición 4.
-11. **Recuento de comparaciones:** derivado de las salidas e igual al pre-registrado.
-12. **Criterio:** la función que evalúa las condiciones 1 a 10 da el resultado esperado sobre
-    resultados sintéticos, incluido el caso «ninguna cumple → C0 permanece».
+   - semilla, remuestreos y niveles fijados; Bonferroni con `m = 4` (0,9875, 20.000);
+   - bloques ocupados y bloque más corto iguales al censo: 60 → 20 bloques, 42; 120 → 10, 102; 40 y
+     80 → 22, inválidas;
+   - 40 y 80 quedan fuera de la condición 2;
+   - las mitades de la condición 8 son exactamente los bloques 2–11 y 12–21.
+10. **E1 (sección 18.1):**
+    - con barras sintéticas, la clasificación de `open_{t+1}` sigue el orden y la tolerancia de
+      `evaluate_trade_at_entry`;
+    - una no ejecutada da `R = 0` y conserva su `signal_id`;
+    - una ejecutada usa `E = open_{t+1}`, el mismo stop y `target2`, las mismas barras `t+1 … t+40`
+      y `net_R` con el coste del 0,20 %;
+    - una vela de entrada que toca los dos niveles es `AMBIGUOUS`;
+    - el brazo A coincide exactamente con el `ManagedEvent` de C0;
+    - E1 produce exactamente 1 estimación con IC.
+11. **Recuento de comparaciones:** derivado de las salidas con la fórmula de la sección 20 y
+    publicado con sus componentes (R, K y A).
+12. **Criterio:** sobre resultados sintéticos, la función que evalúa las condiciones da el
+    resultado esperado:
+    - incluido el caso «ninguna cumple → C0 permanece»;
+    - **solo admite B2, S1 y S2**: con B1 o E1 favorables, lo rechaza;
+    - una ALTA no cambia el veredicto (condición 4) y la ejecutabilidad tampoco (condición 7).
 13. **Ejecución única:** la marca de ejecución se escribe antes de abrir los desenlaces, y el
     ejecutor se niega si ya existe (como en P3).
 14. **Producción intacta:** `config.yaml`, el backtest `--vintage` normalizado
@@ -622,6 +765,7 @@ En `evidence/<fecha>-T-020-p4/`:
   terciles y el recuento de comparaciones. Todo antes de abrir los desenlaces.
 - `run/`: `p4-resultado.json`, `p4-resumen.md` y `tablas/*.tsv`:
   - ΔR por variante y longitud;
+  - E1: categorías a la apertura, ΔR e IC, y su lectura;
   - bloques;
   - estratos;
   - cotas de ambigüedad;
@@ -636,8 +780,8 @@ En `evidence/<fecha>-T-020-p4/`:
 
 | # | Requisito (`docs/gates.md`) | Cómo lo cubre esta ficha |
 |---|---|---|
-| 1 | Variantes de stop, objetivo y entrada comparadas pareadas por `signal_id`, con bootstrap por bloques (P2.6), sobre el mismo `data_vintage_id` | Secciones 7, 8, 10 y 14. Stop: S1, S2. Objetivo: B1, B2. **Entrada: solo queda cubierta del todo con OD-P4-5 = C** (una comparación pareada de entrada). Con A o B la entrada se describe (holgura y ejecutabilidad, sección 18) y el requisito se cumple únicamente con una lectura que el propietario tiene que aceptar y registrar (revisión, I-5) |
-| 2 | ΔR medio, IC por bloque, dispersión y heterogeneidad; ninguna se elige por el promedio con heterogeneidad alta sin explicarla | Secciones 10, 14, 16 y condición 4 de la sección 22 |
+| 1 | Variantes de stop, objetivo y entrada comparadas pareadas por `signal_id`, con bootstrap por bloques (P2.6), sobre el mismo `data_vintage_id` | Secciones 7, 8, 10 y 14. **Stop:** S1, S2. **Objetivo:** B2 (y B1, descriptiva). **Entrada:** E1, pareada por `signal_id` con `R = 0` para las no ejecutadas (sección 18.1). Cumple el requisito literalmente |
+| 2 | ΔR medio, IC por bloque, dispersión y heterogeneidad; ninguna se elige por el promedio con heterogeneidad alta sin explicarla | Secciones 10, 14 y 16. La heterogeneidad es una bandera obligatoria: si es ALTA, se publican y discuten los estratos pre-registrados antes de cerrar el gate (condición 4) |
 | 3 | Holgura de entrada (D-06): `entry_max_rr − price` en ATR y fracción `ABOVE_MAX_ENTRY` a la apertura siguiente, por geometría | Sección 18 |
 | 4 | Número total de comparaciones publicado | Sección 20; se recuenta desde las salidas (test 11) |
 
@@ -657,12 +801,15 @@ En el diseño y en la ejecución:
 - ejecutar P4 más de una vez con reglas distintas: un cambio posterior es un estudio nuevo con
   decisión propia.
 
-## 27. OWNER_DECISION_REQUIRED
+## 27. OWNER_DECISION_REQUIRED — todas CERRADAS en D-63 (2026-10-01)
 
-Formato: pregunta exacta, alternativas, consecuencia de cada una, recomendación técnica y trabajo
-bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
+Se conservan como historial, con la decisión del propietario al principio de cada una. Las
+recomendaciones y alternativas que siguen son las del primer borrador (`8512b0e`). Lo vinculante es
+D-63 y el cuerpo de esta ficha.
 
-### OD-P4-1 — Exposición previa de B1 (objetivo 2 a 3,5·ATR)
+### OD-P4-1 — Exposición previa de B1 (objetivo 2 a 3,5·ATR) · **CERRADA (D-63): B**
+
+**Decisión del propietario:** B1 solo descriptiva, con la etiqueta «previamente expuesta en esta misma cosecha; no confirmatoria; no elegible para sustituir C0». El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** B1 ya se midió sobre esta misma cosecha (P2.6, 2026-08-31: ΔR +0,022, heterogeneidad
   alta, NO CONCLUYENTE). ¿Cómo entra en P4?
@@ -682,7 +829,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
   decide OD-P4-12 sin mirar a B1.
 - **Bloquea:** la rejilla final y el recuento.
 
-### OD-P4-2 — Población
+### OD-P4-2 — Población · **CERRADA (D-63): C**
+
+**Decisión del propietario:** población de A-02 swing sin cripto: 101.251 señales, 90 activos, hash `78024050…`, sin las exclusiones de P3. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué población de señales usa P4?
 - **Alternativas:**
@@ -699,7 +848,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
 - **Recomendación:** **A.**
 - **Bloquea:** el preflight y el test 8.
 
-### OD-P4-3 — Rejilla de stops (P4-A)
+### OD-P4-3 — Rejilla de stops (P4-A) · **CERRADA (D-63): A**
+
+**Decisión del propietario:** S1 y S2 sobre toda la población, con la política completa bajo la regla E; `stop_basis` como desglose descriptivo. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué variantes de stop se comparan y sobre qué señales?
 - **Alternativas:**
@@ -723,7 +874,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
   publica D como estrato descriptivo, no como primaria.
 - **Bloquea:** la rejilla final y el recuento.
 
-### OD-P4-4 — Rejilla de objetivos (P4-B)
+### OD-P4-4 — Rejilla de objetivos (P4-B) · **CERRADA (D-63): A**
+
+**Decisión del propietario:** B1 y B2 = 4,875; B1 descriptiva y B2 candidata, sin llamarla ciega del todo. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué variantes de objetivo 2 se comparan, además de la obligatoria B1 = 3,5?
 - **Alternativas:**
@@ -737,7 +890,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
 - **Recomendación:** **A.**
 - **Bloquea:** la rejilla final y el recuento.
 
-### OD-P4-5 — Entrada (P4-C) y `entry_max_atr`
+### OD-P4-5 — Entrada (P4-C) y `entry_max_atr` · **CERRADA (D-63): C, acotada**
+
+**Decisión del propietario:** una sola comparación confirmatoria de entrada, E1, solo con C0 (sección 18.1); sin comparaciones económicas de entrada para las otras geometrías. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿cómo se trata la entrada? `entry_max_atr` no se varía por separado, porque es inerte
   donde manda el RR (sección 6).
@@ -765,7 +920,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
   el propietario quiere cerrar el requisito sin interpretación; en ese caso `m` pasa a 5.
 - **Bloquea:** la sección 18, el recuento y OD-P4-7.
 
-### OD-P4-6 — Longitudes de bloque inválidas según P2.5 (40 y 80)
+### OD-P4-6 — Longitudes de bloque inválidas según P2.5 (40 y 80) · **CERRADA (D-63): A**
+
+**Decisión del propietario:** 40 y 80 inválidas y fuera de toda condición; primaria 60, sensibilidad válida 120. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** P2.5 exige que el bloque supere el periodo de tenencia (40). Con la espina de 1.302
   sesiones, el bloque más corto de la longitud 40 mide 22, y el de la 80 también 22. Las longitudes
@@ -787,7 +944,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 13, la condición 2 y el test 9.
 
-### OD-P4-7 — Corrección por multiplicidad
+### OD-P4-7 — Corrección por multiplicidad · **CERRADA (D-63): A**
+
+**Decisión del propietario:** Bonferroni con familia definitiva `m = 4` (B2, S1, S2, E1): 0,9875 y 20.000 remuestreos; B1 fuera. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿se corrigen las 4 comparaciones confirmatorias?
 - **Alternativas:**
@@ -803,7 +962,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 14, la condición 1 y el test 9.
 
-### OD-P4-8 — Alcance de medio
+### OD-P4-8 — Alcance de medio · **CERRADA (D-63): A**
+
+**Decisión del propietario:** medio fuera de P4. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿medio entra en P4?
 - **Alternativas:**
@@ -818,7 +979,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
   como propuesta metodológica, no como resultado.
 - **Bloquea:** el alcance del ejecutor.
 
-### OD-P4-9 — Criterio de aceptación
+### OD-P4-9 — Criterio de aceptación · **CERRADA (D-63): A, adaptada**
+
+**Decisión del propietario:** solo B2, S1 y S2 pueden cumplir el criterio; las condiciones 4 y 7 no vetan. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿se adoptan las condiciones 1 a 10 de la sección 22, con «varias cumplen → todas
   pasan a P5» y «ninguna → C0 permanece»?
@@ -836,7 +999,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 22 y el test 12.
 
-### OD-P4-10 — Validación temporal dentro de P4
+### OD-P4-10 — Validación temporal dentro de P4 · **CERRADA (D-63): B**
+
+**Decisión del propietario:** **robustez temporal interna sobre datos de desarrollo**, nunca validación; desviación formal del protocolo registrada. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** el protocolo pide que P4 compare «ya bajo validación temporal», pero la cosecha está
   consumida. ¿Cómo se cumple?
@@ -855,7 +1020,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
   OD.
 - **Bloquea:** la condición 8 y el recuento.
 
-### OD-P4-11 — Estratos de heterogeneidad
+### OD-P4-11 — Estratos de heterogeneidad · **CERRADA (D-63): A**
+
+**Decisión del propietario:** estratos descriptivos; las señales con contexto PIT no calculable se quedan en la primaria y se cuentan aparte. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿se adoptan los estratos de la sección 16 (región, régimen PIT, terciles de
   `atr/price`, activo y base del stop en S1/S2) como explicación pre-registrada de la
@@ -873,7 +1040,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 16.
 
-### OD-P4-12 — Papel de la heterogeneidad (calibración del instrumento)
+### OD-P4-12 — Papel de la heterogeneidad (calibración del instrumento) · **CERRADA (D-63): B**
+
+**Decisión del propietario:** la heterogeneidad es una bandera obligatoria, no un veto; sin calibración sintética; FOLLOW_UP del instrumento. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** el instrumento de P2.6 trata como independientes las sesiones dentro de cada bloque.
   Con un solapamiento de 40 barras, en sintético etiqueta ALTA un efecto constante (20 de 20
@@ -910,7 +1079,9 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
 - **Recomendación:** **C**, y abrir D como tarea aparte para P5.
 - **Bloquea:** la condición 4 y el test 10.
 
-### OD-P4-13 — Papel de la ejecutabilidad en el criterio
+### OD-P4-13 — Papel de la ejecutabilidad en el criterio · **CERRADA (D-63): A**
+
+**Decisión del propietario:** la ejecutabilidad se publica y no veta. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** el orden de `entry_max` frente a C0 lo fija el álgebra (S1 ≤ C0 ≤ S2, B1, B2). Un
   veto «`ABOVE_MAX_ENTRY` de V ≤ C0» queda decidido antes de medir: S1 no podría cumplirlo y las
@@ -927,34 +1098,36 @@ bloqueado. **Mientras alguna esté abierta, P4 no se implementa.**
 - **Recomendación:** **A.**
 - **Bloquea:** la condición 7.
 
-## 28. Plan de implementación (solo cuando todas las OD estén cerradas)
+## 28. Plan de implementación (requiere autorización aparte)
 
-1. **Paso 1 — pre-registro.** Esta ficha, con las OD cerradas, en un commit documental. Su SHA es el
-   pre-registro de P4.
-2. **Paso 2 — código, sin desenlaces.** Codex programa y Claude supervisa:
-   `advisor/research/p4.py` y un comando `p4` con `--fase preflight|confirmatoria`. Reutiliza:
-   - `build_population` (P3);
-   - `replay_managed_population`, ampliado para contar en lugar de lanzar un error cuando una
-     variante no produce niveles;
-   - `pair_populations` y `bootstrap_block_delta`.
-
-   Añade:
-   - las cotas de ambigüedad;
-   - la holgura D-06 con `open_{t+1}`;
-   - los estratos;
-   - el criterio;
-   - la marca de ejecución única.
-
-   Lleva los tests de la sección 23. No ejecuta P4.
-3. **Paso 3 — revisión de look-ahead previa.** Agente independiente sobre el código y el
+1. **Paso 1 — pre-registro.** Esta ficha, con D-63 y la tercera revisión aplicada. El HEAD
+   documental que quede después de esa revisión y de sus correcciones es **`P4_PREREG_SHA`**.
+2. **Paso 2 — código, sin desenlaces, con una autorización nueva.** Codex programa y Claude
+   supervisa `advisor/research/p4.py` y un comando `p4` con `--fase preflight|confirmatoria`.
+   - **Reutiliza:**
+     - el censo de `evidence/2026-10-01-T-020-censo-p4/censo_p4.py`, como referencia de la
+       población (**no** `build_population` de P3);
+     - `replay_managed_population`, ampliado para contar en lugar de lanzar un error cuando una
+       variante no produce niveles;
+     - `pair_populations` y `bootstrap_block_delta`.
+   - **Añade:**
+     - la simulación de E1 (sección 18.1);
+     - las cotas de ambigüedad;
+     - la holgura D-06 con `open_{t+1}`;
+     - los estratos (con `NO_CALCULABLE_CONTEXT` contado aparte);
+     - el criterio, solo para B2, S1 y S2;
+     - el recuento derivado;
+     - la marca de ejecución única.
+   - Lleva los tests de la sección 23. **No ejecuta P4.**
+3. **Paso 3 — revisión de look-ahead previa**, por un agente independiente, sobre el código y el
    preflight.
-4. **Paso 4 — una ejecución confirmatoria** sobre el SHA congelado del ejecutor.
+4. **Paso 4 — una única ejecución confirmatoria** sobre el SHA congelado del ejecutor.
 5. **Paso 5 — registro del resultado (D-nn), revisión final y decisión sobre GATE P4.**
 
 ## 29. Plan de revisión independiente
 
-- **Ficha:** revisión adversarial antes de cerrar las OD. Se hizo el 2026-10-01; ver «Revisión de la
-  ficha».
+- **Ficha:** dos vueltas sobre el borrador (2026-10-01) y una tercera sobre la versión con D-63. Ver
+  «Revisión de la ficha».
 - **Código:** revisión de look-ahead y de ausencia de desenlaces antes de ejecutar.
 - **Resultado:** revisión final antes de cruzar GATE P4.
 
@@ -962,13 +1135,19 @@ Cada una la hace un agente distinto de quien programó y de quien escribió.
 
 ## 30. Handoff al siguiente agente
 
-- **Estado:** en diseño. P4 **no** se ha ejecutado, y no se calculó ningún resultado de ninguna
-  variante.
-- **Siguiente:** que el propietario cierre OD-P4-1 a OD-P4-13.
-- **Prohibido sin esas decisiones:** implementar `p4.py` o ejecutar `comparacion-pareada` sobre
-  ninguna variante.
-- **Ojo:** el comando `comparacion-pareada` existente mide B1 contra C0 sobre la cosecha. Ejecutarlo
-  ahora sería mirar un desenlace de P4 antes del pre-registro.
+- **Estado:** pre-registro con las OD cerradas (D-63). P4 **no** se ha ejecutado y no se calculó
+  ningún resultado de ninguna variante.
+- **Siguiente:** fijar `P4_PREREG_SHA` (el HEAD documental tras la tercera revisión) y, **con una
+  autorización nueva del propietario**, el paso 2.
+- **Prohibido sin esa autorización:**
+  - implementar `p4.py`;
+  - ejecutar `comparacion-pareada`, que mide B1 contra C0 sobre la cosecha, sobre ninguna variante;
+  - mirar resultados de B1, B2, S1, S2 o E1.
+- **No olvidar:**
+  - la población es la de A-02 sin cripto (101.251, `78024050…`), **no** la de P3;
+  - B1 es solo descriptiva;
+  - la heterogeneidad no veta;
+  - las mitades son «robustez temporal interna», no validación.
 
 ## Revisión de la ficha
 

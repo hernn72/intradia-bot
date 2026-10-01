@@ -1177,6 +1177,64 @@ satisfechos (`evidence/2026-10-01-T-019-cierre/gate-p3-final.md`):
 - `evidence/2026-10-01-T-019-score-v2/` (paso 4);
 - `evidence/2026-10-01-T-019-cierre/` (revisión final, matriz, suite y hashes).
 
+### D-63 — 2026-10-01 — Pre-registro de P4: población, variantes y criterio
+Decisión del propietario. Cierra **OD-P4-1 a OD-P4-13** de la ficha T-020 (A-04). Se toma **antes de
+ejecutar P4 y sin mirar ningún resultado** de B1, B2, S1, S2 ni E1. La ficha
+`docs/tareas/T-020-p4-geometria.md` es la especificación; aquí solo se resumen las elecciones.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Qué se decide.**
+1. **B1** (objetivo 2 a 3,5·ATR) queda **solo descriptiva**, con la etiqueta «previamente expuesta
+   en esta misma cosecha; no confirmatoria; no elegible para sustituir C0». Ya se midió sobre
+   `071ddb2b` en P2.6. Así se cierra el pendiente de D-02 sin fingir evidencia independiente.
+   (OD-P4-1 = B)
+2. **Población:** la de A-02 swing **sin cripto**, sin las exclusiones de P3 por Asia ni por la
+   SMA200, que son requisitos del contexto v2 y no de la geometría.
+   - Censo sin desenlaces: **101.251** señales y **90** activos.
+   - `p4_population_sha256 = 78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141`.
+   - Bloques de 60 sesiones: **20** ocupados.
+   - Evidencia: `evidence/2026-10-01-T-020-censo-p4/`.
+   (OD-P4-2 = C)
+3. **S1 y S2** se miden sobre toda la población, como política completa bajo la regla E, con
+   `stop_basis` como desglose descriptivo. (OD-P4-3 = A)
+4. **B2 = 4,875·ATR** puede ser candidata. No se la llama ciega del todo, porque hay exposición
+   previa a B1 en la misma dirección. (OD-P4-4 = A)
+5. **Entrada:** una sola comparación confirmatoria, **E1**, solo con C0: entrada al cierre frente a
+   entrada a `open(t+1)` con el orden real de `evaluate_trade_at_entry`, y `R = 0` para las no
+   ejecutadas. E1 no es una geometría ni candidata a P5, y no altera producción. Para las demás
+   geometrías solo se publican la holgura y las categorías de D-06. (OD-P4-5 = C, acotada)
+6. **Bloques:** primaria de 60; sensibilidad válida de 120. Las longitudes 40 y 80 (bloque ocupado
+   más corto de 22 ≤ 40) son inválidas: se publican y quedan fuera de toda condición. (OD-P4-6 = A)
+7. **Familia confirmatoria definitiva, `m = 4`:** B2, S1, S2 y E1. Bonferroni con 0,9875, 20.000
+   remuestreos y la semilla 20260830. B1 queda fuera. (OD-P4-7 = A)
+8. **Medio** fuera de P4. (OD-P4-8 = A)
+9. **Criterio:** el de la sección 22 de la ficha, adaptado. **Solo B2, S1 y S2** pueden pasar a P5.
+   Las condiciones 4 (heterogeneidad) y 7 (ejecutabilidad) no vetan. (OD-P4-9 = A)
+10. **Robustez temporal interna sobre datos de desarrollo:** media por bloque de ΔR > 0 en los
+    bloques 2–11 y en los 12–21. **Desviación formal del protocolo:** el protocolo pedía validación
+    temporal en P4 y P5, pero la cosecha ya está consumida y no hay holdout sin consumir. **P4 no
+    constituye validación temporal**; la validación independiente sigue en P7, bajo INV-15.
+    (OD-P4-10 = B)
+11. **Estratos descriptivos:** región, activo, régimen PIT, volatilidad y `stop_basis`. Un contexto
+    PIT no calculable (7.157 señales en el censo) **no excluye** una señal de P4: se cuenta aparte y
+    no se le inventa régimen. (OD-P4-11 = A)
+12. **La heterogeneidad es una bandera obligatoria, no un veto.** Si sale ALTA, se publican y
+    discuten los estratos antes de cerrar GATE P4. ALTA por sí sola no aprueba ni veta, y no hay
+    calibración sintética. **FOLLOW_UP:** el instrumento de P2.6 trata como independientes sesiones
+    que se solapan y puede confundir esa dependencia con heterogeneidad. Hay que revisarlo antes de
+    darle función de veto en una fase posterior. (OD-P4-12 = B)
+13. **La ejecutabilidad se publica y no veta.** (OD-P4-13 = A)
+
+**Recuento derivado del censo:** 447 comparaciones, de las que 4 son confirmatorias. Es la fórmula
+de la sección 20 de la ficha: el ejecutor la reproduce desde sus salidas, y nunca se escribe a
+mano.
+
+**Lo que no cambia.**
+- P4 no se ha ejecutado, y no se implementa `p4.py` sin una autorización nueva.
+- `config.yaml` sigue en `"1.0"`, Score v2 inactivo y la Pi en `v0.4.1`.
+- El pre-registro de P4 (`P4_PREREG_SHA`) será el HEAD documental que quede después de la tercera
+  revisión independiente de la ficha y de sus correcciones.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
