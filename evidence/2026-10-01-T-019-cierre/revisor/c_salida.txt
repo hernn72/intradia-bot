@@ -1,0 +1,11 @@
+activo: 1.0 fundamentals: False
+  swing score_model_version='1.0' calibrated=False min_score_operar=70.0 min_score_vigilar=60.0 calibration_ref=None
+  medio score_model_version='1.0' calibrated=False min_score_operar=70.0 min_score_vigilar=60.0 calibration_ref=None
+  intradia score_model_version='1.0' calibrated=False min_score_operar=70.0 min_score_vigilar=60.0 calibration_ref=None
+config_hash: 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387
+rechazado: activar 2.0 con 70/60 calibrated:false ->   Value error, score_model_version no activable en producción: 2.0 [type=value_error, input_value={'score_model_version': '...mentals_enabled': False}, input_type=dict] |     For further information visit https://errors.
+rechazado: activar 2.0 con umbrales nulos ->   Value error, score_model_version no activable en producción: 2.0 [type=value_error, input_value={'score_model_version': '...mentals_enabled': False}, input_type=dict] |     For further information visit https://errors.
+rechazado: activar 2.0 con calibrated:true inventado ->   Value error, score_model_version no activable en producción: 2.0 [type=value_error, input_value={'score_model_version': '...mentals_enabled': False}, input_type=dict] |     For further information visit https://errors.
+investigación v2 desde config 1.0: 2.0 {'swing': (False, None, None), 'medio': (False, None, None), 'intradia': (False, None, None)}
+modo para 2.0 sin explícito: point_in_time
+rechazado v2+legacy: context_mode legacy_v1 solo está permitido con score_model_version 1.0

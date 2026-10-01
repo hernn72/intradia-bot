@@ -1,0 +1,2 @@
+swing cortes crudos (28.0, 39.6, 49.6, 57.6) canónicos (28.0, 39.6, 49.6, 57.6) señales que cambian de quintil crudo vs canónico: 0 valores crudos a <1e-9 de un corte sin ser iguales: 0
+medio cortes crudos (29.6, 40.0, 49.6, 57.6) canónicos (29.6, 40.0, 49.6, 57.6) señales que cambian de quintil crudo vs canónico: 0 valores crudos a <1e-9 de un corte sin ser iguales: 0

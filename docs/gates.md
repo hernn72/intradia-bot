@@ -121,6 +121,27 @@ Desbloquea: P3.
 
 ## GATE P3 — Score v2 calibrado
 
+**GATE P3 CRUZADO el 2026-10-01 (D-62), con el veredicto NO CONCLUYENTE.**
+Los cinco requisitos se cumplen. T-019 (A-03) ejecutó P3 una sola vez
+(`87309da`). D-61 registra el resultado:
+- swing: Δ Q5−Q1 −0,2895 R [−0,4098, −0,1658], anchura 0,2440 > 0,20 →
+  NO CONCLUYENTE;
+- medio: inválido;
+- intradía: sin laboratorio;
+- **los tres horizontes `calibrated: false`**, sin ningún umbral v2.
+
+La revisión independiente final del look-ahead no encontró ningún BLOCKER ni
+ningún IMPORTANTE. Producción sigue en Score v1 con 70/60 (D-47) y v2 no se
+activa. Por lo que dice este gate, P4 trabaja sobre `score_signal` sin umbrales
+operativos nuevos. _Condicionado al universo seleccionado en 2026 (sesgo de
+supervivencia y selección no corregido)._
+
+Evidencia:
+- `evidence/2026-09-30-T-019-paso3-p3/` (ejecución);
+- `evidence/2026-10-01-T-019-score-v2/` (resultado, calibración e impacto);
+- `evidence/2026-10-01-T-019-cierre/` (`revision-look-ahead.md` y
+  `gate-p3-final.md`, que recorre los requisitos uno a uno).
+
 Requisitos:
 
 1. Dimensiones y pesos redefinidos y documentados con `score_model_version`
@@ -157,13 +178,6 @@ cruza igualmente con la etiqueta, y P4 se hace sobre `score_signal` sin
 umbrales operativos nuevos.
 
 Desbloquea: P4.
-
-**Estado al 2026-10-01: NO cruzado.** P3 está ejecutado (T-019,
-`evidence/2026-09-30-T-019-paso3-p3/`) y su resultado registrado en D-61, con los
-tres horizontes `calibrated: false`. Matriz provisional y evidencia del paso 4 en
-`evidence/2026-10-01-T-019-score-v2/gate-p3-matriz.md`: los requisitos 1 a 4
-tienen evidencia y el **requisito 5 —revisión independiente final del
-look-ahead— queda para el paso 5 de T-019**, donde se decide el cruce.
 
 ---
 

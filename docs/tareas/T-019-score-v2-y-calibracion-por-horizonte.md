@@ -1,6 +1,11 @@
 # T-019 — Score v2 y umbrales por horizonte, con P3 pre-registrado (A-03)
 
-Estado: EN CURSO. La ficha se aprobó el 2026-09-26 como **pre-registro
+Estado: **ACEPTADA — cerrada el 2026-10-01 con GATE P3 CRUZADO (D-62)**, con el veredicto
+NO CONCLUYENTE, los tres horizontes `calibrated: false`, sin umbrales v2 y producción en v1
+(D-47). Revisión final: `evidence/2026-10-01-T-019-cierre/`. _Condicionado al universo
+seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Historia: la ficha se aprobó el 2026-09-26 como **pre-registro
 condicionado de P3** (PR #26). El paso 1 está hecho (PR #28, `db51d67`). El
 **paso 2a-doc está cerrado el 2026-09-29**, con D-50 a D-57: `analysis_timestamp`,
 cripto fuera de P3, Asia con sesiones cerradas, VIX y tendencia point-in-time,
@@ -21,10 +26,10 @@ separada que no modifica el pre-registro.
 [−0,4098, −0,1658], anchura 0,2440 > 0,20 → **NO CONCLUYENTE**; ningún candidato
 cumple OPERAR. **Los tres horizontes quedan `calibrated: false`** (D-61) y
 producción sigue en Score v1 con 70/60 (D-47). Impacto, contexto, confianza y
-cálculos manuales en `evidence/2026-10-01-T-019-score-v2/`. **Pendiente
-únicamente el paso 5 de cierre:** revisión independiente final de look-ahead
-(GATE P3 requisito 5) y la decisión sobre GATE P3. La activación de v2 del
-paso 5 **no se hace** en A-03 (swing sin calibrar).
+cálculos manuales en `evidence/2026-10-01-T-019-score-v2/`. **Paso 5 hecho el
+2026-10-01:** la revisión independiente final del look-ahead no encontró ningún
+BLOCKER ni ningún IMPORTANTE, y GATE P3 queda cruzado (D-62). La activación de v2
+del paso 5 **no se hace** en A-03 (swing sin calibrar).
 Decisiones cerradas por el propietario: A → **D-45**, B → **D-46**, C →
 **D-47** (C2, estado de transición), VIX → **D-49** y **D-53**,
 `analysis_timestamp` → **D-50**, cripto → **D-51**, Asia (PR-1) → **D-52**,
@@ -1583,6 +1588,10 @@ orden de los pasos.
 
 ## Matriz de GATE P3
 
+**Matriz final, con la evidencia efectiva y el dictamen de cada requisito:**
+`evidence/2026-10-01-T-019-cierre/gate-p3-final.md` (2026-10-01, D-62). Los cinco requisitos están
+SATISFECHOS.
+
 | # | Requisito (texto tras la decisión A) | Evidencia exacta que lo satisface |
 |---|---|---|
 | 1 | Dimensiones y pesos redefinidos y documentados con `score_model_version` nuevo; nada posterior se mezcla con lo anterior sin etiqueta | D-46 registrada; `advisor/analysis/scoring.py` con `"2.0"` y `Score.model_version`; `test_v2_valor_del_caso_base`, `test_v1_y_v2_tienen_versiones_distintas`, `test_bandas_v1_rechazan_observaciones_v2`, test de recomendación persistida; `README.md` actualizado |
@@ -1592,40 +1601,43 @@ orden de los pasos.
 | 5 | Revisión independiente del look-ahead | `revision-look-ahead-previa.md` (antes de P3, sobre 2a-doc y 2a-code) y `revision-look-ahead.md` (final), de otro agente, con al menos: que el `analysis_timestamp` y la regla del VIX congelados en 2a-doc (D-49) no contienen look-ahead y que producción, backtest, event study y seguimiento usan la misma implementación —el revisor verifica, no elige—; la respuesta a PR-1; alineación de tendencia y fortaleza relativa; que los quintiles y candidatos no leen desenlace; que la población no depende del score; paridad de contexto producción/laboratorio/seguimiento (H-1, R-CTX); que medio no se usa para nada más que trazabilidad; hallazgos clasificados y cerrados |
 
 ## Handoff al siguiente agente
-**Estado al 2026-10-01, tras el paso 4.** Hechos los pasos 0 a 4. P3 se ejecutó **una sola vez**
-(`87309da`, PR #33) y **no se repite nunca**. Su evidencia, `evidence/2026-09-30-T-019-paso3-p3/`,
-es inmutable. D-61 registra el resultado:
-- swing: **NO CONCLUYENTE** (anchura 0,2440 > 0,20, Δ Q5−Q1 −0,2895 R), sin umbrales;
-- swing, medio e intradía: **`calibrated: false`**;
-- producción: sigue en Score v1 con 70/60 (D-47) y `config.yaml` no cambia.
+**T-019 cerrada el 2026-10-01: GATE P3 CRUZADO (D-62).** _Condicionado al universo seleccionado
+en 2026 (sesgo de supervivencia y selección no corregido)._
 
-La evidencia del paso 4 está en `evidence/2026-10-01-T-019-score-v2/`:
-- resultado de P3 regenerado desde los artefactos;
-- impacto v1 → v2 con contexto PIT;
-- H-6: 0 imputados, con las exclusiones aparte;
-- confianza: 0 cambios, tanto en la cosecha como en la pasada local de producción;
-- cálculos manuales;
-- matriz provisional de GATE P3.
+**Pasos 0 a 5 hechos.** P3 se ejecutó una sola vez (`87309da`, PR #33) y **no se repite nunca**.
+Su evidencia, `evidence/2026-09-30-T-019-paso3-p3/`, es inmutable.
 
-Los números comprobados a mano que pide «Número comprobado a mano, obligatorio» están en
-`calculo-manual-sap.md` y `calculo-manual-delta-bloque.md`:
-- **SAP.DE**, señal `2022-06-12T22:00:00Z`, sesión XETRA 2022-06-13. Score v2 =
-  100·(1,0 + 0,0 + 1,2)/50 = **4,4**, que cae en **Q1** con los cortes 28,0 / 39,6 / 49,6 / 57,6.
-- **Bloque 3:** Δ = −0,0482 − 0,6721 = **−0,7203**. La media simple de los 19 Δ de bloque
-  reproduce el contraste, −0,289468.
+**Resultado (D-61):**
+- swing **NO CONCLUYENTE**: anchura 0,2440 > 0,20, con Δ Q5−Q1 −0,2895 R;
+- el signo negativo es solo descriptivo;
+- swing, medio e intradía **`calibrated: false`**, sin ningún umbral v2.
 
-**Siguiente: paso 5, solo con autorización del propietario.**
-- Revisión independiente final del look-ahead (`revision-look-ahead.md`, GATE P3 requisito 5).
-- Decisión del propietario sobre el cruce de GATE P3. `docs/gates.md` permite cruzarlo con la
-  etiqueta NO CONCLUYENTE.
-- La activación de v2 del paso 5 **no se hace** en A-03, porque swing no está calibrado.
-- D-60 sigue sin implementar: solo es necesaria si algún día se activa v2.
+**Producción:** sigue en Score v1 con 70/60 (D-47) y `config.yaml` en `"1.0"`. Score v2 **no se
+activa** y queda solo como investigación y versionado. D-60 está registrada para una posible
+activación futura. No hay release ni despliegue: la Pi sigue en `v0.4.1` = `8b2dddb`.
+
+**Evidencia por paso:**
+- paso 4: `evidence/2026-10-01-T-019-score-v2/` (impacto, H-6, confianza, cálculos manuales);
+- cierre: `evidence/2026-10-01-T-019-cierre/` (revisión final, `gate-p3-final.md`, suite y hashes).
+
+**Cálculos a mano** que exige «Número comprobado a mano, obligatorio»:
+- **SAP.DE**, sesión XETRA 2022-06-13: Score v2 = 100·(1,0 + 0,0 + 1,2)/50 = **4,4**, que cae en
+  **Q1** con los cortes 28,0 / 39,6 / 49,6 / 57,6.
+- **Bloque 3:** Δ = −0,0482 − 0,6721 = **−0,7203**. La media de los 19 Δ de bloque da −0,289468,
+  que es el valor del contraste.
+
+**Observaciones de la revisión final que conviene tener presentes:**
+- O-1: el seguimiento toma el modo de contexto de la versión activa de la config;
+- O-5: la pasada v2 aborta si el contexto no es calculable, y eso es D-60;
+- las dos importan solo si algún día se activa v2.
+
+**Siguiente:** **A-04 (P4)** está desbloqueada pero **no iniciada**. Su ficha está por escribir y
+trabajará sobre `score_signal` sin umbrales operativos nuevos.
 
 **Prohibido sin decisión nueva:**
-- repetir P3 o buscar otros cortes;
+- repetir P3;
 - usar 70/60 sobre v2;
-- modificar Score v2 a partir de la ablación o del signo observado;
-- desplegar en la Pi, que sigue en `v0.4.1` = `8b2dddb`.
+- modificar Score v2 a partir de la ablación o del signo.
 
 P3 consumió la cosecha completa, así que cualquier estudio nuevo necesita datos posteriores
 (INV-15).

@@ -1118,6 +1118,65 @@ cuantificada, no favorable. Pero **D-61 no declara GATE P3 cruzado.** Eso se
 decide en el paso 5, después de la revisión independiente final (requisito 5).
 Matriz provisional en `evidence/2026-10-01-T-019-score-v2/gate-p3-matriz.md`.
 
+**Nota (2026-10-01, revisión final, hallazgo M-1).** Todas las cifras de esta
+decisión están **condicionadas al universo seleccionado en 2026 (sesgo de
+supervivencia y selección no corregido)**. Los artefactos de P3 ya llevaban la
+etiqueta y aquí faltaba. Añadirla no cambia ningún número.
+
+### D-62 — 2026-10-01 — GATE P3 cruzado con el veredicto NO CONCLUYENTE
+Decisión del propietario, tomada en el paso 5 de T-019 después de la revisión
+independiente final del look-ahead. Base del cierre: `main` =
+`4ca9a370a02d297c949555a409eb960adfb8d8e8`. El commit de cierre es el que
+introduce esta decisión: `docs(T-019): cierre de GATE P3 y revisión final`.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y
+selección no corregido)._
+
+**Qué se decide.** **GATE P3 queda cruzado.** Sus cinco requisitos están
+satisfechos (`evidence/2026-10-01-T-019-cierre/gate-p3-final.md`):
+1. **Score v2 versionado** como `"2.0"` (D-46, D-59).
+2. **Umbrales por horizonte:** swing, medio e intradía quedan **`calibrated:
+   false`** (D-61).
+3. **Ordenación publicada:** swing **NO CONCLUYENTE**.
+4. **Ablaciones publicadas.**
+5. **Revisión independiente del look-ahead hecha:**
+   `evidence/2026-10-01-T-019-cierre/revision-look-ahead.md`. Sin BLOCKER ni
+   IMPORTANTE; un MENOR (M-1, etiqueta de universo, corregido en D-61) y cinco
+   observaciones.
+
+**El resultado con el que se cruza** (D-61, sin reinterpretar):
+- **Swing:** Δ Q5−Q1 −0,2895 R [−0,4098, −0,1658], anchura 0,2440 > 0,20 →
+  **NO CONCLUYENTE**.
+- **Medio:** «NO CONCLUYENTE — inválido (bloque parcial 102 ≤ 250)».
+- **Intradía:** sin laboratorio.
+- **Umbrales:** no hay ningún umbral v2; `min_score_operar` y
+  `min_score_vigilar` son nulos en los tres horizontes.
+- **Signo:** el negativo del contraste sigue siendo **descriptivo** y no
+  constituye un veredicto distinto. `docs/gates.md` exige una respuesta
+  cuantificada, no favorable.
+
+**Producción.**
+- Score v2 **no se activa**: P3 no produjo umbrales válidos y la activación
+  atómica del paso 5 no es posible.
+- Producción sigue en **Score v1** con 70/60 y `calibrated: false` (D-47), y
+  `config.yaml` no cambia.
+- v2 queda solo como investigación y versionado.
+- D-60 sigue registrada para una posible activación futura.
+- No hay release ni despliegue; la Pi sigue en `v0.4.1` = `8b2dddb`.
+
+**Efecto.**
+- **A-03 queda ACEPTADA** y T-019 cerrada.
+- **P4 (A-04) queda desbloqueado**, pero **no se inicia** con esta decisión.
+  Trabajará sobre `score_signal` sin umbrales operativos nuevos, como prevén
+  `docs/gates.md` y D-45.
+- P3 no se repite: cualquier estudio nuevo del score necesita su propia ficha
+  y datos posteriores a la cosecha `071ddb2b…`, que P3 consumió entera
+  (INV-15).
+
+**Evidencia:**
+- `evidence/2026-09-30-T-019-paso3-p3/` (ejecución única, inmutable);
+- `evidence/2026-10-01-T-019-score-v2/` (paso 4);
+- `evidence/2026-10-01-T-019-cierre/` (revisión final, matriz, suite y hashes).
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

@@ -1,0 +1,18 @@
+# Suite final — T-019 paso 5 (cierre de GATE P3)
+base: 4ca9a370a02d297c949555a409eb960adfb8d8e8 (rama docs/t019-cierre; sin cambios en advisor/, tests/, config.yaml ni deploy/)
+fecha_utc: 2026-10-01T11:51:00Z
+
+$ .venv/bin/ruff check .
+All checks passed!
+exit=0
+
+$ .venv/bin/mypy advisor
+Success: no issues found in 71 source files
+exit=0
+
+$ .venv/bin/pytest -q
+    return self.__pydantic_serializer__.to_python(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+774 passed, 3 warnings in 205.26s (0:03:25)
+exit=0

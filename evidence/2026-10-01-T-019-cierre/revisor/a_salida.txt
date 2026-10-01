@@ -1,0 +1,70 @@
+config score_model_version activo: 1.0
+asia_symbols ('510300.SS', '^HSI', '^KS11', '^N225', '^TWII')
+[swing] build_population 44s align_en_PIT=0 outcome_calls=0
+[swing] checks del ejecutor: True
+    OK  población A-02: 106363 (esperado 106363)
+    OK  excluded_crypto: 5112 (esperado 5112)
+    OK  excluded_asia_missing: 396 (esperado 396)
+    OK  excluded_trend_sma_history: 6937 (esperado 6937)
+    OK  Asia ∩ SMA200: 176 (esperado 176)
+    OK  unión deduplicada: 12269 (esperado 12269)
+    OK  población final (censo): 94094 (esperado 94094)
+    OK  sha256 población (censo): 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a (esperado 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a)
+    OK  señales del event study PIT v2: 94094 (esperado 94094)
+    OK  sha256 población (event study PIT v2): 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a (esperado 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a)
+    OK  activos: 90 (esperado 90)
+    OK  regiones: 5 (esperado 5)
+    OK  bloques ocupados: 19 (esperado 19)
+    OK  bloques del censo: 19 (esperado 19)
+    OK  huecos intermedios ^STOXX50E: 1406 (esperado 1406)
+    OK  antigüedades STOXX ⊆ {1,3,4}: True (esperado True)
+    OK  config.yaml activo: 1.0 (esperado 1.0)
+    OK  config_hash: 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387 (esperado 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387)
+    OK  universe_vintage_id: 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19 (esperado 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19)
+    OK  data_vintage_id: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841 (esperado 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841)
+[swing] A02=106363 cripto=5112 asia=396 sma=6937 asia∩sma=176 cripto∩otros=0 union=12269 final=94094 A02-union=94094
+[swing] auditoría PIT sobre 94094 señales: ts distinto=0 contexto distinto=0 look-ahead=0 puntos contexto distintos=0 margen mínimo ts−available_at=600.0s
+[swing] n=94094 sha=4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a activos=90 regiones={'ASIA': 16, 'EMERGING_MARKETS': 1, 'EUROPA': 30, 'GLOBAL': 3, 'USA': 40}
+[swing] bloques ocupados=19 {3: 2993, 4: 5209, 5: 5084, 6: 5096, 7: 5092, 8: 5173, 9: 5217, 10: 5044, 11: 5101, 12: 5240, 13: 5264, 14: 4997, 15: 5095, 16: 5265, 17: 5328, 18: 4944, 19: 5150, 20: 5243, 21: 3559} horizon_valid=True bloque_más_corto=42 max_hold=40
+[swing] cortes propios=[28.0, 39.6, 49.6, 57.6] numpy inverted_cdf=[28.0, 39.6, 49.6, 57.6] ejecutor=[28.0, 39.6, 49.6, 57.6] distintos=817 n_por_q={'Q1': 18292, 'Q2': 18740, 'Q3': 19405, 'Q4': 17205, 'Q5': 20452} empates=()
+[swing] cortes con scores crudos sin redondear=[28.0, 39.6, 49.6, 57.6] distintos crudos=826
+[swing] n por banda (propio)={1: 18292, 2: 18740, 3: 19405, 4: 17205, 5: 20452}
+[swing] observaciones exactamente en cada corte=[554, 2105, 2700, 2833]
+[swing] candidatos propios=[43.6, 49.6, 53.6, 57.6, 63.6] ejecutor=[43.6, 49.6, 53.6, 57.6, 63.6] n[c,∞)=[49056, 37657, 28670, 20452, 9595]
+[swing] ablación sin catalizador: cortes propios=[40.0, 59.333333333, 72.666666667, 82.666666667] distintos=397
+[swing] ablación sin tecnico: cortes propios=[27.666666667, 31.666666667, 36.0, 43.333333333] distintos=151
+[swing] ablación sin contexto: cortes propios=[20.0, 30.0, 42.5, 52.5] distintos=215
+[medio] build_population 40s align_en_PIT=0 outcome_calls=0
+[medio] checks del ejecutor: True
+    OK  población A-02: 94273 (esperado 94273)
+    OK  excluded_crypto: 4722 (esperado 4722)
+    OK  excluded_asia_missing: 218 (esperado 218)
+    OK  excluded_trend_sma_history: 0 (esperado 0)
+    OK  Asia ∩ SMA200: 0 (esperado 0)
+    OK  unión deduplicada: 4940 (esperado 4940)
+    OK  población final (censo): 89333 (esperado 89333)
+    OK  sha256 población (censo): 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8 (esperado 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8)
+    OK  señales del event study PIT v2: 89333 (esperado 89333)
+    OK  sha256 población (event study PIT v2): 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8 (esperado 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8)
+    OK  activos: 90 (esperado 90)
+    OK  regiones: 5 (esperado 5)
+    OK  bloques ocupados: 5 (esperado 5)
+    OK  bloques del censo: 5 (esperado 5)
+    OK  huecos intermedios ^STOXX50E: 1312 (esperado 1312)
+    OK  antigüedades STOXX ⊆ {1,3,4}: True (esperado True)
+    OK  config.yaml activo: 1.0 (esperado 1.0)
+    OK  config_hash: 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387 (esperado 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387)
+    OK  universe_vintage_id: 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19 (esperado 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19)
+    OK  data_vintage_id: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841 (esperado 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841)
+[medio] A02=94273 cripto=4722 asia=218 sma=0 asia∩sma=0 cripto∩otros=0 union=4940 final=89333 A02-union=89333
+[medio] auditoría PIT sobre 89333 señales: ts distinto=0 contexto distinto=0 look-ahead=0 puntos contexto distintos=0 margen mínimo ts−available_at=600.0s
+[medio] n=89333 sha=4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8 activos=90 regiones={'ASIA': 16, 'EMERGING_MARKETS': 1, 'EUROPA': 30, 'GLOBAL': 3, 'USA': 40}
+[medio] bloques ocupados=5 {0: 3699, 1: 25662, 2: 25516, 3: 25654, 4: 8802} horizon_valid=False bloque_más_corto=102 max_hold=250
+[medio] cortes propios=[29.6, 40.0, 49.6, 57.6] numpy inverted_cdf=[29.6, 40.0, 49.6, 57.6] ejecutor=[29.6, 40.0, 49.6, 57.6] distintos=730 n_por_q={'Q1': 17071, 'Q2': 18387, 'Q3': 16640, 'Q4': 16940, 'Q5': 20295} empates=()
+[medio] cortes con scores crudos sin redondear=[29.6, 40.0, 49.6, 57.6] distintos crudos=739
+[medio] n por banda (propio)={1: 17071, 2: 18387, 3: 16640, 4: 16940, 5: 20295}
+[medio] observaciones exactamente en cada corte=[1047, 631, 2636, 2818]
+[medio] ablación sin catalizador: cortes propios=[42.666666667, 59.333333333, 72.666666667, 82.666666667] distintos=346
+[medio] ablación sin tecnico: cortes propios=[27.666666667, 32.666666667, 36.666666667, 43.333333333] distintos=151
+[medio] ablación sin contexto: cortes propios=[20.0, 30.0, 42.5, 52.5] distintos=172
+FIN {"swing": {"n": 94094, "sha": "4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a"}, "medio": {"n": 89333, "sha": "4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8"}}

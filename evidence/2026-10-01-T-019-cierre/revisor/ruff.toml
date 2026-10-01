@@ -1,0 +1,4 @@
+# Scripts del revisor independiente de la revisión final de T-019, conservados tal cual los
+# ejecutó: reformatearlos alteraría la evidencia. No son código del proyecto.
+[lint]
+ignore = ["ALL"]
