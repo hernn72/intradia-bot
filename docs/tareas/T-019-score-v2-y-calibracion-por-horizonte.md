@@ -13,8 +13,18 @@ sigue sin poder ejecutarse hasta que estén hechos 2a-code y la revisión previa
 de look-ahead.
 **2026-09-30 — ese SHA está en producción como `v0.4.1`** (D-58, despliegue
 aceptado): esquema v7, Score v1 y 70/60 con `calibrated: false`. Es una decisión
-separada que no modifica el pre-registro. **Siguiente paso: 2a-code, todavía NO
-iniciado. P3 todavía NO ejecutado.**
+separada que no modifica el pre-registro.
+**Estado al 2026-10-01 — pasos 1, 2a-doc, 2a-code (`782e462`), 2 (`5953300`) y
+3 hechos; paso 4 hecho (D-61).** P3 se ejecutó **una sola vez** sobre
+`P3_EXECUTOR_SHA` = `87309da` (evidencia inmutable en
+`evidence/2026-09-30-T-019-paso3-p3/`, PR #33). Swing: Δ Q5−Q1 −0,2895 R
+[−0,4098, −0,1658], anchura 0,2440 > 0,20 → **NO CONCLUYENTE**; ningún candidato
+cumple OPERAR. **Los tres horizontes quedan `calibrated: false`** (D-61) y
+producción sigue en Score v1 con 70/60 (D-47). Impacto, contexto, confianza y
+cálculos manuales en `evidence/2026-10-01-T-019-score-v2/`. **Pendiente
+únicamente el paso 5 de cierre:** revisión independiente final de look-ahead
+(GATE P3 requisito 5) y la decisión sobre GATE P3. La activación de v2 del
+paso 5 **no se hace** en A-03 (swing sin calibrar).
 Decisiones cerradas por el propietario: A → **D-45**, B → **D-46**, C →
 **D-47** (C2, estado de transición), VIX → **D-49** y **D-53**,
 `analysis_timestamp` → **D-50**, cripto → **D-51**, Asia (PR-1) → **D-52**,
@@ -1582,4 +1592,40 @@ orden de los pasos.
 | 5 | Revisión independiente del look-ahead | `revision-look-ahead-previa.md` (antes de P3, sobre 2a-doc y 2a-code) y `revision-look-ahead.md` (final), de otro agente, con al menos: que el `analysis_timestamp` y la regla del VIX congelados en 2a-doc (D-49) no contienen look-ahead y que producción, backtest, event study y seguimiento usan la misma implementación —el revisor verifica, no elige—; la respuesta a PR-1; alineación de tendencia y fortaleza relativa; que los quintiles y candidatos no leen desenlace; que la población no depende del score; paridad de contexto producción/laboratorio/seguimiento (H-1, R-CTX); que medio no se usa para nada más que trazabilidad; hallazgos clasificados y cerrados |
 
 ## Handoff al siguiente agente
-(se rellena al terminar)
+**Estado al 2026-10-01, tras el paso 4.** Hechos los pasos 0 a 4. P3 se ejecutó **una sola vez**
+(`87309da`, PR #33) y **no se repite nunca**. Su evidencia, `evidence/2026-09-30-T-019-paso3-p3/`,
+es inmutable. D-61 registra el resultado:
+- swing: **NO CONCLUYENTE** (anchura 0,2440 > 0,20, Δ Q5−Q1 −0,2895 R), sin umbrales;
+- swing, medio e intradía: **`calibrated: false`**;
+- producción: sigue en Score v1 con 70/60 (D-47) y `config.yaml` no cambia.
+
+La evidencia del paso 4 está en `evidence/2026-10-01-T-019-score-v2/`:
+- resultado de P3 regenerado desde los artefactos;
+- impacto v1 → v2 con contexto PIT;
+- H-6: 0 imputados, con las exclusiones aparte;
+- confianza: 0 cambios, tanto en la cosecha como en la pasada local de producción;
+- cálculos manuales;
+- matriz provisional de GATE P3.
+
+Los números comprobados a mano que pide «Número comprobado a mano, obligatorio» están en
+`calculo-manual-sap.md` y `calculo-manual-delta-bloque.md`:
+- **SAP.DE**, señal `2022-06-12T22:00:00Z`, sesión XETRA 2022-06-13. Score v2 =
+  100·(1,0 + 0,0 + 1,2)/50 = **4,4**, que cae en **Q1** con los cortes 28,0 / 39,6 / 49,6 / 57,6.
+- **Bloque 3:** Δ = −0,0482 − 0,6721 = **−0,7203**. La media simple de los 19 Δ de bloque
+  reproduce el contraste, −0,289468.
+
+**Siguiente: paso 5, solo con autorización del propietario.**
+- Revisión independiente final del look-ahead (`revision-look-ahead.md`, GATE P3 requisito 5).
+- Decisión del propietario sobre el cruce de GATE P3. `docs/gates.md` permite cruzarlo con la
+  etiqueta NO CONCLUYENTE.
+- La activación de v2 del paso 5 **no se hace** en A-03, porque swing no está calibrado.
+- D-60 sigue sin implementar: solo es necesaria si algún día se activa v2.
+
+**Prohibido sin decisión nueva:**
+- repetir P3 o buscar otros cortes;
+- usar 70/60 sobre v2;
+- modificar Score v2 a partir de la ablación o del signo observado;
+- desplegar en la Pi, que sigue en `v0.4.1` = `8b2dddb`.
+
+P3 consumió la cosecha completa, así que cualquier estudio nuevo necesita datos posteriores
+(INV-15).

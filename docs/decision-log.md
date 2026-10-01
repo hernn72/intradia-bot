@@ -1071,6 +1071,53 @@ aborta la pasada entera: es código inerte mientras v1 esté activo. Antes del
 paso 5 se sustituye por la política de D-60, y la forma exacta de declarar el
 motivo en la pasada y en el manifiesto se implementa entonces.
 
+### D-61 — 2026-10-01 — Resultado de P3 y estado de calibración de Score v2
+Registro del paso 4 de T-019, autorizado por el propietario. No tiene margen de
+decisión: lo fijan la regla pre-registrada de P3 (`8b2dddb`) y D-45, aplicadas
+al resultado de la **única** ejecución confirmatoria (`P3_EXECUTOR_SHA` =
+`87309da`, evidencia inmutable en `evidence/2026-09-30-T-019-paso3-p3/`).
+Resumen generado desde esos artefactos en
+`evidence/2026-10-01-T-019-score-v2/resultado-p3.md`.
+
+**Swing (confirmatorio).** P3 produjo Δ Q5−Q1 = **−0,2895 R**, IC95
+**[−0,4098, −0,1658]**, anchura **0,2440**, 19 bloques. Por la tabla
+pre-registrada, aplicada en su orden, **`veredicto_ordenacion` = NO
+CONCLUYENTE**, porque la anchura **0,2440 > 0,20**.
+
+Que el intervalo entero sea negativo **no permite sustituir el veredicto
+mecánico** por «ordena al revés» ni por ningún otro juicio confirmatorio. Se
+publica, solo como **descripción separada del veredicto**:
+- el signo del contraste es negativo;
+- las cinco regiones tienen Δ negativo;
+- los 89 activos con Δ calculable tienen Δ negativo;
+- el intra-activo vale −0,751 R [−0,815, −0,672].
+
+**Calibración de swing.** Los cinco candidatos —43,6 / 49,6 / 53,6 / 57,6 /
+63,6— fallan OPERAR. Por tanto swing queda **`calibrated: false`**, con
+`min_score_operar: null` y `min_score_vigilar: null`: **no existe franja
+operativa v2 calibrada**. Ningún percentil se convierte en umbral.
+
+**Medio.** `calibrated: false`. Su resultado es solo de trazabilidad, con el
+veredicto forzado «NO CONCLUYENTE — inválido (bloque parcial 102 ≤ 250)»
+(D-42, D-45).
+
+**Intradía.** `calibrated: false`, sin laboratorio y sin umbrales (D-45).
+
+**Producción.** D-47 sigue plenamente vigente:
+- producción continúa con Score v1;
+- 70/60 pertenecen exclusivamente a `"1.0"`;
+- v2 no se activa;
+- no hay transición atómica posible, porque P3 no produjo umbrales v2 válidos
+  (el paso 5 de la ficha, en su parte de activación, no se hace en A-03).
+
+`config.yaml` no cambia: `"1.0"`, 70/60, `calibrated: false`.
+
+**Consecuencia metodológica.** Un resultado desfavorable o no concluyente **no
+impide por sí mismo** cruzar GATE P3: `docs/gates.md` exige una respuesta
+cuantificada, no favorable. Pero **D-61 no declara GATE P3 cruzado.** Eso se
+decide en el paso 5, después de la revisión independiente final (requisito 5).
+Matriz provisional en `evidence/2026-10-01-T-019-score-v2/gate-p3-matriz.md`.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

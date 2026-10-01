@@ -586,9 +586,11 @@ y la probabilidad de objetivo antes de stop como contexto secundario.
   15 minutos de yfinance llega a 60 días. Todo lo medido aquí es swing y
   medio; intradía sigue siendo radar, no estrategia validada.
 - **Fundamentales**: la dimensión sigue excluida y la nota se normaliza sobre
-  los puntos evaluables. Si además sale el RR, el score real se calcularía
-  sobre 60 puntos de 100, lo que refuerza la necesidad de recalibrar los
-  umbrales en vez de heredarlos.
+  los puntos evaluables. *(Corregido el 2026-10-01, T-019 paso 4: la frase
+  anterior decía que, si salía el RR, el score se calcularía sobre 60 puntos.
+  Quedó superada por D-46: Score v2 retira el RR y la convicción, y se
+  normaliza sobre 50 puntos evaluables —catalizador 20, técnico 20, contexto
+  10—. P3 no produjo umbrales v2 válidos (D-61); los de v1 no se heredan.)*
 - **Acciones corporativas**: se conservan dividendos y splits, pero no
   fusiones, escisiones, cambios de ticker ni exclusiones de cotización. Un
   activo que hoy existe puede tener un histórico que en su día perteneció a

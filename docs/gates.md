@@ -158,6 +158,13 @@ umbrales operativos nuevos.
 
 Desbloquea: P4.
 
+**Estado al 2026-10-01: NO cruzado.** P3 está ejecutado (T-019,
+`evidence/2026-09-30-T-019-paso3-p3/`) y su resultado registrado en D-61, con los
+tres horizontes `calibrated: false`. Matriz provisional y evidencia del paso 4 en
+`evidence/2026-10-01-T-019-score-v2/gate-p3-matriz.md`: los requisitos 1 a 4
+tienen evidencia y el **requisito 5 —revisión independiente final del
+look-ahead— queda para el paso 5 de T-019**, donde se decide el cruce.
+
 ---
 
 ## GATE P4 — Geometría

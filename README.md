@@ -125,7 +125,8 @@ de contexto y nunca se recomiendan.
 
 ## La puntuación
 
-Seis dimensiones, todas calculadas en Python:
+Producción usa **Score v1** (`score_model_version: "1.0"`), con seis
+dimensiones, todas calculadas en Python:
 
 | Dimensión | Puntos | De dónde sale |
 |---|---:|---|
@@ -136,12 +137,19 @@ Seis dimensiones, todas calculadas en Python:
 | Contexto | 10 | VIX, tendencia del índice de referencia y sesión asiática |
 | Convicción | 10 | Histórico disponible, indicadores presentes, volatilidad |
 
+**Score v2** (`"2.0"`, D-46) está implementado pero **no activo**: catalizador
+20 + técnico 20 + contexto 10, sobre 50 puntos evaluables, **sin RR** (que sigue
+siendo condición de ejecutabilidad y de riesgo) y **sin convicción**, siempre con
+contexto point-in-time (D-59). P3 no produjo umbrales v2 válidos: swing, medio e
+intradía quedan `calibrated: false` (D-61), así que v2 no puede activarse y
+v1 sigue en producción con sus 70/60 (D-47).
+
 **El agente IA no puntúa.** Redacta tesis, catalizador, escenarios y riesgos
 a partir de números ya fijados, y el prompt le prohíbe explícitamente
 recalcularlos, contradecirlos o inventar catalizadores externos. Si un modelo
 pudiera mover la nota, la nota dejaría de ser comparable entre ejecuciones.
 
-Umbrales: ≥70 → 🟢 OPERAR · 60-69 → 🟡 VIGILAR · <60 → 🔴 DESCARTAR. Además,
+Umbrales de Score v1, `calibrated: false`: ≥70 → 🟢 OPERAR · 60-69 → 🟡 VIGILAR · <60 → 🔴 DESCARTAR. Además,
 una oportunidad con buena nota baja a VIGILAR si el contexto es hostil o se
 descarta si el ratio no llega al mínimo o el activo no está en Trade
 Republic; en el horizonte medio también si el potencial no supera con
