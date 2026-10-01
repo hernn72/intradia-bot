@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -253,23 +253,94 @@ def run_event_study_on_vintage(
 ) -> EventStudyResult:
     """Núcleo con I/O ya resuelto, útil para tests y para la CLI."""
 
+    result = _empty_result(config, universe, vintage, horizonte, cost_pct, population_name)
+    for execution_df, j, levels, observation in _iter_event_observations(
+        config, universe, vintage, result, context_mode=context_mode, score_model_version=score_model_version
+    ):
+        try:
+            managed = evaluate_managed_event(observation, execution_df, j, levels, result.max_hold_bars, cost_pct)
+            potential = evaluate_potential_event(observation, execution_df, j, levels, result.max_hold_bars)
+        except ValueError as exc:
+            result.skipped.append((observation.signal_id, str(exc)))
+            continue
+        result.signals.append(EventStudySignal(observation=observation, managed=managed, potential=potential))
+    return result
+
+
+@dataclass(frozen=True)
+class EnumeratedSignal:
+    """Señal del event study antes de abrir ningún desenlace: primitivas y niveles en t."""
+
+    observation: SignalObservation
+    levels: Levels
+
+
+def enumerate_event_signals_on_vintage(
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    *,
+    horizonte: str = "swing",
+    cost_pct: float = 0.2,
+    population_name: str = "vigente",
+    context_mode: Optional[ContextMode] = None,
+    score_model_version: Optional[str] = None,
+) -> Tuple[EventStudyResult, List[EnumeratedSignal]]:
+    """La misma enumeración que ``run_event_study_on_vintage``, sin llamar a los evaluadores.
+
+    Para preflights que no pueden leer desenlaces: ni ``evaluate_managed_event``
+    ni ``evaluate_potential_event`` se ejecutan. El ``EventStudyResult`` vuelve con
+    ``signals`` vacío y el resto de metadatos (activos, sesiones, saltos) igual.
+    """
+
+    result = _empty_result(config, universe, vintage, horizonte, cost_pct, population_name)
+    enumerated = [
+        EnumeratedSignal(observation=observation, levels=levels)
+        for _, _, levels, observation in _iter_event_observations(
+            config, universe, vintage, result, context_mode=context_mode, score_model_version=score_model_version
+        )
+    ]
+    return result, enumerated
+
+
+def _empty_result(
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    horizonte: str,
+    cost_pct: float,
+    population_name: str,
+) -> EventStudyResult:
     if horizonte not in MAX_HOLD_BARS:
         raise ValueError(f"el event study solo cubre swing y medio: '{horizonte}'")
-    requested_score_model = score_model_version or config.scoring.score_model_version
-    context_mode = resolve_context_mode(requested_score_model, context_mode)
-
-    window = config.horizonte(horizonte)
-    warmup = window.min_bars
-    max_hold = MAX_HOLD_BARS[horizonte]
-    result = EventStudyResult(
+    return EventStudyResult(
         data_vintage_id=vintage.data_vintage_id,
         universe_vintage_id=universe_vintage_id(universe),
         horizonte=horizonte,
         cost_pct=cost_pct,
-        warmup_bars=warmup,
-        max_hold_bars=max_hold,
+        warmup_bars=config.horizonte(horizonte).min_bars,
+        max_hold_bars=MAX_HOLD_BARS[horizonte],
         population_name=population_name,
     )
+
+
+def _iter_event_observations(
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    result: EventStudyResult,
+    *,
+    context_mode: Optional[ContextMode],
+    score_model_version: Optional[str],
+) -> Iterator[Tuple[pd.DataFrame, int, Levels, SignalObservation]]:
+    """Recorre la cosecha y produce cada señal elegible; rellena los metadatos de ``result``."""
+
+    horizonte = result.horizonte
+    requested_score_model = score_model_version or config.scoring.score_model_version
+    context_mode = resolve_context_mode(requested_score_model, context_mode)
+
+    window = config.horizonte(horizonte)
+    warmup = result.warmup_bars
 
     asia_symbols = (
         tuple(sorted(asset.primary_symbol for asset in context_assets_of(universe) if asset.region == "ASIA"))
@@ -371,17 +442,9 @@ def run_event_study_on_vintage(
             if observation.data_vintage_id != vintage.data_vintage_id:
                 observation = _with_vintage_id(observation, vintage.data_vintage_id)
 
-            try:
-                managed = evaluate_managed_event(observation, execution_df, j, levels, max_hold, cost_pct)
-                potential = evaluate_potential_event(observation, execution_df, j, levels, max_hold)
-            except ValueError as exc:
-                result.skipped.append((observation.signal_id, str(exc)))
-                continue
-            result.signals.append(EventStudySignal(observation=observation, managed=managed, potential=potential))
+            yield execution_df, j, levels, observation
 
         result.evaluated_assets.append(symbol)
-
-    return result
 
 
 def replay_managed_population(
@@ -394,6 +457,47 @@ def replay_managed_population(
 ) -> Dict[str, ManagedEvent]:
     """Reevalúa la población administrada con otros niveles, sin recalcular señales."""
 
+    replayed, missing = _replay_managed(result, vintage, levels_config, min_rr_ratio, cost_pct=cost_pct)
+    if missing:
+        raise ValueError(f"{missing[0]}: la configuración no produce niveles comparables")
+    return replayed
+
+
+@dataclass(frozen=True)
+class ReplayedPopulation:
+    """Réplica de una geometría que conserva, contadas, las señales sin niveles."""
+
+    events: Dict[str, ManagedEvent]
+    without_levels: Tuple[str, ...]
+
+
+def replay_managed_population_counting_missing(
+    result: EventStudyResult,
+    vintage: VintageLoad,
+    levels_config: LevelsConfig,
+    min_rr_ratio: float,
+    *,
+    cost_pct: Optional[float] = None,
+) -> ReplayedPopulation:
+    """Como ``replay_managed_population``, pero una señal sin niveles se cuenta en vez de abortar.
+
+    Para comparar geometrías en las que algunas señales no tienen niveles válidos
+    (por ejemplo, un stop ancho que quedaría ≤ 0): ninguna desaparece en silencio,
+    su ``signal_id`` vuelve en ``without_levels``.
+    """
+
+    replayed, missing = _replay_managed(result, vintage, levels_config, min_rr_ratio, cost_pct=cost_pct)
+    return ReplayedPopulation(events=replayed, without_levels=tuple(missing))
+
+
+def _replay_managed(
+    result: EventStudyResult,
+    vintage: VintageLoad,
+    levels_config: LevelsConfig,
+    min_rr_ratio: float,
+    *,
+    cost_pct: Optional[float],
+) -> Tuple[Dict[str, ManagedEvent], List[str]]:
     if result.data_vintage_id != vintage.data_vintage_id:
         raise ValueError(
             f"cosecha distinta: result={result.data_vintage_id} vintage={vintage.data_vintage_id}"
@@ -404,6 +508,7 @@ def replay_managed_population(
             f"universo distinto: result={result.universe_vintage_id} vintage={vintage_universe}"
         )
     replayed: Dict[str, ManagedEvent] = {}
+    missing: List[str] = []
     effective_cost = result.cost_pct if cost_pct is None else cost_pct
     for signal in result.signals:
         obs = signal.observation
@@ -421,7 +526,8 @@ def replay_managed_population(
             min_rr_ratio=min_rr_ratio,
         )
         if levels is None:
-            raise ValueError(f"{obs.signal_id}: la configuración no produce niveles comparables")
+            missing.append(obs.signal_id)
+            continue
         replayed[obs.signal_id] = evaluate_managed_event(
             obs,
             views.execution_prices,
@@ -430,7 +536,7 @@ def replay_managed_population(
             result.max_hold_bars,
             effective_cost,
         )
-    return replayed
+    return replayed, missing
 
 
 def evaluate_managed_event(

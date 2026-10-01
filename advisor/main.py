@@ -740,6 +740,32 @@ def cmd_p3(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) 
     return code
 
 
+def cmd_p4(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    """Ejecutor único de P4 (T-020 / A-04). La fase es lo único que se elige."""
+
+    from advisor.research import p4
+
+    ident = p4.current_identity(config)
+    vintage = load_vintage(p4.DATA_VINTAGE_ID)
+    if args.fase == "preflight":
+        development = p4.development_mode()
+        if not development and ident.git_dirty is not False:
+            raise ValueError(
+                f"el preflight definitivo exige el árbol limpio (git_dirty={ident.git_dirty}); "
+                f"para iterar sin escribir evidencia: {p4.DEVELOPMENT_ENV}=1"
+            )
+        ok, report = p4.run_preflight(config, universe, vintage, ident, development=development)
+        print(p4.format_preflight(report), end="")
+        return 0 if ok else 2
+    try:
+        code, text = p4.run_confirmatory(config, universe, vintage, ident, p4.CONFIRMATORY_OUTPUT_DIR)
+    except (p4.P4PreflightError, p4.P4AlreadyExecutedError) as exc:
+        print(f"STOP: {exc}", file=sys.stderr)
+        return 2
+    print(text, end="")
+    return code
+
+
 def cmd_ablacion_score(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     universe = resolve_research_population(universe, args.poblacion)
     result = run_event_study(
@@ -1146,6 +1172,13 @@ def build_parser() -> argparse.ArgumentParser:
     p3.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
     p3.add_argument("--salida", help="directorio de salida del preflight (la confirmatoria usa una ruta fija)")
     p3.set_defaults(func=cmd_p3)
+
+    p4_parser = sub.add_parser(
+        "p4",
+        help="ejecutor único de P4 (T-020): preflight sin desenlaces o la ejecución confirmatoria, una sola vez",
+    )
+    p4_parser.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
+    p4_parser.set_defaults(func=cmd_p4)
 
     comparacion = sub.add_parser("comparacion-pareada", help="mide P2.6 con bootstrap por bloques pareados")
     comparacion.add_argument("data_vintage_id", help="identificador de la cosecha congelada")
