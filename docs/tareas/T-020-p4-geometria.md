@@ -1278,5 +1278,6 @@ Lo corregido después:
 Restos del borrador que siguen en la sección «Revisión de la ficha» (por ejemplo, «451») son
 historial de las vueltas anteriores. Lo vinculante es D-63 y el cuerpo de la ficha.
 
-**Pendiente (antes de esta tercera revisión).** Una tercera revisión breve, después de que el propietario cierre las OD y antes del
-SHA del pre-registro, para comprobar que la versión definitiva no reintroduce grados de libertad.
+**Tercera revisión completada.** Se hizo sobre la versión con D-63 y antes del SHA del
+pre-registro, como estaba previsto. Sus hallazgos quedan cerrados y confirmados por el mismo
+revisor en `49b85e0`, y sus dos observaciones de redacción están aplicadas en `c7c6be4`.

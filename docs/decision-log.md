@@ -1179,7 +1179,9 @@ satisfechos (`evidence/2026-10-01-T-019-cierre/gate-p3-final.md`):
 
 ### D-63 — 2026-10-01 — Pre-registro de P4: población, variantes y criterio
 Decisión del propietario. Cierra **OD-P4-1 a OD-P4-13** de la ficha T-020 (A-04). Se toma **antes de
-ejecutar P4 y sin mirar ningún resultado** de B1, B2, S1, S2 ni E1. La ficha
+ejecutar P4 y sin abrir ningún desenlace nuevo de P4**. B1 constituye una **exposición previa
+conocida y documentada** sobre esta misma cosecha (P2.6, 2026-08-31; ficha, sección 7.1). No se
+consultó ningún resultado nuevo de B1 ni ningún resultado de B2, S1, S2 o E1. La ficha
 `docs/tareas/T-020-p4-geometria.md` es la especificación; aquí solo se resumen las elecciones.
 _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
 
