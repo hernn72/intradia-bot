@@ -1237,6 +1237,77 @@ mano.
 - El pre-registro de P4 (`P4_PREREG_SHA`) será el HEAD documental que quede después de la tercera
   revisión independiente de la ficha y de sus correcciones.
 
+### D-64 — 2026-10-02 — Resultado de P4 y candidatas para P5
+Registro del resultado congelado de la **ejecución confirmatoria única** de P4 (T-020, A-04). Se
+transcribe la salida de `evidence/2026-10-01-T-020-p4/run/` sin recalcular nada.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Identidad.**
+- `P4_PREREG_SHA = 48b884722ef027e99857a4e65f9ab6b11da4758f`
+- `P4_CODE_SHA = 3df8230d7806dde4151b56501641a1524a3df9d8`: último commit que modifica el código
+  del ejecutor.
+- `P4_RUN_HEAD_SHA = c2c52b11c60bb8dfd08d8cb33d5f6f251e9bf2c0`: HEAD desde el que se lanzó la
+  ejecución. Respecto a `3df8230` solo añade evidencia de preflight.
+- `P4_RUN_EVIDENCE_COMMIT = cfa365da468edd04f0ccf4d5f20b657382078cbd`
+- Ejecución el 2026-10-02 a las 05:37:50 UTC (marca escrita antes de abrir desenlaces), salida 0.
+  P4 no se repite.
+- El campo histórico `p4_executor_sha` de los artefactos de ejecución contiene `c2c52b1`, el HEAD
+  de ejecución. La marca guarda aparte `p4_executor_sha_preflight = 3df8230`. No es un error de
+  resultado y los artefactos no se reescriben.
+
+**B2 frente a C0 (objetivo 2 a 4,875·ATR): PASA A P5.** Cumple todas las condiciones que vetan.
+- ΔR = **+0,0717 R**; IC Bonferroni 98,75 % = **[+0,0061, +0,1356]**; pares = **101.226**.
+- Sensibilidad 120: ΔR = +0,07264; IC95 inferior = +0,02378.
+- Cota conservadora de ambigüedad: ΔR = +0,07099.
+- Robustez temporal interna sobre datos de desarrollo: bloques 2–11 = +0,06930; bloques 12–21 =
+  +0,07401.
+- Nivel: media `net_R` = +0,17540; PF = 1,26344.
+
+**S2 frente a C0 (stop 2,5·ATR, objetivo 3,75·ATR): PASA A P5.** Cumple todas las condiciones que
+vetan.
+- ΔR = **+0,0348 R**; IC Bonferroni 98,75 % = **[+0,0076, +0,0597]**; pares = **101.225**.
+- Sensibilidad 120: ΔR = +0,03459; IC95 inferior = +0,01309.
+- Cota conservadora de ambigüedad: ΔR = +0,03430.
+- Robustez temporal interna sobre datos de desarrollo: bloques 2–11 = +0,02395; bloques 12–21 =
+  +0,04562.
+- Nivel: media `net_R` = +0,13876; PF = 1,24259.
+
+**S1 frente a C0 (stop 1,5·ATR, objetivo 2,25·ATR): NO PASA.**
+- ΔR = **−0,0411 R**; IC Bonferroni = **[−0,0708, −0,0096]**.
+- Falla exactamente las condiciones **1, 2, 5 y 8**.
+
+**E1 (entrada a `open(t+1)` con veto de producción frente a entrada al cierre, bajo C0): NO
+CONCLUYENTE.**
+- ΔR = **−0,0491 R**; IC Bonferroni = **[−0,1078, +0,0120]**.
+- No es una geometría, no es candidata a P5 y no interviene en la decisión sobre B2, S1 y S2.
+
+**B1 (objetivo 2 a 3,5·ATR): solo descriptiva.**
+- ΔR = **+0,0206 R**; IC95 = **[+0,0047, +0,0363]**.
+- «previamente expuesta en esta misma cosecha; no confirmatoria; no elegible para sustituir C0».
+- No pertenece a Bonferroni, no influye en B2 y no pasa a P5.
+
+**Candidatas que salen de P4:**
+- **B2**
+- **S2**
+
+Las dos pasan a P5, como pre-registró la sección 22 de la ficha («si cumplen varias, todas pasan»).
+No se elige una de las dos, y ninguna se declara mejor por tener un ΔR mayor. S1 queda descartada.
+C0 sigue como control y referencia. P5 decidirá la robustez de las candidatas.
+
+**Heterogeneidad.** Sale **ALTA en las cinco comparaciones**. Es una bandera, no un veto (D-63).
+Los estratos pre-registrados ya calculados se publican y se discuten en
+`evidence/2026-10-02-T-020-p4-cierre/resultado-y-heterogeneidad.md`. No se crea ninguna política
+por estrato.
+
+**Recuento derivado:** 447 comparaciones (B1 110, B2 110, S1 113, S2 113, E1 1), igual que el
+previsto, de las que 4 son confirmatorias.
+
+**Lo que no cambia.**
+- B2 y S2 son candidatas de investigación para P5, no una geometría de producción.
+- `config.yaml` sigue en `"1.0"`, Score v2 inactivo y la Pi en `v0.4.1`.
+- El resultado es de desarrollo, no una validación fuera de muestra (INV-15). La validación
+  independiente sigue en P7.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
