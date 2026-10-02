@@ -107,8 +107,8 @@ Esta ficha lo declara antes de medir nada:
 3. **Puntos de la rejilla de P4 ya medidos que caen cerca de las superficies:**
    - **B1** (2,0; 3,5): ΔR +0,0206. Está en el eje de objetivo de B2, por debajo de su superficie
      (la fila más baja de B2 es 4,5) y **fuera** de la retícula de P5.
-   - **C0** (2,0; 3,0): ΔR ≡ 0 por definición. Está en la recta iso-RR = 1,5 de S2, **un paso de
-     stop a la izquierda** del vecino diagonal inferior de S2 (2,25; 3,375).
+   - **C0** (2,0; 3,0): ΔR ≡ 0 por definición. Está en la recta iso-RR = 1,5 de S2, **un paso
+     diagonal** (Δs = 0,25 y Δm2 = 0,375) por debajo del vecino diagonal inferior de S2 (2,25; 3,375).
    - **S1** (1,5; 2,25): ΔR −0,0411. Está en la misma recta iso-RR, dos pasos más a la izquierda.
 
    Por tanto, en la recta iso-RR de S2 ya se conoce la secuencia S1 < C0 < S2. El vecino
@@ -226,8 +226,9 @@ código y confirmado por Codex:
 | `stop > 0` | `compute_levels_from_inputs` | estructural; con ATR/P máximo 0,2654 en la población, solo actúa para `s ≥ 3,77` |
 
 Una celda con `m2 < 1,5·s` **no devuelve `None`**: `compute_levels_from_inputs` devuelve niveles con
-`entry_max < P`, que violan la condición 6 en todas las señales de stop por volatilidad (sección
-10.3). Por eso esa frontera se detecta por coherencia, no por niveles nulos.
+`entry_max < P`, que violan la condición 6 en todas las señales de stop por volatilidad y, además, en
+las de stop por soporte poco ajustado (sección 10.3: 78.601–81.381 señales incoherentes, más que las
+de volatilidad). Por eso esa frontera se detecta por coherencia, no por niveles nulos.
 
 **Las dos candidatas están en un borde:**
 - **S2 está exactamente sobre la frontera económica** `m2 = 1,5·s`. Cualquier aumento del stop con
@@ -244,7 +245,8 @@ que lanzan un error; calcula solo niveles desde las primitivas en t. Resultado:
 - población 101.251 y hash `78024050…` reproducidos; `outcomes_read = false`;
 - **ninguna celda de la rejilla tiene señales sin niveles** (`none = 0` en todas); ATR/P máximo
   0,2654;
-- las tres celdas con `m2 < 1,5·s` violan la condición 6 en las señales de stop por volatilidad;
+- las tres celdas con `m2 < 1,5·s` violan la condición 6 en todas las señales de stop por volatilidad
+  y en parte de las de soporte (78.601 a 81.381 señales);
 - ningún vecino es degenerado frente a su centro.
 
 | Celda (`s`; `m2`; `m3`) | Sup. | Validez | Stop por soporte | Stop = centro | Stop y obj. 2 = centro | Stop = C0 | Qué manda (RR / técnica / empate) | RR efectivo mín. |
@@ -308,7 +310,9 @@ rompe. Esta ficha lo declara así:
   centro en las señales de soporte (14–22 %). La perturbación es real, no ruido de la regla E.
 - **0,5 no es viable alrededor de S2:** en la recta iso-RR, el vecino inferior a 0,5 es **C0 mismo**
   (2,0; 3,0), con ΔR ≡ 0 por definición. Un vecino que es el control no informa de nada. Y el
-  superior, (3,0; 4,5), queda a dos pasos de P4 de S2.
+  superior, (3,0; 4,5), queda a un paso de P4 de S2 y a dos de C0. Además, por la regla F1 (sección
+  24), un vecino con ΔR ≡ 0 es CONTRARIO: a esa escala **S2 saldría FRÁGIL por construcción**,
+  salvo una regla adicional que excluyera C0.
 - **0,125 sería ruido:** 0,125·ATR de stop es la mitad de la holgura de soporte y, con el ATR/P
   típico de la población (cortes de terciles 1,98 % y 3,06 %), entre el 0,25 % y el 0,4 % del
   precio, del orden del coste ida y vuelta (0,20 %). Los vecinos
@@ -371,8 +375,15 @@ cuatro semiplanos (un vecino diagonal pertenece a dos):
 vecino válido**, el de la recta iso-RR, por la frontera económica. Ese vecino decide solo su
 semiplano. No es un castigo por vecinos imposibles: las ausencias estructurales no cuentan como
 buenas ni como malas. Es la consecuencia de que S2 esté sobre la frontera `min_rr`, y se declara
-antes de medir. B2 tiene tres vecinos por semiplano. La tolerancia de la regla de anchura es
-parecida en las dos (sección 23): B2 admite 2 fallos de 8 (25 %); S2, 1 de 5 (20 %).
+antes de medir. B2 tiene tres vecinos por semiplano. **La tolerancia efectiva no es la misma**
+(corregido tras la revisión independiente, I-1):
+- **B2:** admite hasta 2 vecinos DÉBILES en cualquier posición; con tres vecinos por semiplano, dos
+  fallos no pueden vaciar ninguno.
+- **S2:** sus dos vecinos iso-RR, (2,25; 3,375) y (2,75; 4,125), **tienen que ser ACEPTABLES** (cada
+  uno es el único de su semiplano), y de los otros tres puede fallar como mucho uno.
+- En las dos, un vecino CONTRARIO veta (F1).
+
+La probabilidad aproximada de cumplir la regla de la meseta, por candidata, está en la sección 23.4.
 
 ## 12. Tratamiento de las fronteras (OD-P5-3)
 
@@ -458,7 +469,8 @@ Se reutilizan los umbrales de P4 (condiciones 3 y 9, `CapacityThresholds` vigent
 - descarte por ambigüedad ≤ 25 % (`max_ambiguous_rate`);
 - `EXIT_FINAL` ≤ 10 % en C0 y en la celda (`max_exit_final_rate`);
 - anchura del IC95 de ΔR ≤ 0,20 (`limited_interval_width`);
-- pares ≥ 90 % de 101.251.
+- pares ≥ 90 % de las señales de su población: 91.126 de 101.251 en las celdas (y en el LOCRO, el
+  90 % de la población sin la región, sección 19.2).
 
 Clases (mutuamente excluyentes):
 
@@ -469,6 +481,14 @@ Clases (mutuamente excluyentes):
 | **ACEPTABLE** | estimable y, a la vez: IC95 inferior de ΔR > 0; cota conservadora de ambigüedad (puntual) > 0; nivel de la celda (puntual) > 0; PF agrupado de la celda > 1 |
 | **DÉBIL** | estimable, ΔR puntual > 0, pero no ACEPTABLE |
 | **CONTRARIA** | estimable y ΔR puntual ≤ 0 |
+
+**Población de cada métrica** (Codex, I-2), para que nadie la decida al implementar:
+- **ΔR, su IC y CONTRARIA** se evalúan con la primaria (`media_delta_r` de la longitud 60) sobre los
+  **pares finales** de `pair_populations`: señales con `net_R` observable en C0 y en la celda.
+- **Nivel y PF** de la celda se calculan como en `level_estimate` (`advisor/research/p4.py:1070`):
+  sobre **todos los eventos observables de la celda** (excluyendo solo `net_R is None`), no sobre el
+  subconjunto pareado. Es la misma definición de la condición 10 de P4.
+- **Cota conservadora:** `ambiguity_bound_deltas` (`p4.py:1031`), con la misma población que P4.
 
 ## 16. Bloques y bootstrap
 
@@ -539,8 +559,23 @@ repositorio, y por eso se llama **LOCRO** en toda salida.
 
 - **Condición obligatoria:** sí, para los centros (es la que materializa el requisito del gate sobre
   la dependencia de un solo mercado).
-- **Pasa** si, para las tres r, la población sin r es estimable (las condiciones de capacidad de la
-  sección 15) **y** su IC95 inferior de ΔR es > 0.
+- **Pasa** si, para las tres r, la población sin r es estimable **y** su IC95 inferior de ΔR es > 0.
+- **Capacidad del LOCRO** (corregido tras la revisión independiente, BLOCKER B-1). Las condiciones
+  de la sección 15, con la de pares **relativa a la población sin r**. Con el denominador absoluto
+  (91.126 de 101.251), ninguna población LOCRO podría ser estimable y la salida `[]` quedaría
+  decidida por el texto. Denominadores y umbrales, fijados ahora desde el censo:
+
+  | Población | Señales | Pares mínimos (⌈0,9·n⌉) |
+  |---|---|---|
+  | sin USA | 56.353 | 50.718 |
+  | sin EUROPA | 66.629 | 59.967 |
+  | sin ASIA | 83.298 | 74.969 |
+
+- **Contrato operativo** (Codex, I-1): `ids_r = {señales con región ≠ r}`; se filtran **los dos
+  brazos** (C0 y X) a `ids_r` antes de `pair_populations`, que exige los mismos `signal_id`;
+  `bootstrap_block_delta` recibe la espina completa de la población (`population.spine`). `n_blocks`
+  cuenta los bloques con pares, y se publican, contra los 20 bloques ocupados de la población
+  completa, los que quedan sin pares.
 - **Falla** (DEPENDIENTE_DE_MERCADO) si alguna estimable tiene IC95 inferior ≤ 0.
 - **NO_CONCLUYENTE** si alguna no es estimable.
 - Se usa el IC95 (no solo el punto), con la misma regla de incertidumbre que ACEPTABLE.
@@ -610,7 +645,7 @@ Entradas: las clases de la sección 15 de los vecinos válidos de X y los semipl
 ACEPTABLE y `NE` los NO_ESTIMABLE.
 
 1. **Centro (condición E de la orden):** X cumple su criterio propio. Es decir, las diez condiciones
-   de P4 (D-64) y la reproducción exacta de sus valores en el preflight (sección 34, OD-P5-16). Si el
+   de P4 (D-64) y la reproducción de sus filas de P4 en el preflight (OD-P5-16). Si el
    preflight no reproduce, **STOP**: no es un veredicto, es un defecto del ejecutor. Un centro no
    puede sobrevivir porque sus vecinos sean buenos.
 2. **Sin cambio de signo:** ningún vecino es CONTRARIO.
@@ -626,7 +661,8 @@ ACEPTABLE y `NE` los NO_ESTIMABLE.
 
 - **Vecindad de 8 y semiplanos:** la continuidad se lee en las cuatro direcciones, y cada candidata
   tiene en su diagonal la recta que la define.
-- **0,75 de anchura:** una mayoría clara. B2 admite 2 vecinos no aceptables de 8 y S2, 1 de 5. Con
+- **0,75 de anchura:** una mayoría clara. B2 admite 2 vecinos no aceptables de 8; S2, 1 de 5, pero
+  ese uno no puede ser ninguno de sus dos vecinos iso-RR (sección 11.6). Con
   0,5 se aceptaría media corona caída, que es una cresta y no una meseta. Con 1,0, un solo fallo por
   ruido entre 5 u 8 intervalos sin corregir descartaría la candidata (sección 23.4).
 - **`|NE| ≤ 1`:** una celda no estimable no se cuenta como mala, pero dos dejan la meseta sin
@@ -642,9 +678,12 @@ estudiaron dos reglas:
   dependería de la curvatura, y el veredicto de S2 sería una moneda al aire decidida por la
   proximidad al control. Una pendiente suave no es fragilidad.
 - **«IC95 inferior > 0» (recomendada).** Es una regla de signo con incertidumbre. Excluye los
-  +0,0001, porque ningún vecino tiene un error típico de ese orden. Y es aproximadamente
-  **neutral a la distancia al control**: si el efecto y su error típico crecen los dos con la
-  distancia a C0, el cociente se mantiene.
+  +0,0001, porque ningún vecino tiene un error típico de ese orden. Es neutral a la distancia al control **bajo un supuesto declarado**: que el efecto y
+  su error típico crezcan los dos aproximadamente en proporción a la distancia a C0. En el eje del
+  objetivo hay apoyo parcial en P4 (cociente efecto/error ≈ 2,56 en B1 y ≈ 2,77 en B2). En la recta
+  iso-RR no hay ningún dato a distancia 0,25: si allí el error creciera como √d, el vecino
+  (2,25; 3,375), que decide solo el semiplano `m2−` de S2, tendría menos potencia. Se declara como
+  supuesto, no como hecho.
 
 Codex precisa el significado: **ACEPTABLE no significa «no se rompe», sino «mantiene una señal
 positiva estadísticamente clara frente a C0»**. Así se rotula en las salidas.
@@ -658,7 +697,12 @@ Solo con los intervalos de P4 ya publicados (`z95 / z98,75 ≈ 1,960 / 2,498`):
   (71 % del efecto de B2) y ≈ **0,020** (59 % del de S2). Codex llega a las mismas cifras;
 - si un vecino tuviera **exactamente** el efecto observado del centro y su mismo error típico, la
   probabilidad de que salga ACEPTABLE sería ≈ Φ(2,77 − 1,96) ≈ **0,79** en B2 y ≈ Φ(3,34 − 1,96) ≈
-  **0,92** en S2.
+  **0,92** en S2;
+- **por candidata** (revisión independiente, I-1), con esas probabilidades y suponiendo vecinos
+  independientes, la probabilidad de cumplir la regla de la meseta (condiciones 3 y 4 de la sección
+  23.1, sin contar las CONTRARIAS ni la capacidad) es:
+  - **B2:** P(≥ 6 ACEPTABLES de 8) ≈ **0,77**;
+  - **S2:** P(los dos iso-RR ACEPTABLES y ≥ 2 de los otros 3) = 0,92⁵ + 3·0,92⁴·0,08 ≈ **0,83**.
 
 Advertencias:
 - el efecto observado del centro está **inflado por la selección** de P4 (maldición del ganador), así
@@ -774,15 +818,20 @@ determinista; para las supervivientes, es la `config` que exige el gate.
     "max_hold_bars": 40,
     "coste_pct_ida_vuelta": 0.2,
     "entrada": "cierre_de_la_senal",
-    "salidas": ["STOP", "TARGET2", "TIME_EXIT", "FINAL_EXIT"],
+    "salidas": ["STOP_FIRST", "TARGET_FIRST", "TIME", "FINAL"],
     "ambiguous": "no_resuelto"
   }
 }
 ```
 
 - **Serialización canónica:** `json.dumps(payload, sort_keys=True, separators=(",", ":"),
-  ensure_ascii=False, allow_nan=False)`, codificado en UTF-8. Es la misma convención que
-  `canonical_hash` (`advisor/universe/vintage.py:12`), con `allow_nan=False` añadido.
+  ensure_ascii=False, allow_nan=False)`, codificado en UTF-8. Usa la **misma ordenación y los mismos
+  separadores** que `canonical_hash` (`advisor/universe/vintage.py:12`), pero **no es la misma
+  función**: `canonical_hash` usa `default=str` y no fija `allow_nan`. P5 define su propia función
+  canónica con `allow_nan=False` y sin `default`, de modo que un valor no serializable es un error y
+  no una cadena.
+- **Etiquetas de salida:** las constantes literales del código (`STOP_FIRST`, `TARGET_FIRST`, `TIME`,
+  `FINAL`, `advisor/research/event_study.py:38-42`), no nombres libres.
 - **Floats:** como números JSON con la representación más corta de ida y vuelta de Python (`repr`).
   Todos los valores de geometría son múltiplos de 1/8 y exactos en binario; `0.2` y `0.75` son
   deterministas con `repr`. Las listas conservan su orden.
@@ -845,7 +894,7 @@ con `|V_X|` el número de vecinos válidos de X.
   y revisión de diseño de Codex, revisión adversarial de la ficha.
 - `evidence/<fecha>-T-021-p5/preflight/`: identidad del ejecutor, población y hash, rejilla y
   validez, inventario estructural, configuraciones y hashes de todas las celdas, reproducción
-  exacta de C0/B2/S2 frente a P4 y recuento previsto. Sin desenlaces de ningún punto nuevo.
+  de C0 (identidad) y de B2/S2 (filas de P4) y recuento previsto. Sin desenlaces de ningún punto nuevo.
 - `evidence/<fecha>-T-021-p5/run/`: `p5-resultado.json`, `p5-resumen.md`, `tablas/*.tsv`
   (superficie por celda, clases, semiplanos, LOCRO, concentración, criterio condición por
   condición, recuento) y `SHA256SUMS-ejecucion.txt`.
@@ -904,11 +953,13 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
   - **B.** Escala de P4: `Δs = 0,5`, `Δm2 = 0,75`.
   - **C.** A, más un segundo anillo en el eje que P4 varió (3×5).
 - **Consecuencias:**
-  - **A:** perturbación de un ~10 % alrededor de cada centro, que mueve el stop del 80–86 % de las
+  - **A:** perturbación de un ~10 % alrededor de cada centro, que mueve el stop del 78–86 % de las
     señales (sección 11.2). Contradice la frase de T-020 §7 solo si P5 se leyera como rejilla de
     políticas: esta ficha la declara prueba de sensibilidad local a escala inferior.
-  - **B:** el vecino inferior de S2 en la recta iso-RR es C0 (ΔR ≡ 0) y el superior queda a dos
-    pasos de P4; la vecindad de S2 deja de ser local y deja de ser independiente del control.
+  - **B:** el vecino inferior de S2 en la recta iso-RR es C0 (ΔR ≡ 0), que es CONTRARIO por
+    definición: **S2 saldría FRÁGIL por construcción** (F1), salvo añadir una regla que excluya C0
+    de la vecindad. El superior, (3,0; 4,5), queda a un paso de P4 de S2. La vecindad de S2 deja de
+    ser local y deja de ser independiente del control.
   - **C:** añade anchura, pero en S2 el segundo anillo choca con la frontera (`s = 3,0` exige `m2 ≥
     4,5`) y vuelve a la asimetría (la columna `s = 3,0` es entera inválida); añade 9 vecinos válidos (+45
     comparaciones).
@@ -937,15 +988,26 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
     `|NE| ≤ 1`.
   - **B.** A, añadiendo `ΔR ≥ ½·ΔR_centro`.
   - **C.** Solo el signo puntual (ACEPTABLE = ΔR > 0, cota conservadora > 0, nivel > 0 y PF > 1).
+  - **Umbrales de la meseta, elegibles por separado** dentro de A:
+    - anchura `|A|/|E|`: **0,75 (recomendado)**, 0,5 o 1,0;
+    - no estimables: **`|NE| ≤ 1` (recomendado)** o `|NE| = 0`;
+    - semiplanos: **≥ 1 ACEPTABLE en cada uno (recomendado)** o sin condición de semiplano.
 - **Consecuencias:**
   - **A:** exigente. Un vecino con el mismo efecto que el centro sale ACEPTABLE con probabilidad
-    ≈ 0,79 en B2 y ≈ 0,92 en S2 (sección 23.4), por debajo de eso con la maldición del ganador.
-    Aproximadamente neutral a la distancia a C0.
+    ≈ 0,79 en B2 y ≈ 0,92 en S2, y la candidata cumple la regla de la meseta con ≈ 0,77 (B2) y ≈ 0,83
+    (S2) (sección 23.4), menos con la maldición del ganador.
+    Neutral a la distancia a C0 solo bajo el supuesto de la sección 23.3.
   - **B:** casi redundante con A en la mayoría de vecinos (el IC95 ya exige el 59–71 % del efecto),
     pero decide por curvatura en el vecino de S2 que está entre C0 y S2 (sección 23.3).
   - **C:** laxa: no distingue +0,0001 de un efecto real si el signo puntual es positivo, que es lo
     que la orden pide evitar.
-- **Recomendación:** **A.**
+  - **Umbrales:**
+    - anchura 0,5: admite media corona caída (una cresta);
+    - anchura 1,0: un solo fallo por ruido descarta, y la probabilidad por candidata cae a ≈ 0,15
+      (B2: 0,79⁸) y ≈ 0,66 (S2: 0,92⁵);
+    - `|NE| = 0`: una sola celda sin capacidad deja la candidata NO_CONCLUYENTE;
+    - sin semiplanos: una dirección entera podría caer sin vetar.
+- **Recomendación:** **A**, con 0,75, `|NE| ≤ 1` y semiplanos.
 - **Bloquea:** las secciones 15, 23, 24 y 26 y el test del criterio.
 
 ### OD-P5-5 — Vecindad
@@ -953,9 +1015,10 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Pregunta:** ¿4 u 8 vecinos? ¿Cómo se tratan los bordes y los puntos inválidos?
 - **Alternativas:** **A.** 8 vecinos; las ausencias estructurales no cuentan; semiplanos de la sección
   11.6. **B.** 4 vecinos ortogonales. **C.** 8 vecinos, contando las ausencias como fallos.
-- **Consecuencias:** B deja a S2 con 2 vecinos y sin la dirección «stop más ancho», y quita las
-  rectas que definen las dos candidatas. C castiga a S2 por estar sobre `min_rr`, y a B2 si OD-P5-3 =
-  A.
+- **Consecuencias:** A no cuenta las ausencias, pero deja a S2 con dos semiplanos de un solo vecino:
+  sus dos vecinos iso-RR tienen que ser ACEPTABLES (tolerancia efectiva de la sección 11.6). B deja a
+  S2 con 2 vecinos y sin la dirección «stop más ancho», y quita las rectas que definen las dos
+  candidatas. C castiga a S2 por estar sobre `min_rr`, y a B2 si OD-P5-3 = A.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 23.
 
@@ -964,8 +1027,10 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Pregunta:** ¿cómo se trata la multiplicidad de los vecinos?
 - **Alternativas:** **A.** Jerárquica, con 0 confirmatorias nuevas y vetos sin corrección. **B.**
   Bonferroni sobre todos los puntos. **C.** Banda simultánea.
-- **Consecuencias:** sección 22. B aumenta los vetos sin proteger contra nada que P5 pueda producir.
-  C es teoría y código nuevos.
+- **Consecuencias:** A conserva la evidencia confirmatoria de P4 y usa los IC95 sin corregir solo como
+  vetos: solo pueden quitar candidatas, y P5 no produce ningún descubrimiento que proteger. B ensancha
+  los intervalos y aumenta los vetos sin proteger contra nada que P5 pueda producir. C es teoría y
+  código nuevos (sección 22).
 - **Recomendación:** **A.**
 - **Bloquea:** las secciones 16 y 22 y el recuento.
 
@@ -988,7 +1053,14 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
     el IC95 inferior > 0.
   - **B.** Lo mismo, con el punto > 0 en lugar del IC95.
   - **C.** Solo descriptivo, con la dependencia leída en las estimaciones por región de P4.
-- **Consecuencias:** A usa la misma regla de incertidumbre que los vecinos. B es más laxa. C deja el
+  - **Capacidad del LOCRO**, elegible por separado:
+    - **i (recomendada):** la condición de pares relativa a la población sin r (umbrales de la
+      sección 19.2);
+    - **ii:** la condición absoluta de las celdas (91.126 de 101.251);
+    - **iii:** sin condición de pares, conservando las demás.
+- **Consecuencias:** A usa la misma regla de incertidumbre que los vecinos. Con la capacidad ii,
+  ningún LOCRO es estimable (56.353 / 66.629 / 83.298 < 91.126) y la salida `[]` queda decidida por el
+  texto. iii no detecta un emparejamiento roto dentro de la subpoblación. B es más laxa. C deja el
   requisito del gate sobre cifras ya publicadas y sin instrumento nuevo. En las tres, el resultado
   del centro está en buena parte anticipado por P4 (sección 19.2).
 - **Recomendación:** **A.**
@@ -999,8 +1071,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Pregunta:** ¿descriptiva o veto?
 - **Alternativas:** **A.** Descriptiva. **B.** Veto si los 5 activos que más contribuyen superan el
   50 % de `Σ ΔR`. **C.** Veto si un solo activo supera el 25 %.
-- **Consecuencias:** B y C fijarían el umbral conociendo los 90 ΔR por activo de B2 y S2 publicados
-  en P4.
+- **Consecuencias:** A publica la concentración sin que pueda quitar ni salvar candidatas; una
+  ventaja concentrada en pocos activos queda a la vista para P6, pero no veta aquí. B y C fijarían el
+  umbral conociendo los 90 ΔR por activo de B2 y S2 publicados en P4.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 20.
 
@@ -1042,7 +1115,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Pregunta:** ¿solo B2 y S2 pueden sobrevivir?
 - **Alternativas:** **A.** Sí: salida ⊆ {B2, S2}; ningún vecino es elegible. **B.** Permitir promover
   vecinos hasta 5 políticas.
-- **Consecuencias:** B convierte P5 en una segunda optimización sobre la misma cosecha.
+- **Consecuencias:** A hace que P5 solo pueda quitar candidatas heredadas: si un vecino es mejor, se
+  publica y no se adopta, y la salida `[]` es posible. B convierte P5 en una segunda optimización
+  sobre la misma cosecha.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 27 y el test del criterio.
 
@@ -1069,22 +1144,39 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 15.
 
-### OD-P5-16 — Reproducción del centro antes de la ejecución
+### OD-P5-16 — Reproducción de P4 antes de la ejecución
 
-- **Pregunta:** ¿dónde se comprueba que el ejecutor reproduce los valores de P4 de C0, B2 y S2?
+- **Pregunta:** ¿dónde y contra qué se comprueba que el ejecutor de P5 mide lo mismo que el de P4?
+- **Qué se puede reproducir** (corregido tras la revisión de Codex, BLOCKER): P4 **no publica C0
+  como salida**. `p4-resultado.json` → `salidas` contiene B1, B2, S1, S2 y E1, y `nivel.tsv` /
+  `estimaciones.tsv` solo tienen variantes. Por eso:
+  - **C0** se reproduce por **identidad**: la réplica de C0 reproduce exactamente el `ManagedEvent`
+    del event study en estado, salida y `net_R` (el test 3 de P4), y su `advisor_config_hash` es
+    `89406d28…6387`;
+  - **B2 y S2** reproducen sus filas de P4 en `run/tablas/`:
+    - `estimaciones.tsv`, por la clave `(comparacion, estimacion, estrato)`: primaria 60, Bonferroni,
+      120, las dos cotas y las dos mitades;
+    - `nivel.tsv`, por geometría;
+    - `capacidad.tsv` y `emparejamiento.tsv`, por comparación.
+  - **Regla de comparación:** se ignoran las líneas que empiezan por `#`; se comparan las columnas
+    nombradas; cada valor de P5 se formatea con la misma `_cell` de P4 (`advisor/research/p4.py:2128`,
+    `float` → `"{:.6f}"`) y se exige **igualdad de cadenas**, no de floats crudos. El Bonferroni de
+    20.000 remuestreos es determinista con la semilla derivada.
 - **Alternativas:**
-  - **A.** En el **preflight**: el ejecutor evalúa los desenlaces **solo** de C0, B2 y S2, ya
-    publicados en D-64, y exige igualdad exacta con los valores de `evidence/2026-10-01-T-020-p4/run/`
-    (punto, Bonferroni, 120, cotas, mitades, nivel y PF, a la precisión del TSV). Cualquier otra
-    geometría hace que el evaluador lance un error.
+  - **A.** En el **preflight**, antes de la marca: el ejecutor evalúa desenlaces **solo** de C0, B2 y
+    S2 (ya publicados en D-64) y **solo** para las estimaciones que P4 ya publicó. **No calcula
+    ninguna estimación nueva**: ni LOCRO, ni estratos, ni subpoblaciones (revisión independiente,
+    MENOR). La ruta del LOCRO se niega a ejecutarse sin la marca. Cualquier otra geometría hace que
+    el evaluador lance un error.
   - **B.** En la ejecución, después de la marca.
   - **C.** No reproducir: copiar los valores de P4.
 - **Consecuencias:** A detecta un defecto del ejecutor antes de consumir la ejecución única, sin
-  abrir ningún desenlace nuevo. B gasta la ejecución si hay un defecto. C no comprueba que el código
-  de P5 mida lo mismo que el de P4.
-- **Recomendación:** **A**, declarando en el preflight `outcomes_read = "solo C0/B2/S2 (ya
-  publicados)"`.
-- **Bloquea:** el preflight y el test de reproducción.
+  abrir ningún desenlace nuevo ni ninguna estimación nueva; tener en memoria los desenlaces por señal
+  de B2 y S2 ya publicados no permite calcular el LOCRO, porque esa ruta exige la marca. B gasta la
+  ejecución si hay un defecto. C no comprueba que el código de P5 mida lo mismo que el de P4.
+- **Recomendación:** **A**, declarando en el preflight `outcomes_read = "solo C0/B2/S2, solo
+  estimaciones ya publicadas en P4"`.
+- **Bloquea:** el preflight y los tests 6, 7 y 8.
 
 ## 34. Plan de implementación (requiere autorización aparte)
 
@@ -1109,11 +1201,17 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
       NO_CONCLUYENTE; un vecino mejor que el centro no cambia la candidata; un vecino nunca aparece
       en la salida; la salida solo puede ser `[]`, `[B2]`, `[S2]` o `[B2, S2]`; ALTA, la
       concentración y la ejecutabilidad no cambian el veredicto.
-   6. **LOCRO:** quita exactamente las señales de la región, conserva GLOBAL y EM y usa el mapa de
-      bloques de la población completa.
-   7. **Sin desenlaces nuevos en el preflight:** el evaluador lanza un error para cualquier geometría
-      distinta de C0, B2 y S2.
-   8. **Reproducción de P4:** C0, B2 y S2 reproducen exactamente los valores de la ejecución de P4.
+   6. **LOCRO:** quita exactamente las señales de la región **de los dos brazos**, conserva GLOBAL y
+      EM, usa la espina de la población completa y aplica los umbrales de pares relativos (50.718 /
+      59.967 / 74.969). Incluye un caso que falla con el denominador absoluto: una subpoblación
+      sintética sana que, con 91.126, saldría NO_ESTIMABLE. La ruta del LOCRO se niega sin la marca de
+      ejecución.
+   7. **Sin desenlaces ni estimaciones nuevas en el preflight:** el evaluador lanza un error para
+      cualquier geometría distinta de C0, B2 y S2, y el preflight no calcula LOCRO, estratos ni
+      ninguna estimación que P4 no publicara.
+   8. **Reproducción de P4:** C0 por identidad (`ManagedEvent` y hash); B2 y S2, igualdad de cadenas
+      con `_cell` contra las filas nombradas de `estimaciones.tsv`, `nivel.tsv`, `capacidad.tsv` y
+      `emparejamiento.tsv`.
    9. **Hash:** `advisor_config_hash` de C0 = `89406d28…6387`; serialización canónica estable; los
       campos duplicados coinciden.
    10. **Recuento:** derivado de las salidas con la fórmula de la sección 29.
@@ -1185,6 +1283,61 @@ desenlaces: **1 BLOCKER, 6 IMPORTANTE, 1 MENOR y 1 OBSERVACIÓN.**
 - **MENOR — «0 confirmatorias» solo si P5 es filtro.** Formulado así (sección 22).
 - **OBSERVACIÓN — separar el LOCRO de la bandera ALTA.** Hecho (sección 19.2).
 
-### Revisión adversarial independiente de la ficha
+### Revisión adversarial independiente de la ficha (primera vuelta)
 
-Pendiente en este borrador: se añade al terminar.
+Agente `revisor` nuevo, en solo lectura y sin desenlaces, sobre `3e597db`. Mandato: demostrar que el
+diseño permite escoger el resultado a posteriori. Informe literal en
+`evidence/2026-10-02-T-021-p5-diseno/revision-independiente-ficha.md`: **1 BLOCKER, 1 IMPORTANTE, 5
+MENOR y 2 OBSERVACIÓN.** No encontró ninguna forma de escoger el resultado después de medir.
+Comprobó correctos el inventario (las 18 filas contra el JSON), el álgebra, la inercia de `target3`,
+el recuento (71 / 56 / 518), las aproximaciones de la sección 23.4, las cifras de P4 y de la sección
+19.1, el hash y los bloques. También comprobó que la ficha cubre los 38 puntos pedidos.
+
+- **BLOCKER B-1 — el LOCRO nunca podía ser estimable** (pares ≥ 90 % de 101.251 en poblaciones de
+  56.353, 66.629 y 83.298 señales): la salida `[]` quedaba decidida por el texto. **Corregido:**
+  - la condición de pares del LOCRO es relativa a la población sin la región, con los tres umbrales
+    fijados desde el censo (sección 19.2);
+  - la capacidad del LOCRO es elegible en OD-P5-8 (i/ii/iii), con la consecuencia de ii escrita;
+  - el test 6 incluye un caso que falla con el denominador absoluto.
+- **IMPORTANTE I-1 — la tolerancia de S2 estaba mal descrita.** **Corregido:** la tolerancia efectiva
+  está en las secciones 11.6 y 23.2 (los dos vecinos iso-RR de S2 tienen que ser ACEPTABLES); la
+  probabilidad por candidata (≈ 0,77 en B2 y ≈ 0,83 en S2) está en la sección 23.4 y en OD-P5-4 y
+  OD-P5-5.
+- **MENOR.**
+  - OD-P5-2 B: añadido que S2 saldría FRÁGIL por construcción a la escala de P4; corregida la cuenta
+    de pasos (sección 11.2).
+  - Formato de las OD: consecuencias de A en OD-P5-6, OD-P5-9 y OD-P5-13; umbrales de la meseta
+    elegibles en OD-P5-4; capacidad del LOCRO en OD-P5-8.
+  - Preflight: no calcula ninguna estimación nueva, la ruta del LOCRO exige la marca, y el test 7 lo
+    comprueba (OD-P5-16).
+  - 80–86 % → 78–86 %.
+  - Paso diagonal de C0 (sección 5) e incoherencias que incluyen señales de soporte (secciones 10.2 y
+    10.3).
+- **OBSERVACIÓN.** La neutralidad a la distancia queda como supuesto declarado, con el apoyo parcial
+  de B1/B2 (sección 23.3). Las etiquetas de salida del envoltorio son ahora las constantes del código
+  (sección 28).
+
+### Segunda revisión de Codex, sobre la ficha (`3e597db`)
+
+Encargo y respuesta literales en `evidence/2026-10-02-T-021-p5-diseno/codex-encargo-ficha.md` y
+`codex-revision-ficha.md`. Solo lectura: **1 BLOCKER, 3 IMPORTANTE, 1 MENOR y 2 OBSERVACIÓN**. Las
+cuatro afirmaciones sobre código y evidencia se comprobaron antes de corregir: `salidas` de P4 sin
+C0; `_cell` a 6 decimales; `level_estimate` sobre todos los eventos observables; `pair_populations`
+con los mismos `signal_id`. Codex confirma también que sus hallazgos de diseño están cerrados.
+
+- **BLOCKER — P4 no publica C0 como salida reproducible.** **Corregido** en OD-P5-16 y el test 8: C0
+  se reproduce por identidad (`ManagedEvent` y hash), y B2/S2 por sus filas nombradas.
+- **IMPORTANTE.**
+  - Contrato operativo del LOCRO (filtrar los dos brazos, espina completa): sección 19.2.
+  - Población de cada métrica (ΔR sobre pares finales; nivel y PF sobre todos los eventos
+    observables de la celda): sección 15.
+  - Regla de comparación de la reproducción (sin líneas `#`, columnas nombradas, igualdad de cadenas
+    con `_cell`): OD-P5-16.
+- **MENOR — la serialización no es literalmente `canonical_hash`.** **Corregido:** P5 define su
+  propia función canónica con `allow_nan=False` y sin `default` (sección 28).
+- **OBSERVACIÓN.** Sin acción: confirman que la infraestructura existe y que el Bonferroni es
+  determinista.
+
+### Pendiente
+
+Una segunda vuelta del revisor sobre esta versión corregida, para confirmar el cierre de B-1 e I-1.

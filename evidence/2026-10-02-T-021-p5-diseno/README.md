@@ -11,6 +11,9 @@ expectancy ni intervalo) de ningún punto de ninguna superficie.
 | `inventario-estructural.json` | Salida del script (`outcomes_read: false`). Reproduce 101.251 señales y `population_sha256 = 78024050…` |
 | `codex-encargo-diseno.md` | Encargo literal a Codex (solo lectura) para refutar el diseño antes de redactar la ficha |
 | `codex-revision-diseno.md` | Respuesta literal de Codex: 1 BLOCKER, 6 IMPORTANTE, 1 MENOR y 1 OBSERVACIÓN. La respuesta a cada hallazgo está en la ficha, sección «Revisión de la ficha» |
+| `codex-encargo-ficha.md` | Encargo literal a Codex para revisar la ficha (`3e597db`) contra el código |
+| `codex-revision-ficha.md` | Respuesta literal de Codex sobre la ficha: 1 BLOCKER, 3 IMPORTANTE, 1 MENOR y 2 OBSERVACIÓN |
+| `revision-independiente-ficha.md` | Informe literal del revisor independiente (primera vuelta, `3e597db`): 1 BLOCKER, 1 IMPORTANTE, 5 MENOR y 2 OBSERVACIÓN |
 
 Reproducir, desde la raíz del repositorio y con la cosecha `071ddb2b…` en `data/vintages/`:
 
