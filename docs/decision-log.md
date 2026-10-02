@@ -1344,6 +1344,130 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 El resultado es de desarrollo; la validación independiente sigue en P7 (INV-15).
 
+### D-66 — 2026-10-02 — Pre-registro de P5: superficies, robustez y políticas elegibles
+Decisión del propietario. Cierra **OD-P5-1 a OD-P5-16** de la ficha T-021 (A-05). Se toma **antes
+de ejecutar P5 y sin ningún desenlace de ningún punto nuevo**: el único cálculo sobre la cosecha es
+el inventario estructural sin desenlaces de `evidence/2026-10-02-T-021-p5-diseno/`. La ficha
+`docs/tareas/T-021-p5-regiones-robustas.md` es la especificación; aquí se resumen las elecciones, y
+las alternativas no elegidas se conservan como historial en la ficha.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Qué es P5.** P5 prueba la robustez de B2 y S2, las candidatas de P4 (D-64), frente a C0. **Solo
+puede quitar candidatas; nunca promociona un vecino. P5 puede terminar en `[]`.** Es desarrollo
+sobre una cosecha ya consumida, posterior a la selección de P4, y **no es validación**: la validación
+independiente sigue en P7 (INV-15).
+
+**Qué se decide.**
+1. **Superficies:** dos 3×3 locales sobre una retícula común (OD-P5-1 = A). El paso es Δstop =
+   0,25·ATR y Δtarget2 = 0,375·ATR, fijo (OD-P5-2 = A).
+   - **B2:** stop ∈ {1,75; 2,00; 2,25} × target2 ∈ {4,500; 4,875; 5,250}; centro (2,00; 4,875).
+   - **S2:** stop ∈ {2,25; 2,50; 2,75} × target2 ∈ {3,375; 3,750; 4,125}; centro (2,50; 3,750).
+   - target1 = 1,5, `min_rr` = 1,5, `entry_max_atr` = 0,75, `target2_structural` = false, regla E,
+     coste 0,20 % y swing con 40 barras, fijos.
+2. **Borde de B2 con `target3`** (OD-P5-3 = C):
+   - en las tres celdas con target2 = 5,25, `target3` = 5,625 y `m3_auxiliar` = true, **solo para
+     el diagnóstico**;
+   - esas celdas no son políticas ni candidatas, nunca pueden salir de P5, y su hash contiene el
+     `target3` real de 5,625;
+   - B2 conserva `target3` = 5,0 y `m3_auxiliar` = false.
+3. **Frontera de RR de S2, truncada:** (2,50; 3,375), (2,75; 3,375) y (2,75; 3,750) son
+   `AUSENCIA_ESTRUCTURAL` (RR < 1,5). No se estiman y no entran en ningún denominador.
+4. **Vecindad de 8 vecinos geométricos** (OD-P5-5 = A), con semiplanos `s−`, `s+`, `m2−` y `m2+`.
+   - **13 vecinos válidos:** 8 de B2 y 5 de S2.
+   - **Ningún vecino es elegible como política.**
+   - **Asimetría de S2, que no se suaviza después de medir:** sus dos vecinos iso-RR, (2,25; 3,375)
+     y (2,75; 4,125), son cada uno el único vecino válido de un semiplano, así que **los dos tienen
+     que ser ACEPTABLES**. De los otros tres puede fallar como mucho uno.
+5. **Clases de celda** (OD-P5-15 = A, con los umbrales de capacidad de P4):
+   - `AUSENCIA_ESTRUCTURAL`;
+   - `NO_ESTIMABLE`: falla la capacidad. No es buena ni mala, cuenta en `|NE|` y puede llevar a
+     NO_CONCLUYENTE;
+   - `ACEPTABLE`: estimable, IC95 inferior de ΔR > 0, cota conservadora puntual > 0, nivel > 0 y
+     PF > 1 (OD-P5-4 = A; OD-P5-12 = A);
+   - `DÉBIL`: estimable, ΔR puntual > 0, pero no ACEPTABLE;
+   - `CONTRARIA`: estimable y ΔR puntual ≤ 0.
+6. **Región robusta** (OD-P5-4 = A), con umbrales fijos:
+   - ningún vecino CONTRARIO;
+   - cada semiplano con vecinos estimables tiene al menos un ACEPTABLE;
+   - `|A| / |E| ≥ 0,75`;
+   - `|NE| ≤ 1`;
+   - ningún semiplano con todos sus vecinos válidos NO_ESTIMABLES;
+   - y el centro cumple su propio criterio: las diez condiciones de P4 y la reproducción de P4 de
+     OD-P5-16.
+7. **Fragilidad:** exactamente F1–F6 de la ficha; no se añade ninguna causa después de medir.
+   - **Precedencia de etiqueta:** FRÁGIL > DEPENDIENTE_DE_MERCADO > NO_CONCLUYENTE > ROBUSTA.
+   - **Solo ROBUSTA sobrevive.**
+8. **Multiplicidad jerárquica** (OD-P5-6 = A):
+   - confirmatorias nuevas = **0**; la evidencia confirmatoria de B2 y S2 sigue siendo la de P4;
+   - los IC95 de los vecinos y del LOCRO son vetos pre-registrados: pueden quitar una candidata,
+     nunca crearla;
+   - sin Bonferroni nuevo y sin banda simultánea.
+9. **Mercado = región; LOCRO decisorio** (OD-P5-7 = A; OD-P5-8 = A, con la capacidad i):
+   - para cada centro se calcula la primaria sin USA, sin EUROPA y sin ASIA; GLOBAL y
+     EMERGING_MARKETS se quedan dentro y se publican descriptivamente;
+   - cada LOCRO pasa solo si es estimable y su IC95 inferior de ΔR es > 0;
+   - **la fracción de pares se calcula sobre su propia población restante:**
+     - sin USA: 56.353 señales, mínimo 50.718 pares;
+     - sin EUROPA: 66.629 señales, mínimo 59.967 pares;
+     - sin ASIA: 83.298 señales, mínimo 74.969 pares;
+   - el resto de los umbrales de capacidad, los de P4;
+   - **nunca el límite absoluto de 91.126** en el LOCRO, y un test demuestra que esa implementación
+     errónea fallaría.
+10. **Concentración por activo descriptiva** (OD-P5-9 = A):
+    - se publican positivos y negativos, percentiles, la mayor contribución individual y la de los
+      5 y los 10 primeros activos;
+    - no veta ni rescata, y no se introduce ningún umbral después.
+11. **Heterogeneidad no vetante** (OD-P5-10 = A): ALTA no veta. El instrumento se publica y no
+    decide; el FOLLOW_UP de autocorrelación y solapamiento sigue fuera de P5.
+12. **Temporal** (OD-P5-11 = A):
+    - **en el centro, veto** (aunque ya se conoce de P4): las dos mitades > 0, y el bloque de 120
+      con ΔR > 0 e IC95 inferior > 0;
+    - **en los vecinos**, el bloque de 120 y las mitades son descriptivos y no forman parte de
+      ACEPTABLE.
+13. **Ambigüedad** (OD-P5-12 = A): para que un vecino sea ACEPTABLE, la cota conservadora puntual
+    tiene que ser > 0. La favorable se publica. No se exige ningún IC de la cota.
+14. **Salida permitida, exactamente:** `[]`, `[B2]`, `[S2]` o `[B2, S2]` (OD-P5-13 = A). C0 sigue
+    siendo control. Un vecino, aunque tenga mejor ΔR, se publica, no se adopta, no recibe hash de
+    política candidata y no puede sustituir a B2 ni a S2.
+15. **Configuración y hash** (OD-P5-14 = A):
+    - `advisor_config_hash` sobre el `AdvisorConfig` completo con solo la geometría sustituida; en
+      C0 tiene que dar `89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387`;
+    - envoltorio canónico `intradia.p5.politica.v1` serializado con `json.dumps(payload,
+      sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)` en UTF-8;
+    - `policy_sha256`;
+    - las salidas son las constantes del código: `STOP_FIRST`, `TARGET_FIRST`, `TIME` y `FINAL`.
+16. **Recuento:** 5 comparaciones con IC por vecino y 3 LOCRO por centro: (8·5 + 3) + (5·5 + 3) =
+    **71**, con **0 confirmatorias nuevas**.
+    - El ejecutor deriva el 71 de la estructura antes de abrir ningún desenlace; si sale otro
+      número, **STOP**. El 71 nunca sustituye al recuento derivado.
+    - Acumulado descriptivo de comparaciones con IC sobre la cosecha: P4 447 + P5 71 = **518**.
+17. **Reproducción de P4 antes de la marca, con guardas reforzadas** (OD-P5-16 = A):
+    - **solo** se evalúan C0, B2 y S2; intentar evaluar cualquier otra geometría lanza un error;
+    - **solo** se reproducen estimaciones ya publicadas. Para X ∈ {B2, S2}, las filas de
+      `estimaciones.tsv`: `(X, primaria_60, "")` —que **es la de Bonferroni**, 0,9875 y 20.000
+      remuestreos—, `(X, bloque_120, "")`, `(X, cota_conservadora, "")`,
+      `(X, cota_favorable, "")`, `(X, mitades, bloques_2_11)` y `(X, mitades, bloques_12_21)`;
+      además, la fila X de `nivel.tsv` y de `capacidad.tsv`, y las filas X de
+      `emparejamiento.tsv`;
+    - del IC95 de 2.000 remuestreos usado para la capacidad solo se reproduce y compara la
+      `anchura_ic95`; sus extremos no se archivan;
+    - se comparan cadenas con la representación de P4 (`float` → `"{:.6f}"`). Si algo diverge,
+      **STOP**, sin actualizar el valor esperado ni introducir ninguna tolerancia;
+    - C0 se verifica por identidad semántica con el event study y por su `advisor_config_hash`;
+    - **aislamiento:** no se escriben eventos ni `net_R` por `signal_id`, y la API del preflight no
+      los devuelve; la función de reproducción devuelve solo el agregado autorizado;
+    - **antes de la marca fallan explícitamente**, con tests que lo comprueban: el LOCRO, las
+      regiones y subpoblaciones, los estratos, la concentración por activo nueva, los vecinos y
+      cualquier estimación nueva de P5;
+    - la evidencia del preflight solo contiene agregados ya publicados y controles estructurales;
+    - **esto no autoriza repetir P4** ni ejecutar `p4 --fase confirmatoria`.
+
+**Lo que no cambia.**
+- P5 **no** se ha ejecutado, y `p5.py` no se implementa sin una autorización nueva.
+- `config.yaml` sigue en `"1.0"` con C0, Score v2 inactivo y la Pi en `v0.4.1`.
+- El `P5_PREREG_SHA` será el HEAD documental que quede después de la revisión final del
+  pre-registro y de sus correcciones, con 0 BLOCKER y 0 IMPORTANTE.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

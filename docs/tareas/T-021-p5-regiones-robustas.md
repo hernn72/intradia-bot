@@ -1,12 +1,14 @@
 # T-021 — P5 Regiones robustas de parámetros: B2 y S2, con pre-registro (A-05)
 
-Estado: **BORRADOR DE PRE-REGISTRO — EN DISEÑO.** P5 **no se ha ejecutado** y no se ha calculado
-ningún resultado (`net_R`, ΔR, PF, expectancy ni intervalo) de ningún punto nuevo de ninguna
-superficie. Las OD-P5-1 a OD-P5-16 (sección 33) están **abiertas**: el propietario las cierra antes
-de fijar el `P5_PREREG_SHA`. Mientras no se cierren, las recomendaciones de esta ficha son
-propuestas, no reglas. La revisión de la ficha está hecha: Codex sobre el diseño y sobre la ficha, y
-dos vueltas del revisor independiente; la última, sin ningún BLOCKER ni IMPORTANTE (sección
-«Revisión de la ficha»).
+Estado: **PRE-REGISTRO — OD-P5-1 a OD-P5-16 CERRADAS en D-66 (2026-10-02).** P5 **no se ha
+ejecutado** y no se ha calculado ningún resultado (`net_R`, ΔR, PF, expectancy ni intervalo) de
+ningún punto nuevo de ninguna superficie. Las recomendaciones de la ficha son ahora **reglas
+vinculantes**: el propietario adoptó en D-66 todas las recomendadas, con las guardas reforzadas de
+OD-P5-16. Las alternativas no elegidas se conservan como historial en la sección 33.
+
+El candidato a **`P5_PREREG_SHA`** es el HEAD documental que quede después de la revisión final del
+pre-registro y de sus correcciones, con 0 BLOCKER y 0 IMPORTANTE (sección «Revisión de la ficha»).
+La implementación de `p5.py` necesita una autorización nueva.
 
 **Base:** `main = 4eed281ba5f4f611f07de3755a79c0b4005062d8` (GATE P4 cruzado, D-65).
 
@@ -285,7 +287,7 @@ Lecturas estructurales, sin desenlaces:
   técnica en todas las señales de stop por volatilidad. En S2, (2,25; 3,375), S2 y (2,75; 4,125)
   están sobre la recta iso-RR = 1,5.
 
-## 11. Superficies propuestas y rejilla exacta (OD-P5-1, OD-P5-2, OD-P5-5)
+## 11. Superficies y rejilla exacta (OD-P5-1, OD-P5-2, OD-P5-5)
 
 ### 11.1 Retícula común
 
@@ -349,12 +351,12 @@ Con OD-P5-3 = C: **8 vecinos válidos**. Con OD-P5-3 = A: la fila 5,25 es invál
 | B2 (OD-P5-3 = C) | 9 | 1 | **8** | 0 |
 | B2 (OD-P5-3 = A) | 9 | 1 | 5 | 3 (`m2 = 5,25 ≥ m3`) |
 | S2 | 9 | 1 | **5** | 3 (RR < 1,5) |
-| **Total con la recomendación** | **18** | **2** | **13** | **3** |
+| **Total (D-66, OD-P5-3 = C)** | **18** | **2** | **13** | **3** |
 
 - **Puntos coincidentes entre las dos superficies: ninguno.** Las dos comparten la columna `s =
   2,25`, pero con objetivos distintos ({4,5; 4,875; 5,25} en B2 y {3,375; 3,75; 4,125} en S2).
 - **Configuraciones únicas a evaluar:** 13 vecinos nuevos + 2 centros (reproducción de P4) + C0 =
-  **16** con la recomendación (13 con OD-P5-3 = A: 10 vecinos).
+  **16** con D-66 (habrían sido 13 con OD-P5-3 = A, que no se eligió).
 - Ningún punto de la rejilla coincide con B1, S1 ni C0.
 
 ### 11.6 Vecindad (OD-P5-5)
@@ -420,7 +422,7 @@ mueve (sección 9.2).
   - **Test obligatorio** (sección 34): con barras sintéticas, el `ManagedEvent` de una geometría es
     idéntico con `m3 = 5,0` y con `m3 = 5,625` cuando `m2 < 5,0`.
 
-**Recomendación: C restringida para `m3`, y truncar en la frontera `min_rr`.**
+**Decisión (D-66): C restringida para `m3`, y truncar en la frontera `min_rr`.**
 
 ## 13. Métrica primaria
 
@@ -512,7 +514,7 @@ Contrato de P4 y P2.6, sin cambios:
 P5 **no constituye validación temporal**: la cosecha está consumida (D-62, regla 7). Se mantiene la
 desviación formal del protocolo que registró D-63. No se crea ninguna partición nueva.
 
-Recomendación:
+Decisión (D-66, OD-P5-11 = A):
 - **Centro:** las dos mitades (bloques 2–11 y 12–21) con media de ΔR > 0, y la sensibilidad de 120
   con ΔR > 0 y IC95 inferior > 0, **son veto**. Son los valores de P4 (D-64), que el preflight de P5
   reproduce. Ya se sabe que pasan: es reverificación no informativa (sección 5).
@@ -531,14 +533,14 @@ Por celda se calculan las dos cotas envolventes con el mismo estimador:
 - **conservadora para la celda:** sus ambiguas salen por stop y las de C0 por objetivo;
 - **favorable para la celda:** al revés.
 
-Recomendación: **la cota conservadora (puntual) > 0 forma parte de ACEPTABLE**; la favorable se
+Decisión (D-66, OD-P5-12 = A): **la cota conservadora (puntual) > 0 forma parte de ACEPTABLE**; la favorable se
 publica. Ninguna resolución se elige después. En el centro vale la cota de P4, reproducida.
 
 ## 19. Mercado, región y leave-one-region-out (OD-P5-7, OD-P5-8)
 
 ### 19.1 Qué es «mercado»
 
-**Recomendación: la región económica del activo** (`Asset.region`, `advisor/universe/models.py`),
+**Decisión (D-66, OD-P5-7 = A): la región económica del activo** (`Asset.region`, `advisor/universe/models.py`),
 con las regiones núcleo **USA, EUROPA y ASIA** como unidad decisoria.
 
 Motivos:
@@ -594,7 +596,7 @@ desaparece al quitar una región, no la dispersión entre bloques. ALTA sigue si
 
 ## 20. Activos y concentración (OD-P5-9)
 
-**Recomendación: descriptiva, sin veto.** P4 ya publicó los 90 ΔR por activo de B2 y de S2, así que
+**Decisión (D-66, OD-P5-9 = A): descriptiva, sin veto.** P4 ya publicó los 90 ΔR por activo de B2 y de S2, así que
 cualquier umbral fijado ahora se fijaría conociendo los datos.
 
 Se publica para B2 y S2 (puntos, sin IC; no cuentan):
@@ -609,7 +611,7 @@ partir de los activos que salgan.
 
 ## 21. Heterogeneidad (OD-P5-10)
 
-**Recomendación: A — no reparar el instrumento dentro de P5.** Se publica la bandera de P2.6
+**Decisión (D-66, OD-P5-10 = A): no reparar el instrumento dentro de P5.** Se publica la bandera de P2.6
 (BAJA / COMPATIBLE CON RUIDO / ALTA / NO ESTIMABLE y τ) para cada celda y para cada LOCRO, **solo
 como descriptiva**. **ALTA no veta en P5.** El instrumento remuestrea como independientes sesiones
 que comparten hasta 40 barras, y puede marcar ALTA un efecto constante (D-63). El FOLLOW_UP de D-63
@@ -618,7 +620,7 @@ la bandera.
 
 ## 22. Multiplicidad (OD-P5-6)
 
-**Recomendación: A — jerárquica.**
+**Decisión (D-66, OD-P5-6 = A): jerárquica.**
 - B2 y S2 **conservan su evidencia confirmatoria de P4** (Bonferroni, `m = 4`). P5 no la repite ni la
   sustituye.
 - P5 **no tiene familia confirmatoria nueva: 0 confirmatorias.**
@@ -788,7 +790,16 @@ la superficie, sería una OWNER_DECISION previa a medir. Esta ficha recomienda q
 ## 28. Configuración canónica y hash (OD-P5-14)
 
 Para cada celda (centros, vecinos y C0) el ejecutor genera una configuración completa y
-determinista; para las supervivientes, es la `config` que exige el gate.
+determinista, con su hash, **para trazabilidad**. El papel de cada una va fuera del hash, en
+`procedencia.rol`:
+- `CONTROL` para C0;
+- `CANDIDATA` para B2 y S2;
+- `DIAGNOSTICO_SUPERFICIE` para los vecinos, con `m3_auxiliar` explícito.
+
+**Un vecino nunca recibe hash de política candidata** (D-66): su hash identifica la configuración
+diagnóstica que se midió, no una política. Solo las candidatas supervivientes se publican como
+política candidata, y su configuración es la `config` que exige el gate. El hash de las tres celdas
+con `m3_auxiliar` contiene el `target3` real de 5,625.
 
 **Política = dos partes.**
 1. **`advisor_config_hash`:** el `config_hash` del proyecto (`advisor/run/manifest.py:80`) sobre el
@@ -875,8 +886,8 @@ con `|V_X|` el número de vecinos válidos de X.
 
 | Escenario | `|V_B2|` | `|V_S2|` | **N** |
 |---|---|---|---|
-| **Recomendado (OD-P5-3 = C)** | 8 | 5 | **(40 + 3) + (25 + 3) = 71** |
-| OD-P5-3 = A | 5 | 5 | (25 + 3) + (25 + 3) = 56 |
+| **D-66 (OD-P5-3 = C)** | 8 | 5 | **(40 + 3) + (25 + 3) = 71** |
+| OD-P5-3 = A (no elegida) | 5 | 5 | (25 + 3) + (25 + 3) = 56 |
 
 - **Confirmatorias nuevas: 0.** Decisorias: primaria de cada vecino (13), sus cotas conservadoras y
   niveles (que deciden por su punto), y los 6 LOCRO. Todo lo demás es descriptivo.
@@ -886,8 +897,12 @@ con `|V_X|` el número de vecinos válidos de X.
 - **Desglose pedido por la orden:** global 13 (primarias); por región 6 (LOCRO); leave-one-region-out
   6 (los mismos); por activo 0 (descriptivo, sin IC); temporal 13 (120 de los vecinos; las mitades
   son puntos); sensibilidad 120 13 (las mismas); ambigüedad 26 (13 × 2); nivel 13.
-- **Si una celda quedara sin pares** por una razón estructural, el número cambia por esa razón. Se
-  publica el recuento derivado con sus componentes y el motivo, **nunca** un 71 escrito a mano.
+- **El ejecutor deriva N de la estructura antes de abrir ningún desenlace** (rejilla, validez y
+  regiones). Si sale distinto de 71, **STOP** (D-66). El 71 es la comprobación, nunca el sustituto
+  del recuento.
+- **Si después de abrir desenlaces una celda quedara sin pares** por una razón estructural, el
+  número de estimaciones producidas cambia por esa razón. Se publica el recuento derivado con sus
+  componentes y el motivo, **nunca** un 71 escrito a mano.
 - Con P4 (447), el acumulado sobre la cosecha queda en 518 comparaciones con IC. Se publica.
 
 ## 30. Evidencia prevista
@@ -930,11 +945,16 @@ En el diseño y en la ejecución:
 - presentar el resultado como validación fuera de muestra;
 - ejecutar P5 más de una vez: un cambio posterior es un estudio nuevo, con decisión propia.
 
-## 33. OWNER_DECISION_REQUIRED
+## 33. OWNER_DECISION_REQUIRED — todas CERRADAS en D-66 (2026-10-02)
 
-Todas **abiertas**. La recomendación técnica va la primera en cada una.
+El propietario adoptó en D-66 la recomendación de cada una (OD-P5-8 con la capacidad i y OD-P5-16
+con guardas reforzadas). La decisión va al principio de cada OD. Las alternativas y consecuencias
+que siguen son el historial de la pregunta tal como se planteó; lo vinculante es D-66 y el cuerpo de
+esta ficha.
 
-### OD-P5-1 — Forma de la superficie
+### OD-P5-1 — Forma de la superficie · **CERRADA (D-66): A**
+
+**Decisión del propietario:** dos superficies locales de 3×3 sobre una retícula común. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué forma tienen las superficies de P5?
 - **Alternativas:**
@@ -949,7 +969,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la rejilla y el recuento.
 
-### OD-P5-2 — Valores exactos de los ejes y resolución
+### OD-P5-2 — Valores exactos de los ejes y resolución · **CERRADA (D-66): A**
+
+**Decisión del propietario:** Δstop = 0,25·ATR y Δtarget2 = 0,375·ATR; B2: stop {1,75; 2,00; 2,25} × target2 {4,500; 4,875; 5,250}; S2: stop {2,25; 2,50; 2,75} × target2 {3,375; 3,750; 4,125}. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué pasos y qué valores?
 - **Alternativas:**
@@ -971,7 +993,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la rejilla, el recuento y el test de retícula.
 
-### OD-P5-3 — Borde de B2 con `target3`
+### OD-P5-3 — Borde de B2 con `target3` · **CERRADA (D-66): C**
+
+**Decisión del propietario:** `target3` = 5,625 y `m3_auxiliar` = true solo en las tres celdas diagnósticas con target2 = 5,25; nunca políticas ni candidatas; B2 conserva `target3` = 5,0. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿cómo se trata la frontera `m2 < m3 = 5,0`?
 - **Alternativas:** A (truncar), B (reparametrizar) o C (`m3` auxiliar = 5,625 solo en la fila
@@ -984,7 +1008,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
   del propietario (A), porque el inventario demuestra que A impide la evaluación simétrica.
 - **Bloquea:** la rejilla de B2, el recuento (71 o 56) y el test de inercia de `m3`.
 
-### OD-P5-4 — Definición algorítmica de región robusta
+### OD-P5-4 — Definición algorítmica de región robusta · **CERRADA (D-66): A**
+
+**Decisión del propietario:** ACEPTABLE = estimable, IC95 inferior de ΔR > 0, cota conservadora puntual > 0, nivel > 0 y PF > 1; región robusta = ningún CONTRARIO, ≥ 1 ACEPTABLE en cada semiplano con estimables, `|A|/|E| ≥ 0,75`, `|NE| ≤ 1` y ningún semiplano entero NO_ESTIMABLE. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué hace ACEPTABLE a un vecino y qué hace robusta a una región?
 - **Alternativas:**
@@ -1015,7 +1041,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A**, con 0,75, `|NE| ≤ 1` y semiplanos.
 - **Bloquea:** las secciones 15, 23, 24 y 26 y el test del criterio.
 
-### OD-P5-5 — Vecindad
+### OD-P5-5 — Vecindad · **CERRADA (D-66): A**
+
+**Decisión del propietario:** 8 vecinos geométricos; las ausencias estructurales no cuentan; S2 mantiene su tolerancia asimétrica (sus dos vecinos iso-RR tienen que ser ACEPTABLES). El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿4 u 8 vecinos? ¿Cómo se tratan los bordes y los puntos inválidos?
 - **Alternativas:** **A.** 8 vecinos; las ausencias estructurales no cuentan; semiplanos de la sección
@@ -1027,7 +1055,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 23.
 
-### OD-P5-6 — Multiplicidad
+### OD-P5-6 — Multiplicidad · **CERRADA (D-66): A**
+
+**Decisión del propietario:** jerárquica; 0 confirmatorias nuevas; IC95 de vecinos y LOCRO como vetos; sin Bonferroni nuevo ni banda simultánea. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿cómo se trata la multiplicidad de los vecinos?
 - **Alternativas:** **A.** Jerárquica, con 0 confirmatorias nuevas y vetos sin corrección. **B.**
@@ -1039,7 +1069,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** las secciones 16 y 22 y el recuento.
 
-### OD-P5-7 — Qué es «mercado»
+### OD-P5-7 — Qué es «mercado» · **CERRADA (D-66): A**
+
+**Decisión del propietario:** región; USA, EUROPA y ASIA decisorias; GLOBAL y EMERGING_MARKETS dentro y descriptivas. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué unidad decide la dependencia de un solo mercado?
 - **Alternativas:** **A.** Región, con USA, EUROPA y ASIA decisorias y GLOBAL/EM descriptivas.
@@ -1050,7 +1082,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 19.
 
-### OD-P5-8 — Leave-one-region-out
+### OD-P5-8 — Leave-one-region-out · **CERRADA (D-66): A con la capacidad i**
+
+**Decisión del propietario:** LOCRO decisorio sobre los centros; pasa si es estimable y su IC95 inferior > 0; pares relativos a la población restante (50.718 / 59.967 / 74.969); nunca 91.126. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿es obligatorio y cuándo pasa?
 - **Alternativas:**
@@ -1071,7 +1105,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A, con la capacidad i.**
 - **Bloquea:** las secciones 19 y 25 y el recuento (+6).
 
-### OD-P5-9 — Concentración por activo
+### OD-P5-9 — Concentración por activo · **CERRADA (D-66): A**
+
+**Decisión del propietario:** concentración por activo descriptiva; no veta ni rescata. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿descriptiva o veto?
 - **Alternativas:** **A.** Descriptiva. **B.** Veto si los 5 activos que más contribuyen superan el
@@ -1082,7 +1118,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 20.
 
-### OD-P5-10 — Heterogeneidad
+### OD-P5-10 — Heterogeneidad · **CERRADA (D-66): A**
+
+**Decisión del propietario:** ALTA no veta; el FOLLOW_UP del instrumento sigue fuera de P5. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué hace P5 con el FOLLOW_UP del instrumento de heterogeneidad?
 - **Alternativas:** **A.** No repararlo en P5: bandera descriptiva y ALTA no veta. **B.** Reparar
@@ -1093,7 +1131,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 21.
 
-### OD-P5-11 — Robustez temporal
+### OD-P5-11 — Robustez temporal · **CERRADA (D-66): A**
+
+**Decisión del propietario:** veto en el centro (mitades > 0; 120 con ΔR > 0 e IC95 inferior > 0); descriptiva en los vecinos. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué veta la dimensión temporal?
 - **Alternativas:** **A.** Veto en el centro (mitades y 120, ya conocidos de P4); en los vecinos,
@@ -1105,7 +1145,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** las secciones 17 y 26.
 
-### OD-P5-12 — Ambigüedad
+### OD-P5-12 — Ambigüedad · **CERRADA (D-66): A**
+
+**Decisión del propietario:** cota conservadora puntual > 0 como parte de ACEPTABLE; la favorable se publica; sin IC de la cota. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué se exige a cada celda?
 - **Alternativas:** **A.** Cota conservadora (puntual) > 0 como parte de ACEPTABLE; la favorable se
@@ -1115,7 +1157,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 18.
 
-### OD-P5-13 — Políticas elegibles
+### OD-P5-13 — Políticas elegibles · **CERRADA (D-66): A**
+
+**Decisión del propietario:** salida ⊆ {B2, S2}; ningún vecino elegible. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿solo B2 y S2 pueden sobrevivir?
 - **Alternativas:** **A.** Sí: salida ⊆ {B2, S2}; ningún vecino es elegible. **B.** Permitir promover
@@ -1126,7 +1170,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 27 y el test del criterio.
 
-### OD-P5-14 — Configuración canónica y hash
+### OD-P5-14 — Configuración canónica y hash · **CERRADA (D-66): A**
+
+**Decisión del propietario:** `advisor_config_hash` + envoltorio `intradia.p5.politica.v1` + `policy_sha256`, con las constantes de salida del código. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué campos forman la política y cómo se serializa?
 - **Alternativas:**
@@ -1139,7 +1185,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 28 y el test de hash.
 
-### OD-P5-15 — Capacidad de celda
+### OD-P5-15 — Capacidad de celda · **CERRADA (D-66): A**
+
+**Decisión del propietario:** umbrales de capacidad de P4; clases AUSENCIA_ESTRUCTURAL / NO_ESTIMABLE / ACEPTABLE / DÉBIL / CONTRARIA. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿qué hace interpretable una celda?
 - **Alternativas:** **A.** Los umbrales de P4 (condiciones 3 y 9), con las clases NO_ESTIMABLE /
@@ -1149,7 +1197,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Recomendación:** **A.**
 - **Bloquea:** la sección 15.
 
-### OD-P5-16 — Reproducción de P4 antes de la ejecución
+### OD-P5-16 — Reproducción de P4 antes de la ejecución · **CERRADA (D-66): A, con guardas reforzadas**
+
+**Decisión del propietario:** reproducción de P4 antes de la marca solo de C0, B2 y S2 y solo de estimaciones ya publicadas, con las reglas de la sección 33 (OD-P5-16, «Reglas vinculantes»). El texto que sigue es el historial de la pregunta tal como se planteó.
 
 - **Pregunta:** ¿dónde y contra qué se comprueba que el ejecutor de P5 mide lo mismo que el de P4?
 - **Qué se puede reproducir** (corregido tras la revisión de Codex, BLOCKER): P4 **no publica C0
@@ -1192,10 +1242,36 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
   estimaciones ya publicadas en P4"`.
 - **Bloquea:** el preflight y los tests 6, 7 y 8.
 
+**Reglas vinculantes del preflight de reproducción (D-66):**
+1. **Lista blanca de geometrías:** antes de la marca solo se evalúan C0, B2 y S2. Intentar evaluar
+   un vecino, o cualquier otra geometría, lanza un error.
+2. **Lista blanca de estimaciones**, solo las ya publicadas. Para X ∈ {`B2`, `S2`}:
+   - en `estimaciones.tsv`: `(X, primaria_60, "")`, `(X, bloque_120, "")`,
+     `(X, cota_conservadora, "")`, `(X, cota_favorable, "")`, `(X, mitades, bloques_2_11)` y
+     `(X, mitades, bloques_12_21)`. La fila `primaria_60` **es la de Bonferroni** (`ic_nivel` =
+     0,9875, `remuestreos` = 20.000); no existe otra fila de primaria al 95 %;
+   - la fila X de `nivel.tsv` y de `capacidad.tsv`, y las filas X de `emparejamiento.tsv`;
+   - del IC95 de 2.000 remuestreos usado para la capacidad, solo se reproduce y compara
+     `anchura_ic95`. Sus extremos no se archivan.
+3. **Comparación:** cadenas con la representación de P4 (`float` → `"{:.6f}"`) sobre las columnas
+   pre-registradas. Si algo diverge, **STOP**, sin actualizar el valor esperado ni introducir
+   ninguna tolerancia.
+4. **C0:** identidad semántica con el event study y `advisor_config_hash` =
+   `89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387`.
+5. **Aislamiento:**
+   - no se escriben eventos ni `net_R` por `signal_id`;
+   - la API del preflight no los devuelve: la función de reproducción devuelve solo el agregado
+     autorizado;
+   - antes de la marca fallan explícitamente el LOCRO, las regiones y subpoblaciones, los estratos,
+     la concentración por activo nueva, los vecinos y cualquier estimación nueva de P5, con tests
+     que intentan llamar cada ruta y esperan la excepción;
+   - la evidencia del preflight solo contiene agregados ya publicados y controles estructurales.
+6. **No autoriza repetir P4** ni ejecutar `p4 --fase confirmatoria`.
+
 ## 34. Plan de implementación (requiere autorización aparte)
 
-1. **Paso 1 — pre-registro.** Esta ficha, con las OD-P5 cerradas y la revisión aplicada. El HEAD
-   documental que quede es el **`P5_PREREG_SHA`**.
+1. **Paso 1 — pre-registro.** Esta ficha, con las OD-P5 cerradas en D-66 y la revisión final
+   aplicada. El HEAD documental que quede con 0 BLOCKER y 0 IMPORTANTE es el **`P5_PREREG_SHA`**.
 2. **Paso 2 — ejecutor y preflight, con una autorización nueva.** Codex programa y Claude supervisa
    `advisor/research/p5.py` y un comando `p5 --fase preflight|confirmatoria`. Reutiliza
    `p4.build_population`, `geometry_levels`, la réplica de geometrías, `pair_populations`,
@@ -1220,18 +1296,26 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
       59.967 / 74.969). Incluye un caso que falla con el denominador absoluto: una subpoblación
       sintética sana que, con 91.126, saldría NO_ESTIMABLE. La ruta del LOCRO se niega sin la marca de
       ejecución.
-   7. **Sin desenlaces ni estimaciones nuevas en el preflight:** el evaluador lanza un error para
-      cualquier geometría distinta de C0, B2 y S2, y el preflight no calcula LOCRO, estratos ni
-      ninguna estimación que P4 no publicara.
+   7. **Sin desenlaces ni estimaciones nuevas en el preflight** (D-66, OD-P5-16):
+      - el evaluador lanza un error para cualquier geometría distinta de C0, B2 y S2;
+      - un test por ruta intenta llamar, antes de la marca, al LOCRO, a las regiones y
+        subpoblaciones, a los estratos, a la concentración por activo, a los vecinos y a cualquier
+        estimación nueva de P5, y espera la excepción;
+      - la API del preflight no devuelve eventos ni `net_R` por `signal_id`, y la evidencia del
+        preflight no los contiene.
    8. **Reproducción de P4:** C0 por identidad (`ManagedEvent` y hash); B2 y S2, igualdad de cadenas
-      con `_cell` contra las filas nombradas de `estimaciones.tsv`, `nivel.tsv`, `capacidad.tsv` y
-      `emparejamiento.tsv`.
+      con `_cell` contra las filas y columnas de la lista blanca de OD-P5-16. Una divergencia
+      inyectada produce STOP, sin tolerancia y sin reescribir el valor esperado.
    9. **Hash:** `advisor_config_hash` de C0 = `89406d28…6387`; serialización canónica estable; los
       campos duplicados coinciden.
-   10. **Recuento:** derivado de las salidas con la fórmula de la sección 29.
-   11. **Ejecución única:** la marca se escribe antes de abrir los desenlaces nuevos y el ejecutor se
+   10. **Recuento:** derivado de la estructura antes de abrir desenlaces (STOP si no da 71) y de las
+       salidas después, con la fórmula de la sección 29.
+   11. **Vecinos nunca elegibles:** ninguna celda con `rol = DIAGNOSTICO_SUPERFICIE` (en particular,
+       ninguna con `m3_auxiliar = true`) puede aparecer en la salida ni recibir hash de política
+       candidata.
+   12. **Ejecución única:** la marca se escribe antes de abrir los desenlaces nuevos y el ejecutor se
        niega si ya existe.
-   12. **Producción intacta:** `config.yaml`, el backtest `--vintage` normalizado y la suite, iguales.
+   13. **Producción intacta:** `config.yaml`, el backtest `--vintage` normalizado y la suite, iguales.
 4. **Paso 3 — revisión de look-ahead previa**, por un agente independiente, sobre el código y el
    preflight.
 5. **Paso 4 — una única ejecución** sobre el SHA congelado del ejecutor.
@@ -1264,11 +1348,11 @@ Pasa a P6 como FOLLOW_UP / HANDOFF, sin mezclarse con P5:
 
 ## 37. Handoff al siguiente agente
 
-- **Estado:** borrador de pre-registro con las OD-P5 abiertas. P5 **no** se ha ejecutado y no se ha
+- **Estado:** pre-registro con las OD-P5 cerradas en D-66. P5 **no** se ha ejecutado y no se ha
   calculado ningún resultado de ningún vecino. El único cálculo sobre la cosecha es el inventario
   estructural sin desenlaces de la sección 10.3.
-- **Siguiente:** cerrar las OD-P5 con el propietario, aplicar la revisión, fijar el `P5_PREREG_SHA` y,
-  **con una autorización nueva**, el paso 2.
+- **Siguiente:** fijar el `P5_PREREG_SHA` (el HEAD documental tras la revisión final del
+  pre-registro, con 0 BLOCKER y 0 IMPORTANTE) y, **con una autorización nueva**, el paso 2.
 - **Prohibido sin esa autorización:** implementar `p5.py`; evaluar desenlaces de cualquier celda;
   ejecutar P4 o `comparacion-pareada`.
 
@@ -1371,3 +1455,8 @@ Dejó 1 MENOR y 3 OBSERVACIÓN, todos de redacción y corregidos después:
 - **N-3:** la recomendación de OD-P5-8 es «A, con la capacidad i»; «en A, B y C».
 
 Con la regla del propietario (0 BLOCKER y 0 IMPORTANTE), la ficha queda lista para cerrar las OD-P5.
+
+### Revisión final del pre-registro (sobre la versión con D-66)
+
+Pendiente en este commit: el mismo revisor comprueba que D-66 se transcribió fielmente y que no
+aparece ningún grado de libertad nuevo.
