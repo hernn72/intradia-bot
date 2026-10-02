@@ -942,7 +942,8 @@ def test_preflight_no_lee_desenlaces(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not ok and "abortado" in report and report["outcomes_read"] is False
     population = p4.build_population(config, universe, vintage)
     assert population.signals
-    sections, checks = p4.compute_preflight_sections(population, config.levels)
+    sections, checks, levels = p4.compute_preflight_sections(population, config.levels)
+    assert set(levels) == {"C0", "B1", "B2", "S1", "S2"}
     assert {"algebra", "niveles", "holgura_d06", "volatilidad", "estratos", "recuento"} <= set(sections)
     assert ("C0 recalculado = niveles de la enumeración", 0, 0, True) in checks
 
@@ -957,12 +958,13 @@ def _ok_report() -> Dict[str, Any]:
         "ok": True,
         "definitivo": True,
         "identidad": {"p4_executor_sha": "abc"},
-        "poblacion": {"p4": 1},
+        "poblacion": {"p4": 1, "p4_population_sha256": "pob", "signal_ids_sha256": "ids"},
         "bloques": {},
-        "volatilidad": {},
+        "volatilidad": {"cortes_atr_sobre_precio": [0.01, 0.02]},
         "niveles": {},
         "recuento": {},
         "rejilla": {},
+        "niveles_sha256": {"C0": "n0"},
     }
 
 
@@ -972,17 +974,25 @@ def test_marca_confirmatoria_antes_de_abrir_desenlaces(tmp_path: Path, monkeypat
     monkeypatch.setattr(p4, "PREFLIGHT_DIR", tmp_path / "preflight")
     _stored_preflight(tmp_path / "preflight", _ok_report())
     monkeypatch.setattr(p4, "executor_unchanged_since", lambda sha, repo: True)
-    monkeypatch.setattr(p4, "run_preflight", lambda *a, **k: (True, _ok_report()))
-    seen: List[bool] = []
+    monkeypatch.setattr(p4, "_preflight", lambda *a, **k: (True, _ok_report(), "congelado"))
+    seen: List[Dict[str, Any]] = []
 
     def spy(*args: Any, **kwargs: Any) -> Tuple[int, Dict[str, Any]]:
-        seen.append((run_dir / p4.RUN_MARKER).exists())
+        assert (run_dir / p4.RUN_MARKER).exists()
+        seen.append(json.loads((run_dir / p4.RUN_MARKER).read_text(encoding="utf-8")))
+        assert args[-1] == "congelado"  # recibe lo congelado antes de la marca
         return 3, {"motivo": "parada de prueba"}
 
     monkeypatch.setattr(p4, "execute_with_outcomes", spy)
     ident = p4.P4Identity("abc", False, True, "h", "1.0")
     code, text = p4.run_confirmatory(None, None, None, ident, run_dir)  # type: ignore[arg-type]
-    assert seen == [True]  # la marca existía antes de abrir ningún desenlace
+    assert len(seen) == 1  # la marca existía antes de abrir ningún desenlace
+    marker = seen[0]
+    assert marker["p4_prereg_sha"] == p4.P4_PREREG_SHA
+    assert marker["p4_executor_sha_preflight"] == "abc" and marker["head_sha"] == "abc"
+    assert marker["p4_population_sha256"] == "pob" and marker["signal_ids_sha256"] == "ids"
+    assert marker["niveles_sha256"] == {"C0": "n0"} and marker["cortes_terciles"] == [0.01, 0.02]
+    assert marker["familia_confirmatoria"] == list(p4.CONFIRMATORY_FAMILY) and marker["seed"] == p4.SEED
     assert code == 3 and "OWNER_DECISION_REQUIRED" in text
     assert (run_dir / "p4-parada.json").exists()
     with pytest.raises(p4.P4AlreadyExecutedError):  # y ya no se repite
@@ -996,7 +1006,7 @@ def test_confirmatoria_no_abre_desenlaces_si_el_preflight_no_coincide(tmp_path: 
     _stored_preflight(tmp_path / "preflight", _ok_report())
     monkeypatch.setattr(p4, "executor_unchanged_since", lambda sha, repo: True)
     different = {**_ok_report(), "poblacion": {"p4": 2}}
-    monkeypatch.setattr(p4, "run_preflight", lambda *a, **k: (True, different))
+    monkeypatch.setattr(p4, "_preflight", lambda *a, **k: (True, different, "congelado"))
     monkeypatch.setattr(p4, "execute_with_outcomes", forbidden)
     ident = p4.P4Identity("abc", False, True, "h", "1.0")
     code, _ = p4.run_confirmatory(None, None, None, ident, run_dir)  # type: ignore[arg-type]
@@ -1142,3 +1152,85 @@ def test_heterogeneidad_con_2000_y_bonferroni_con_20000(monkeypatch: pytest.Monk
     b1 = outputs["B1"]["estimaciones"]["primaria_60"]
     assert b1["remuestreos"] == 40 and b1["heterogeneidad_remuestreos"] == 40
     assert outputs["B2"]["emparejamiento"]["bloques_60_sin_pares"] == []
+
+
+# --- checklist de la revisión de look-ahead ------------------------------------------
+
+
+def _frozen_synthetic() -> Tuple[p4.FrozenRun, VintageLoad, Dict[str, Any]]:
+    population = _synthetic_population()
+    rng = random.Random(5)
+    by_symbol = {}
+    for asset in {s.asset for s in population.signals}:
+        rows = []
+        price = 100.0
+        for _ in range(60):
+            open_ = price * (1 + rng.uniform(-0.01, 0.01))
+            price = open_ * (1 + rng.uniform(-0.03, 0.03))
+            rows.append((open_, max(open_, price) * 1.01, min(open_, price) * 0.99, price))
+        df = _frame(rows)
+        by_symbol[asset] = VintageViews(df, df, df, df)
+    vintage = VintageLoad(data_vintage_id=p4.DATA_VINTAGE_ID, manifest={}, by_symbol=by_symbol)
+    levels = p4.levels_by_geometry(population, BASE)
+    cuts = p4.tercile_cuts([s.atr_ratio for s in population.signals])
+    preflight = {
+        **_fake_preflight(),
+        "niveles_sha256": {gid: p4.levels_sha256(values) for gid, values in levels.items()},
+    }
+    return p4.FrozenRun(population=population, levels=levels, cuts=cuts), vintage, preflight
+
+
+def test_tras_la_marca_no_se_reconstruye_poblacion_ni_se_recalculan_niveles(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(p4, "STANDARD_RESAMPLES", 30)
+    monkeypatch.setattr(p4, "BONFERRONI_RESAMPLES", 30)
+    frozen, vintage, preflight = _frozen_synthetic()
+    for module, name in (
+        (p4, "build_population"),
+        (p4, "levels_by_geometry"),
+        (p4, "geometry_levels"),
+        (p4, "compute_levels_from_inputs"),
+        (p4, "tercile_cuts"),
+        (p4, "_preflight"),
+        (event_study, "compute_levels_from_inputs"),
+        (event_study, "run_event_study_on_vintage"),
+        (event_study, "enumerate_event_signals_on_vintage"),
+        (event_study, "replay_managed_population"),
+        (event_study, "replay_managed_population_counting_missing"),
+    ):
+        monkeypatch.setattr(module, name, forbidden)
+    ident = p4.P4Identity("abc", False, True, "h", "1.0")
+    code, result = p4.execute_with_outcomes(vintage, ident, preflight, frozen)
+    assert code == 0
+    assert set(result["salidas"]) == {"B1", "B2", "S1", "S2", "E1"}
+    assert [v["geometria"] for v in result["criterio"]] == ["B2", "S1", "S2"]
+    for gid in ("B1", "B2", "S1", "S2"):
+        assert result["salidas"][gid]["emparejamiento"]["senales_poblacion"] == len(frozen.population.signals)
+
+
+def test_niveles_congelados_distintos_paran_la_ejecucion(monkeypatch: pytest.MonkeyPatch) -> None:
+    frozen, vintage, preflight = _frozen_synthetic()
+    preflight["niveles_sha256"]["S1"] = "otro"
+    monkeypatch.setattr(p4, "evaluate_frozen", forbidden)
+    code, result = p4.execute_with_outcomes(vintage, p4.P4Identity("abc", False, True, "h", "1.0"), preflight, frozen)
+    assert code == 3 and "S1" in result["motivo"]
+
+
+def test_huella_de_niveles_detecta_cualquier_cambio() -> None:
+    signals = [_p4_signal(_obs(day=SPINE[130 + i]), 130 + i) for i in range(3)]
+    levels = p4.levels_by_geometry(_population(signals), BASE)["C0"]
+    base_hash = p4.levels_sha256(levels)
+    first = signals[0].signal_id
+    current = levels[first]
+    assert current is not None
+    assert p4.levels_sha256({**levels, first: replace(current, target2=current.target2 + 1e-9)}) != base_hash
+    assert p4.levels_sha256({**levels, first: None}) != base_hash
+
+
+def test_la_confirmatoria_no_admite_parametros_que_cambien_el_experimento() -> None:
+    import inspect
+
+    assert list(inspect.signature(p4.run_confirmatory).parameters) == ["config", "universe", "vintage", "ident", "out_dir"]
+    assert list(inspect.signature(p4.execute_with_outcomes).parameters) == ["vintage", "ident", "preflight", "frozen"]
+    source = inspect.getsource(p4.execute_with_outcomes) + inspect.getsource(p4.evaluate_frozen)
+    for name in ("SEED", "CONFIRMATORY_FAMILY", "GEOMETRIES", "levels_config", "build_population"):
+        assert f"{name} =" not in source

@@ -1693,8 +1693,14 @@ def _checks_dicts(checks: Iterable[Tuple[str, Any, Any, bool]]) -> List[Dict[str
     return [{"control": n, "observado": o, "esperado": w, "ok": p} for n, o, w, p in checks]
 
 
-def compute_preflight_sections(population: P4Population, base: LevelsConfig) -> Tuple[Dict[str, Any], List[Tuple[str, Any, Any, bool]]]:
-    """Álgebra, niveles, holgura D-06, estratos y recuento: solo primitivas en t y `open(t+1)`."""
+def compute_preflight_sections(
+    population: P4Population, base: LevelsConfig
+) -> Tuple[Dict[str, Any], List[Tuple[str, Any, Any, bool]], Dict[str, Dict[str, Optional[Levels]]]]:
+    """Álgebra, niveles, holgura D-06, estratos y recuento: solo primitivas en t y `open(t+1)`.
+
+    Devuelve también los niveles de cada geometría: son los que la ejecución
+    confirmatoria congela antes de la marca y evalúa sin volver a calcularlos.
+    """
 
     checks: List[Tuple[str, Any, Any, bool]] = []
 
@@ -1756,8 +1762,25 @@ def compute_preflight_sections(population: P4Population, base: LevelsConfig) -> 
         "recuento": comparisons,
         "bloques_mitades": {"primera": list(FIRST_HALF_BLOCKS), "segunda": list(SECOND_HALF_BLOCKS), "rotulo": HALVES_LABEL},
         "decisiones_de_implementacion": IMPLEMENTATION_DECISIONS,
+        "niveles_sha256": {gid: levels_sha256(values) for gid, values in levels.items()},
     }
-    return sections, checks
+    return sections, checks, levels
+
+
+def levels_sha256(levels: Mapping[str, Optional[Levels]]) -> str:
+    """Huella de los niveles de una geometría: stop, objetivos y entry_max de cada señal."""
+
+    lines = []
+    for signal_id in sorted(levels):
+        current = levels[signal_id]
+        if current is None:
+            lines.append(f"{signal_id}\tNone")
+        else:
+            lines.append(
+                f"{signal_id}\t{current.stop!r}\t{current.target1!r}\t{current.target2!r}\t"
+                f"{current.target3!r}\t{current.entry_max!r}"
+            )
+    return hashlib.sha256("\n".join(lines).encode()).hexdigest()
 
 
 IMPLEMENTATION_DECISIONS: Tuple[str, ...] = (
@@ -1770,8 +1793,12 @@ IMPLEMENTATION_DECISIONS: Tuple[str, ...] = (
     "B2/S1/S2/E1; los 20.000 solo para el IC de Bonferroni y la anchura IC95 de capacidad.",
     "Anchura IC95 de capacidad en B2/S1/S2/E1: cuantiles 2,5/97,5 de las mismas 20.000 medias remuestreadas del IC de Bonferroni.",
     "Pares (condición 9): pares con net_R observable en C0 y en G sobre 101.251.",
-    "Réplica de C0 idéntica al event study (test 3 de la ficha): se comprueba sobre toda la población en la "
-    "confirmatoria, antes de cualquier estimación; en este paso no se calcula ningún net_R sobre la cosecha.",
+    "Población, niveles de las cinco geometrías y cortes de terciles se congelan sin desenlaces antes de la marca "
+    "(sus hashes van en la marca); tras ella solo se evalúan con evaluate_managed_event / evaluate_potential_event, "
+    "las mismas primitivas del event study y de replay_managed_population, sin volver a enumerar ni recalcular niveles.",
+    "Brazo A de E1 y control de toda comparación: el ManagedEvent de C0 con los niveles de la enumeración del event "
+    "study (control del preflight: 0 diferencias). La identidad réplica = event study (test 3 de la ficha) se cumple "
+    "por construcción; en este paso no se calcula ningún net_R sobre la cosecha.",
 )
 
 
@@ -1786,7 +1813,17 @@ def preflight_fingerprint(report: Mapping[str, Any]) -> Dict[str, Any]:
         "niveles": report.get("niveles"),
         "recuento": report.get("recuento"),
         "rejilla": report.get("rejilla"),
+        "niveles_sha256": report.get("niveles_sha256"),
     }
+
+
+@dataclass
+class FrozenRun:
+    """Lo que se fija sin desenlaces y la ejecución confirmatoria ya no puede cambiar."""
+
+    population: P4Population
+    levels: Dict[str, Dict[str, Optional[Levels]]]
+    cuts: Tuple[float, float]
 
 
 def run_preflight(
@@ -1801,6 +1838,24 @@ def run_preflight(
 ) -> Tuple[bool, Dict[str, Any]]:
     """Preflight sin desenlaces. Se para (ok=False) si la población no reproduce el censo."""
 
+    ok, report, _ = _preflight(config, universe, vintage, ident, development=development)
+    if write and not development:
+        if (CONFIRMATORY_OUTPUT_DIR / RUN_MARKER).exists():
+            raise P4AlreadyExecutedError("P4 ya se ejecutó: el preflight que la autorizó no se reescribe")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        write_json(out_dir / "p4-preflight.json", report)
+        (out_dir / "p4-preflight.txt").write_text(format_preflight(report), encoding="utf-8")
+    return ok, report
+
+
+def _preflight(
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    ident: P4Identity,
+    *,
+    development: bool = False,
+) -> Tuple[bool, Dict[str, Any], Optional[FrozenRun]]:
     started = utc_now()
     population = build_population(config, universe, vintage)
     tree = tree_checks(config, ident)
@@ -1831,10 +1886,13 @@ def run_preflight(
         "label": UNIVERSE_LABEL,
     }
     checks = list(population.checks) + tree
+    frozen: Optional[FrozenRun] = None
     if population.ok:
-        sections, section_checks = compute_preflight_sections(population, config.levels)
+        sections, section_checks, levels = compute_preflight_sections(population, config.levels)
         report.update(sections)
         checks += section_checks
+        cuts = sections["volatilidad"]["cortes_atr_sobre_precio"]
+        frozen = FrozenRun(population=population, levels=levels, cuts=(cuts[0], cuts[1]))
     else:
         report["abortado"] = "la población no reproduce el censo congelado: STOP → OWNER_DECISION_REQUIRED"
     report["checks"] = _checks_dicts(checks)
@@ -1842,13 +1900,7 @@ def run_preflight(
     report["ok"] = ok
     report["definitivo"] = bool(ok and not development and ident.git_dirty is False and ident.prereg_in_history is True)
     report["fin_utc"] = utc_now()
-    if write and not development:
-        if (CONFIRMATORY_OUTPUT_DIR / RUN_MARKER).exists():
-            raise P4AlreadyExecutedError("P4 ya se ejecutó: el preflight que la autorizó no se reescribe")
-        out_dir.mkdir(parents=True, exist_ok=True)
-        write_json(out_dir / "p4-preflight.json", report)
-        (out_dir / "p4-preflight.txt").write_text(format_preflight(report), encoding="utf-8")
-    return ok, report
+    return ok, report, frozen
 
 
 # ---------------------------------------------------------------------------
@@ -1895,8 +1947,8 @@ def run_confirmatory(
     if not executor_unchanged_since(executor, "."):
         raise P4PreflightError(f"el ejecutor cambió desde el preflight definitivo ({executor}): P4 no se ejecuta")
 
-    ok, preflight = run_preflight(config, universe, vintage, ident, write=False)
-    if not ok:
+    ok, preflight, frozen = _preflight(config, universe, vintage, ident)
+    if not ok or frozen is None:
         return 2, format_preflight(preflight) + "PREFLIGHT FALLIDO: P4 NO SE EJECUTA.\n"
     if _normalized(preflight_fingerprint(preflight)) != _normalized(preflight_fingerprint(stored)):
         return 2, "STOP: el preflight interno no coincide con el preflight definitivo guardado. P4 NO SE EJECUTA.\n"
@@ -1904,16 +1956,12 @@ def run_confirmatory(
     out_dir.mkdir(parents=True, exist_ok=True)
     started = utc_now()
     marker.write_text(
-        json.dumps(
-            {"inicio_utc": started, "identidad": ident.as_dict(), "preflight_executor_sha": executor},
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
+        json.dumps(marker_payload(started, ident, executor, preflight), ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    # A partir de aquí se abren desenlaces: P4 ya no se puede repetir.
-    code, result = execute_with_outcomes(config, universe, vintage, ident, preflight)
+    # A partir de aquí se abren desenlaces: P4 ya no se puede repetir. La población,
+    # los niveles y los cortes son los congelados arriba; ya no se recalculan.
+    code, result = execute_with_outcomes(vintage, ident, preflight, frozen)
     if code != 0:
         write_json(out_dir / "p4-parada.json", result)
         return code, "STOP → OWNER_DECISION_REQUIRED: " + str(result.get("motivo")) + "\n"
@@ -1926,60 +1974,93 @@ def run_confirmatory(
     return 0, summary
 
 
+def marker_payload(started: str, ident: P4Identity, executor: str, preflight: Mapping[str, Any]) -> Dict[str, Any]:
+    """La marca de ejecución única: identidad completa de lo que se va a medir, escrita antes de medirlo."""
+
+    population = preflight["poblacion"]
+    return {
+        "inicio_utc": started,
+        "p4_prereg_sha": P4_PREREG_SHA,
+        "p4_executor_sha_preflight": executor,
+        "head_sha": ident.executor_sha,
+        "identidad": ident.as_dict(),
+        "p4_population_sha256": population["p4_population_sha256"],
+        "signal_ids_sha256": population["signal_ids_sha256"],
+        "senales": population["p4"],
+        "niveles_sha256": preflight["niveles_sha256"],
+        "cortes_terciles": preflight["volatilidad"]["cortes_atr_sobre_precio"],
+        "familia_confirmatoria": list(CONFIRMATORY_FAMILY),
+        "seed": SEED,
+        "label": UNIVERSE_LABEL,
+    }
+
+
+def evaluate_frozen(
+    population: P4Population,
+    vintage: VintageLoad,
+    levels: Mapping[str, Optional[Levels]],
+) -> Tuple[Dict[str, ManagedEvent], Dict[str, PotentialEvent], Tuple[str, ...]]:
+    """Desenlaces administrado y potencial de unos niveles ya congelados, sin recalcularlos.
+
+    Es la misma evaluación que hacen el event study y `replay_managed_population`
+    (`evaluate_managed_event` y `evaluate_potential_event` desde el cierre de t,
+    con `MAX_HOLD_BARS` y el coste pre-registrado); solo cambia que los niveles
+    llegan fijados desde antes de la marca.
+    """
+
+    managed: Dict[str, ManagedEvent] = {}
+    potential: Dict[str, PotentialEvent] = {}
+    without_levels: List[str] = []
+    for signal in population.signals:
+        current = levels[signal.signal_id]
+        if current is None:
+            without_levels.append(signal.signal_id)
+            continue
+        obs = signal.observation
+        df = vintage.by_symbol[obs.asset].execution_prices
+        managed[signal.signal_id] = event_study.evaluate_managed_event(obs, df, obs.signal_idx, current, MAX_HOLD_BARS, COST_PCT)
+        potential[signal.signal_id] = event_study.evaluate_potential_event(obs, df, obs.signal_idx, current, MAX_HOLD_BARS)
+    return managed, potential, tuple(without_levels)
+
+
 def execute_with_outcomes(
-    config: AdvisorConfig,
-    universe: Universe,
     vintage: VintageLoad,
     ident: P4Identity,
     preflight: Mapping[str, Any],
+    frozen: FrozenRun,
 ) -> Tuple[int, Dict[str, Any]]:
-    """Abre desenlaces y analiza. Solo la llama `run_confirmatory`, después de la marca."""
+    """Abre desenlaces y analiza. Solo la llama `run_confirmatory`, después de la marca.
 
-    population = build_population(config, universe, vintage)
+    No recibe configuración ni universo: la población, los niveles y los cortes
+    son los congelados sin desenlaces, y aquí no se vuelven a construir.
+    """
+
+    population = frozen.population
+    levels = frozen.levels
+    cuts = frozen.cuts
     stop = {"identidad": ident.as_dict(), "label": UNIVERSE_LABEL}
-    if not population.ok:
-        return 3, {**stop, "motivo": "la población no reproduce el preflight", "checks": _checks_dicts(population.checks)}
+    for gid, values in levels.items():
+        if levels_sha256(values) != preflight["niveles_sha256"][gid]:
+            return 3, {**stop, "motivo": f"los niveles congelados de {gid} no coinciden con el preflight"}
 
-    full = event_study.run_event_study_on_vintage(
-        config, universe, vintage, horizonte=HORIZONTE, cost_pct=COST_PCT, score_model_version=ENUMERATION_SCORE_MODEL
-    )
-    ids = {s.signal_id for s in population.signals}
-    kept = [signal for signal in full.signals if signal.observation.signal_id in ids]
-    if len(kept) != len(ids):
-        return 3, {**stop, "motivo": f"el event study con desenlaces da {len(kept)} señales P4, no {len(ids)}"}
-    outcome_result = replace(population.meta, signals=kept)
-    control = {signal.observation.signal_id: signal.managed for signal in kept}
-    control_potentials = {signal.observation.signal_id: signal.potential for signal in kept}
+    # Brazo A de E1 y control de todas las comparaciones: el ManagedEvent de C0. Sus niveles
+    # son los de la enumeración del event study (control del preflight con 0 diferencias).
+    control, control_potentials, c0_missing = evaluate_frozen(population, vintage, levels[C0.gid])
+    if c0_missing:
+        return 3, {**stop, "motivo": f"C0 sin niveles en {len(c0_missing)} señales"}
+    enumerated = population.enumerated_levels
+    if any(levels[C0.gid][sid] != enumerated[sid] for sid in control):
+        return 3, {**stop, "motivo": "los niveles de C0 no son los de la enumeración del event study"}
 
-    base = config.levels
-    replay_c0 = event_study.replay_managed_population_counting_missing(
-        outcome_result, vintage, C0.levels_config(base), C0.min_rr, cost_pct=COST_PCT
-    )
-    if replay_c0.without_levels or replay_c0.events != control:
-        return 3, {**stop, "motivo": "la réplica de C0 no reproduce exactamente el ManagedEvent del event study"}
-
-    levels = levels_by_geometry(population, base)
-    cuts = tuple(preflight["volatilidad"]["cortes_atr_sobre_precio"])
-    signal_by_id = {s.signal_id: s for s in population.signals}
     outputs: Dict[str, Any] = {}
     for geometry in VARIANTS:
-        replayed = event_study.replay_managed_population_counting_missing(
-            outcome_result, vintage, geometry.levels_config(base), geometry.min_rr, cost_pct=COST_PCT
-        )
-        potentials = {}
-        for signal_id in replayed.events:
-            obs = signal_by_id[signal_id].observation
-            current = levels[geometry.gid][signal_id]
-            assert current is not None
-            potentials[signal_id] = event_study.evaluate_potential_event(
-                obs, vintage.by_symbol[obs.asset].execution_prices, obs.signal_idx, current, MAX_HOLD_BARS
-            )
+        events, potentials, without_levels = evaluate_frozen(population, vintage, levels[geometry.gid])
         outputs[geometry.gid] = analyze_variant(
             geometry,
             population,
             control,
-            replayed.events,
-            replayed.without_levels,
+            events,
+            without_levels,
             potentials,
             control_potentials,
             cuts,
