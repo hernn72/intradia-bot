@@ -4,7 +4,9 @@ Estado: **BORRADOR DE PRE-REGISTRO — EN DISEÑO.** P5 **no se ha ejecutado** y
 ningún resultado (`net_R`, ΔR, PF, expectancy ni intervalo) de ningún punto nuevo de ninguna
 superficie. Las OD-P5-1 a OD-P5-16 (sección 33) están **abiertas**: el propietario las cierra antes
 de fijar el `P5_PREREG_SHA`. Mientras no se cierren, las recomendaciones de esta ficha son
-propuestas, no reglas.
+propuestas, no reglas. La revisión de la ficha está hecha: Codex sobre el diseño y sobre la ficha, y
+dos vueltas del revisor independiente; la última, sin ningún BLOCKER ni IMPORTANTE (sección
+«Revisión de la ficha»).
 
 **Base:** `main = 4eed281ba5f4f611f07de3755a79c0b4005062d8` (GATE P4 cruzado, D-65).
 
@@ -742,7 +744,7 @@ No hay puntuación ponderada. **Sobrevive solo si se cumplen todas las condicion
 
 | # | Condición | Instrumento | Efecto | ¿Conocida antes de medir? |
 |---|---|---|---|---|
-| 1 | El centro mantiene la evidencia favorable de P4 (las diez condiciones de D-64) y se reproduce exactamente | D-64 + preflight | veta (STOP si no reproduce) | sí |
+| 1 | El centro mantiene la evidencia favorable de P4 (las diez condiciones de D-64) y reproduce sus filas de P4 según OD-P5-16 | D-64 + preflight | veta (STOP si no reproduce) | sí |
 | 2 | Vecindad suficientemente amplia: `|A| / |E| ≥ 0,75` | sección 23 | veta → FRÁGIL (F4) | no |
 | 3 | No es un pico aislado: ningún vecino CONTRARIO | sección 23 | veta → FRÁGIL (F1) | no |
 | 4 | Estabilidad al variar el stop: `s−` y `s+` con ≥ 1 ACEPTABLE | sección 23 | veta → FRÁGIL (F2) | no |
@@ -894,7 +896,10 @@ con `|V_X|` el número de vecinos válidos de X.
   y revisión de diseño de Codex, revisión adversarial de la ficha.
 - `evidence/<fecha>-T-021-p5/preflight/`: identidad del ejecutor, población y hash, rejilla y
   validez, inventario estructural, configuraciones y hashes de todas las celdas, reproducción
-  de C0 (identidad) y de B2/S2 (filas de P4) y recuento previsto. Sin desenlaces de ningún punto nuevo.
+  de C0 (identidad) y de B2/S2 (filas de P4) y recuento previsto. **El preflight no archiva
+  desenlaces por señal** de C0, B2 ni S2 (ni `net_R` por `signal_id` ni eventos): solo las filas
+  agregadas que reproduce. Así nadie puede calcular el LOCRO antes de la marca, ni dentro ni fuera
+  del código. Sin desenlaces de ningún punto nuevo.
 - `evidence/<fecha>-T-021-p5/run/`: `p5-resultado.json`, `p5-resumen.md`, `tablas/*.tsv`
   (superficie por celda, clases, semiplanos, LOCRO, concentración, criterio condición por
   condición, recuento) y `SHA256SUMS-ejecucion.txt`.
@@ -1061,9 +1066,9 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
 - **Consecuencias:** A usa la misma regla de incertidumbre que los vecinos. Con la capacidad ii,
   ningún LOCRO es estimable (56.353 / 66.629 / 83.298 < 91.126) y la salida `[]` queda decidida por el
   texto. iii no detecta un emparejamiento roto dentro de la subpoblación. B es más laxa. C deja el
-  requisito del gate sobre cifras ya publicadas y sin instrumento nuevo. En las tres, el resultado
+  requisito del gate sobre cifras ya publicadas y sin instrumento nuevo. En A, B y C, el resultado
   del centro está en buena parte anticipado por P4 (sección 19.2).
-- **Recomendación:** **A.**
+- **Recomendación:** **A, con la capacidad i.**
 - **Bloquea:** las secciones 19 y 25 y el recuento (+6).
 
 ### OD-P5-9 — Concentración por activo
@@ -1153,11 +1158,20 @@ Todas **abiertas**. La recomendación técnica va la primera en cada una.
   - **C0** se reproduce por **identidad**: la réplica de C0 reproduce exactamente el `ManagedEvent`
     del event study en estado, salida y `net_R` (el test 3 de P4), y su `advisor_config_hash` es
     `89406d28…6387`;
-  - **B2 y S2** reproducen sus filas de P4 en `run/tablas/`:
-    - `estimaciones.tsv`, por la clave `(comparacion, estimacion, estrato)`: primaria 60, Bonferroni,
-      120, las dos cotas y las dos mitades;
-    - `nivel.tsv`, por geometría;
-    - `capacidad.tsv` y `emparejamiento.tsv`, por comparación.
+  - **B2 y S2** reproducen sus filas de P4 en `run/tablas/`, con X ∈ {`B2`, `S2`} (el valor literal de
+    la columna `comparacion`):
+    - `estimaciones.tsv`, por la clave `(comparacion, estimacion, estrato)` exacta:
+      - `(X, primaria_60, "")`: es la fila de Bonferroni (`ic_nivel` 0,987500 y 20.000 remuestreos);
+        **no existe una primaria al 95 % aparte**;
+      - `(X, bloque_120, "")`, `(X, cota_conservadora, "")` y `(X, cota_favorable, "")`;
+      - `(X, mitades, bloques_2_11)` y `(X, mitades, bloques_12_21)`;
+      - columnas comparadas: `n_pares`, `n_bloques`, `min_pares_bloque`, `media_delta_r`,
+        `media_agrupada_delta_r`, `ic_inferior`, `ic_superior`, `ic_nivel` y `remuestreos`;
+    - `nivel.tsv`, fila X: todas sus columnas;
+    - `capacidad.tsv`, fila X: todas sus columnas. **Del IC95 de 2.000 remuestreos de la primaria
+      solo se compara y se archiva la anchura** (`anchura_ic95`), que es lo que P4 publicó; sus
+      extremos no se publican y no intervienen en nada;
+    - `emparejamiento.tsv`, filas de X: todas sus claves.
   - **Regla de comparación:** se ignoran las líneas que empiezan por `#`; se comparan las columnas
     nombradas; cada valor de P5 se formatea con la misma `_cell` de P4 (`advisor/research/p4.py:2128`,
     `float` → `"{:.6f}"`) y se exige **igualdad de cadenas**, no de floats crudos. El Bonferroni de
@@ -1338,6 +1352,22 @@ con los mismos `signal_id`. Codex confirma también que sus hallazgos de diseño
 - **OBSERVACIÓN.** Sin acción: confirman que la infraestructura existe y que el Bonferroni es
   determinista.
 
-### Pendiente
+### Segunda vuelta del revisor independiente (`c53f882`)
 
-Una segunda vuelta del revisor sobre esta versión corregida, para confirmar el cierre de B-1 e I-1.
+El mismo agente `revisor`, en solo lectura y sin desenlaces. **Los nueve hallazgos de la primera
+vuelta, CERRADOS**; **0 BLOCKER y 0 IMPORTANTE** nuevos. Comprobó:
+- los umbrales del LOCRO (⌈0,9·n⌉);
+- las probabilidades por candidata (0,774 / 0,831) y las de la anchura 1,0 (0,152 / 0,659);
+- que OD-P5-16 no permite calcular nada decisorio que P4 no publicara;
+- que los cambios de Codex reproducen el comportamiento del código de P4 sin decisiones ocultas;
+- la coherencia entre las secciones 15, 19.2, 23, 24, 26, 29 y 33.
+
+Dejó 1 MENOR y 3 OBSERVACIÓN, todos de redacción y corregidos después:
+- **MENOR:** la fila `primaria_60` de P4 **es** la de Bonferroni. OD-P5-16 nombra ahora las claves y
+  columnas exactas.
+- **N-1:** la condición 1 de la sección 26 remite a OD-P5-16 en lugar de decir «exactamente».
+- **N-2:** del IC95 de los centros solo se compara la anchura; el preflight no archiva desenlaces por
+  señal (sección 30).
+- **N-3:** la recomendación de OD-P5-8 es «A, con la capacidad i»; «en A, B y C».
+
+Con la regla del propietario (0 BLOCKER y 0 IMPORTANTE), la ficha queda lista para cerrar las OD-P5.

@@ -14,6 +14,7 @@ expectancy ni intervalo) de ningún punto de ninguna superficie.
 | `codex-encargo-ficha.md` | Encargo literal a Codex para revisar la ficha (`3e597db`) contra el código |
 | `codex-revision-ficha.md` | Respuesta literal de Codex sobre la ficha: 1 BLOCKER, 3 IMPORTANTE, 1 MENOR y 2 OBSERVACIÓN |
 | `revision-independiente-ficha.md` | Informe literal del revisor independiente (primera vuelta, `3e597db`): 1 BLOCKER, 1 IMPORTANTE, 5 MENOR y 2 OBSERVACIÓN |
+| `revision-independiente-ficha-vuelta2.md` | Segunda vuelta del mismo revisor (`c53f882`): los nueve hallazgos CERRADOS; 0 BLOCKER, 0 IMPORTANTE, 1 MENOR y 3 OBSERVACIÓN de redacción, corregidos después |
 
 Reproducir, desde la raíz del repositorio y con la cosecha `071ddb2b…` en `data/vintages/`:
 
