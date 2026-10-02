@@ -1434,7 +1434,8 @@ independiente sigue en P7 (INV-15).
       C0 tiene que dar `89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387`;
     - envoltorio canónico `intradia.p5.politica.v1` serializado con `json.dumps(payload,
       sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)` en UTF-8;
-    - `policy_sha256`;
+    - `policy_sha256` (los vecinos publican el mismo cálculo como `diagnostico_sha256`, nunca como
+      `policy_sha256`);
     - las salidas son las constantes del código: `STOP_FIRST`, `TARGET_FIRST`, `TIME` y `FINAL`.
 16. **Recuento:** 5 comparaciones con IC por vecino y 3 LOCRO por centro: (8·5 + 3) + (5·5 + 3) =
     **71**, con **0 confirmatorias nuevas**.
@@ -1456,9 +1457,11 @@ independiente sigue en P7 (INV-15).
     - C0 se verifica por identidad semántica con el event study y por su `advisor_config_hash`;
     - **aislamiento:** no se escriben eventos ni `net_R` por `signal_id`, y la API del preflight no
       los devuelve; la función de reproducción devuelve solo el agregado autorizado;
-    - **antes de la marca fallan explícitamente**, con tests que lo comprueban: el LOCRO, las
-      regiones y subpoblaciones, los estratos, la concentración por activo nueva, los vecinos y
-      cualquier estimación nueva de P5;
+    - **antes de la marca fallan explícitamente**, con tests que lo comprueban, las
+      **estimaciones** (todo cálculo con desenlaces) del LOCRO, de regiones y subpoblaciones, de
+      estratos, de concentración por activo nueva, de los vecinos y cualquier estimación nueva de
+      P5. El censo estructural por región, los denominadores del LOCRO y el recuento estructural no
+      usan desenlaces y sí se calculan en el preflight;
     - la evidencia del preflight solo contiene agregados ya publicados y controles estructurales;
     - **esto no autoriza repetir P4** ni ejecutar `p4 --fase confirmatoria`.
 

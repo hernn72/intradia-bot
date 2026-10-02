@@ -398,7 +398,7 @@ como **AUSENCIA_ESTRUCTURAL**, no se estiman y no entran en ningún denominador.
 razonable: ampliar la superficie por debajo de `min_rr` exigiría cambiar `min_rr`, que esta ficha no
 mueve (sección 9.2).
 
-### 12.2 Frontera no económica (`m3`, afecta a B2): recomendación C, restringida
+### 12.2 Frontera no económica (`m3`, afecta a B2): C restringida (D-66)
 
 - **A — truncar en `m2 < 5,0`.** B2 se queda sin semiplano `m2+`. Entonces la ficha tendría que
   elegir entre dos cosas que la sección 22 de la orden prohíbe: o B2 puede ser ROBUSTA con un lado
@@ -681,7 +681,7 @@ estudiaron dos reglas:
   forma lineal con el stop, ese vecino tendría exactamente la mitad del efecto de S2: la regla
   dependería de la curvatura, y el veredicto de S2 sería una moneda al aire decidida por la
   proximidad al control. Una pendiente suave no es fragilidad.
-- **«IC95 inferior > 0» (recomendada).** Es una regla de signo con incertidumbre. Excluye los
+- **«IC95 inferior > 0» (adoptada en D-66).** Es una regla de signo con incertidumbre. Excluye los
   +0,0001, porque ningún vecino tiene un error típico de ese orden. Es neutral a la distancia al control **bajo un supuesto declarado**: que el efecto y
   su error típico crezcan los dos aproximadamente en proporción a la distancia a C0. En el eje del
   objetivo hay apoyo parcial en P4 (cociente efecto/error ≈ 2,56 en B1 y ≈ 2,77 en B2). En la recta
@@ -784,8 +784,8 @@ no, aunque la etiqueta ya esté decidida.
 **Salida posible, y ninguna otra:** `[]`, `[B2]`, `[S2]`, `[B2, S2]`.
 
 GATE P5 admite hasta 5 políticas. Esta ficha **no** lee ese límite como permiso para promover
-vecinos: lo cumple con ≤ 2. Si el propietario entendiera que el gate exige poder promover puntos de
-la superficie, sería una OWNER_DECISION previa a medir. Esta ficha recomienda que no.
+vecinos: lo cumple con ≤ 2. D-66 (OD-P5-13 = A) lo cierra: ningún vecino es elegible, y promover
+puntos de la superficie exigiría un estudio nuevo con su propia decisión.
 
 ## 28. Configuración canónica y hash (OD-P5-14)
 
@@ -848,7 +848,10 @@ con `m3_auxiliar` contiene el `target3` real de 5,625.
 - **Floats:** como números JSON con la representación más corta de ida y vuelta de Python (`repr`).
   Todos los valores de geometría son múltiplos de 1/8 y exactos en binario; `0.2` y `0.75` son
   deterministas con `repr`. Las listas conservan su orden.
-- **`policy_sha256` = sha256 de esa cadena.**
+- **`policy_sha256` = sha256 de esa cadena.** El cálculo es idéntico para todas las celdas, pero el
+  campo publicado depende del papel, para que la regla sea mecánica: C0 y las candidatas publican
+  `policy_sha256`; los vecinos publican el mismo hash con el nombre `diagnostico_sha256`, nunca
+  `policy_sha256`, y nunca aparecen en la lista de políticas candidatas.
 - **No entran en el hash:** el identificador («B2»), la procedencia (`data_vintage_id`,
   `universe_vintage_id`, `population_sha256`, SHA de P4 y de P5) y los resultados. Se publican al
   lado, en un bloque `procedencia`. Así el hash identifica el comportamiento y no la etiqueta.
@@ -1262,9 +1265,13 @@ esta ficha.
    - no se escriben eventos ni `net_R` por `signal_id`;
    - la API del preflight no los devuelve: la función de reproducción devuelve solo el agregado
      autorizado;
-   - antes de la marca fallan explícitamente el LOCRO, las regiones y subpoblaciones, los estratos,
-     la concentración por activo nueva, los vecinos y cualquier estimación nueva de P5, con tests
-     que intentan llamar cada ruta y esperan la excepción;
+   - antes de la marca fallan explícitamente las **estimaciones** (todo cálculo que use desenlaces)
+     del LOCRO, de regiones y subpoblaciones, de estratos, de concentración por activo nueva, de los
+     vecinos y cualquier estimación nueva de P5, con tests que intentan llamar cada ruta y esperan la
+     excepción;
+   - **no** fallan, porque no usan desenlaces: el censo estructural por región, los denominadores del
+     LOCRO (56.353 / 66.629 / 83.298) y sus mínimos de pares, la rejilla, la validez de las celdas y
+     el recuento estructural de la sección 29. Se calculan y se comprueban en el preflight;
    - la evidencia del preflight solo contiene agregados ya publicados y controles estructurales.
 6. **No autoriza repetir P4** ni ejecutar `p4 --fase confirmatoria`.
 
@@ -1298,9 +1305,11 @@ esta ficha.
       ejecución.
    7. **Sin desenlaces ni estimaciones nuevas en el preflight** (D-66, OD-P5-16):
       - el evaluador lanza un error para cualquier geometría distinta de C0, B2 y S2;
-      - un test por ruta intenta llamar, antes de la marca, al LOCRO, a las regiones y
-        subpoblaciones, a los estratos, a la concentración por activo, a los vecinos y a cualquier
-        estimación nueva de P5, y espera la excepción;
+      - un test por ruta intenta calcular, antes de la marca, una estimación (con desenlaces) del
+        LOCRO, de regiones y subpoblaciones, de estratos, de concentración por activo, de los vecinos
+        o cualquier estimación nueva de P5, y espera la excepción;
+      - otro test comprueba que el censo estructural por región, los denominadores del LOCRO y el
+        recuento estructural sí se calculan en el preflight, sin desenlaces;
       - la API del preflight no devuelve eventos ni `net_R` por `signal_id`, y la evidencia del
         preflight no los contiene.
    8. **Reproducción de P4:** C0 por identidad (`ManagedEvent` y hash); B2 y S2, igualdad de cadenas
@@ -1456,7 +1465,33 @@ Dejó 1 MENOR y 3 OBSERVACIÓN, todos de redacción y corregidos después:
 
 Con la regla del propietario (0 BLOCKER y 0 IMPORTANTE), la ficha queda lista para cerrar las OD-P5.
 
-### Revisión final del pre-registro (sobre la versión con D-66)
+### Revisión final del pre-registro (sobre la versión con D-66, `53b2f48`)
 
-Pendiente en este commit: el mismo revisor comprueba que D-66 se transcribió fielmente y que no
-aparece ningún grado de libertad nuevo.
+El mismo agente `revisor`, en solo lectura y sin desenlaces, con el mandato de comprobar solo que D-66
+se transcribió fielmente y que no aparece ningún grado de libertad nuevo. Informe literal en
+`evidence/2026-10-02-T-021-p5-diseno/revision-final-preregistro.md`.
+
+**0 BLOCKER, 0 IMPORTANTE, 2 MENOR y 2 OBSERVACIÓN.** Los 12 puntos pedidos por el propietario
+CUMPLEN:
+1. `m3_auxiliar` nunca es elegible;
+2. hay exactamente 13 vecinos válidos;
+3. las 3 ausencias de S2 no entran en ningún denominador;
+4. S2 mantiene su tolerancia asimétrica;
+5. el umbral 0,75 es fijo;
+6. `|NE| ≤ 1`;
+7. el LOCRO usa denominadores relativos;
+8. 0 confirmatorias nuevas;
+9. ningún vecino es elegible;
+10. el preflight no puede producir LOCRO ni vecinos;
+11. las 71 comparaciones se derivan de la estructura, con STOP si no;
+12. P5 no es validación.
+
+Corregido después, sin cambiar ninguna regla:
+- **MENOR:** la sección 27 ya no plantea como abierta la promoción de vecinos (OD-P5-13 está cerrada).
+- **MENOR:** «regiones» en el preflight significa **estimaciones** por región. El censo estructural
+  por región, los denominadores del LOCRO y el recuento estructural, que no usan desenlaces, sí se
+  calculan en el preflight (OD-P5-16, regla 5; test 7). La misma precisión se aplica al punto 17 de
+  D-66.
+- **OBSERVACIÓN:** los vecinos publican su hash como `diagnostico_sha256`, nunca como
+  `policy_sha256` (sección 28).
+- **OBSERVACIÓN:** quitados los restos de «recomendación» fuera de la sección 33.
