@@ -1,4 +1,4 @@
-$ .venv/bin/python -m advisor.main backtest --horizonte swing --vintage 071ddb2b… 2>&1 | sed 's/^[0-9-]* [0-9:]* //' | shasum -a 256
+$ .venv/bin/python -m advisor.main backtest --horizonte swing --vintage 071ddb2b… 2>&1 | sed 's/^[0-9-]* [0-9:]* //' | shasum -a 256  (sobre 3df8230)
 49b12c855c2d2681d9ecd0f592248cd03b11cd8428273014238e04f0ddefbc3c
 866 operaciones | win rate 42% | expectancy R 0,17 | profit factor 1,25 | payoff 1,74 | R mediana -1,03 | R total 145,10 | desv. R 1,67 | P10/P25/P50/P75/P90 -1,17/-1,07/-1,03/1,67/2,13 | 10 velas de media
 esperado: 49b12c855c2d2681d9ecd0f592248cd03b11cd8428273014238e04f0ddefbc3c / 866

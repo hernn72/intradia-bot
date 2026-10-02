@@ -1,14 +1,14 @@
 P4_PREREG_SHA=48b884722ef027e99857a4e65f9ab6b11da4758f
-P4_EXECUTOR_CANDIDATE_SHA=d531d1d7f1e6fe344834b9f1b6e5b0c4fedf75bf
+P4_EXECUTOR_CANDIDATE_SHA=3df8230d7806dde4151b56501641a1524a3df9d8
 rama=research/a04-p4-executor
-git status --porcelain (con seguimiento): ''
+árbol con seguimiento limpio al lanzar el preflight: sí (p4-preflight.json → git_dirty=false)
 prereg antecesor de HEAD: sí
 config.yaml score_model_version: 58:  score_model_version: "1.0"
-config.yaml sin cambios desde el prereg: sí
-ficheros cambiados desde el prereg:
+config.yaml y deploy/ sin cambios desde el prereg: sí
+ficheros de código cambiados desde el prereg:
  advisor/main.py                 |   33 +
  advisor/research/event_study.py |  148 ++-
- advisor/research/p4.py          | 2290 +++++++++++++++++++++++++++++++++++++++
- tests/test_p4.py                | 1144 +++++++++++++++++++
- 4 files changed, 3594 insertions(+), 21 deletions(-)
+ advisor/research/p4.py          | 2371 +++++++++++++++++++++++++++++++++++++++
+ tests/test_p4.py                | 1236 ++++++++++++++++++++
+ 4 files changed, 3767 insertions(+), 21 deletions(-)
 marca de ejecución confirmatoria: no existe evidence/2026-10-01-T-020-p4/run

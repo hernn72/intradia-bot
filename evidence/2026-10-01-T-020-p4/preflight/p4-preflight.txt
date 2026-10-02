@@ -3,7 +3,7 @@
 _condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)_
 
 P4_PREREG_SHA=48b884722ef027e99857a4e65f9ab6b11da4758f
-P4_EXECUTOR_SHA=d531d1d7f1e6fe344834b9f1b6e5b0c4fedf75bf (git_dirty=False; prereg en historia=True)
+P4_EXECUTOR_SHA=3df8230d7806dde4151b56501641a1524a3df9d8 (git_dirty=False; prereg en historia=True)
 data_vintage_id=071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
 universe_vintage_id=237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
 config_hash=89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387; config score_model_version=1.0

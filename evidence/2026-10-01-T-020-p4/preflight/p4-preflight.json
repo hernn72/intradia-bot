@@ -3,7 +3,7 @@
   "modo": "DEFINITIVO",
   "identidad": {
     "p4_prereg_sha": "48b884722ef027e99857a4e65f9ab6b11da4758f",
-    "p4_executor_sha": "d531d1d7f1e6fe344834b9f1b6e5b0c4fedf75bf",
+    "p4_executor_sha": "3df8230d7806dde4151b56501641a1524a3df9d8",
     "git_dirty": false,
     "prereg_en_historia": true,
     "data_vintage_id": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
@@ -23,7 +23,7 @@
     },
     "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)"
   },
-  "inicio_utc": "2026-10-01T21:42:30.497498+00:00",
+  "inicio_utc": "2026-10-02T05:29:47.422820+00:00",
   "outcomes_read": false,
   "p4_confirmatory_executed": false,
   "poblacion": {
@@ -4104,8 +4104,16 @@
     "Heterogeneidad publicada: contrato P2.6 (2.000 remuestreos) sobre los mismos pares de la primaria, también en B2/S1/S2/E1; los 20.000 solo para el IC de Bonferroni y la anchura IC95 de capacidad.",
     "Anchura IC95 de capacidad en B2/S1/S2/E1: cuantiles 2,5/97,5 de las mismas 20.000 medias remuestreadas del IC de Bonferroni.",
     "Pares (condición 9): pares con net_R observable en C0 y en G sobre 101.251.",
-    "Réplica de C0 idéntica al event study (test 3 de la ficha): se comprueba sobre toda la población en la confirmatoria, antes de cualquier estimación; en este paso no se calcula ningún net_R sobre la cosecha."
+    "Población, niveles de las cinco geometrías y cortes de terciles se congelan sin desenlaces antes de la marca (sus hashes van en la marca); tras ella solo se evalúan con evaluate_managed_event / evaluate_potential_event, las mismas primitivas del event study y de replay_managed_population, sin volver a enumerar ni recalcular niveles.",
+    "Brazo A de E1 y control de toda comparación: el ManagedEvent de C0 con los niveles de la enumeración del event study (control del preflight: 0 diferencias). La identidad réplica = event study (test 3 de la ficha) se cumple por construcción; en este paso no se calcula ningún net_R sobre la cosecha."
   ],
+  "niveles_sha256": {
+    "C0": "e07a33a9a713c6b3662baa615c718ba2621a9070e736c84d4fb5458f32b79f75",
+    "B1": "a35373676a3cf091aec549c0a9ccc55f15c734ed8263636e15330c89bb29a6f0",
+    "B2": "f18694c316c0ad6d94ac566107db52bde0b7335a72a1206d2b49e731b54fbd02",
+    "S1": "8a23e326b5a1664877e1195d2c7b35540cb60bf0925bf5d0a0ea733ecaa7feb6",
+    "S2": "8c3b3e0a81274a9cb4c9b8c2c33a9b763f769a5b16079db64079121dd4016a8c"
+  },
   "checks": [
     {
       "control": "A-02 swing",
@@ -4516,5 +4524,5 @@
   ],
   "ok": true,
   "definitivo": true,
-  "fin_utc": "2026-10-01T21:43:00.545981+00:00"
+  "fin_utc": "2026-10-02T05:30:18.084963+00:00"
 }

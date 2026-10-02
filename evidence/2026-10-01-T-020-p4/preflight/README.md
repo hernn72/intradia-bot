@@ -3,7 +3,7 @@
 _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
 
 - `P4_PREREG_SHA` = `48b884722ef027e99857a4e65f9ab6b11da4758f` (ficha T-020 y D-63).
-- `P4_EXECUTOR_CANDIDATE_SHA` = `d531d1d7f1e6fe344834b9f1b6e5b0c4fedf75bf`. Es el commit del
+- `P4_EXECUTOR_CANDIDATE_SHA` = `3df8230d7806dde4151b56501641a1524a3df9d8`. Es el commit del
   ejecutor, sobre el que se generó este preflight con el árbol limpio. Pasará a ser
   `P4_EXECUTOR_SHA` solo si la revisión independiente de look-ahead del paso siguiente queda limpia.
 - **P4 no se ha ejecutado.** No existe `../run/` ni la marca `EJECUCION_CONFIRMATORIA_P4_INICIADA`.
@@ -17,7 +17,7 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 | `p4-preflight.txt` | La misma salida en formato humano |
 | `consola-preflight.txt` | Salida literal de `python -m advisor.main p4 --fase preflight` |
 | `identidad.txt` | SHA, árbol limpio, prereg en la historia, `config.yaml` en `"1.0"` sin cambios y ficheros tocados |
-| `suite-ruff-mypy-pytest.txt` | ruff, mypy y la suite (820 passed) |
+| `suite-ruff-mypy-pytest.txt` | ruff, mypy y la suite (824 passed) |
 | `regresion-v1.txt` | Backtest `--vintage` normalizado: 866 operaciones, `49b12c85…` |
 | `SHA256SUMS.txt` | Hash de cada artefacto de esta carpeta |
 
@@ -37,3 +37,10 @@ para estratificar. La enumeración no llama a los evaluadores de desenlace del e
   recuento estructural:** 110 + 110 + 113 + 113 + 1 = **447**, de las que 4 son confirmatorias.
 - **Decisiones de implementación que la ficha no fijaba literalmente:** se declaran en
   `p4-preflight.json` → `decisiones_de_implementacion`, antes de abrir ningún desenlace.
+- **Congelado para la ejecución confirmatoria:** `niveles_sha256` es la huella de los niveles
+  (stop, objetivos y `entry_max`) de cada geometría y señal. La confirmatoria congela la población,
+  estos niveles y los cortes **antes** de escribir la marca, los registra en ella y se para si no
+  coinciden. Después de la marca no se vuelve a enumerar ni se recalcula ningún nivel.
+
+Este preflight sustituye al generado sobre `d531d1d` (historial en `bf40f0b`). El ejecutor cambió
+solo para cumplir el checklist de look-ahead (`3df8230`), sin tocar estimaciones, criterio ni recuento.
