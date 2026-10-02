@@ -183,6 +183,35 @@ Desbloquea: P4.
 
 ## GATE P4 — Geometría
 
+**GATE P4 CRUZADO el 2026-10-02 (D-65).** Los cuatro requisitos se cumplen. T-020 (A-04) ejecutó P4
+una sola vez:
+- `P4_PREREG_SHA = 48b8847`;
+- `P4_CODE_SHA = 3df8230`;
+- `P4_RUN_HEAD_SHA = c2c52b1`;
+- evidencia en `cfa365d`.
+
+D-64 registra el resultado:
+- **B2 y S2 pasan a P5** como candidatas:
+  - B2: ΔR +0,0717, con IC Bonferroni [+0,0061, +0,1356];
+  - S2: ΔR +0,0348, con IC Bonferroni [+0,0076, +0,0597];
+- **S1 no pasa:** falla las condiciones 1, 2, 5 y 8;
+- **E1 sale NO CONCLUYENTE;**
+- **B1 es solo descriptiva.**
+
+La heterogeneidad sale ALTA en todo. Es una bandera que no veta (D-63), y queda explicada por
+estratos pre-registrados y por la limitación conocida del instrumento. Se hicieron 447
+comparaciones, 4 de ellas confirmatorias.
+
+La revisión final independiente, tras su vuelta de cierre, no deja ningún BLOCKER ni ningún
+IMPORTANTE. Producción no cambia: B2 y S2 son candidatas de investigación para P5. _Condicionado al
+universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Evidencia:
+- `evidence/2026-10-01-T-020-censo-p4/` (censo);
+- `evidence/2026-10-01-T-020-p4/preflight/` y `…/run/` (preflight y ejecución única);
+- `evidence/2026-10-02-T-020-p4-cierre/` (resultado y heterogeneidad, revisión de look-ahead,
+  revisión final y `gate-p4-final.md`, que recorre los requisitos uno a uno).
+
 Requisitos:
 
 1. Variantes de stop, objetivo y entrada comparadas **pareadas por

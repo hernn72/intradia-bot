@@ -1312,6 +1312,38 @@ previsto, de las que 4 son confirmatorias.
 - El resultado es de desarrollo, no una validación fuera de muestra (INV-15). La validación
   independiente sigue en P7.
 
+### D-65 — 2026-10-02 — GATE P4 cruzado
+Cierre mecánico de GATE P4 con la regla del propietario: los cuatro requisitos de `docs/gates.md`
+satisfechos y la revisión final independiente sin ningún BLOCKER ni IMPORTANTE.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+- **P4 se ejecutó una sola vez:** el 2026-10-02, desde `P4_RUN_HEAD_SHA = c2c52b1`, con
+  `P4_CODE_SHA = 3df8230` y `P4_PREREG_SHA = 48b8847`. La evidencia está congelada en `cfa365d`
+  (`evidence/2026-10-01-T-020-p4/run/`, 12/12 SHA256). P4 no se repite.
+- **B2 y S2 pasan a P5** como candidatas (D-64). Ninguna se elige sobre la otra.
+- **S1 no pasa:** falla las condiciones 1, 2, 5 y 8.
+- **E1 sale NO CONCLUYENTE.** No es geometría ni candidata.
+- **B1 es solo descriptiva:** «previamente expuesta en esta misma cosecha; no confirmatoria; no
+  elegible para sustituir C0».
+- **La heterogeneidad ALTA queda explicada y no veta** (D-63). Se explica por la dispersión
+  observable por activo, régimen y volatilidad, y por una limitación conocida del instrumento debida
+  al solapamiento. No se crea ninguna política por estrato. El FOLLOW_UP del instrumento sigue
+  abierto.
+- **Revisión final independiente:** tras la vuelta de cierre, 0 BLOCKER, 0 IMPORTANTE, 0 MENOR y 1
+  OBSERVACIÓN, que es la verificabilidad del texto archivado de la revisión de look-ahead.
+- **GATE P4 CRUZADO.** La matriz está en `evidence/2026-10-02-T-020-p4-cierre/gate-p4-final.md`.
+- **A-04 / T-020 queda ACEPTADA.**
+- **P5 queda desbloqueado, pero NO iniciado.** La ficha de P5 se escribe con una autorización aparte.
+
+**Lo que no cambia.** No se toca producción:
+- B2 y S2 son candidatas de investigación para P5, no una geometría productiva;
+- `config.yaml` sigue en `"1.0"` con la geometría C0;
+- Score v2 sigue inactivo;
+- la Pi sigue en `v0.4.1`;
+- no hay release ni despliegue.
+
+El resultado es de desarrollo; la validación independiente sigue en P7 (INV-15).
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

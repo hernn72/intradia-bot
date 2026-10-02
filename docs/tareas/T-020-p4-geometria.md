@@ -1,8 +1,39 @@
 # T-020 — P4 Geometría: stop, objetivo y holgura de entrada, con pre-registro (A-04)
 
-Estado: **PRE-REGISTRO — OD cerradas el 2026-10-01 (D-63).** P4 **NO se ha ejecutado**, y no se ha
-calculado ningún resultado de ninguna variante: ni expectancy, ni `net_R`, ni PF, ni MAE/MFE, ni ΔR,
-ni intervalos, ni heterogeneidad. Las cifras de esta ficha son de cuatro tipos:
+Estado: **ACEPTADA — GATE P4 CRUZADO el 2026-10-02 (D-64 y D-65).** P4 se ejecutó **una sola vez**
+el 2026-10-02.
+
+**Identidad.**
+- `P4_PREREG_SHA = 48b884722ef027e99857a4e65f9ab6b11da4758f`
+- `P4_CODE_SHA = 3df8230d7806dde4151b56501641a1524a3df9d8`
+- `P4_RUN_HEAD_SHA = c2c52b11c60bb8dfd08d8cb33d5f6f251e9bf2c0`
+- Evidencia `cfa365da468edd04f0ccf4d5f20b657382078cbd`
+
+**Resultado (D-64):**
+- **candidatas para P5: B2 y S2**, sin elegir entre ellas;
+- **S1 descartada:** falla las condiciones 1, 2, 5 y 8;
+- **E1 NO CONCLUYENTE:** no es geometría ni candidata;
+- **B1 solo descriptiva**, «previamente expuesta en esta misma cosecha; no confirmatoria; no elegible
+  para sustituir C0».
+
+La heterogeneidad sale ALTA en todo. Es una bandera que no veta; la explicación por estratos está en
+`evidence/2026-10-02-T-020-p4-cierre/resultado-y-heterogeneidad.md`. Se hicieron 447 comparaciones,
+4 de ellas confirmatorias.
+
+**Handoff a P5.** P5 recibe B2 y S2 como candidatas y C0 como control. P5 está desbloqueado pero
+**no iniciado**: su ficha se escribe con una autorización aparte. Producción no cambia: B2 y S2 son
+candidatas de investigación, `config.yaml` sigue en `"1.0"` con C0, Score v2 sigue inactivo y la Pi
+en `v0.4.1`.
+
+El resultado es de desarrollo; la validación independiente sigue en P7 (INV-15). El FOLLOW_UP del
+instrumento de heterogeneidad sigue abierto.
+
+_Lo que sigue es el pre-registro tal como quedó en `48b8847`. Su texto describe el estado anterior a
+la ejecución._
+
+Estado del pre-registro: **PRE-REGISTRO — OD cerradas el 2026-10-01 (D-63).** Antes de la ejecución,
+P4 no se había ejecutado ni se había calculado ningún resultado de ninguna variante. Las cifras de
+la ficha son de cuatro tipos:
 - algebraicas, derivadas de las fórmulas de `advisor/analysis/levels.py`;
 - el **censo de la población de P4**, calculado sin desenlaces (`evidence/2026-10-01-T-020-censo-p4/`);
 - recuentos de primitivas en el instante de la señal, de la revisión de la ficha;

@@ -172,4 +172,93 @@ Dos cosas que conviene saber:
 
 ## Vuelta de cierre de hallazgos
 
-_(pendiente: se añade con el resultado literal de la segunda vuelta del mismo revisor)_
+**Procedencia:** la hizo el **mismo** revisor, sobre HEAD `72c3cef`, con las correcciones autorizadas
+por el propietario. Se copia literalmente su informe.
+
+---
+
+RESULTADO: APROBADO
+
+Segunda vuelta, sobre HEAD `72c3cef` (rama research/a04-p4-executor): los cinco hallazgos de la primera revisión están cerrados y las correcciones no introducen ningún defecto nuevo. La suite completa pasa en `72c3cef`: 825 passed y 0 skipped. **GATE P4 PUEDE CRUZARSE.**
+
+| Hallazgo | Estado | Evidencia |
+|---|---|---|
+| I-1 IMPORTANTE (la suite falla después de la ejecución) | **CERRADO** | Ver abajo. |
+| I-2 IMPORTANTE (falta la evidencia de proceso) | **CERRADO** | Ver abajo. |
+| M-1 (discusión de B1 y del `stop_basis` de S1) | **CERRADO** | Todas las cifras nuevas coinciden con `run/tablas/estimaciones.tsv`. |
+| O-1 (código de salida) | **CERRADO** | `resultado-y-heterogeneidad.md` §1 y D-64 (`docs/decision-log.md:1252-1257`) dicen ahora que el código 0 se infiere de la ruta normal y no quedó archivado. Coincide con el código (`p4.py:1965-1974`) y con la ausencia de `p4-parada.json`. |
+| O-2 (redacción sobre RISK_OFF) | **CERRADO** | §2 y §3 dicen ahora «mayor por señal en RISK_OFF», con la aclaración de pares (7.944 frente a 73.702). |
+
+## I-1: la suite después de la ejecución
+- **Suite completa:** ejecuté `.venv/bin/python -m pytest -q -rs` en `72c3cef` con la cosecha presente (`data/vintages/071ddb2b…/AAPL.csv` existe). Resultado: `825 passed, 3 warnings`, código de salida 0 y ningún test saltado.
+- **El test del preflight real se ejecuta.** No aparece en ninguna lista de saltados, y `_cosecha_disponible()` (`tests/test_p4.py:57`) es verdadera.
+- **Lo que comprueba el test real ahora:**
+  - sigue exigiendo `outcomes_read is False`;
+  - compara `p4_confirmatory_executed` con la existencia de la marca (`is_file()`), igual que hace el código con `exists()` en `p4.py:1868`.
+- **Test sintético nuevo** (`test_el_preflight_declara_si_p4_ya_se_ejecuto`, `tests/test_p4.py:1242`):
+  - sin marca, `p4_confirmatory_executed` es False;
+  - con la marca, es True;
+  - `outcomes_read` es False en los dos casos;
+  - redirige `CONFIRMATORY_OUTPUT_DIR` a `tmp_path`, así que no toca `run/`.
+- **Ejecutor y producción sin cambios:** `git diff 3d86036 72c3cef -- advisor config.yaml deploy` está vacío.
+
+## I-2: la evidencia de proceso
+Los tres ficheros nuevos están en `/Users/fer/Desktop/Trading bot/intradia-bot/evidence/2026-10-02-T-020-p4-cierre/`.
+
+**`revision-look-ahead.md`**
+- **Cabecera:** dice sin ambigüedad «realizada antes de la ejecución… archivada posteriormente… No estaba versionada». No se presenta como contemporánea.
+- **El contenido es verosímil y cuadra con hechos que sí puedo verificar:**
+  - HEAD `c2c52b1` sobre el ejecutor `3df8230`;
+  - 50 tests en `test_p4.py` en ese momento, que coinciden con los 49 + 1 de mi primera vuelta;
+  - que `run/` no existía todavía;
+  - las líneas de código que cita (`p4.py:1933-1964` y `1977-1995`) coinciden con lo que inspeccioné.
+- **Es suficiente.** Cubre el checklist del paso 3: no hay lectura de desenlaces antes de la marca, la población y los niveles quedan congelados, y la marca y las guardas de arranque se comprueban.
+- **El MENOR que declara (`--config` externo):**
+  - no se corrigió, y el informe lo dice;
+  - el escenario no se dio: la consola archivada muestra que se lanzó sin `--config` (`$ nohup caffeinate -i .venv/bin/python -m advisor.main p4 --fase confirmatoria`);
+  - es anterior a estas correcciones y no lo agravan, así que no lo cuento como hallazgo nuevo.
+
+**`revision-final.md`**
+- Contiene mi primer informe literal, con todos los hallazgos conservados.
+- La sección «Vuelta de cierre de hallazgos» está pendiente de rellenar.
+
+**`final-pytest-ruff-mypy.txt`**
+- Recoge ruff limpio, mypy limpio y 825 passed, con 0 skipped.
+- Se generó sobre el árbol de trabajo encima de `3d86036`, antes del commit, y la cabecera lo declara. Lo reproduje de forma independiente sobre `72c3cef` con el mismo resultado.
+
+## M-1: B1 y el `stop_basis` de S1
+- **B1, §4 bis.** Coincide con el TSV:
+  - regiones, por ejemplo ASIA +0,021724 [−0,001748, +0,043371] y USA +0,022060 [+0,001360, +0,041874];
+  - regímenes: CAUTELA +0,000958, RISK_OFF +0,108944 [+0,062082, +0,163661] y RISK_ON +0,025760;
+  - terciles: +0,019037, +0,021553 y +0,029525.
+  - Repite la etiqueta de B1 y afirma que estos estratos «no la rehabilitan».
+- **`stop_basis` de S1, §4.** Coincide con el TSV:
+  - MIXTO −0,038810 [−0,071333, −0,006126];
+  - SOP/SOP −0,038635 [−0,078790, +0,006020];
+  - VOL/VOL −0,038251 [−0,063022, −0,013897].
+
+## Integridad de `run/`
+- `shasum -a 256 -c SHA256SUMS-ejecucion.txt` da 12/12 OK.
+- `git diff cfa365d 72c3cef -- evidence/2026-10-01-T-020-p4/run` está vacío.
+- `72c3cef` solo cambia `tests/test_p4.py`, `docs/decision-log.md` y los tres ficheros de cierre nuevos más `resultado-y-heterogeneidad.md`.
+
+## Recuento total actual
+**0 BLOCKER · 0 IMPORTANTE · 0 MENOR · 1 OBSERVACIÓN.**
+
+La observación es una limitación de verificabilidad, no un defecto:
+- no puedo comprobar de forma independiente que el texto de `revision-look-ahead.md` sea el informe de entonces y que no se haya editado;
+- solo lo respaldan el mensaje del commit `cfa365d` y la coherencia interna del informe, que es consistente;
+- está archivado honestamente como tal, así que no hace falta ninguna acción.
+
+Las correcciones no introducen ningún hallazgo nuevo.
+
+## Lo que no ejecuté
+No ejecuté `p4` en ninguna fase, ni `comparacion-pareada`, ni nada que recalcule resultados desde la cosecha. No modifiqué ningún fichero: `git status` sigue mostrando solo `graphify-out/` y `ultima_cerrada`, que ya estaban.
+
+Lo único que ejecuté fue:
+- `git`;
+- `shasum`;
+- la suite completa autorizada. Incluye el preflight real con los evaluadores de desenlaces bloqueados y `write=False`, y la regresión v1 de producción.
+
+## Veredicto
+**GATE P4 PUEDE CRUZARSE.** Los requisitos 1–4 del gate están cubiertos y los artefactos de la ejecución siguen íntegros. El resultado no cambia: B2 y S2 pasan a P5, S1 no pasa, E1 es NO CONCLUYENTE y B1 queda solo como descriptiva. Ya no queda abierto ningún BLOCKER ni ningún IMPORTANTE.
