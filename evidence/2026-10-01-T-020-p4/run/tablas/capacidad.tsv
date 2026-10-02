@@ -1,0 +1,8 @@
+# p4_prereg_sha=48b884722ef027e99857a4e65f9ab6b11da4758f p4_executor_sha=c2c52b11c60bb8dfd08d8cb33d5f6f251e9bf2c0 data_vintage_id=071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841 universe_vintage_id=237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19 config_hash=89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387 cost_pct=0.2 seed=20260830
+# condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+comparacion	ok	motivos	bloques_con_pares	min_pares_bloque	tasa_descarte	exit_final_c	exit_final_v	anchura_ic95
+B1	True		20	3599	0.000247	0.013975	0.015467	0.031643
+B2	True		20	3599	0.000247	0.013975	0.018607	0.101970
+S1	True		20	3599	0.000652	0.013975	0.008444	0.047949
+S2	True		20	3599	0.000257	0.013975	0.018676	0.040415
+E1	True		20	3599	0.000247	0.013975	0.006281	0.093783

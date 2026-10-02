@@ -1,0 +1,33 @@
+# p4_prereg_sha=48b884722ef027e99857a4e65f9ab6b11da4758f p4_executor_sha=c2c52b11c60bb8dfd08d8cb33d5f6f251e9bf2c0 data_vintage_id=071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841 universe_vintage_id=237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19 config_hash=89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387 cost_pct=0.2 seed=20260830
+# condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+geometria	condicion	texto	veta	cumple	detalle
+B2	1	IC Bonferroni (m=4) en 60: inferior > 0	True	True	inferior=0.006111700075578703
+B2	2	Bloque 120: ΔR > 0 e IC95 inferior > 0 (veto sin corrección)	True	True	media=0.07263898156802304; inferior=0.023783494672236515
+B2	3	Capacidad P2.5 en 60	True	True	ok
+B2	4	Heterogeneidad: se publica, no veta ni aprueba	False	N/D	publicada aparte
+B2	5	Cota conservadora de ambigüedad: ΔR > 0 (veto sin corrección)	True	True	media=0.07098777613202549
+B2	6	RR y niveles efectivos coherentes en toda señal	True	True	
+B2	7	Ejecutabilidad: se publica, no veta	False	N/D	publicada aparte
+B2	8	robustez temporal interna sobre datos de desarrollo: ΔR > 0 en bloques 2–11 y 12–21 (veto sin corrección)	True	True	2–11=0.06930369096491511; 12–21=0.0740075954112745
+B2	9	Pares ≥ 90% de 101251	True	True	pares=101226; fracción=0.9998
+B2	10	Nivel de la geometría: primario > 0 y PF agrupado > 1 (veto sin corrección)	True	True	media=0.17539569643013123; PF=1.263439083896119
+S1	1	IC Bonferroni (m=4) en 60: inferior > 0	True	False	inferior=-0.07076974697951803
+S1	2	Bloque 120: ΔR > 0 e IC95 inferior > 0 (veto sin corrección)	True	False	media=-0.04069925113757086; inferior=-0.06210024618044134
+S1	3	Capacidad P2.5 en 60	True	True	ok
+S1	4	Heterogeneidad: se publica, no veta ni aprueba	False	N/D	publicada aparte
+S1	5	Cota conservadora de ambigüedad: ΔR > 0 (veto sin corrección)	True	False	media=-0.04177841516929899
+S1	6	RR y niveles efectivos coherentes en toda señal	True	True	
+S1	7	Ejecutabilidad: se publica, no veta	False	N/D	publicada aparte
+S1	8	robustez temporal interna sobre datos de desarrollo: ΔR > 0 en bloques 2–11 y 12–21 (veto sin corrección)	True	False	2–11=-0.032600828523548106; 12–21=-0.04952455600126167
+S1	9	Pares ≥ 90% de 101251	True	True	pares=101185; fracción=0.9993
+S1	10	Nivel de la geometría: primario > 0 y PF agrupado > 1 (veto sin corrección)	True	True	media=0.06332486768679561; PF=1.102887813275355
+S2	1	IC Bonferroni (m=4) en 60: inferior > 0	True	True	inferior=0.007608299040230358
+S2	2	Bloque 120: ΔR > 0 e IC95 inferior > 0 (veto sin corrección)	True	True	media=0.03459153438639379; inferior=0.013092723517552297
+S2	3	Capacidad P2.5 en 60	True	True	ok
+S2	4	Heterogeneidad: se publica, no veta ni aprueba	False	N/D	publicada aparte
+S2	5	Cota conservadora de ambigüedad: ΔR > 0 (veto sin corrección)	True	True	media=0.0343031811161631
+S2	6	RR y niveles efectivos coherentes en toda señal	True	True	
+S2	7	Ejecutabilidad: se publica, no veta	False	N/D	publicada aparte
+S2	8	robustez temporal interna sobre datos de desarrollo: ΔR > 0 en bloques 2–11 y 12–21 (veto sin corrección)	True	True	2–11=0.023949687390411836; 12–21=0.04562250965866061
+S2	9	Pares ≥ 90% de 101251	True	True	pares=101225; fracción=0.9997
+S2	10	Nivel de la geometría: primario > 0 y PF agrupado > 1 (veto sin corrección)	True	True	media=0.1387559254701411; PF=1.2425890271062157
