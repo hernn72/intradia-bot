@@ -766,6 +766,32 @@ def cmd_p4(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) 
     return code
 
 
+def cmd_p5(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    """Ejecutor único de P5 (T-021 / A-05). La fase es lo único que se elige."""
+
+    from advisor.research import p5
+
+    ident = p5.current_identity(config)
+    vintage = load_vintage(p5.DATA_VINTAGE_ID)
+    if args.fase == "preflight":
+        development = p5.development_mode()
+        if not development and ident.git_dirty is not False:
+            raise ValueError(
+                f"el preflight definitivo exige el árbol limpio (git_dirty={ident.git_dirty}); "
+                f"para iterar sin escribir evidencia: {p5.DEVELOPMENT_ENV}=1"
+            )
+        ok, report = p5.run_preflight(config, universe, vintage, ident, development=development)
+        print(p5.format_preflight(report), end="")
+        return 0 if ok else 2
+    try:
+        code, text = p5.run_confirmatory(config, universe, vintage, ident, p5.CONFIRMATORY_OUTPUT_DIR)
+    except (p5.P5PreflightError, p5.P5AlreadyExecutedError) as exc:
+        print(f"STOP: {exc}", file=sys.stderr)
+        return 2
+    print(text, end="")
+    return code
+
+
 def cmd_ablacion_score(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     universe = resolve_research_population(universe, args.poblacion)
     result = run_event_study(
@@ -1179,6 +1205,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p4_parser.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
     p4_parser.set_defaults(func=cmd_p4)
+
+    p5_parser = sub.add_parser(
+        "p5",
+        help="ejecutor único de P5 (T-021): preflight o ejecución confirmatoria, una sola vez",
+    )
+    p5_parser.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
+    p5_parser.set_defaults(func=cmd_p5)
 
     comparacion = sub.add_parser("comparacion-pareada", help="mide P2.6 con bootstrap por bloques pareados")
     comparacion.add_argument("data_vintage_id", help="identificador de la cosecha congelada")
