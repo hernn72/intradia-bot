@@ -393,7 +393,10 @@ def test_preflight_real_reproduce_poblacion_bloques_y_recuento_sin_desenlaces(mo
     assert report["recuento"]["total"] == 447 and report["recuento"]["confirmatorias"] == 4
     assert report["niveles"]["S2"]["none"] == 0
     assert report["holgura_d06"]["C0"]["GLOBAL"]["categoria_open_t1"][RR_TOO_LOW] == 0
-    assert report["outcomes_read"] is False and report["p4_confirmatory_executed"] is False
+    # El preflight nunca lee desenlaces; si P4 ya se ejecutó, el informe tiene que decirlo.
+    assert report["outcomes_read"] is False
+    marker_exists = (p4.CONFIRMATORY_OUTPUT_DIR / p4.RUN_MARKER).is_file()
+    assert report["p4_confirmatory_executed"] is marker_exists
 
 
 def test_skip_de_la_cosecha_mira_un_csv_real() -> None:
@@ -1234,3 +1237,18 @@ def test_la_confirmatoria_no_admite_parametros_que_cambien_el_experimento() -> N
     source = inspect.getsource(p4.execute_with_outcomes) + inspect.getsource(p4.evaluate_frozen)
     for name in ("SEED", "CONFIRMATORY_FAMILY", "GEOMETRIES", "levels_config", "build_population"):
         assert f"{name} =" not in source
+
+
+def test_el_preflight_declara_si_p4_ya_se_ejecuto(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config = load_config("config.yaml")
+    universe = load_universe(config.universe_path)
+    vintage = _synthetic_vintage()
+    ident = p4.P4Identity("test", False, True, p4.EXPECTED_CONFIG_HASH, "1.0")
+    run_dir = tmp_path / "run"
+    monkeypatch.setattr(p4, "CONFIRMATORY_OUTPUT_DIR", run_dir)
+    _, without = p4.run_preflight(config, universe, vintage, ident, write=False)
+    assert without["p4_confirmatory_executed"] is False and without["outcomes_read"] is False
+    run_dir.mkdir()
+    (run_dir / p4.RUN_MARKER).write_text("{}", encoding="utf-8")
+    _, with_marker = p4.run_preflight(config, universe, vintage, ident, write=False)
+    assert with_marker["p4_confirmatory_executed"] is True and with_marker["outcomes_read"] is False

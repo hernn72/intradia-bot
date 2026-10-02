@@ -24,6 +24,14 @@ TSV; en el texto se redondean a cinco.
 
 ## 1. Resultado
 
+**Cómo terminó la ejecución.**
+- La ejecución completó por la ruta normal: produjo íntegros `p4-resultado.json` y `p4-resumen.md`,
+  y no generó `p4-parada.json`.
+- El código de salida 0 **no quedó archivado literalmente** en la consola: el proceso se lanzó con
+  `nohup` y su código no se capturó.
+- Se infiere de esa ruta de finalización, porque el resumen solo se imprime tras `return 0`. Esto
+  no cuestiona el resultado.
+
 El resultado es el registrado en **D-64**:
 
 | Comparación | ΔR | Intervalo | Resultado |
@@ -67,8 +75,9 @@ sustituir C0».
 | RISK_ON | +0,08495 | [+0,02730, +0,13908] | 17 |
 
 - El efecto no es uniforme por régimen. CAUTELA no muestra ninguna ventaja detectable.
-- El efecto observado se concentra sobre todo en RISK_OFF y aparece también en RISK_ON. Esto
-  explica parte de la heterogeneidad.
+- El efecto observado es mayor por señal en RISK_OFF y aparece también en RISK_ON. Esto explica
+  parte de la heterogeneidad. «Mayor por señal» describe la magnitud condicionada al régimen, no
+  su contribución al total: RISK_OFF tiene 7.944 pares y RISK_ON 73.702.
 - RISK_OFF descansa en solo 7 bloques con pares. Su magnitud debe leerse con esa limitación.
 - **No se crea ninguna política «solo RISK_OFF/RISK_ON»:** sería post hoc.
 - NO_CALCULABLE_CONTEXT se contó y permanece en la primaria, sin régimen estimado.
@@ -118,8 +127,8 @@ sustituir C0».
 | RISK_OFF | +0,08760 | [+0,05845, +0,11518] | 7 |
 | RISK_ON | +0,04132 | [+0,01906, +0,06184] | 17 |
 
-- CAUTELA queda prácticamente neutro. El efecto positivo aparece sobre todo en RISK_OFF, sobre 7
-  bloques, y también en RISK_ON.
+- CAUTELA queda prácticamente neutro. El efecto observado es mayor por señal en RISK_OFF (sobre 7
+  bloques) y también es positivo en RISK_ON.
 - No se crea ninguna política por régimen.
 
 ### Volatilidad
@@ -161,7 +170,45 @@ amplio:
 - **Activos:** 76 de 90 tienen ΔR puntual negativo; 15 tienen el IC95 entero por debajo de 0 y
   ninguno entero por encima.
 
+- **Base del stop:**
+
+  | Par | ΔR | IC95 |
+  |---|---|---|
+  | MIXTO | −0,03881 | [−0,07133, −0,00613] |
+  | SOP/SOP | −0,03864 | [−0,07879, +0,00602] |
+  | VOL/VOL | −0,03825 | [−0,06302, −0,01390] |
+
+  El deterioro de S1 no se limita a una sola base de stop: las tres estimaciones puntuales son
+  negativas.
+
 Esto refuerza la explicación del resultado ya decidido, pero **no añade ninguna condición nueva**.
+
+## 4 bis. B1 (solo descriptiva)
+
+B1 también sale con heterogeneidad ALTA, así que sus estratos pre-registrados se publican aquí.
+B1 está «previamente expuesta en esta misma cosecha; no confirmatoria; no elegible para sustituir
+C0». Sus tablas completas están en `estratos-congelados.md` (§ B1).
+
+| Región | ΔR | IC95 |
+|---|---|---|
+| ASIA | +0,02172 | [−0,00175, +0,04337] |
+| EMERGING_MARKETS | +0,00874 | [−0,04676, +0,06082] |
+| EUROPA | +0,01784 | [+0,00172, +0,03590] |
+| GLOBAL | +0,02342 | [−0,01890, +0,06662] |
+| USA | +0,02206 | [+0,00136, +0,04187] |
+
+| Régimen | ΔR | IC95 |
+|---|---|---|
+| CAUTELA | +0,00096 | [−0,03233, +0,03386] |
+| RISK_OFF | +0,10894 | [+0,06208, +0,16366] |
+| RISK_ON | +0,02576 | [+0,00811, +0,04296] |
+
+Volatilidad: T1 +0,01904, T2 +0,02155 y T3 +0,02953.
+
+- B1 muestra el mismo patrón general: el efecto observado es mayor por señal en RISK_OFF y queda
+  cerca de cero en CAUTELA.
+- Sigue siendo estrictamente descriptiva, está previamente expuesta y no es elegible. Estos estratos
+  **no** la rehabilitan.
 
 ## 5. Qué significa la heterogeneidad ALTA
 

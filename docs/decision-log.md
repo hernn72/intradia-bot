@@ -1249,8 +1249,12 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 - `P4_RUN_HEAD_SHA = c2c52b11c60bb8dfd08d8cb33d5f6f251e9bf2c0`: HEAD desde el que se lanzó la
   ejecución. Respecto a `3df8230` solo añade evidencia de preflight.
 - `P4_RUN_EVIDENCE_COMMIT = cfa365da468edd04f0ccf4d5f20b657382078cbd`
-- Ejecución el 2026-10-02 a las 05:37:50 UTC (marca escrita antes de abrir desenlaces), salida 0.
-  P4 no se repite.
+- Ejecución el 2026-10-02 a las 05:37:50 UTC, con la marca escrita antes de abrir desenlaces.
+  - Completó por la ruta normal: `p4-resultado.json` y `p4-resumen.md` íntegros, y ningún
+    `p4-parada.json`.
+  - El código de salida 0 no quedó archivado literalmente en la consola; se infiere de esa ruta de
+    finalización.
+  - P4 no se repite.
 - El campo histórico `p4_executor_sha` de los artefactos de ejecución contiene `c2c52b1`, el HEAD
   de ejecución. La marca guarda aparte `p4_executor_sha_preflight = 3df8230`. No es un error de
   resultado y los artefactos no se reescriben.
