@@ -1,0 +1,12 @@
+HEAD (P5_CODE_CANDIDATE_SHA) = eaa7506b69dbeec1fbc796e99273764e5bd523e4
+P5_PREREG_SHA en la historia: sí
+árbol (ficheros con seguimiento): 0 cambios
+config.yaml score_model_version:  score_model_version: "1.0"
+config.yaml sin cambios desde P5_PREREG_SHA: sí
+ficheros tocados desde P5_PREREG_SHA:
+   advisor/main.py        |   33 +
+   advisor/research/p5.py | 1678 ++++++++++++++++++++++++++++++++++++++++++++++++
+   tests/test_p5.py       |  838 ++++++++++++++++++++++++
+   3 files changed, 2549 insertions(+)
+marca P5 existe: no
+run/ P5 existe: no

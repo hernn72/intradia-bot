@@ -1,0 +1,24 @@
+# Configuraciones y hashes (OD-P5-14)
+
+_condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)_
+
+`policy_sha256` solo en C0 y en los centros; los vecinos publican el mismo cálculo como `diagnostico_sha256`. Las ausencias no tienen hash.
+
+| Celda | Rol | m3_auxiliar | advisor_config_hash | policy_sha256 | diagnostico_sha256 |
+|---|---|---|---|---|---|
+| C0 | CONTROL | False | `89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387` | `80e21111a88c1eeac94c2ecef6b8bc480a505a045ca90f6a91a0ba6fc4ffd29a` | `—` |
+| B2_s1p75_m24p500 | DIAGNOSTIC_NEIGHBOR | False | `485d12519d9fbdf2ba70ed175d00c0f7646c2ef51f58df1e7545a0fc4d6b3283` | `—` | `d4d9c38a199eac343dda1f46ed3b6b5cd947b8d87178dac7b9e132843f828259` |
+| B2_s1p75_m24p875 | DIAGNOSTIC_NEIGHBOR | False | `9c387dd619e3334205576a9c14cde99e91f5ae1ceb49914bf17124b920ea0101` | `—` | `075a02595a450e880672b34225db10042f42fe160553cc7d59d38a453e1eca47` |
+| B2_s1p75_m25p250 | DIAGNOSTIC_NEIGHBOR | True | `29fc0bfa880b66c6c42350b74eaff5a80179d65dec2e66db50f85cd3df8365bf` | `—` | `489ce9d9d443d9f23d95b583fbf047518c52da14587caa86b67860482a95673d` |
+| B2_s2p00_m24p500 | DIAGNOSTIC_NEIGHBOR | False | `147f86093698eba1d062111cd51ac641e3516f8e7372061136d7cf3a43a5da59` | `—` | `faec20a5e7ff071b9cde621fae6336b36fb02e09187d5b7b44fde5de912553dd` |
+| B2 | CENTER_CANDIDATE | False | `c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760` | `d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9` | `—` |
+| B2_s2p00_m25p250 | DIAGNOSTIC_NEIGHBOR | True | `97c2c1384a08e5043e426e94a8850ce0627ee89723b67e65345b1c8bdd82a3bb` | `—` | `0e8908640084d53f7606e3a2b3efbf98e2cf38c751042f81513a049d57f32e60` |
+| B2_s2p25_m24p500 | DIAGNOSTIC_NEIGHBOR | False | `e818a7b56851423c0418e53a3244d69354e0c4e312bb127281ead51748a733e7` | `—` | `bff1473eed186902ea2a8304c6d84908a29824c14cefc82be91b131f753f7551` |
+| B2_s2p25_m24p875 | DIAGNOSTIC_NEIGHBOR | False | `7f7584007b69536eaf5a1735b488419d7831f4127a029e8d7ba1305ea28670e9` | `—` | `4ef9920e46558693409cb0e6ffc1e2ebd5a0bb40d64f9be0d1907c286b916ab4` |
+| B2_s2p25_m25p250 | DIAGNOSTIC_NEIGHBOR | True | `b04e0e5dc88947476b9347afaeb25cd90d1861d5fc3430883ae70574b52eb161` | `—` | `5ee4adf334249fa08a11b92d9d8573084be3ecd8f5441a279afcc0cc780b691f` |
+| S2_s2p25_m23p375 | DIAGNOSTIC_NEIGHBOR | False | `3b2cfc67b771c62a5216cd10af4844f2de37ba483c0c4e782a3d24aea41816e3` | `—` | `463ecd2e607f7bc7b89fccd1ca7face2055688b25ec305ffd65a3d37ca75820a` |
+| S2_s2p25_m23p750 | DIAGNOSTIC_NEIGHBOR | False | `efa45740459c1376f127a4c9731f491ced91dad93483c000d1826a3be23e699a` | `—` | `f333598ce569b2b914aaa372d148a3ff1e9d620ce89f614c1dac9faa66ec48cf` |
+| S2_s2p25_m24p125 | DIAGNOSTIC_NEIGHBOR | False | `bdf3b98946c3bae883dfc92d34f267be4b3e16d78686511fc87366d47a136a93` | `—` | `ebce05ff9edce86aa0fe3a1279afae9746d4509da1d676626e9900bba40cb0ef` |
+| S2 | CENTER_CANDIDATE | False | `8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb` | `e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11` | `—` |
+| S2_s2p50_m24p125 | DIAGNOSTIC_NEIGHBOR | False | `0a75a4ebbb5b2aac7c7a8d1d0a83a917a94405204e45fd4d00d48c6cd0e27548` | `—` | `8c9e95f62e2cd49dbc60679acd3cd78154c97717da58d40f03f21dd48bc09f6c` |
+| S2_s2p75_m24p125 | DIAGNOSTIC_NEIGHBOR | False | `5180573035e6d26f329083562df8b53fb6b92acf2e4033c20b8d10d4a0509aad` | `—` | `7aa7fa1c25183b3288e37b7bbecfd35f065a13c9538037aaf1dd9d73483f33c9` |

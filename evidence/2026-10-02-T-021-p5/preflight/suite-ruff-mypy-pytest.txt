@@ -1,0 +1,9 @@
+# sobre eaa7506b69dbeec1fbc796e99273764e5bd523e4, árbol limpio
+$ .venv/bin/ruff check .
+All checks passed!
+$ .venv/bin/mypy advisor
+Success: no issues found in 73 source files
+$ .venv/bin/python -m pytest -q
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+903 passed, 3 warnings in 434.91s (0:07:14)
