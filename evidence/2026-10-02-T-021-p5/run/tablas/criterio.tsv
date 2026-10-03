@@ -1,0 +1,16 @@
+# condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+centro	condicion	valor	etiqueta	sobrevive
+B2	centro_p4	True	ROBUSTA	True
+B2	F1	False	ROBUSTA	True
+B2	F2	False	ROBUSTA	True
+B2	F3	False	ROBUSTA	True
+B2	F4	False	ROBUSTA	True
+B2	F5	False	ROBUSTA	True
+B2	F6	False	ROBUSTA	True
+S2	centro_p4	True	ROBUSTA	True
+S2	F1	False	ROBUSTA	True
+S2	F2	False	ROBUSTA	True
+S2	F3	False	ROBUSTA	True
+S2	F4	False	ROBUSTA	True
+S2	F5	False	ROBUSTA	True
+S2	F6	False	ROBUSTA	True
