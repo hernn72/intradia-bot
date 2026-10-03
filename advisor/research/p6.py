@@ -1,0 +1,978 @@
+"""Ejecutor único de P6 (T-022 / A-06): B2 y S2 como sistemas completos de cartera.
+
+La especificación es ``docs/tareas/T-022-p6-sistema-completo.md`` y D-69, con sus precisiones
+ratificadas. Este módulo contiene:
+
+- las identidades congeladas (``P6_PREREG_SHA``, ``P6_DATA_ID``, FX, sector, políticas);
+- la guarda de desenlaces: ``ConfirmatoryToken`` ligado a la marca exclusiva
+  ``EJECUCION_CONFIRMATORIA_P6_INICIADA``; sin token no se cargan precios reales, no se generan
+  señales reales y el motor (``p6_sim``) se niega a simular datos reales;
+- la carga estructural (FX congelado, mapa sectorial, calendario, ventana) y ``system_sha256``;
+- el preflight, que **no abre ningún desenlace**;
+- la ejecución confirmatoria única, implementada pero que solo se lanza con autorización expresa.
+
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+"""
+
+from __future__ import annotations
+
+import csv
+import hashlib
+import importlib.metadata
+import json
+import os
+import secrets
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta, timezone
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cast
+from zoneinfo import ZoneInfo
+
+import pandas as pd
+
+from advisor.analysis.benchmark import resolve_benchmark_symbol
+from advisor.analysis.levels import compute_levels
+from advisor.analysis.opportunity import ACCION_COMPRAR, RADAR_OPERAR
+from advisor.analysis.snapshot import build_snapshot_series, snapshot_from_series
+from advisor.backtest.engine import _signal
+from advisor.config import AdvisorConfig
+from advisor.context.point_in_time import PointInTimeContextResolver, analysis_timestamp_for_signal
+from advisor.data.calendars import exchange_calendar, expected_sessions
+from advisor.data.freshness import mercado_para_simbolo
+from advisor.data.sessions import market_for_symbol, market_session, session_close_at
+from advisor.research import p5
+from advisor.research.observations import stable_signal_id
+from advisor.research.p3 import utc_now, write_json
+from advisor.research.p4 import _context_resolver, executor_unchanged_since, run_git, tree_dirty
+from advisor.research.p6_sim import (
+    ORIGIN_REAL,
+    AssetSeries,
+    FxTable,
+    MarketData,
+    P6OutcomeGateError,
+    Signal,
+    SimSpec,
+    canonical_json,
+    cash_occupancy,
+    criterion,
+    equity_series,
+    excess,
+    exposure_metrics,
+    ledger_csv,
+    path_metrics,
+    series_csv,
+    simulate,
+    simulate_benchmark,
+    subperiods,
+    survivors,
+    trade_metrics,
+    trades_csv,
+    turnover,
+)
+from advisor.research.vintage import VintageLoad, frozen_close
+from advisor.run.git import git_sha
+from advisor.run.manifest import config_hash
+from advisor.universe.models import Universe
+
+P6_PREREG_SHA = "03f04a42ea9d2be893e7c4cc09de76bd1c55778b"
+P6_DATA_ID = "572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383"
+DATA_VINTAGE_ID = "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841"
+UNIVERSE_VINTAGE_ID = "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19"
+FX_VINTAGE_ID = "10e832ef38daa5d7e81a444bcd3bc99a5e783a382a14a4a14c68e6736dfeac0b"
+SECTOR_MAP_SHA256 = "24f45421a582cc79ee16f8436e3e008d252ccafc06f34503961d5dfccea662cd"
+ASSET_LIST_SHA256 = "36355796a57e55a68ea16957b7edc6975360fb2085e7fd91841d20e2d7812f50"
+EXCHANGE_OVERRIDES_SHA256 = "87e4aa21def5eaf057745cf4b98711c4df694dae2f6cfbf27245823d946539db"
+EXCHANGE_CALENDARS_VERSION = "4.13.2"
+TZDATA_VERSION = "2026.4"
+EXPECTED_CONFIG_HASH = "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387"
+
+POLICY_HASHES = {
+    "B2": ("d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9",
+           "c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760"),
+    "S2": ("e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11",
+           "8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb"),
+    "C0": ("80e21111a88c1eeac94c2ecef6b8bc480a505a045ca90f6a91a0ba6fc4ffd29a",
+           "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387"),
+}
+CANDIDATES = ("B2", "S2")
+CONTROL = "C0"
+
+DATA_DIR = Path("evidence/2026-10-03-T-022-p6-datos")
+CENSUS = Path("evidence/2026-10-03-T-022-p6-diseno/censo-p6.json")
+PREFLIGHT_DIR = Path("evidence/2026-10-03-T-022-p6/preflight")
+RUN_DIR = Path("evidence/2026-10-03-T-022-p6/run")
+RUN_MARKER = "EJECUCION_CONFIRMATORIA_P6_INICIADA"
+DEVELOPMENT_ENV = "INTRADIA_P6_PREFLIGHT_DESARROLLO"
+
+HORIZONTE = "swing"
+WARMUP_BARS = 120
+TREND_SMA = 200
+CAPITAL = 100_000.0
+SLIPPAGE_PRIMARY_BPS = 5.0
+SLIPPAGE_SENSITIVITY_BPS = 10.0
+POPULATION_OPERAR = "OPERAR_score_v1_point_in_time"
+POPULATION_ALL_BARS = "todas_las_barras_elegibles"
+UNIVERSE_LABEL = "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)"
+
+
+class P6PreflightError(RuntimeError):
+    """Una identidad del pre-registro no se reproduce: P6 no se ejecuta."""
+
+
+class P6AlreadyExecutedError(RuntimeError):
+    """La ejecución confirmatoria de P6 ya se inició una vez: no se repite."""
+
+
+# ---------------------------------------------------------------------------
+# Guarda de desenlaces: marca exclusiva y token.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ConfirmatoryToken:
+    marker_path: Path
+    marker_payload_sha256: str
+    nonce: str = ""
+
+
+# Marcas creadas en exclusiva por este proceso y tokens emitidos sobre ellas: un token solo vale en
+# el proceso que creó la marca. Otro proceso que lea una marca existente no puede obtener uno. La
+# marca solo se crea con la autorización que emite run_confirmatory tras todas sus comprobaciones.
+_CREATED_MARKERS: set[Path] = set()
+_ISSUED_TOKENS: set[ConfirmatoryToken] = set()
+_CLEARANCES: set[str] = set()
+
+
+def _issue_clearance() -> str:
+    """Solo la llama run_confirmatory, después de identidad, árbol, preflight, ejecutor y huella."""
+
+    clearance = secrets.token_hex(32)
+    _CLEARANCES.add(clearance)
+    return clearance
+
+
+def create_marker_exclusive(marker: Path, clearance: str) -> int:
+    if clearance not in _CLEARANCES:
+        raise P6OutcomeGateError("la marca de P6 solo se crea desde run_confirmatory, tras sus comprobaciones")
+    _CLEARANCES.discard(clearance)
+    try:
+        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    except FileExistsError as exc:
+        raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({marker}); no se repite") from exc
+    _CREATED_MARKERS.add(marker.resolve())
+    return fd
+
+
+def build_confirmatory_token(marker: Path, payload: Mapping[str, Any]) -> ConfirmatoryToken:
+    if marker.resolve() not in _CREATED_MARKERS:
+        raise P6OutcomeGateError("solo el proceso que creó la marca en exclusiva puede obtener el token")
+    if not marker.is_file():
+        raise P6OutcomeGateError("la marca confirmatoria de P6 no existe")
+    observed = marker.read_text(encoding="utf-8")
+    if observed != json.dumps(payload, ensure_ascii=False, indent=2) + "\n":
+        raise P6OutcomeGateError("la marca confirmatoria de P6 no coincide con el payload escrito")
+    token = ConfirmatoryToken(marker, hashlib.sha256(observed.encode("utf-8")).hexdigest(), secrets.token_hex(32))
+    _ISSUED_TOKENS.add(token)
+    return token
+
+
+def require_token(token: Optional[ConfirmatoryToken]) -> ConfirmatoryToken:
+    if token is None:
+        raise P6OutcomeGateError("P6: abrir desenlaces exige ConfirmatoryToken")
+    if token not in _ISSUED_TOKENS:
+        raise P6OutcomeGateError("ConfirmatoryToken no emitido por build_confirmatory_token en este proceso")
+    expected = (RUN_DIR / RUN_MARKER).resolve()
+    if token.marker_path.resolve() != expected:
+        raise P6OutcomeGateError("ConfirmatoryToken apunta a una marca que no es la de P6")
+    if not token.marker_path.is_file():
+        raise P6OutcomeGateError("ConfirmatoryToken sin marca en disco")
+    if hashlib.sha256(token.marker_path.read_bytes()).hexdigest() != token.marker_payload_sha256:
+        raise P6OutcomeGateError("ConfirmatoryToken no coincide con la marca en disco")
+    return token
+
+
+def authorization(token: ConfirmatoryToken) -> Callable[[], None]:
+    def check() -> None:
+        require_token(token)
+
+    return check
+
+
+# ---------------------------------------------------------------------------
+# Identidades estructurales.
+# ---------------------------------------------------------------------------
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def asset_list() -> List[str]:
+    data = json.loads(CENSUS.read_text(encoding="utf-8"))
+    symbols = sorted(row["asset"] for row in data["activos"])
+    digest = hashlib.sha256("\n".join(symbols).encode("utf-8")).hexdigest()
+    if digest != ASSET_LIST_SHA256:
+        raise P6PreflightError(f"asset_list_sha256 {digest} distinto del congelado")
+    return symbols
+
+
+def policy_cells() -> Dict[str, Any]:
+    return {"B2": p5.B2_CELL, "S2": p5.S2_CELL, "C0": p5.C0_CELL}
+
+
+def policy_identities(config: AdvisorConfig) -> Dict[str, Dict[str, str]]:
+    out = {}
+    for policy, cell in policy_cells().items():
+        out[policy] = {
+            "policy_sha256": p5.policy_sha256(config, cell),
+            "advisor_config_hash": p5.advisor_config_hash(config, cell),
+        }
+    return out
+
+
+def policy_config(config: AdvisorConfig, policy: str) -> AdvisorConfig:
+    cell = policy_cells()[policy]
+    return config.model_copy(update={"levels": cell.levels_config(config.levels)})
+
+
+def load_fx() -> Tuple[FxTable, Dict[str, Any]]:
+    manifest = json.loads((DATA_DIR / "fx" / "fx-manifest.json").read_text(encoding="utf-8"))
+    sidecar = DATA_DIR / "fx" / "fx-sidecar.csv"
+    if manifest.get("fx_vintage_id") != FX_VINTAGE_ID:
+        raise P6PreflightError("fx_vintage_id del manifiesto distinto del congelado")
+    if sha256_file(sidecar) != manifest["fx_sidecar_csv_sha256"]:
+        raise P6PreflightError("fx-sidecar.csv no coincide con su sha256 congelado")
+    recomputed = hashlib.sha256(
+        canonical_json(
+            {
+                "fuente_usada": manifest["fuente_usada"],
+                "series_fx": manifest["series_fx"],
+                "fx_sidecar_csv_sha256": manifest["fx_sidecar_csv_sha256"],
+            }
+        ).encode("utf-8")
+    ).hexdigest()
+    if recomputed != FX_VINTAGE_ID:
+        raise P6PreflightError("fx_vintage_id no se reproduce desde el manifiesto")
+    series: Dict[str, List[Tuple[datetime, float]]] = {}
+    with sidecar.open(encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            currency = row["fx_pair"].replace("EUR", "", 1)
+            available = datetime.strptime(row["timestamp_available"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            series.setdefault(currency, []).append((available, float(row["rate"])))
+    return FxTable(series), {"fuente_usada": manifest["fuente_usada"], "pares": sorted(series)}
+
+
+def load_sector_map() -> Dict[str, str]:
+    document = json.loads((DATA_DIR / "p6-sector-map.json").read_text(encoding="utf-8"))
+    canonical = json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    if hashlib.sha256(canonical.encode("utf-8")).hexdigest() != SECTOR_MAP_SHA256:
+        raise P6PreflightError("el mapa sectorial no reproduce su sha256 congelado")
+    return {entry["asset"]: entry["sector"] for entry in document["instrumentos"]}
+
+
+def p6_data_id_payload() -> Dict[str, Any]:
+    return {
+        "market_data_vintage": DATA_VINTAGE_ID,
+        "universe_vintage": UNIVERSE_VINTAGE_ID,
+        "fx_vintage": FX_VINTAGE_ID,
+        "sector_map": SECTOR_MAP_SHA256,
+        "calendar": {
+            "exchange_calendars": importlib.metadata.version("exchange_calendars"),
+            "exchange_overrides_sha256": sha256_file(Path("exchange_overrides.yaml")),
+            "tzdata": importlib.metadata.version("tzdata"),
+        },
+        "asset_list": ASSET_LIST_SHA256,
+    }
+
+
+def p6_data_id() -> str:
+    canonical = json.dumps(p6_data_id_payload(), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Calendario y ventana (estructurales: solo fechas, nunca precios).
+# ---------------------------------------------------------------------------
+
+
+def _local_dates(index: pd.Index, tz: str) -> List[date]:
+    stamps = pd.DatetimeIndex(pd.to_datetime(index, utc=True, format="mixed"))
+    return [stamp.date() for stamp in stamps.tz_convert(ZoneInfo(tz))]
+
+
+def bar_times(market: str, sessions: Sequence[date]) -> Tuple[Tuple[datetime, ...], Tuple[datetime, ...]]:
+    """Aperturas y cierres reales en UTC del calendario efectivo para cada fecha de sesión con barra."""
+
+    calendar = cast(Any, exchange_calendar(market))
+    opens: List[datetime] = []
+    closes: List[datetime] = []
+    for day in sessions:
+        opened = calendar.session_open(pd.Timestamp(day)).to_pydatetime()
+        if opened.tzinfo is None:
+            opened = opened.replace(tzinfo=timezone.utc)
+        closed = session_close_at(market, day)
+        if closed is None:
+            raise P6PreflightError(f"{market} {day}: sin cierre de calendario")
+        opens.append(opened.astimezone(timezone.utc))
+        closes.append(closed.astimezone(timezone.utc))
+    return tuple(opens), tuple(closes)
+
+
+@dataclass(frozen=True)
+class Window:
+    start: date
+    end: date
+    warmup_last_initial: date
+    sma_complete_session: date
+    sessions_without_bar: int
+    snapshot_days: int
+    periods_per_year: float
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "inicio": self.start.isoformat(),
+            "fin": self.end.isoformat(),
+            "ultimo_calentamiento_de_los_iniciales": self.warmup_last_initial.isoformat(),
+            "sesion_que_completa_la_sma200": self.sma_complete_session.isoformat(),
+            "sesiones_sin_barra_en_ventana": self.sessions_without_bar,
+            "instantaneas": self.snapshot_days,
+            "periodos_por_año": self.periods_per_year,
+        }
+
+
+def derive_window(config: AdvisorConfig, universe: Universe, vintage: VintageLoad) -> Window:
+    """Regla de T-022 §7.9 (D-69 punto 13), solo con fechas de sesión."""
+
+    symbols = asset_list()
+    dates: Dict[str, List[date]] = {}
+    markets: Dict[str, str] = {}
+    for symbol in symbols:
+        asset = universe.get(symbol)
+        if asset is None:
+            raise P6PreflightError(f"{symbol} ausente del universo")
+        dates[symbol] = _local_dates(vintage.by_symbol[symbol].execution_prices.index, asset.timezone)
+        markets[symbol] = mercado_para_simbolo(asset, symbol)
+    first = min(days[0] for days in dates.values())
+    initial = [symbol for symbol, days in dates.items() if days[0] == first]
+    warmup_last = max(dates[symbol][WARMUP_BARS] for symbol in initial)
+    trend_symbol = config.market_context.trend_symbol
+    trend_market = market_for_symbol(trend_symbol)
+    trend_dates = _local_dates(vintage.by_symbol[trend_symbol].execution_prices.index, market_session(trend_market).timezone)
+    sma_session = trend_dates[TREND_SMA - 1]
+    sma_available = session_close_at(trend_market, sma_session)
+    if sma_available is None:
+        raise P6PreflightError("sin cierre para la sesión que completa la SMA200")
+    sma_available = sma_available + timedelta(minutes=config.data_quality.settlement_minutes)
+    candidate = max(warmup_last + timedelta(days=1), sma_session + timedelta(days=1))
+    all_days = sorted({day for days in dates.values() for day in days})
+    start = next(day for day in all_days if day >= candidate)
+    # Condición 2 comprobada señal a señal: la última sesión de cada activo antes del inicio tiene
+    # su analysis_timestamp después de que la SMA200 esté disponible.
+    for symbol in symbols:
+        before = [day for day in dates[symbol] if day < start]
+        after = [day for day in dates[symbol] if day >= start]
+        if not before or not after or symbol not in initial:
+            continue
+        ts = analysis_timestamp_for_signal(markets[symbol], before[-1], after[0],
+                                           settlement_minutes=config.data_quality.settlement_minutes)
+        if ts is not None and ts < sma_available:
+            raise P6PreflightError(f"{symbol}: la primera señal admitida no tiene la SMA200 causal")
+    end = min(days[-1] for days in dates.values())
+    missing = 0
+    for symbol in symbols:
+        # Desde la primera barra del activo: antes de cotizar (ARM, Q8Y0.DE) no hay «sesión sin barra».
+        listed_from = max(start, dates[symbol][0])
+        window_days = [day for day in dates[symbol] if listed_from <= day <= end]
+        expected = expected_sessions(markets[symbol], listed_from, end)
+        missing += len(set(expected) - set(window_days))
+    snapshot_days = sorted({day for days in dates.values() for day in days if start <= day <= end})
+    span = (snapshot_days[-1] - start).days
+    ppy = len(snapshot_days) / (span / 365.25)
+    return Window(start, end, warmup_last, sma_session, missing, len(snapshot_days), ppy)
+
+
+# ---------------------------------------------------------------------------
+# Identidad del sistema (T-022 §18).
+# ---------------------------------------------------------------------------
+
+
+def system_payload(config: AdvisorConfig, policy: str, population: str, slippage_bps: float, window: Window) -> Dict[str, Any]:
+    identities = policy_identities(config)[policy]
+    return {
+        "esquema": "intradia.p6.system.v1",
+        "policy_id": policy,
+        "p5_policy_sha256": identities["policy_sha256"],
+        "advisor_config_hash": identities["advisor_config_hash"],
+        "score_model_version": "1.0",
+        "poblacion_de_senales": population,
+        "papel": "control_descriptivo" if policy == CONTROL else (
+            "decisoria" if population == POPULATION_OPERAR and slippage_bps == SLIPPAGE_PRIMARY_BPS else "descriptiva"
+        ),
+        "capital_inicial": CAPITAL,
+        "base_currency": config.base_currency,
+        "risk_per_trade_pct": config.portfolio.risk_per_trade_pct,
+        "max_position_pct": config.portfolio.max_position_pct,
+        "modo_de_contexto": "point_in_time" if population == POPULATION_OPERAR else "sin_score",
+        "predicado_OPERAR": "broker_neutral: setup_radar == OPERAR y setup_accion == COMPRAR",
+        "estimador_decisorio": "mean_R_local = media simple de trade_R_local sobre las operaciones cerradas (excepción a INV-14)",
+        "regla_analysis_timestamp": {
+            "regla": "D-50: última pasada programada antes de la apertura de entrada",
+            "pasadas": ["07:00", "08:30", "14:30", "21:00"],
+            "dias": "lun-vie",
+            "zona": "Europe/London",
+            "settlement_minutes": config.data_quality.settlement_minutes,
+        },
+        "moneda_del_R_decisorio": "local",
+        "fuente_fx": "B",
+        "unidades": "fraccionarias",
+        "base_del_sizing": "equity causal anterior al lote, una vez por lote",
+        "regla_de_cash": "rechazar entera (INSUFFICIENT_CASH) si nominal efectivo + comisión > cash",
+        "apalancamiento": 0,
+        "limites_globales": "ninguno",
+        "regla_mismo_activo": "una posición; IGNORED_ALREADY_OPEN contado",
+        "semantica_de_entrada": "open de la barra siguiente; INVALID_STOP, INVALID_TARGET, ABOVE_MAX_ENTRY, RR_TOO_LOW, POSITION_TOO_SMALL, INSUFFICIENT_CASH con precio efectivo",
+        "semantica_de_salida": "engine._check_exit: hueco stop, stop, hueco objetivo, objetivo; stop gana; tiempo 40 barras; EXIT_FINAL; target3 no sale",
+        "cronologia": {
+            "calendario": "exchange_calendars + exchange_overrides.yaml + tzdata",
+            "fases": ["OPEN_EXIT", "OPEN_ENTRY", "CLOSE_EXIT", "CLOSE_DIVIDEND", "CLOSE_VALUATION", "SIGNAL"],
+        },
+        "desempate": "sha256(b'intradia.p6.desempate.v1' + signal_id.encode('utf-8')).hexdigest() ascendente",
+        "liquidacion": "inmediata al materializar la salida",
+        "modelo_de_costes": {"entrada_pct": 0.10, "salida_pct": 0.10, "sobre": "nominal ejecutado"},
+        "modelo_de_slippage": {"pb_por_lado": slippage_bps},
+        "modelo_de_dividendos": {"derecho": "abierta al cierre previo a la fecha ex", "abono": "cierre de la sesión ex", "fiscalidad": "bruto"},
+        "fx": {"fx_vintage_id": FX_VINTAGE_ID, "regla": "último tipo con timestamp_available < τ; 1/rate", "caja": "única en EUR, sin coste FX"},
+        "sector_map_sha256": SECTOR_MAP_SHA256,
+        "calendario_de_valoracion": "ledger por eventos + instantánea 23:59:59 UTC de cada día con sesión",
+        "periodos_por_año": window.periods_per_year,
+        "ventana": {"inicio": window.start.isoformat(), "fin": window.end.isoformat()},
+        "universo": {"asset_list_sha256": ASSET_LIST_SHA256},
+        "contrato_del_benchmark": benchmark_contract(slippage_bps),
+        "contrato_de_metricas": "T-022 §15 (rf = 0, MAR = 0, DD sobre la serie diaria con V_0)",
+        "criterio_de_supervivencia": "N_closed >= 100; profit_factor_local > 1; mean_R_local > 0; max_drawdown >= -25 %; excess_CAGR_pp > 0",
+        "data_vintage_id": DATA_VINTAGE_ID,
+        "universe_vintage_id": UNIVERSE_VINTAGE_ID,
+        "p6_data_id": P6_DATA_ID,
+    }
+
+
+def benchmark_contract(slippage_bps: float) -> Dict[str, Any]:
+    return {
+        "esquema": "intradia.p6.benchmark.v1",
+        "universo": ASSET_LIST_SHA256,
+        "ponderacion": "pesos iguales 1/90, comisión dentro del importe",
+        "rebalanceo": "ninguno",
+        "tardios": "1/90 en cash hasta la apertura de la barra siguiente a su barra 120",
+        "dividendos": "reinvertidos en el mismo activo en la apertura siguiente; comisión dentro del dividendo",
+        "costes_pct_por_lado": 0.10,
+        "slippage_pb_por_lado": slippage_bps,
+        "fx_vintage_id": FX_VINTAGE_ID,
+    }
+
+
+def benchmark_payload(slippage_bps: float, window: Window) -> Dict[str, Any]:
+    return {
+        "esquema": "intradia.p6.benchmark.v1",
+        "contrato": benchmark_contract(slippage_bps),
+        "capital_inicial": CAPITAL,
+        "ventana": {"inicio": window.start.isoformat(), "fin": window.end.isoformat()},
+        "periodos_por_año": window.periods_per_year,
+        "p6_data_id": P6_DATA_ID,
+    }
+
+
+def sha256_payload(payload: Mapping[str, Any]) -> str:
+    return hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+RUNS: Tuple[Tuple[str, str, str, float], ...] = (
+    ("B2_primaria_5pb", "B2", POPULATION_OPERAR, SLIPPAGE_PRIMARY_BPS),
+    ("B2_sensibilidad_10pb", "B2", POPULATION_OPERAR, SLIPPAGE_SENSITIVITY_BPS),
+    ("B2_todas_las_barras_5pb", "B2", POPULATION_ALL_BARS, SLIPPAGE_PRIMARY_BPS),
+    ("S2_primaria_5pb", "S2", POPULATION_OPERAR, SLIPPAGE_PRIMARY_BPS),
+    ("S2_sensibilidad_10pb", "S2", POPULATION_OPERAR, SLIPPAGE_SENSITIVITY_BPS),
+    ("S2_todas_las_barras_5pb", "S2", POPULATION_ALL_BARS, SLIPPAGE_PRIMARY_BPS),
+    ("C0_primaria_5pb", "C0", POPULATION_OPERAR, SLIPPAGE_PRIMARY_BPS),
+)
+BENCHMARK_RUNS = (("benchmark_5pb", SLIPPAGE_PRIMARY_BPS), ("benchmark_10pb", SLIPPAGE_SENSITIVITY_BPS))
+
+
+def system_hashes(config: AdvisorConfig, window: Window) -> Dict[str, Dict[str, str]]:
+    out: Dict[str, Dict[str, str]] = {}
+    for run_id, policy, population, slippage in RUNS:
+        payload = system_payload(config, policy, population, slippage, window)
+        out[run_id] = {"system_sha256": sha256_payload(payload), "policy": policy, "poblacion": population,
+                       "slippage_pb": str(slippage), "papel": payload["papel"]}
+    for run_id, slippage in BENCHMARK_RUNS:
+        out[run_id] = {"benchmark_sha256": sha256_payload(benchmark_payload(slippage, window)), "slippage_pb": str(slippage)}
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Datos y señales reales: solo con token (abren desenlaces).
+# ---------------------------------------------------------------------------
+
+
+def build_real_market(
+    token: ConfirmatoryToken,
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    window: Window,
+    sectors: Mapping[str, str],
+) -> MarketData:
+    require_token(token)
+    assets: Dict[str, AssetSeries] = {}
+    for symbol in asset_list():
+        asset = universe.get(symbol)
+        assert asset is not None
+        views = vintage.by_symbol[symbol]
+        prices = views.execution_prices
+        market = mercado_para_simbolo(asset, symbol)
+        sessions = _local_dates(prices.index, asset.timezone)
+        opens, closes = bar_times(market, sessions)
+        dividends = views.raw["Dividends"].astype(float).reindex(prices.index).fillna(0.0)
+        assets[symbol] = AssetSeries(
+            symbol=symbol, market=market, currency=asset.primary_currency or asset.currency,
+            economic_currency=asset.economic_currency, region=asset.region, sector=sectors[symbol],
+            session_dates=tuple(sessions), open_utc=opens, close_utc=closes,
+            open=tuple(float(v) for v in prices["Open"]), high=tuple(float(v) for v in prices["High"]),
+            low=tuple(float(v) for v in prices["Low"]), close=tuple(float(v) for v in prices["Close"]),
+            dividends=tuple(float(v) for v in dividends), eligible_from=WARMUP_BARS + 1,
+        )
+    return MarketData(assets=assets, window_start=window.start, window_end=window.end, origin=ORIGIN_REAL)
+
+
+def build_real_signals(
+    token: ConfirmatoryToken,
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    policy: str,
+    population: str,
+    window: Window,
+) -> Tuple[List[Signal], Dict[str, int]]:
+    """Señales reales de una política cuya entrada cae en la ventana: abre desenlaces, exige el token."""
+
+    require_token(token)
+    cfg = policy_config(config, policy)
+    resolver: PointInTimeContextResolver = _context_resolver(config, universe, vintage)
+    window_cfg = config.horizonte(HORIZONTE)
+    settlement = config.data_quality.settlement_minutes
+    signals: List[Signal] = []
+    counts: Dict[str, int] = {}
+
+    def bump(name: str) -> None:
+        counts[name] = counts.get(name, 0) + 1
+
+    for symbol in asset_list():
+        asset = universe.get(symbol)
+        assert asset is not None
+        signal_df = vintage.by_symbol[symbol].signal_prices
+        market = mercado_para_simbolo(asset, symbol)
+        sessions = _local_dates(signal_df.index, asset.timezone)
+        benchmark_symbol = resolve_benchmark_symbol(asset, config.report)
+        benchmark_close = frozen_close(vintage, benchmark_symbol) if benchmark_symbol else None
+        series = build_snapshot_series(
+            signal_df, cfg.indicators, cfg.levels, window_cfg.interval, benchmark_close,
+            asset_timezone=market_session(market).timezone,
+            benchmark_timezone=market_session(market_for_symbol(benchmark_symbol)).timezone if benchmark_symbol else None,
+        )
+        contexts = resolver.contexts_for_index(signal_df.index, signal_market=market) if population == POPULATION_OPERAR else []
+        for j in range(WARMUP_BARS, len(signal_df) - 1):
+            if not (window.start <= sessions[j + 1] <= window.end):
+                continue
+            ts = analysis_timestamp_for_signal(market, sessions[j], sessions[j + 1], settlement_minutes=settlement)
+            if ts is None:
+                bump("excluida_sin_analysis_timestamp")
+                continue
+            if population == POPULATION_OPERAR:
+                resolved = contexts[j]
+                if resolved is None or not resolved.calculable:
+                    bump("excluida_" + (",".join(resolved.exclusions) if resolved is not None and resolved.exclusions else "NO_CALCULABLE_CONTEXT_HISTORY"))
+                    continue
+                context = resolved.context
+                assert context is not None
+                if context.source != "point_in_time":
+                    raise P6OutcomeGateError(f"{symbol}: contexto {context.source} en P6 (solo point_in_time)")
+                context_at: List[Any] = [None] * len(signal_df)
+                context_at[j] = context
+                found = _signal(asset, series, j, cfg, HORIZONTE, WARMUP_BARS, None, None, None, context_at, "1.0")
+                if found is None:
+                    bump("sin_niveles")
+                    continue
+                if not (found["setup_radar"] == RADAR_OPERAR and found["setup_accion"] == ACCION_COMPRAR):
+                    bump("no_operar")
+                    continue
+                levels = found["levels"]
+                signal_id = found["observation"].signal_id
+            else:
+                try:
+                    snapshot = snapshot_from_series(symbol, series, j)
+                except ValueError:
+                    bump("sin_snapshot")
+                    continue
+                levels = compute_levels(snapshot, cfg.levels, cfg.risk.min_rr_ratio)
+                if levels is None:
+                    bump("sin_niveles")
+                    continue
+                signal_id = stable_signal_id(symbol, HORIZONTE, snapshot.timestamp)
+            bump("senales")
+            signals.append(Signal(signal_id, symbol, j, ts, levels.stop, levels.target2, levels.entry_max))
+    return signals, dict(sorted(counts.items()))
+
+
+# ---------------------------------------------------------------------------
+# Preflight (no abre desenlaces).
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class P6Identity:
+    head_sha: str
+    git_dirty: Optional[bool]
+    prereg_in_history: Optional[bool]
+    config_hash: str
+    score_model_version: str
+
+
+def prereg_in_history(repo: str | Path = ".") -> Optional[bool]:
+    if run_git(["merge-base", "--is-ancestor", P6_PREREG_SHA, "HEAD"], repo).ok:
+        return True
+    kind = run_git(["cat-file", "-t", P6_PREREG_SHA], repo)
+    return False if kind.ok and kind.output == "commit" else None
+
+
+def current_identity(config: AdvisorConfig, repo: str | Path = ".") -> P6Identity:
+    return P6Identity(git_sha(repo), tree_dirty(repo), prereg_in_history(repo), config_hash(config),
+                      config.scoring.score_model_version)
+
+
+def development_mode() -> bool:
+    return os.getenv(DEVELOPMENT_ENV) == "1"
+
+
+def guard_checks(config: AdvisorConfig, universe: Universe, vintage: VintageLoad, window: Window) -> List[Tuple[str, Any, Any, bool]]:
+    """Demuestra que sin token no se abre ningún desenlace (sin abrir ninguno)."""
+
+    checks: List[Tuple[str, Any, Any, bool]] = []
+
+    def expect_gate(name: str, call: Callable[[], Any]) -> None:
+        try:
+            call()
+        except P6OutcomeGateError:
+            checks.append((name, "P6OutcomeGateError", "P6OutcomeGateError", True))
+            return
+        checks.append((name, "sin error", "P6OutcomeGateError", False))
+
+    fake = ConfirmatoryToken(RUN_DIR / RUN_MARKER, "0" * 64)
+    expect_gate("build_real_market sin token", lambda: build_real_market(cast(Any, None), config, universe, vintage, window, {}))
+    expect_gate("build_real_signals sin token", lambda: build_real_signals(cast(Any, None), config, universe, vintage, "B2", POPULATION_OPERAR, window))
+    expect_gate("build_real_signals con token fabricado", lambda: build_real_signals(fake, config, universe, vintage, "B2", POPULATION_OPERAR, window))
+    empty_real = MarketData(assets={}, window_start=window.start, window_end=window.end, origin=ORIGIN_REAL)
+    fx_stub = FxTable({})
+    spec = SimSpec("guarda", "0" * 64)
+    expect_gate("simulate con datos reales sin autorización", lambda: simulate(empty_real, [], fx_stub, spec))
+    expect_gate("simulate_benchmark con datos reales sin autorización", lambda: simulate_benchmark(empty_real, fx_stub, spec))
+    checks.append(("marca confirmatoria ausente", (RUN_DIR / RUN_MARKER).exists(), False, not (RUN_DIR / RUN_MARKER).exists()))
+    return checks
+
+
+def synthetic_market() -> Tuple[MarketData, FxTable, List[Signal]]:
+    """Fixture sintético fijo para comprobar el determinismo sin abrir ningún desenlace real."""
+
+    days = [date(2024, 1, 1) + timedelta(days=k) for k in range(60) if (date(2024, 1, 1) + timedelta(days=k)).weekday() < 5]
+    assets: Dict[str, AssetSeries] = {}
+    for n, (symbol, market, currency, hour_open, hour_close, drift) in enumerate((
+        ("SYN.DE", "XETRA", "EUR", 7, 15, 0.004), ("SYN", "NYSE", "USD", 14, 21, -0.002), ("SYN.T", "JPX", "JPY", 0, 6, 0.003),
+    )):
+        closes = [100.0 * (1.0 + drift) ** k + (k % 5) * 0.3 for k in range(len(days))]
+        opens = [closes[k - 1] if k else 100.0 for k in range(len(days))]
+        assets[symbol] = AssetSeries(
+            symbol=symbol, market=market, currency=currency, economic_currency="MULTI" if n == 2 else currency,
+            region=("EUROPA", "USA", "ASIA")[n], sector=("Technology", "Energy", "UNKNOWN")[n],
+            session_dates=tuple(days),
+            open_utc=tuple(datetime.combine(d, time(hour_open, 30), timezone.utc) for d in days),
+            close_utc=tuple(datetime.combine(d, time(hour_close, 0), timezone.utc) for d in days),
+            open=tuple(opens), high=tuple(max(o, c) * 1.01 for o, c in zip(opens, closes)),
+            low=tuple(min(o, c) * 0.99 for o, c in zip(opens, closes)), close=tuple(closes),
+            dividends=tuple(0.5 if k == 30 else 0.0 for k in range(len(days))), eligible_from=0,
+        )
+    fx = FxTable({
+        "USD": [(datetime.combine(d, time(15, 0), timezone.utc), 1.10 + 0.001 * k) for k, d in enumerate([days[0] - timedelta(days=3), *days])],
+        "JPY": [(datetime.combine(d, time(15, 0), timezone.utc), 160.0) for d in [days[0] - timedelta(days=3), *days]],
+    })
+    signals = [
+        Signal(f"{symbol}|swing|{k}", symbol, k, series.close_utc[k] + timedelta(minutes=30),
+               series.close[k] * 0.96, series.close[k] * 1.08, series.close[k] * 1.01)
+        for symbol, series in assets.items() for k in range(2, len(days) - 1, 7)
+    ]
+    return MarketData(assets, days[0], days[-1]), fx, signals
+
+
+def synthetic_determinism() -> Dict[str, Any]:
+    """Dos corridas idénticas producen el mismo ledger, la misma serie y las mismas métricas byte a byte."""
+
+    digests = []
+    for _ in range(2):
+        market, fx, signals = synthetic_market()
+        result = simulate(market, signals, fx, SimSpec("SINTETICO", "1" * 64))
+        bench = simulate_benchmark(market, fx, SimSpec("benchmark", "2" * 64))
+        series = equity_series(result.v0, result.v0_day, result.snapshots)
+        bench_series = equity_series(bench.v0, bench.v0_day, bench.snapshots)
+        metrics = {
+            "trayectoria": path_metrics(series), "operaciones": trade_metrics(result.trades),
+            "benchmark": path_metrics(bench_series),
+        }
+        digests.append({
+            "ledger_sha256": hashlib.sha256(ledger_csv(result.ledger).encode("utf-8")).hexdigest(),
+            "serie_sha256": hashlib.sha256(series_csv(series).encode("utf-8")).hexdigest(),
+            "metricas_sha256": hashlib.sha256(canonical_json(metrics).encode("utf-8")).hexdigest(),
+            "benchmark_ledger_sha256": hashlib.sha256(ledger_csv(bench.ledger).encode("utf-8")).hexdigest(),
+            "operaciones": len(result.trades),
+        })
+    return {"corridas": digests, "identico": digests[0] == digests[1], "datos": "sintéticos (synthetic_market)"}
+
+
+def run_preflight(
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    ident: P6Identity,
+    *,
+    development: bool = False,
+    write: bool = True,
+    out_dir: Path = PREFLIGHT_DIR,
+    determinism: Optional[Mapping[str, Any]] = None,
+) -> Tuple[bool, Dict[str, Any]]:
+    checks: List[Tuple[str, Any, Any, bool]] = []
+
+    def check(name: str, observed: Any, expected: Any) -> None:
+        checks.append((name, observed, expected, observed == expected))
+
+    check("P6_PREREG_SHA en la historia", ident.prereg_in_history, True)
+    check("config_hash", ident.config_hash, EXPECTED_CONFIG_HASH)
+    check("score_model_version", ident.score_model_version, "1.0")
+    check("data_vintage_id", vintage.data_vintage_id, DATA_VINTAGE_ID)
+    check("exchange_calendars", importlib.metadata.version("exchange_calendars"), EXCHANGE_CALENDARS_VERSION)
+    check("tzdata", importlib.metadata.version("tzdata"), TZDATA_VERSION)
+    check("exchange_overrides_sha256", sha256_file(Path("exchange_overrides.yaml")), EXCHANGE_OVERRIDES_SHA256)
+    check("P6_DATA_ID", p6_data_id(), P6_DATA_ID)
+    check("asset_list (90)", len(asset_list()), 90)
+    identities = policy_identities(config)
+    for policy, (policy_hash, cfg_hash) in POLICY_HASHES.items():
+        check(f"policy_sha256 {policy}", identities[policy]["policy_sha256"], policy_hash)
+        check(f"advisor_config_hash {policy}", identities[policy]["advisor_config_hash"], cfg_hash)
+    final = json.loads(Path("evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json").read_text(encoding="utf-8"))
+    for record in final["politicas"]:
+        regenerated = p5.canonical_json(p5.policy_payload(config, policy_cells()[record["id"]]))
+        check(f"canonical_json P5 {record['id']} byte a byte", regenerated, record["canonical_json"])
+    _fx, fx_meta = load_fx()
+    check("FX fuente usada", fx_meta["fuente_usada"], "B")
+    check("FX pares", fx_meta["pares"], ["HKD", "JPY", "USD"])
+    sectors = load_sector_map()
+    check("sector 90/90", sorted(sectors) == asset_list(), True)
+    window = derive_window(config, universe, vintage)
+    check("ventana inicio", window.start.isoformat(), "2022-06-14")
+    check("ventana fin", window.end.isoformat(), "2026-08-27")
+    hashes = system_hashes(config, window)
+    check("9 identidades de corrida", len(hashes), 9)
+    check("system_sha256 distintos", len({v.get("system_sha256") or v.get("benchmark_sha256") for v in hashes.values()}), 9)
+    checks.extend(guard_checks(config, universe, vintage, window))
+    if determinism is not None:
+        check("determinismo sintético byte a byte", determinism.get("identico"), True)
+    report: Dict[str, Any] = {
+        "fase": "preflight",
+        "modo": "DESARROLLO (no es evidencia)" if development else "DEFINITIVO",
+        "label": UNIVERSE_LABEL,
+        "inicio_utc": utc_now(),
+        "new_p6_outcomes_read": False,
+        "outcomes_leidos": "ninguno: solo identidades, fechas, calendario, FX y sector congelados",
+        "p6_confirmatory_executed": (RUN_DIR / RUN_MARKER).exists(),
+        "identidad": {
+            "p6_prereg_sha": P6_PREREG_SHA,
+            "p6_executor_sha": ident.head_sha,
+            "git_dirty": ident.git_dirty,
+            "prereg_en_historia": ident.prereg_in_history,
+            "p6_data_id": P6_DATA_ID,
+            "data_vintage_id": DATA_VINTAGE_ID,
+            "universe_vintage_id": UNIVERSE_VINTAGE_ID,
+            "fx_vintage_id": FX_VINTAGE_ID,
+            "sector_map": SECTOR_MAP_SHA256,
+        },
+        "politicas": identities,
+        "ventana": window.as_dict(),
+        "system_hashes": hashes,
+        "determinismo": dict(determinism) if determinism is not None else None,
+        "checks": [{"control": n, "observado": o, "esperado": e, "ok": ok} for n, o, e, ok in checks],
+        "fin_utc": utc_now(),
+    }
+    ok = all(row["ok"] for row in report["checks"])
+    report["ok"] = ok
+    report["definitivo"] = bool(ok and not development and ident.git_dirty is False and ident.prereg_in_history is True)
+    if write and not development:
+        if ident.git_dirty is not False:
+            raise P6PreflightError("el preflight definitivo solo se escribe con árbol limpio")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        write_json(out_dir / "p6-preflight.json", report)
+        (out_dir / "p6-preflight.txt").write_text(format_preflight(report), encoding="utf-8")
+        write_json(out_dir / "system-hashes.json", {"label": UNIVERSE_LABEL, "ventana": window.as_dict(), "hashes": hashes})
+    return ok, report
+
+
+def format_preflight(report: Mapping[str, Any]) -> str:
+    lines = [
+        "# P6 preflight",
+        f"modo: {report['modo']}",
+        f"ok: {report.get('ok')}",
+        f"definitivo: {report.get('definitivo')}",
+        f"ventana: {report['ventana']['inicio']} → {report['ventana']['fin']}",
+        f"new_p6_outcomes_read: {report['new_p6_outcomes_read']}",
+        f"label: {UNIVERSE_LABEL}",
+        "",
+    ]
+    failed = [row for row in report["checks"] if not row["ok"]]
+    lines.append(f"Checks: {len(report['checks']) - len(failed)}/{len(report['checks'])} OK.")
+    lines.extend(f"- FALLA {row['control']}: observado={row['observado']} esperado={row['esperado']}" for row in failed)
+    return "\n".join(lines) + "\n"
+
+
+def preflight_fingerprint(report: Mapping[str, Any]) -> Dict[str, Any]:
+    return {key: report.get(key) for key in ("politicas", "ventana", "system_hashes", "determinismo")} | {
+        "identidad": {k: v for k, v in cast(Mapping[str, Any], report.get("identidad", {})).items()
+                      if k not in ("p6_executor_sha", "git_dirty")},
+    }
+
+
+# ---------------------------------------------------------------------------
+# Ejecución confirmatoria única (implementada; solo se lanza con autorización expresa).
+# ---------------------------------------------------------------------------
+
+
+def _run_metrics(result: Any, benchmark_paths: Mapping[float, Mapping[str, Any]], slippage: float, ppy: float) -> Dict[str, Any]:
+    series = equity_series(result.v0, result.v0_day, result.snapshots)
+    path = path_metrics(series, expected_ppy=ppy)
+    trades_m = trade_metrics(result.trades)
+    exc = excess(path, benchmark_paths[slippage])
+    return {
+        "trayectoria": path,
+        "operaciones": trades_m,
+        "exposicion": exposure_metrics(result.snapshots),
+        "turnover": turnover(result.notional_traded_eur, series),
+        "costes_eur": result.fees_eur,
+        "slippage_eur": result.slippage_eur,
+        "dividendos_eur": result.dividends_eur,
+        "fx_eur": sum(trade.fx_eur for trade in result.trades),
+        "exceso": exc,
+        "contadores": result.counters,
+        "ocupacion": cash_occupancy(result.counters, result.ledger),
+        "subperiodos": subperiods(series, result.trades),
+        "criterio": criterion(trades_m, path, exc),
+    }
+
+
+def run_confirmatory(
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    ident: P6Identity,
+    out_dir: Path,
+) -> Tuple[int, str]:
+    if out_dir.resolve() != RUN_DIR.resolve():
+        raise P6PreflightError(f"la ejecución confirmatoria solo escribe en {RUN_DIR}")
+    marker = out_dir / RUN_MARKER
+    if marker.exists():
+        raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({marker}); no se repite")
+    if ident.git_dirty is not False:
+        raise P6PreflightError(f"árbol no limpio (git_dirty={ident.git_dirty})")
+    if ident.prereg_in_history is not True:
+        raise P6PreflightError("P6_PREREG_SHA no está en la historia de HEAD")
+    if out_dir.exists() and any(out_dir.iterdir()):
+        raise P6AlreadyExecutedError(f"{out_dir} no está vacío: P6 no se repite")
+    stored_path = PREFLIGHT_DIR / "p6-preflight.json"
+    if not stored_path.is_file():
+        raise P6PreflightError("falta el preflight definitivo")
+    stored = json.loads(stored_path.read_text(encoding="utf-8"))
+    if not (stored.get("ok") is True and stored.get("definitivo") is True):
+        raise P6PreflightError("el preflight guardado no es definitivo y correcto")
+    executor = str(stored["identidad"]["p6_executor_sha"])
+    if not executor_unchanged_since(executor, "."):
+        raise P6PreflightError(f"el ejecutor cambió desde el preflight definitivo ({executor})")
+    ok, preflight = run_preflight(config, universe, vintage, ident, write=False, determinism=synthetic_determinism())
+    if not ok:
+        return 2, format_preflight(preflight) + "PREFLIGHT FALLIDO: P6 NO SE EJECUTA.\n"
+    if canonical_json(preflight_fingerprint(preflight)) != canonical_json(preflight_fingerprint(stored)):
+        return 2, "STOP: el preflight interno no coincide con el definitivo guardado. P6 NO SE EJECUTA.\n"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if any(out_dir.iterdir()):
+        raise P6AlreadyExecutedError(f"{out_dir} no está vacío")
+    payload = {
+        "inicio_utc": utc_now(),
+        "p6_prereg_sha": P6_PREREG_SHA,
+        "p6_code_sha_preflight": executor,
+        "head_sha": ident.head_sha,
+        "p6_data_id": P6_DATA_ID,
+        "ventana": preflight["ventana"],
+        "system_hashes": preflight["system_hashes"],
+        "label": UNIVERSE_LABEL,
+    }
+    fd = create_marker_exclusive(marker, _issue_clearance())
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+        token = build_confirmatory_token(marker, payload)
+        window = derive_window(config, universe, vintage)
+        fx, _ = load_fx()
+        sectors = load_sector_map()
+        market = build_real_market(token, config, universe, vintage, window, sectors)
+        hashes = preflight["system_hashes"]
+        bench: Dict[float, Any] = {}
+        bench_paths: Dict[float, Dict[str, Any]] = {}
+        tables = out_dir / "tablas"
+        tables.mkdir(parents=True, exist_ok=True)
+        for run_id, slippage in BENCHMARK_RUNS:
+            spec = SimSpec("benchmark", hashes[run_id]["benchmark_sha256"], capital=CAPITAL, slippage_bps=slippage)
+            bench[slippage] = simulate_benchmark(market, fx, spec, authorize=authorization(token))
+            series = equity_series(CAPITAL, window.start, bench[slippage].snapshots)
+            bench_paths[slippage] = path_metrics(series, expected_ppy=window.periods_per_year)
+            (tables / f"{run_id}-ledger.csv").write_text(ledger_csv(bench[slippage].ledger), encoding="utf-8")
+            (tables / f"{run_id}-serie-diaria.csv").write_text(series_csv(series), encoding="utf-8")
+        results: Dict[str, Any] = {}
+        signal_counts: Dict[str, Any] = {}
+        for run_id, policy, population, slippage in RUNS:
+            signals, counts = build_real_signals(token, config, universe, vintage, policy, population, window)
+            signal_counts[run_id] = counts
+            spec = SimSpec(run_id, hashes[run_id]["system_sha256"], capital=CAPITAL, slippage_bps=slippage,
+                           risk_pct=config.portfolio.risk_per_trade_pct, max_position_pct=config.portfolio.max_position_pct,
+                           min_rr=config.risk.min_rr_ratio)
+            result = simulate(market, signals, fx, spec, authorize=authorization(token))
+            results[run_id] = _run_metrics(result, bench_paths, slippage, window.periods_per_year)
+            (tables / f"{run_id}-ledger.csv").write_text(ledger_csv(result.ledger), encoding="utf-8")
+            (tables / f"{run_id}-operaciones.csv").write_text(trades_csv(result.trades), encoding="utf-8")
+            (tables / f"{run_id}-serie-diaria.csv").write_text(
+                series_csv(equity_series(result.v0, result.v0_day, result.snapshots)), encoding="utf-8")
+        labels = {policy: results[f"{policy}_primaria_5pb"]["criterio"]["etiqueta"] for policy in CANDIDATES}
+        output = {
+            "fase": "confirmatoria",
+            "token_sha256": token.marker_payload_sha256,
+            "label": UNIVERSE_LABEL,
+            "ventana": window.as_dict(),
+            "benchmark": {f"{s}pb": bench_paths[s] for s in bench_paths},
+            "corridas": results,
+            "senales": signal_counts,
+            "etiquetas_decisorias": labels,
+            "supervivientes": list(survivors(labels)),
+            "fin_utc": utc_now(),
+        }
+        write_json(out_dir / "p6-resultado.json", output)
+        summary = "# P6 confirmatoria\n\n" + "".join(f"- {p}: {labels[p]}\n" for p in CANDIDATES) + (
+            f"- supervivientes: {', '.join(output['supervivientes']) or 'ninguno'}\n")
+        (out_dir / "p6-resumen.md").write_text(summary, encoding="utf-8")
+        return 0, summary
+    except BaseException as exc:
+        write_json(out_dir / "p6-parada.json", {"fase": "confirmatoria", "parada": type(exc).__name__,
+                                                "detalle": str(exc), "fin_utc": utc_now()})
+        if not isinstance(exc, Exception):
+            raise
+        return 2, f"STOP P6 confirmatoria: {type(exc).__name__}: {exc}\n"
+
