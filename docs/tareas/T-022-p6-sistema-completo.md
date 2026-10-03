@@ -472,6 +472,12 @@ stop y objetivo.
 - **Sentido del FX:** `EURxxx=X` cotiza unidades de `xxx` por 1 EUR. Se define
   `fx_rate = EUR por unidad de la divisa de cotización = 1 / close(EURxxx=X)`; para EUR, 1. Todas las
   fórmulas multiplican importes en divisa por `fx_rate`.
+- **Petición fija de la fuente A:** una sola descarga con yfinance, `interval = "1d"`,
+  `start = "2021-08-27"` y `end = "2026-08-29"` explícitos (no `period`), `auto_adjust = False` y
+  `actions = True` (la misma política que la cosecha), registrando la versión de yfinance y
+  `downloaded_at`. Los fallos de red se reintentan con la misma petición; la primera respuesta
+  completa se congela. **La elección entre A y B depende solo de la comprobación de integridad sobre
+  esa petición fija**, sin desenlaces.
 - **Comprobación del sidecar (fuente A):** el **tramo común** es el conjunto exacto de las 1.300 marcas
   de `EURUSD=X` de la cosecha. El `EURUSD=X` del sidecar tiene que contener **exactamente esas marcas**
   dentro de ese rango, con la cadena canónica del float **idéntica** barra a barra. Una barra que falte
@@ -679,7 +685,7 @@ dos van a P7.
 
 `p5_policy_sha256`, `advisor_config_hash`, `score_model_version`, `poblacion_de_senales`
 (OD-P6-37), `capital_inicial`, `base_currency`, `risk_per_trade_pct`, `max_position_pct`,
-`modo_de_contexto` (OD-P6-42), `predicado_OPERAR` (broker neutral, sección 7.6), `estimador_decisorio` (`mean_R_local` agrupado,
+`modo_de_contexto` (OD-P6-42), `predicado_OPERAR` (broker neutral, sección 7.6), `estimador_decisorio` (`mean_R_local` = media simple de `trade_R_local` sobre las operaciones cerradas,
 excepción a INV-14 declarada en la sección 16), `regla_analysis_timestamp` (D-50: pasadas 07:00,
 08:30, 14:30 y 21:00
 lun–vie, zona Europe/London, `settlement_minutes`), `moneda_del_R_decisorio` (OD-P6-43),
@@ -836,8 +842,7 @@ Score v1 70/60 legacy y Pi `v0.4.1`. No hay release ni despliegue.
 6. Solo se pueden corregir **errores de implementación** frente a las definiciones de las secciones 15
    y 16, recalculando **desde el ledger publicado**. Cualquier cambio de **definición** de una métrica
    exige una D-nn, se rotula como post hoc y **nunca cambia la etiqueta ni la salida** de P6. Las
-   correcciones
-   sin volver a simular. Cualquier re-simulación exige una D-nn nueva.
+   correcciones se recalculan sin volver a simular. Cualquier re-simulación exige una D-nn nueva.
 
 ---
 
@@ -1940,6 +1945,26 @@ nuevo y un agente `revisor` que no había participado en las vueltas anteriores.
 | **O** `V_0` frente a `D`; fortaleza relativa en el test 40 | Precisados |
 | **O** (Codex) La nota del censo decía «primera señal OPERAR posible» | Cambiada a «SMA200 de tendencia completa; VIX y Asia señal a señal»; censo regenerado (solo cambia esa nota) |
 
-### Vuelta 2 (sobre el HEAD corregido)
+### Vuelta 2 (sobre `aef5c6b`)
+
+- **`revisor`:** cierra sus 11 hallazgos de la vuelta 1. Deja 0 BLOCKER, 0 IMPORTANTE, 2 MENOR nuevos
+  y 1 OBSERVACIÓN:
+  - **MENOR-A:** frase rota en la sección 23.6;
+  - **MENOR-B:** parámetros de la descarga de A sin fijar; un `period="5y"` posterior fallaría la
+    integridad y forzaría B;
+  - **OBSERVACIÓN-A:** las precisiones añadidas a D-69 son especificación nueva dentro de una
+    decisión del propietario y conviene su ratificación expresa.
+- **Codex:** la tarea se cortó antes de terminar. En su avance había señalado la frase de la sección
+  23.6 y la expresión «`mean_R_local` agrupado» del hash.
+
+Corregido:
+- sección 23.6 con la frase literal completa;
+- el hash dice «media simple de `trade_R_local` sobre las operaciones cerradas»;
+- petición fija de la fuente A (`start`/`end` explícitos, mismas opciones que la cosecha, versión
+  registrada; la elección A/B solo depende de la comprobación sobre esa petición);
+- el párrafo de D-69 queda rotulado como especificación derivada de la revisión, **pendiente de
+  ratificación expresa del propietario**.
+
+### Vuelta 3 (confirmación)
 
 (Pendiente.)
