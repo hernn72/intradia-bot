@@ -1471,6 +1471,79 @@ independiente sigue en P7 (INV-15).
 - El `P5_PREREG_SHA` será el HEAD documental que quede después de la revisión final del
   pre-registro y de sus correcciones, con 0 BLOCKER y 0 IMPORTANTE.
 
+### D-67 — 2026-10-03 — Resultado de P5: B2 y S2 robustas
+Registro del resultado congelado de la **ejecución confirmatoria única** de P5 (T-021, A-05). Se
+transcribe la salida de `evidence/2026-10-02-T-021-p5/run/` sin recalcular nada; el detalle completo
+está en `evidence/2026-10-03-T-021-p5-cierre/resultado-p5.md`.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Identidad.**
+- `P5_PREREG_SHA = a7c3d238d651b4ea8f48834848c03c0a5a462dfa`
+- `P5_CODE_SHA = 6c7f9135774f157e82634b6abf82a847d9b99bd9`
+- `P5_PREFLIGHT_HEAD = 7446602114b26f56cae549d2ec299d7bbc07b459`
+- `P5_RUN_HEAD_SHA = 282b1ce991bb4567ff2ad41a28e00c9518662115`: archiva la revisión final de
+  look-ahead, previa a la ejecución. Respecto a `6c7f913` solo añade evidencia.
+- `P5_RUN_EVIDENCE_COMMIT = 86ddd5baf8ceabe6e9d3747d645c7c99d719343c`
+- Marca escrita antes de abrir desenlaces, con `inicio_utc = 2026-10-03T09:44:05.684666+00:00` y
+  sha256 `f50d5ec9cc7e2c266515778592c4398001ee8588dbcdcc2b4c783bcca87c1f8c`, igual al
+  `token_sha256` del resultado.
+- Completó por la ruta normal: `p5-resultado.json` y `p5-resumen.md` íntegros y ningún
+  `p5-parada.json`. La consola archiva `código de salida: 0`.
+- **P5 se ejecutó exactamente una vez y no se repite.**
+
+**Recuento:** comparaciones previstas **71**, derivadas de las salidas **71**, confirmatorias nuevas
+**0**.
+
+**B2 (stop 2,0·ATR, objetivo 2 a 4,875·ATR): ROBUSTA.**
+- `centro_p4 = True`; F1, F2, F3, F4, F5 y F6 = False.
+- 8 vecinos válidos: **8 ACEPTABLES**, 0 NO_ESTIMABLES.
+- LOCRO: sin USA, 56.329 pares, ΔR 0,067950, IC95 [0,015507, 0,122806]; sin EUROPA, 66.626 pares,
+  ΔR 0,077285, IC95 [0,012695, 0,139081]; sin ASIA, 83.275 pares, ΔR 0,070625, IC95 [0,021085,
+  0,119686]. Los tres son estimables y tienen IC95 inferior > 0.
+
+**S2 (stop 2,5·ATR, objetivo 2 a 3,75·ATR): ROBUSTA.**
+- `centro_p4 = True`; F1, F2, F3, F4, F5 y F6 = False.
+- 5 vecinos válidos: **5 ACEPTABLES**, 0 NO_ESTIMABLES. Los dos vecinos iso-RR críticos,
+  (2,25; 3,375) y (2,75; 4,125), son ACEPTABLES.
+- LOCRO: sin USA, 56.328 pares, ΔR 0,038843, IC95 [0,017103, 0,059156]; sin EUROPA, 66.626 pares,
+  ΔR 0,032699, IC95 [0,004929, 0,058428]; sin ASIA, 83.274 pares, ΔR 0,033781, IC95 [0,014273,
+  0,052136]. Los tres son estimables y tienen IC95 inferior > 0.
+
+**Superficies.** Se publican completas, sin recalcular (`superficie.tsv`). B2 tiene 8/8 vecinos
+ACEPTABLES y S2 5/5. Las tres celdas de B2 con `target2 = 5,25` (`target3 = 5,625`,
+`m3_auxiliar = true`) son solo diagnósticas. Ningún vecino es política ni recibe `policy_sha256`.
+
+**Ausencias estructurales de S2:** (2,50; 3,375), (2,75; 3,375) y (2,75; 3,750), por RR < 1,5.
+Quedaron fijadas en D-66, no se estimaron y no son descartes por rendimiento.
+
+**Concentración por activo** (descriptiva: no veta, no aprueba y no se crea ningún umbral):
+- B2: 75 activos positivos y 15 negativos; mayor 5,2492 %, top 5 18,7986 %, top 10 32,9982 %.
+- S2: 74 activos positivos y 16 negativos; mayor 3,6788 %, top 5 17,9082 %, top 10 33,3776 %.
+
+**Descartes:**
+- Candidatas heredadas de P4 descartadas por FRÁGIL: ninguna.
+- Descartadas por DEPENDIENTE_DE_MERCADO: ninguna.
+- NO_CONCLUYENTE: ninguna.
+
+Los 13 vecinos son diagnósticos, no candidatas.
+
+**Supervivientes: exactamente `[B2, S2]`.** P5 solo prueba robustez: no ordena una sobre la otra y
+no dice que una sea mejor.
+
+**Configuraciones completas:** `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`,
+generado con `policy_payload` y `canonical_json`. El `policy_sha256` se regenera desde el
+`canonical_json`.
+- B2: `advisor_config_hash = c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760`,
+  `policy_sha256 = d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9`.
+- S2: `advisor_config_hash = 8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb`,
+  `policy_sha256 = e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11`.
+
+**Lo que no cambia.**
+- B2 y S2 son políticas candidatas de investigación. **Ninguna se activa.**
+- `config.yaml` sigue en `"1.0"` con C0, Score v2 sigue inactivo y la Pi sigue en `v0.4.1`.
+- El resultado es de desarrollo sobre una cosecha ya consumida, no una validación (INV-15). La
+  validación independiente sigue en P7.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
