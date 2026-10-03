@@ -475,8 +475,9 @@ stop y objetivo.
 - **Petición fija de la fuente A:** una sola descarga con yfinance, `interval = "1d"`,
   `start = "2021-08-27"` y `end = "2026-08-29"` explícitos (no `period`), `auto_adjust = False` y
   `actions = True` (la misma política que la cosecha), registrando la versión de yfinance y
-  `downloaded_at`. Los fallos de red se reintentan con la misma petición; la primera respuesta
-  completa se congela. **La elección entre A y B depende solo de la comprobación de integridad sobre
+  `downloaded_at`. Solo se reintenta una llamada que **termina con excepción** (fallo de red). La
+  primera llamada que termina sin excepción se congela tal cual y se comprueba **una sola vez**; una
+  respuesta con barras de menos o de más no se reintenta: es un fallo de integridad y lleva a B. **La elección entre A y B depende solo de la comprobación de integridad sobre
   esa petición fija**, sin desenlaces.
 - **Comprobación del sidecar (fuente A):** el **tramo común** es el conjunto exacto de las 1.300 marcas
   de `EURUSD=X` de la cosecha. El `EURUSD=X` del sidecar tiene que contener **exactamente esas marcas**
@@ -831,7 +832,9 @@ Score v1 70/60 legacy y Pi `v0.4.1`. No hay release ni despliegue.
 ## 23. Plan después de cerrar las OD
 
 1. El propietario cierra las OD-P6 en una D-nn.
-2. Revisión final del pre-registro con 0 BLOCKER y 0 IMPORTANTE → `P6_PREREG_SHA`.
+2. Revisión final del pre-registro con 0 BLOCKER y 0 IMPORTANTE **y ratificación expresa del
+   propietario de las «Precisiones de la revisión final» de D-69**, registrada antes de congelar →
+   `P6_PREREG_SHA`.
 3. Con autorización: congelar el sidecar FX y el mapa de sector (sin desenlaces) → `P6_DATA_ID`.
 4. Con otra autorización: `p6.py`, los tests y el preflight (sin desenlaces de sistema), y después
    una revisión de look-ahead. Identidades: `P6_CODE_SHA` (último commit del ejecutor) y
@@ -1965,6 +1968,18 @@ Corregido:
 - el párrafo de D-69 queda rotulado como especificación derivada de la revisión, **pendiente de
   ratificación expresa del propietario**.
 
-### Vuelta 3 (confirmación)
+### Vuelta 3 (sobre `f657f18`)
+
+- **`revisor`:** cierra los cuatro hallazgos de la vuelta 2. Deja 0 BLOCKER, 0 IMPORTANTE y:
+  - **MENOR-C:** `P6_PREREG_SHA` no estaba condicionado a la ratificación de las precisiones de D-69;
+  - **OBSERVACIÓN-B:** «primera respuesta completa» de la descarga, ambigua.
+- **Codex:** su vuelta se cortó por el límite de uso de su servicio; se relanza sobre el HEAD
+  corregido.
+
+Corregido:
+- la sección 23 y D-69 exigen la ratificación expresa del propietario antes de `P6_PREREG_SHA`;
+- reintentos solo ante excepción; la primera llamada sin excepción se congela y se comprueba una vez.
+
+### Vuelta 4 (confirmación)
 
 (Pendiente.)

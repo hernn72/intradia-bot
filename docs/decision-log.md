@@ -1768,7 +1768,8 @@ descriptivos. No hay ranking entre B2 y S2.
   `v0.4.1`.
 
 **Precisiones de la revisión final del pre-registro** (2026-10-03). **Especificación derivada de la
-revisión, no elección del propietario; pendiente de su ratificación expresa.** No cambian ninguna letra
+revisión, no elección del propietario; pendiente de su ratificación expresa.** `P6_PREREG_SHA` **no se
+fija sin esa ratificación**, registrada antes de congelar (en una D-nn o en el commit de congelación). No cambian ninguna letra
 de D-69. Añaden parámetros que el texto no fijaba (17:00 Europe/Berlin para la fuente B, la comisión
 dentro del importe del benchmark, el predicado broker neutral, la petición fija de la fuente A) y
 nombran la consecuencia de usar `mean_R_local` frente a INV-14. Se añadieron para cerrar ambigüedades
