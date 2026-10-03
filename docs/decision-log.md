@@ -1722,8 +1722,8 @@ independiente sigue en P7 (INV-15).
       - P4/P5 midieron todas las barras, no OPERAR;
       - el Score v1 no tiene ordenación demostrada (A-02, D-42);
       - P3 estudió el Score v2, no el v1;
-      - el RR forma parte del Score v1: B2 recibe mecánicamente 15 puntos de RR, frente a 10 en S2 y
-        C0.
+      - el RR forma parte del Score v1: con el stop de volatilidad, B2 recibe mecánicamente 15 puntos
+        de RR, frente a 10 en S2 y C0.
 25. **Mismo activo (OD-P6-38).** Una señal nueva de un activo con posición abierta →
     `IGNORED_ALREADY_OPEN`, contada y publicada. Sin piramidar y sin modificar el stop ni los
     objetivos.
@@ -1766,6 +1766,24 @@ descriptivos. No hay ranking entre B2 y S2.
 - La implementación, el sidecar FX y el mapa de sector necesitan autorizaciones aparte.
 - Producción no cambia: `config.yaml` en `"1.0"` con C0, Score v1 70/60, Score v2 inactivo y la Pi en
   `v0.4.1`.
+
+**Precisiones de la revisión final del pre-registro** (2026-10-03, sin cambiar ninguna elección).
+Añadidas para cerrar ambigüedades que permitirían reinterpretar después:
+- **INV-14:** el criterio decide con `mean_R_local`, la media de las operaciones cerradas, como fija este
+  D-69. Es una **excepción declarada** al estimador primario de INV-14/D-03, que se definió para eventos.
+  La media por bloque (por año natural) se publica como descriptiva y no veta ni rescata (T-022 §16).
+- **Fuente B de FX:** tipos de referencia del BCE para USD, JPY y HKD, con `timestamp_available` a las
+  17:00 Europe/Berlin del día de referencia, el último tipo causal en los festivos TARGET y
+  `fx_rate = 1/rate` (T-022 §11.1). Fallo de integridad de A = cualquier barra que falte o sobre, o
+  cualquier cadena distinta, en las 1.300 marcas de `EURUSD=X` de la cosecha. El paso a B no abre OD.
+- **RR en el score:** los 15 puntos de B2 frente a 10 en S2 y C0 valen **con el stop de volatilidad**;
+  con la regla E, un stop de soporte más ajustado puede dar más puntos a cualquiera.
+- **Predicado OPERAR:** broker neutral (D-04), `setup_radar = OPERAR` y `setup_accion = COMPRAR`.
+- **Benchmark:** la comisión va dentro del importe asignado (1/90, o el dividendo reinvertido).
+- **Dividendos de Xetra en otra divisa:** Yahoo los convierte a un tipo constante (comprobado en
+  R6C0.DE); limitación declarada que afecta igual a las políticas y al benchmark.
+- **Correcciones posteriores de métricas:** solo de errores de implementación; un cambio de
+  definición exige una D-nn y nunca cambia la salida.
 
 ## OWNER_DECISION_REQUIRED
 

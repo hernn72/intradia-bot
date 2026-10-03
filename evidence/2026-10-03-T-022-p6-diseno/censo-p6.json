@@ -172,7 +172,7 @@
       "sma": 200,
       "primera_sesion": "2021-08-30",
       "sesion_que_completa_la_sma": "2022-06-13",
-      "nota": "con contexto point-in-time, la primera señal OPERAR posible es al cierre de esa sesión"
+      "nota": "primera señal con la SMA200 de tendencia causalmente completa al cierre de esa sesión; VIX y Asia se comprueban señal a señal"
     },
     "calendario_efectivo": {
       "fuente": "exchange_calendars + exchange_overrides.yaml",

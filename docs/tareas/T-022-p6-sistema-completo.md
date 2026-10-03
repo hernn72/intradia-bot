@@ -252,7 +252,9 @@ cuenta** aunque haya posición.
 - P6 no activa Score v2, no recalibra y no toca los umbrales.
 - Cada política usa el scoring heredado por su `advisor_config_hash`: `score_model_version = 1.0`,
   swing OPERAR = 70, VIGILAR = 60, `calibrated: false`.
-- La población de señales que entra en el sistema se decide en OD-P6-37.
+- **Población (OD-P6-37 = C, D-69):** la primaria y única decisoria es OPERAR con Score v1, con el
+  predicado **broker neutral** (D-04): `setup_radar = OPERAR` y `setup_accion = COMPRAR`
+  (`engine.py:395-399`, rama `broker_neutral`). El puente descriptivo usa todas las barras elegibles.
 - **Contexto de mercado (OD-P6-42):** si la población usa el score, el contexto se calcula con la
   **función point-in-time única** (R-CTX, D-52, D-53, D-56) y `market_context_at`, nunca con el camino
   antiguo (`vix_at`/`trend_*` alineados por fecha civil, que D-53 documenta con look-ahead).
@@ -279,8 +281,7 @@ sistema cuando terminan su calentamiento, con la misma regla que los demás.
   `simulate_asset`), con su hora sacada del calendario efectivo de su fecha de sesión. Si el
   calendario tiene sesiones sin barra, se salta a la siguiente barra y se publica el recuento.
 - En esa apertura se vuelven a comprobar stop, objetivo, `entry_max`, RR mínimo a `target2` y
-  tamaño, igual que `evaluate_trade_at_entry`, pero con el **precio efectivo** si se cierra así
-  OD-P6-11.
+  tamaño, igual que `evaluate_trade_at_entry`, pero con el **precio efectivo** (OD-P6-11 = A).
 - **Broker neutral** (D-04): el estado de Trade Republic no rechaza entradas.
 - Salidas como en `_check_exit`: hueco al stop → apertura; stop intradía → stop; hueco al objetivo →
   apertura; objetivo intradía → `target2`; los dos en la misma vela → stop; tiempo → cierre de la
@@ -371,7 +372,9 @@ Los empates reales son frecuentes:
   conservador.
 
 La clave de desempate decide **quién entra** cuando el cash no da para todos, y se fija antes de medir:
-- se propone `sha256("intradia.p6.desempate.v1" ‖ signal_id)` en orden ascendente: determinista, sin
+- se propone `sha256("intradia.p6.desempate.v1" ‖ signal_id)` en orden ascendente, con bytes exactos
+  `sha256(b"intradia.p6.desempate.v1" + signal_id.encode("utf-8")).hexdigest()`, sin separador y
+  ordenando la cadena hexadecimal (equivale al orden de bytes): determinista, sin
   relación con el alfabeto ni con el score, y **común a todos los sistemas** (`signal_id` no depende
   de la política). No depende de ningún campo que se pueda redactar después;
 - el orden de un `dict`, del YAML o de los ficheros **nunca** decide.
@@ -418,6 +421,13 @@ admitido; queda pre-registrado.
 - `execution_prices` está ajustado por splits y **no** por dividendos: conserva el hueco ex-dividendo.
   Si P6 no abonara el dividendo, el precio caería en la fecha ex sin el cobro que lo compensa: el
   sistema perdería un ingreso real. P6 tiene que abonarlo.
+- **Limitación (revisión final):** en cotizaciones de Xetra cuyo dividendo se declara en otra divisa,
+  Yahoo convierte el importe con **un único tipo de cambio** (presumiblemente el de la descarga), no
+  con el de cada fecha ex. Comprobado en R6C0.DE (Shell): cada importe × 1,1587 da exactamente el
+  dividendo en USD (0,24 … 0,3906). En 2022, con EURUSD ≈ 1,0, el abono queda infravalorado en torno a
+  un 14 %. Posiblemente también afecta a BSP.DE, RRU.DE y a ETF como EQQQ.DE, IQQK.DE e IQQT.DE (sin
+  verificar). No se corrige el dato: se declara, afecta igual a las políticas y al benchmark, y el
+  preflight publica la lista de activos afectados con una comprobación estructural, sin desenlaces.
 - `Dividends` (yfinance) es el importe por acción en la fecha ex, en la divisa de cotización y
   ajustado por splits posteriores. Por tanto es coherente con las unidades de `execution_prices`; el
   preflight lo comprueba de forma algebraica en los 16 activos con split.
@@ -450,9 +460,9 @@ stop y objetivo.
   capital, CAGR, drawdown, cash ni exposición en EUR.
 - **Disponibilidad:** solo `EURUSD=X` está en la cosecha. P6 necesita un **vintage auxiliar FX
   congelado antes de cualquier desenlace**, con `EURUSD=X`, `EURJPY=X` y `EURHKD=X`, del mismo
-  proveedor y con hash propio. El `EURUSD=X` auxiliar tiene que coincidir con el de la cosecha en
-  el tramo común; si no coincide, STOP y OD. La descarga necesita autorización aparte y red con
-  acceso a Yahoo.
+  proveedor y con hash propio. La descarga necesita autorización aparte y red con acceso a Yahoo.
+  Si la comprobación de integridad falla, se aplica la **fuente B** (sección 11.1), sin abrir ninguna
+  OD nueva (D-69).
 - **Regla causal propuesta (A):** para un evento en τ se usa el **cierre de la última barra FX
   completa antes de τ**. Se fija `timestamp_available = marca_de_la_barra + 24 h` (la barra diaria
   de yfinance va marcada al principio del día de Londres). Nunca se usa el FX de un día para un
@@ -462,12 +472,33 @@ stop y objetivo.
 - **Sentido del FX:** `EURxxx=X` cotiza unidades de `xxx` por 1 EUR. Se define
   `fx_rate = EUR por unidad de la divisa de cotización = 1 / close(EURxxx=X)`; para EUR, 1. Todas las
   fórmulas multiplican importes en divisa por `fx_rate`.
-- **Comprobación del sidecar:** el `EURUSD=X` auxiliar tiene que ser **idéntico** al de la cosecha
-  (cadena canónica del float, barra a barra en el tramo común). Si lo es, se usa el sidecar para los
-  tres pares; si no, STOP.
+- **Comprobación del sidecar (fuente A):** el **tramo común** es el conjunto exacto de las 1.300 marcas
+  de `EURUSD=X` de la cosecha. El `EURUSD=X` del sidecar tiene que contener **exactamente esas marcas**
+  dentro de ese rango, con la cadena canónica del float **idéntica** barra a barra. Una barra que falte
+  o que sobre dentro del rango, o una cadena distinta, es un **fallo**. Si pasa, se usa el sidecar de
+  Yahoo para los tres pares. Si falla, no se excluye ningún activo, no se acepta una serie aproximada,
+  se documenta el fallo y se aplica la fuente B (sección 11.1) **para los tres pares**. Esta decisión
+  se toma y se congela **antes del preflight y sin ningún desenlace**.
 - **Conversión:** cada entrada, salida y dividendo se convierte a EUR con el FX causal de su τ. Las
   posiciones abiertas se valoran en cada instantánea con el último FX causal.
-- **Equity EUR** = cash EUR + valor de mercado de las posiciones en EUR + cobros pendientes en EUR.
+- **Equity EUR** = cash EUR + valor de mercado de las posiciones en EUR (con la valoración de la
+  sección 7.3). Sin cobros pendientes: con OD-P6-13 = C el dividendo entra en cash en el cierre ex.
+### 11.1 Fuente B de respaldo (pre-registrada; solo si falla la integridad de A)
+
+- **Fuente:** los tipos de referencia diarios del euro del **BCE** (euro foreign exchange reference
+  rates), para **USD, JPY y HKD**: los tres pares salen del BCE, también el USD.
+- **Sentido:** el BCE publica unidades de la divisa por 1 EUR, así que `fx_rate = 1 / rate`.
+- **Disponibilidad causal:** se fija `timestamp_available = 17:00 Europe/Berlin` del día de referencia
+  (el BCE publica hacia las 16:00 CET; la hora de margen queda fijada). Para un evento en τ se usa el
+  último tipo con `timestamp_available < τ`.
+- **Días sin tipo** (festivos TARGET): el último tipo causal disponible.
+- **Contrato del sidecar:** el mismo que en A, con `provider = ECB` y su `series_hash`. El
+  `fx_vintage_id` forma parte de `P6_DATA_ID`.
+- Lo que cambia es la fuente, nunca la regla de qué eventos convierte ni cómo entra el FX en las
+  métricas.
+
+### 11.2 Caja
+
 - **Cash:** se propone una **única caja en EUR**; cada compra y venta en otra divisa se convierte al
   FX causal sin coste FX adicional, y la limitación se declara (OD-P6-40).
 - `economic_currency` **nunca** se usa para convertir precios. El cash y el P&L van siempre en la
@@ -513,7 +544,9 @@ la ventana dividido por sus años (365,25 días). Queda como constante del contr
 - **Ponderación propuesta:** pesos iguales (no hay capitalizaciones point-in-time congeladas).
   **Sin rebalanceo.**
 - **Compra:** en la apertura de la primera sesión de cada activo dentro de la ventana, 1/90 del
-  capital inicial por activo.
+  capital inicial por activo. **La comisión va dentro del importe asignado:** `nominal + comisión =
+  1/90 del capital` (el nominal es `(capital/90)/1,001`). Lo mismo en cada reinversión: `nominal +
+  comisión = dividendo abonado en EUR`. El benchmark también cumple cash ≥ 0.
 - **ARM y Q8Y0.DE:** se propone reservar su 1/90 en cash hasta la **apertura de la barra siguiente a
   su barra 120** (2024-03-08 y 2025-05-16 según el censo, o la siguiente barra), que es la primera
   apertura en la que el sistema podría entrar. Es la misma regla de elegibilidad que el sistema.
@@ -529,7 +562,8 @@ Notación:
 - `V_t`: equity EUR en la instantánea `t = 0…T`;
 - `r_t = V_t / V_{t−1} − 1` (retorno simple);
 - `P`: `periodos_por_año` (sección 13);
-- `D`: días naturales entre la primera y la última instantánea.
+- `D`: días naturales entre la primera y la última instantánea. La instantánea 0 es `V_0`, tomada en el
+  instante anterior al primer evento de la fecha de inicio (sección 7.9).
 
 Todas las métricas se calculan igual para cada política y para el benchmark.
 
@@ -547,7 +581,8 @@ Todas las métricas se calculan igual para cada política y para el benchmark.
 | **Profit factor** | `Σ R⁺ / |Σ R⁻|` sobre las operaciones cerradas, con `trade_R_local` (OD-P6-43); en EUR, `Σ pnl⁺ / |Σ pnl⁻|`, descriptivo | **sin pérdidas y n ≥ N_min → la condición PF > 1 se cumple** y se publica «sin pérdidas»; sin operaciones → N/D y la condición no se cumple |
 | **R por operación** | `trade_R_local = pnl_neto_local / riesgo_inicial_local` (decide, OD-P6-43) y `trade_R_EUR = pnl_neto_EUR / riesgo_inicial_EUR` (descriptivo) | riesgo ≤ 0 → la operación no puede existir (la ejecutabilidad lo impide) |
 | **R total** | `Σ trade_R` | — |
-| R medio / mediano | `mean(trade_R)` / `median(trade_R)` | — |
+| R medio / mediano | `mean_R_local = mean(trade_R_local)` sobre las operaciones cerradas (**decide**) / `median(trade_R_local)` | — |
+| Media por bloque (INV-14, descriptiva) | media simple, por año natural con al menos una operación cerrada, de la media de `trade_R_local` de las operaciones cerradas en ese año (fecha de salida) | años sin operaciones no cuentan |
 | **Expectancy de sistema** | `mean(trade_R_local)` (no la del event study) | — |
 | Win rate | fracción de operaciones con `pnl_neto_EUR > 0` | — |
 | Exceso | `excess_terminal_pp = 100·(ret_total_pol − ret_total_BH)`; **`excess_CAGR_pp = 100·(CAGR_pol − CAGR_BH)`** (principal, OD-P6-27) | — |
@@ -580,6 +615,14 @@ primaria de OD-P6-37, slippage primario):
 3. `mean(trade_R_local) > 0`;
 4. `max_drawdown ≥ −DD_max`, en EUR (OD-P6-31; se propone 25 %);
 5. `excess_CAGR_pp > 0`, en EUR (OD-P6-28, A).
+
+**Excepción declarada a INV-14 (D-03).** INV-14 fija como estimador primario «de P3 en adelante» la
+media por bloque de la expectancy neta en R de **eventos**. En P6 la unidad no es el evento sino la
+**operación de un sistema**: dependiente de la trayectoria, con muchas menos operaciones y sin la
+estructura de bloques del event study. D-69 decide literalmente con `mean_R_local` (media de las
+operaciones cerradas), y esa es la **única** lectura decisoria. La media por bloque de INV-14 se
+publica como **descriptiva** (sección 15, por año natural), nunca veta ni rescata, y no se puede
+invocar después para reinterpretar el criterio.
 
 **Etiquetas, fijadas ex ante:**
 - `PASA`: cumple las cinco condiciones;
@@ -636,8 +679,11 @@ dos van a P7.
 
 `p5_policy_sha256`, `advisor_config_hash`, `score_model_version`, `poblacion_de_senales`
 (OD-P6-37), `capital_inicial`, `base_currency`, `risk_per_trade_pct`, `max_position_pct`,
-`modo_de_contexto` (OD-P6-42), `regla_analysis_timestamp` (D-50: pasadas 07:00, 08:30, 14:30 y 21:00
-lun–vie, zona Europe/London, `settlement_minutes`), `moneda_del_R_decisorio` (OD-P6-43), `unidades` (fraccional/entera),
+`modo_de_contexto` (OD-P6-42), `predicado_OPERAR` (broker neutral, sección 7.6), `estimador_decisorio` (`mean_R_local` agrupado,
+excepción a INV-14 declarada en la sección 16), `regla_analysis_timestamp` (D-50: pasadas 07:00,
+08:30, 14:30 y 21:00
+lun–vie, zona Europe/London, `settlement_minutes`), `moneda_del_R_decisorio` (OD-P6-43),
+`fuente_fx` (A o la B de la sección 11.1, según la integridad), `unidades` (fraccional/entera),
 `base_del_sizing`, `regla_de_cash` (rechazar, reducir o prorratear; con comisión),
 `apalancamiento = 0`, `limites_globales`, `regla_mismo_activo`, `semantica_de_entrada`
 (`open_t+1`, comprobaciones, precio efectivo), `semantica_de_salida`, `cronologia` (fuente del
@@ -657,7 +703,7 @@ tzdata: versión}, asset_list: 36355796…}))`.
 |---|---|---|---|
 | B2, S2 | primaria (OD-P6-37) | 5 pb | **decide** |
 | B2, S2 | primaria | 10 pb | sensibilidad descriptiva |
-| B2, S2 | descriptiva (si OD-P6-37 C) | 5 pb | puente con P4/P5 **bajo la ventana de P6** (no es una réplica de P4/P5), descriptivo |
+| B2, S2 | descriptiva: todas las barras (OD-P6-37 = C) | 5 pb | puente con P4/P5 **bajo la ventana de P6** (no es una réplica de P4/P5), descriptivo |
 | C0 | primaria | 5 pb | control descriptivo |
 | Buy-and-hold | — | 5 pb | benchmark del criterio |
 | Buy-and-hold | — | 10 pb | benchmark de la sensibilidad |
@@ -700,7 +746,8 @@ publicados.
 3. tope del 10 %;
 4. cash insuficiente → `INSUFFICIENT_CASH`;
 5. dos entradas simultáneas;
-6. orden determinista por `sha256("intradia.p6.desempate.v1" ‖ signal_id)`, sin alfabeto;
+6. orden determinista por `sha256(b"intradia.p6.desempate.v1" + signal_id.encode("utf-8")).hexdigest()`
+   ascendente, sin alfabeto;
 7. stop por hueco;
 8. stop y objetivo en la misma vela → stop;
 9. una salida intradía no financia una entrada anterior a su cierre;
@@ -737,7 +784,8 @@ Y además:
 37. cash insuficiente solo por la comisión;
 38. PF sin pérdidas con n ≥ N_min;
 39. sesión del calendario sin barra (entrada en la barra siguiente);
-40. contexto point-in-time: `available_at ≤ analysis_timestamp` para VIX, tendencia y Asia;
+40. contexto point-in-time: `available_at ≤ analysis_timestamp` para VIX, tendencia, Asia y la serie
+    de fortaleza relativa;
 41. clave de desempate común a B2, S2 y C0 e independiente del `system_sha256`;
 42. R local frente a R en EUR con FX que se mueve (el veto usa el local);
 43. sentido del FX (`EURUSD=X` = 1,10 → 1 USD = 0,909 EUR);
@@ -785,7 +833,10 @@ Score v1 70/60 legacy y Pi `v0.4.1`. No hay release ni despliegue.
 5. Con autorización: la **única** ejecución confirmatoria, con una marca de creación exclusiva escrita
    antes de abrir ningún desenlace de sistema. P6 no se repite: si se para después de la marca, queda
    la parada y no se arregla ni se relanza.
-6. Las correcciones de redacción de métricas posteriores se recalculan **desde el ledger publicado**,
+6. Solo se pueden corregir **errores de implementación** frente a las definiciones de las secciones 15
+   y 16, recalculando **desde el ledger publicado**. Cualquier cambio de **definición** de una métrica
+   exige una D-nn, se rotula como post hoc y **nunca cambia la etiqueta ni la salida** de P6. Las
+   correcciones
    sin volver a simular. Cualquier re-simulación exige una D-nn nueva.
 
 ---
@@ -1111,7 +1162,7 @@ Qué bloquea: dividendos.
 Alternativas:
 A. Sidecar FX congelado de yfinance (`EURUSD=X`, `EURJPY=X`, `EURHKD=X`) con hash propio y
    comprobación de que `EURUSD=X` coincide con la cosecha.
-B. Otra fuente (BCE, tipos de referencia diarios).
+B. Otra fuente (BCE, tipos de referencia diarios), especificada por completo en la sección 11.1.
 C. Excluir los 9 activos en JPY y HKD.
 
 Consecuencias:
@@ -1734,7 +1785,8 @@ Consecuencias:
   UU.; contexto europeo posterior para las señales asiáticas). Inaceptable para P6.
 
 Recomendación técnica: A, con `context_mode="point_in_time"` explícito y los tests 40 y 46. El coste
-es la diferencia con producción que se acaba de declarar; la alternativa sin look-ahead que se parece
+es la diferencia con producción que se acaba de declarar. **Solo en el tratamiento del contexto no
+calculable** (excluir frente a neutralizar), la alternativa sin look-ahead que se parece
 más a producción es B.
 
 Qué bloquea: la población primaria, la ventana y `system_sha256`.
@@ -1859,5 +1911,35 @@ Codex confirma CERRADOS los hallazgos de la tercera vuelta y no encuentra ningú
 IMPORTANTE nuevo. El `revisor` ya había dejado 0 BLOCKER y 0 IMPORTANTE en la tercera; sus MENOR y su
 observación están corregidos arriba.
 
-**Estado del borrador: 0 BLOCKER, 0 IMPORTANTE.** Las OD-P6-1 a OD-P6-43 siguen **abiertas** para el
+**Estado del borrador al cerrar la cuarta vuelta (histórico): 0 BLOCKER, 0 IMPORTANTE.** En esa vuelta las
+OD-P6-1 a OD-P6-43 aún estaban abiertas; **se cerraron después en D-69**. Texto original: seguían abiertas para el
 propietario. Después de cerrarlas: revisión final del pre-registro → `P6_PREREG_SHA`.
+
+## Revisión final del pre-registro (tras D-69)
+
+### Vuelta 1 (sobre `861d820`)
+
+Dos revisores nuevos e independientes, en solo lectura, sin desenlaces y sin SSH: Codex en un hilo
+nuevo y un agente `revisor` que no había participado en las vueltas anteriores.
+
+- **Codex:** 0 BLOCKER, 0 IMPORTANTE, 2 MENOR y 1 OBSERVACIÓN.
+- **`revisor`:** 0 BLOCKER, **2 IMPORTANTE**, 4 MENOR y 5 OBSERVACIÓN.
+
+| Hallazgo | Corrección (documental, sin cambiar ninguna elección de D-69) |
+|---|---|
+| **I** El criterio decide con `mean_R_local` agrupado sin declarar la diferencia con INV-14/D-03 (media por bloque), lo que abre una reinterpretación | Excepción a INV-14 declarada en la sección 16 y en D-69: decide `mean_R_local` como fija D-69; la media por bloque por año natural es descriptiva. El estimador entra en `system_sha256` |
+| **I** El respaldo FX se contradecía («STOP y OD» frente a «alternativa B») y B no era ejecutable | Sección 11 alineada con D-69; nueva sección 11.1 con B completa (BCE para los tres pares, `timestamp_available` 17:00 Europe/Berlin, festivos TARGET, `1/rate`, contrato y hash); fallo de integridad definido (marca que falte o sobre, o cadena distinta, en las 1.300 marcas); `fuente_fx` en el hash |
+| **M** Dividendos de Xetra en otra divisa convertidos por Yahoo a un tipo constante (R6C0.DE, × 1,1587) | Comprobado leyendo solo la columna `Dividends`; limitación declarada en la sección 10.1 y lista de afectados en el preflight |
+| **M** Comisión del benchmark dentro o fuera del 1/90 | Dentro: `nominal + comisión = importe asignado`; cash ≥ 0 también en el benchmark |
+| **M** Sección 23.6 dejaba redefinir métricas desde el ledger | Solo errores de implementación; un cambio de definición exige una D-nn y nunca cambia la salida |
+| **M** Restos anteriores a D-69 («siguen abiertas», «si se cierra así», «si OD-P6-37 C», cobros pendientes en la equity) | Redactados en firme; la línea histórica queda marcada como tal |
+| **O** RR del score generalizado de más en D-69 | «con el stop de volatilidad» añadido |
+| **O** Qué se parece más a producción (OD-P6-42 frente a OD-P6-37) | Acotado al tratamiento del contexto no calculable |
+| **O** Predicado OPERAR sin fijar | Broker neutral (D-04), en la sección 7.6 y en el hash |
+| **O** Bytes de la clave de desempate | Fórmula literal en la sección 8.3 y en el test 6 |
+| **O** `V_0` frente a `D`; fortaleza relativa en el test 40 | Precisados |
+| **O** (Codex) La nota del censo decía «primera señal OPERAR posible» | Cambiada a «SMA200 de tendencia completa; VIX y Asia señal a señal»; censo regenerado (solo cambia esa nota) |
+
+### Vuelta 2 (sobre el HEAD corregido)
+
+(Pendiente.)

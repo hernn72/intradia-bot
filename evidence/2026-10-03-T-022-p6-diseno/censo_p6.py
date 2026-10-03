@@ -71,7 +71,7 @@ def trend_structure(manifest: Dict[str, Dict[str, Any]], config: Any) -> Dict[st
         "sma": sma,
         "primera_sesion": str(local[0]),
         "sesion_que_completa_la_sma": str(local[sma - 1]),
-        "nota": "con contexto point-in-time, la primera señal OPERAR posible es al cierre de esa sesión",
+        "nota": "primera señal con la SMA200 de tendencia causalmente completa al cierre de esa sesión; VIX y Asia se comprueban señal a señal",
     }
 
 
