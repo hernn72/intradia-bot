@@ -1,0 +1,816 @@
+{
+  "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
+  "solo_descriptivo": true,
+  "instrumentos": [
+    {
+      "instrument_id": "DE0002635307",
+      "asset": "EXSA.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "DE0005140008",
+      "asset": "DBK.DE",
+      "asset_class": "stock",
+      "sector": "Financial Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para DBK.DE",
+      "observed_at": "2026-10-03T13:58:32Z"
+    },
+    {
+      "instrument_id": "DE0005557508",
+      "asset": "DTE.DE",
+      "asset_class": "stock",
+      "sector": "Communication Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para DTE.DE",
+      "observed_at": "2026-10-03T13:58:33Z"
+    },
+    {
+      "instrument_id": "DE0006231004",
+      "asset": "IFX.DE",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para IFX.DE",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "DE0007100000",
+      "asset": "MBG.DE",
+      "asset_class": "stock",
+      "sector": "Consumer Cyclical",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para MBG.DE",
+      "observed_at": "2026-10-03T13:58:36Z"
+    },
+    {
+      "instrument_id": "DE0007164600",
+      "asset": "SAP.DE",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para SAP.DE",
+      "observed_at": "2026-10-03T13:58:41Z"
+    },
+    {
+      "instrument_id": "DE0007236101",
+      "asset": "SIE.DE",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para SIE.DE",
+      "observed_at": "2026-10-03T13:58:41Z"
+    },
+    {
+      "instrument_id": "DE0008404005",
+      "asset": "ALV.DE",
+      "asset_class": "stock",
+      "sector": "Financial Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ALV.DE",
+      "observed_at": "2026-10-03T13:58:28Z"
+    },
+    {
+      "instrument_id": "DE0008430026",
+      "asset": "MUV2.DE",
+      "asset_class": "stock",
+      "sector": "Financial Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para MUV2.DE",
+      "observed_at": "2026-10-03T13:58:38Z"
+    },
+    {
+      "instrument_id": "DE000A0F5UJ7",
+      "asset": "EXV1.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "DE000A0H08M3",
+      "asset": "EXH1.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "DE000ENER6Y0",
+      "asset": "ENR.DE",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ENR.DE",
+      "observed_at": "2026-10-03T13:58:33Z"
+    },
+    {
+      "instrument_id": "ES0113211835",
+      "asset": "BBVA.MC",
+      "asset_class": "stock",
+      "sector": "Financial Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para BBVA.MC",
+      "observed_at": "2026-10-03T13:58:30Z"
+    },
+    {
+      "instrument_id": "ES0144580Y14",
+      "asset": "IBE.MC",
+      "asset_class": "stock",
+      "sector": "Utilities",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para IBE.MC",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "ES0148396007",
+      "asset": "ITX.MC",
+      "asset_class": "stock",
+      "sector": "Consumer Cyclical",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ITX.MC",
+      "observed_at": "2026-10-03T13:58:35Z"
+    },
+    {
+      "instrument_id": "FR0000073272",
+      "asset": "SAF.PA",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para SAF.PA",
+      "observed_at": "2026-10-03T13:58:41Z"
+    },
+    {
+      "instrument_id": "FR0000120271",
+      "asset": "TTE.PA",
+      "asset_class": "stock",
+      "sector": "Energy",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para TTE.PA",
+      "observed_at": "2026-10-03T13:58:42Z"
+    },
+    {
+      "instrument_id": "FR0000120321",
+      "asset": "OR.PA",
+      "asset_class": "stock",
+      "sector": "Consumer Defensive",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para OR.PA",
+      "observed_at": "2026-10-03T13:58:39Z"
+    },
+    {
+      "instrument_id": "FR0000121014",
+      "asset": "MC.PA",
+      "asset_class": "stock",
+      "sector": "Consumer Cyclical",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para MC.PA",
+      "observed_at": "2026-10-03T13:58:36Z"
+    },
+    {
+      "instrument_id": "FR0000121972",
+      "asset": "SU.PA",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para SU.PA",
+      "observed_at": "2026-10-03T13:58:42Z"
+    },
+    {
+      "instrument_id": "GB0002634946",
+      "asset": "BSP.DE",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para BSP.DE",
+      "observed_at": "2026-10-03T13:58:31Z"
+    },
+    {
+      "instrument_id": "GB0009895292",
+      "asset": "AZN",
+      "asset_class": "stock",
+      "sector": "Healthcare",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para AZN",
+      "observed_at": "2026-10-03T13:58:30Z"
+    },
+    {
+      "instrument_id": "GB00B63H8491",
+      "asset": "RRU.DE",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para RRU.DE",
+      "observed_at": "2026-10-03T13:58:41Z"
+    },
+    {
+      "instrument_id": "GB00BP6MXD84",
+      "asset": "R6C0.DE",
+      "asset_class": "stock",
+      "sector": "Energy",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para R6C0.DE",
+      "observed_at": "2026-10-03T13:58:40Z"
+    },
+    {
+      "instrument_id": "IE000U58J0M1",
+      "asset": "Q8Y0.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:40Z"
+    },
+    {
+      "instrument_id": "IE0032077012",
+      "asset": "EQQQ.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "IE00B0M63391",
+      "asset": "IQQK.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:35Z"
+    },
+    {
+      "instrument_id": "IE00B0M63623",
+      "asset": "IQQT.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:35Z"
+    },
+    {
+      "instrument_id": "IE00B4L5Y983",
+      "asset": "EUNL.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "IE00B4L5YX21",
+      "asset": "EUNN.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "IE00B4WXJJ64",
+      "asset": "EUNH.DE",
+      "asset_class": "bond_etf",
+      "sector": "BOND_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "IE00B5BMR087",
+      "asset": "SXR8.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:42Z"
+    },
+    {
+      "instrument_id": "IE00BJ38QD84",
+      "asset": "ZPRR.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:44Z"
+    },
+    {
+      "instrument_id": "IE00BJ5JPG56",
+      "asset": "ICGA.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "IE00BKM4GZ66",
+      "asset": "IS3N.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:35Z"
+    },
+    {
+      "instrument_id": "IE00BMC38736",
+      "asset": "VVSM.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:43Z"
+    },
+    {
+      "instrument_id": "IE00BZCQB185",
+      "asset": "QDV5.DE",
+      "asset_class": "equity_etf",
+      "sector": "EQUITY_ETF",
+      "taxonomy": "categoría estructural por tipo de activo, sin look-through",
+      "source": "universe.yaml asset_class",
+      "observed_at": "2026-10-03T13:58:40Z"
+    },
+    {
+      "instrument_id": "IT0003132476",
+      "asset": "ENI.MI",
+      "asset_class": "stock",
+      "sector": "Energy",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ENI.MI",
+      "observed_at": "2026-10-03T13:58:33Z"
+    },
+    {
+      "instrument_id": "JP3122400009",
+      "asset": "6857.T",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para 6857.T",
+      "observed_at": "2026-10-03T13:58:26Z"
+    },
+    {
+      "instrument_id": "JP3435000009",
+      "asset": "6758.T",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para 6758.T",
+      "observed_at": "2026-10-03T13:58:25Z"
+    },
+    {
+      "instrument_id": "JP3571400005",
+      "asset": "8035.T",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para 8035.T",
+      "observed_at": "2026-10-03T13:58:26Z"
+    },
+    {
+      "instrument_id": "JP3633400001",
+      "asset": "7203.T",
+      "asset_class": "stock",
+      "sector": "Consumer Cyclical",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para 7203.T",
+      "observed_at": "2026-10-03T13:58:26Z"
+    },
+    {
+      "instrument_id": "JP3788600009",
+      "asset": "6501.T",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para 6501.T",
+      "observed_at": "2026-10-03T13:58:25Z"
+    },
+    {
+      "instrument_id": "JP3900000005",
+      "asset": "7011.T",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para 7011.T",
+      "observed_at": "2026-10-03T13:58:26Z"
+    },
+    {
+      "instrument_id": "KYG017191142",
+      "asset": "9988.HK",
+      "asset_class": "stock",
+      "sector": "Consumer Cyclical",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para 9988.HK",
+      "observed_at": "2026-10-03T13:58:27Z"
+    },
+    {
+      "instrument_id": "KYG875721634",
+      "asset": "0700.HK",
+      "asset_class": "stock",
+      "sector": "Communication Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para 0700.HK",
+      "observed_at": "2026-10-03T13:58:24Z"
+    },
+    {
+      "instrument_id": "KYG9830T1067",
+      "asset": "1810.HK",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para 1810.HK",
+      "observed_at": "2026-10-03T13:58:25Z"
+    },
+    {
+      "instrument_id": "NL0000235190",
+      "asset": "AIR.PA",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para AIR.PA",
+      "observed_at": "2026-10-03T13:58:28Z"
+    },
+    {
+      "instrument_id": "NL0010273215",
+      "asset": "ASML.AS",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ASML.AS",
+      "observed_at": "2026-10-03T13:58:30Z"
+    },
+    {
+      "instrument_id": "NL0011585146",
+      "asset": "RACE.MI",
+      "asset_class": "stock",
+      "sector": "Consumer Cyclical",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para RACE.MI",
+      "observed_at": "2026-10-03T13:58:40Z"
+    },
+    {
+      "instrument_id": "NL0012969182",
+      "asset": "ADYEN.AS",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ADYEN.AS",
+      "observed_at": "2026-10-03T13:58:28Z"
+    },
+    {
+      "instrument_id": "US00287Y1091",
+      "asset": "ABBV",
+      "asset_class": "stock",
+      "sector": "Healthcare",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ABBV",
+      "observed_at": "2026-10-03T13:58:27Z"
+    },
+    {
+      "instrument_id": "US00724F1012",
+      "asset": "ADBE",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ADBE",
+      "observed_at": "2026-10-03T13:58:27Z"
+    },
+    {
+      "instrument_id": "US0079031078",
+      "asset": "AMD",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para AMD",
+      "observed_at": "2026-10-03T13:58:29Z"
+    },
+    {
+      "instrument_id": "US02079K3059",
+      "asset": "GOOGL",
+      "asset_class": "stock",
+      "sector": "Communication Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para GOOGL",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "US0231351067",
+      "asset": "AMZN",
+      "asset_class": "stock",
+      "sector": "Consumer Cyclical",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para AMZN",
+      "observed_at": "2026-10-03T13:58:29Z"
+    },
+    {
+      "instrument_id": "US0378331005",
+      "asset": "AAPL",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para AAPL",
+      "observed_at": "2026-10-03T13:58:27Z"
+    },
+    {
+      "instrument_id": "US0382221051",
+      "asset": "AMAT",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para AMAT",
+      "observed_at": "2026-10-03T13:58:28Z"
+    },
+    {
+      "instrument_id": "US03831W1080",
+      "asset": "APP",
+      "asset_class": "stock",
+      "sector": "Communication Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para APP",
+      "observed_at": "2026-10-03T13:58:29Z"
+    },
+    {
+      "instrument_id": "US0420682058",
+      "asset": "ARM",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ARM",
+      "observed_at": "2026-10-03T13:58:29Z"
+    },
+    {
+      "instrument_id": "US0846707026",
+      "asset": "BRK-B",
+      "asset_class": "stock",
+      "sector": "Financial Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para BRK-B",
+      "observed_at": "2026-10-03T13:58:31Z"
+    },
+    {
+      "instrument_id": "US11135F1012",
+      "asset": "AVGO",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para AVGO",
+      "observed_at": "2026-10-03T13:58:30Z"
+    },
+    {
+      "instrument_id": "US1491231015",
+      "asset": "CAT",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para CAT",
+      "observed_at": "2026-10-03T13:58:31Z"
+    },
+    {
+      "instrument_id": "US1667641005",
+      "asset": "CVX",
+      "asset_class": "stock",
+      "sector": "Energy",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para CVX",
+      "observed_at": "2026-10-03T13:58:32Z"
+    },
+    {
+      "instrument_id": "US19260Q1076",
+      "asset": "COIN",
+      "asset_class": "stock",
+      "sector": "Financial Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para COIN",
+      "observed_at": "2026-10-03T13:58:31Z"
+    },
+    {
+      "instrument_id": "US22788C1053",
+      "asset": "CRWD",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para CRWD",
+      "observed_at": "2026-10-03T13:58:32Z"
+    },
+    {
+      "instrument_id": "US30233Q1085",
+      "asset": "XOM",
+      "asset_class": "stock",
+      "sector": "Energy",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para XOM",
+      "observed_at": "2026-10-03T13:58:43Z"
+    },
+    {
+      "instrument_id": "US30303M1027",
+      "asset": "META",
+      "asset_class": "stock",
+      "sector": "Communication Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para META",
+      "observed_at": "2026-10-03T13:58:37Z"
+    },
+    {
+      "instrument_id": "US38141G1040",
+      "asset": "GS",
+      "asset_class": "stock",
+      "sector": "Financial Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para GS",
+      "observed_at": "2026-10-03T13:58:34Z"
+    },
+    {
+      "instrument_id": "US4567881085",
+      "asset": "INFY",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para INFY",
+      "observed_at": "2026-10-03T13:58:35Z"
+    },
+    {
+      "instrument_id": "US4581401001",
+      "asset": "INTC",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para INTC",
+      "observed_at": "2026-10-03T13:58:35Z"
+    },
+    {
+      "instrument_id": "US5324571083",
+      "asset": "LLY",
+      "asset_class": "stock",
+      "sector": "Healthcare",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para LLY",
+      "observed_at": "2026-10-03T13:58:35Z"
+    },
+    {
+      "instrument_id": "US5398301094",
+      "asset": "LMT",
+      "asset_class": "stock",
+      "sector": "Industrials",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para LMT",
+      "observed_at": "2026-10-03T13:58:36Z"
+    },
+    {
+      "instrument_id": "US5738741041",
+      "asset": "MRVL",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para MRVL",
+      "observed_at": "2026-10-03T13:58:37Z"
+    },
+    {
+      "instrument_id": "US57636Q1040",
+      "asset": "MA",
+      "asset_class": "stock",
+      "sector": "Financial Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para MA",
+      "observed_at": "2026-10-03T13:58:36Z"
+    },
+    {
+      "instrument_id": "US5949181045",
+      "asset": "MSFT",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para MSFT",
+      "observed_at": "2026-10-03T13:58:37Z"
+    },
+    {
+      "instrument_id": "US5951121038",
+      "asset": "MU",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para MU",
+      "observed_at": "2026-10-03T13:58:37Z"
+    },
+    {
+      "instrument_id": "US64110L1061",
+      "asset": "NFLX",
+      "asset_class": "stock",
+      "sector": "Communication Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para NFLX",
+      "observed_at": "2026-10-03T13:58:38Z"
+    },
+    {
+      "instrument_id": "US67066G1040",
+      "asset": "NVDA",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para NVDA",
+      "observed_at": "2026-10-03T13:58:39Z"
+    },
+    {
+      "instrument_id": "US68389X1054",
+      "asset": "ORCL",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para ORCL",
+      "observed_at": "2026-10-03T13:58:39Z"
+    },
+    {
+      "instrument_id": "US69608A1088",
+      "asset": "PLTR",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para PLTR",
+      "observed_at": "2026-10-03T13:58:40Z"
+    },
+    {
+      "instrument_id": "US6974351057",
+      "asset": "PANW",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para PANW",
+      "observed_at": "2026-10-03T13:58:39Z"
+    },
+    {
+      "instrument_id": "US7475251036",
+      "asset": "QCOM",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para QCOM",
+      "observed_at": "2026-10-03T13:58:40Z"
+    },
+    {
+      "instrument_id": "US79466L3024",
+      "asset": "CRM",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para CRM",
+      "observed_at": "2026-10-03T13:58:32Z"
+    },
+    {
+      "instrument_id": "US81762P1021",
+      "asset": "NOW",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para NOW",
+      "observed_at": "2026-10-03T13:58:38Z"
+    },
+    {
+      "instrument_id": "US8740391003",
+      "asset": "TSM",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para TSM",
+      "observed_at": "2026-10-03T13:58:42Z"
+    },
+    {
+      "instrument_id": "US88160R1014",
+      "asset": "TSLA",
+      "asset_class": "stock",
+      "sector": "Consumer Cyclical",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para TSLA",
+      "observed_at": "2026-10-03T13:58:42Z"
+    },
+    {
+      "instrument_id": "US90353T1007",
+      "asset": "UBER",
+      "asset_class": "stock",
+      "sector": "Technology",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para UBER",
+      "observed_at": "2026-10-03T13:58:43Z"
+    },
+    {
+      "instrument_id": "US92538J1060",
+      "asset": "VRTX",
+      "asset_class": "stock",
+      "sector": "Healthcare",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para VRTX",
+      "observed_at": "2026-10-03T13:58:43Z"
+    },
+    {
+      "instrument_id": "US92826C8394",
+      "asset": "V",
+      "asset_class": "stock",
+      "sector": "Financial Services",
+      "taxonomy": "Yahoo Finance sector (perfil del emisor)",
+      "source": "yfinance 1.7.0 Ticker.info['sector'] para V",
+      "observed_at": "2026-10-03T13:58:43Z"
+    }
+  ]
+}
