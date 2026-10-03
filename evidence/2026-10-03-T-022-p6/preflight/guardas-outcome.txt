@@ -1,0 +1,11 @@
+# Guardas de desenlace comprobadas por el preflight (sin abrir ninguno)
+
+- build_real_market sin token: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- build_real_signals sin token: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- build_real_signals con token fabricado: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- simulate con datos reales sin autorización: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- simulate_benchmark con datos reales sin autorización: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- marca confirmatoria ausente: observado=False esperado=False ok=True
+
+Además (tests): la marca solo se crea con la autorización interna de run_confirmatory; el token solo lo
+emite el proceso que creó la marca en exclusiva, con nonce; el motor rechaza datos reales sin autorización.

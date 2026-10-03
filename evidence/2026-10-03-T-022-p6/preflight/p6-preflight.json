@@ -1,0 +1,321 @@
+{
+  "fase": "preflight",
+  "modo": "DEFINITIVO",
+  "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
+  "inicio_utc": "2026-10-03T16:20:13.519358+00:00",
+  "new_p6_outcomes_read": false,
+  "outcomes_leidos": "ninguno: solo identidades, fechas, calendario, FX y sector congelados",
+  "p6_confirmatory_executed": false,
+  "identidad": {
+    "p6_prereg_sha": "03f04a42ea9d2be893e7c4cc09de76bd1c55778b",
+    "p6_executor_sha": "d4f213b866006069708f24c056c5a6a542d2685c",
+    "git_dirty": false,
+    "prereg_en_historia": true,
+    "p6_data_id": "572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383",
+    "data_vintage_id": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+    "universe_vintage_id": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+    "fx_vintage_id": "10e832ef38daa5d7e81a444bcd3bc99a5e783a382a14a4a14c68e6736dfeac0b",
+    "sector_map": "24f45421a582cc79ee16f8436e3e008d252ccafc06f34503961d5dfccea662cd"
+  },
+  "politicas": {
+    "B2": {
+      "policy_sha256": "d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9",
+      "advisor_config_hash": "c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760"
+    },
+    "S2": {
+      "policy_sha256": "e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11",
+      "advisor_config_hash": "8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb"
+    },
+    "C0": {
+      "policy_sha256": "80e21111a88c1eeac94c2ecef6b8bc480a505a045ca90f6a91a0ba6fc4ffd29a",
+      "advisor_config_hash": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387"
+    }
+  },
+  "ventana": {
+    "inicio": "2022-06-14",
+    "fin": "2026-08-27",
+    "ultimo_calentamiento_de_los_iniciales": "2022-02-25",
+    "sesion_que_completa_la_sma200": "2022-06-13",
+    "sesiones_sin_barra_en_ventana": 27,
+    "instantaneas": 1095,
+    "periodos_por_año": 260.5529315960912
+  },
+  "system_hashes": {
+    "B2_primaria_5pb": {
+      "system_sha256": "010977688a180cc63d22111f2dcb520c937ba39bb63fbb88082c30a061724026",
+      "policy": "B2",
+      "poblacion": "OPERAR_score_v1_point_in_time",
+      "slippage_pb": "5.0",
+      "papel": "decisoria"
+    },
+    "B2_sensibilidad_10pb": {
+      "system_sha256": "cf74b45dafb7916a7e9bf2110c70f3856c59d86c0cf7d3a43214e1e47ab6cd67",
+      "policy": "B2",
+      "poblacion": "OPERAR_score_v1_point_in_time",
+      "slippage_pb": "10.0",
+      "papel": "descriptiva"
+    },
+    "B2_todas_las_barras_5pb": {
+      "system_sha256": "b651b3cc016a01f72dfdb776aaa45156c4969abf1e1583ca17d7b02a415242fa",
+      "policy": "B2",
+      "poblacion": "todas_las_barras_elegibles",
+      "slippage_pb": "5.0",
+      "papel": "descriptiva"
+    },
+    "S2_primaria_5pb": {
+      "system_sha256": "824a1dff2d1bf1e6d89b842b9606887cec5eed28f3b76448f947dfbb28d39a69",
+      "policy": "S2",
+      "poblacion": "OPERAR_score_v1_point_in_time",
+      "slippage_pb": "5.0",
+      "papel": "decisoria"
+    },
+    "S2_sensibilidad_10pb": {
+      "system_sha256": "5ee33df3e8431e5937db1d73ff2cec09acdae7952867ba01fd30b4111c004751",
+      "policy": "S2",
+      "poblacion": "OPERAR_score_v1_point_in_time",
+      "slippage_pb": "10.0",
+      "papel": "descriptiva"
+    },
+    "S2_todas_las_barras_5pb": {
+      "system_sha256": "30e374a61ece0f5179c5185b5e6659a2ea2889fada39e38831b806805092d196",
+      "policy": "S2",
+      "poblacion": "todas_las_barras_elegibles",
+      "slippage_pb": "5.0",
+      "papel": "descriptiva"
+    },
+    "C0_primaria_5pb": {
+      "system_sha256": "18956fb61823c4cfbf625b1581ef15f6048a1096134d50c00404f76b12fd99e8",
+      "policy": "C0",
+      "poblacion": "OPERAR_score_v1_point_in_time",
+      "slippage_pb": "5.0",
+      "papel": "control_descriptivo"
+    },
+    "benchmark_5pb": {
+      "benchmark_sha256": "30ffe0fa733c104a08525a3d8ae1bf13c3838864ba1ac15ce6aa0056d6575399",
+      "slippage_pb": "5.0"
+    },
+    "benchmark_10pb": {
+      "benchmark_sha256": "a4e552abf5c8981083928ed50ab84f51a59a4ce01e43b13aa4e701a4c45ce332",
+      "slippage_pb": "10.0"
+    }
+  },
+  "determinismo": {
+    "corridas": [
+      {
+        "ledger_sha256": "acde46ead4546cfd53e45207c105a8d698f755dd8612e54ec24976cb83aa2d3b",
+        "serie_sha256": "c08a576ef617674aded898de879fb7561ae57c0eae93cc442d7e14b06501f072",
+        "metricas_sha256": "b4802b066760e976dcaa11d60d8dbdbf2b52ea5ddc9cfb078436bc02dc401e14",
+        "benchmark_ledger_sha256": "35ef591d63a1402026c4c49824fa157f15de5db36004c176f197a0d82e3d39e5",
+        "operaciones": 7
+      },
+      {
+        "ledger_sha256": "acde46ead4546cfd53e45207c105a8d698f755dd8612e54ec24976cb83aa2d3b",
+        "serie_sha256": "c08a576ef617674aded898de879fb7561ae57c0eae93cc442d7e14b06501f072",
+        "metricas_sha256": "b4802b066760e976dcaa11d60d8dbdbf2b52ea5ddc9cfb078436bc02dc401e14",
+        "benchmark_ledger_sha256": "35ef591d63a1402026c4c49824fa157f15de5db36004c176f197a0d82e3d39e5",
+        "operaciones": 7
+      }
+    ],
+    "identico": true,
+    "datos": "sintéticos (synthetic_market)"
+  },
+  "checks": [
+    {
+      "control": "P6_PREREG_SHA en la historia",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "config_hash",
+      "observado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+      "esperado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+      "ok": true
+    },
+    {
+      "control": "score_model_version",
+      "observado": "1.0",
+      "esperado": "1.0",
+      "ok": true
+    },
+    {
+      "control": "data_vintage_id",
+      "observado": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+      "esperado": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+      "ok": true
+    },
+    {
+      "control": "exchange_calendars",
+      "observado": "4.13.2",
+      "esperado": "4.13.2",
+      "ok": true
+    },
+    {
+      "control": "tzdata",
+      "observado": "2026.4",
+      "esperado": "2026.4",
+      "ok": true
+    },
+    {
+      "control": "exchange_overrides_sha256",
+      "observado": "87e4aa21def5eaf057745cf4b98711c4df694dae2f6cfbf27245823d946539db",
+      "esperado": "87e4aa21def5eaf057745cf4b98711c4df694dae2f6cfbf27245823d946539db",
+      "ok": true
+    },
+    {
+      "control": "P6_DATA_ID",
+      "observado": "572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383",
+      "esperado": "572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383",
+      "ok": true
+    },
+    {
+      "control": "asset_list (90)",
+      "observado": 90,
+      "esperado": 90,
+      "ok": true
+    },
+    {
+      "control": "policy_sha256 B2",
+      "observado": "d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9",
+      "esperado": "d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9",
+      "ok": true
+    },
+    {
+      "control": "advisor_config_hash B2",
+      "observado": "c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760",
+      "esperado": "c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760",
+      "ok": true
+    },
+    {
+      "control": "policy_sha256 S2",
+      "observado": "e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11",
+      "esperado": "e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11",
+      "ok": true
+    },
+    {
+      "control": "advisor_config_hash S2",
+      "observado": "8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb",
+      "esperado": "8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb",
+      "ok": true
+    },
+    {
+      "control": "policy_sha256 C0",
+      "observado": "80e21111a88c1eeac94c2ecef6b8bc480a505a045ca90f6a91a0ba6fc4ffd29a",
+      "esperado": "80e21111a88c1eeac94c2ecef6b8bc480a505a045ca90f6a91a0ba6fc4ffd29a",
+      "ok": true
+    },
+    {
+      "control": "advisor_config_hash C0",
+      "observado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+      "esperado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+      "ok": true
+    },
+    {
+      "control": "canonical_json P5 B2 byte a byte",
+      "observado": "{\"advisor_config_hash\":\"c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760\",\"esquema\":\"intradia.p5.politica.v1\",\"geometria\":{\"atr_stop_multiple\":2.0,\"entry_max_atr\":0.75,\"m3_auxiliar\":false,\"min_rr\":1.5,\"regla_soporte\":\"E\",\"support_buffer_atr\":0.25,\"target2_structural\":false,\"target_atr_multiples\":[1.5,4.875,5.0]},\"laboratorio\":{\"ambiguous\":\"no_resuelto\",\"coste_pct_ida_vuelta\":0.2,\"entrada\":\"cierre_de_la_senal\",\"horizonte\":\"swing\",\"max_hold_bars\":40,\"salidas\":[\"STOP_FIRST\",\"TARGET_FIRST\",\"TIME\",\"FINAL\"]}}",
+      "esperado": "{\"advisor_config_hash\":\"c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760\",\"esquema\":\"intradia.p5.politica.v1\",\"geometria\":{\"atr_stop_multiple\":2.0,\"entry_max_atr\":0.75,\"m3_auxiliar\":false,\"min_rr\":1.5,\"regla_soporte\":\"E\",\"support_buffer_atr\":0.25,\"target2_structural\":false,\"target_atr_multiples\":[1.5,4.875,5.0]},\"laboratorio\":{\"ambiguous\":\"no_resuelto\",\"coste_pct_ida_vuelta\":0.2,\"entrada\":\"cierre_de_la_senal\",\"horizonte\":\"swing\",\"max_hold_bars\":40,\"salidas\":[\"STOP_FIRST\",\"TARGET_FIRST\",\"TIME\",\"FINAL\"]}}",
+      "ok": true
+    },
+    {
+      "control": "canonical_json P5 S2 byte a byte",
+      "observado": "{\"advisor_config_hash\":\"8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb\",\"esquema\":\"intradia.p5.politica.v1\",\"geometria\":{\"atr_stop_multiple\":2.5,\"entry_max_atr\":0.75,\"m3_auxiliar\":false,\"min_rr\":1.5,\"regla_soporte\":\"E\",\"support_buffer_atr\":0.25,\"target2_structural\":false,\"target_atr_multiples\":[1.5,3.75,5.0]},\"laboratorio\":{\"ambiguous\":\"no_resuelto\",\"coste_pct_ida_vuelta\":0.2,\"entrada\":\"cierre_de_la_senal\",\"horizonte\":\"swing\",\"max_hold_bars\":40,\"salidas\":[\"STOP_FIRST\",\"TARGET_FIRST\",\"TIME\",\"FINAL\"]}}",
+      "esperado": "{\"advisor_config_hash\":\"8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb\",\"esquema\":\"intradia.p5.politica.v1\",\"geometria\":{\"atr_stop_multiple\":2.5,\"entry_max_atr\":0.75,\"m3_auxiliar\":false,\"min_rr\":1.5,\"regla_soporte\":\"E\",\"support_buffer_atr\":0.25,\"target2_structural\":false,\"target_atr_multiples\":[1.5,3.75,5.0]},\"laboratorio\":{\"ambiguous\":\"no_resuelto\",\"coste_pct_ida_vuelta\":0.2,\"entrada\":\"cierre_de_la_senal\",\"horizonte\":\"swing\",\"max_hold_bars\":40,\"salidas\":[\"STOP_FIRST\",\"TARGET_FIRST\",\"TIME\",\"FINAL\"]}}",
+      "ok": true
+    },
+    {
+      "control": "FX fuente usada",
+      "observado": "B",
+      "esperado": "B",
+      "ok": true
+    },
+    {
+      "control": "FX pares",
+      "observado": [
+        "HKD",
+        "JPY",
+        "USD"
+      ],
+      "esperado": [
+        "HKD",
+        "JPY",
+        "USD"
+      ],
+      "ok": true
+    },
+    {
+      "control": "sector 90/90",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "ventana inicio",
+      "observado": "2022-06-14",
+      "esperado": "2022-06-14",
+      "ok": true
+    },
+    {
+      "control": "ventana fin",
+      "observado": "2026-08-27",
+      "esperado": "2026-08-27",
+      "ok": true
+    },
+    {
+      "control": "9 identidades de corrida",
+      "observado": 9,
+      "esperado": 9,
+      "ok": true
+    },
+    {
+      "control": "system_sha256 distintos",
+      "observado": 9,
+      "esperado": 9,
+      "ok": true
+    },
+    {
+      "control": "build_real_market sin token",
+      "observado": "P6OutcomeGateError",
+      "esperado": "P6OutcomeGateError",
+      "ok": true
+    },
+    {
+      "control": "build_real_signals sin token",
+      "observado": "P6OutcomeGateError",
+      "esperado": "P6OutcomeGateError",
+      "ok": true
+    },
+    {
+      "control": "build_real_signals con token fabricado",
+      "observado": "P6OutcomeGateError",
+      "esperado": "P6OutcomeGateError",
+      "ok": true
+    },
+    {
+      "control": "simulate con datos reales sin autorización",
+      "observado": "P6OutcomeGateError",
+      "esperado": "P6OutcomeGateError",
+      "ok": true
+    },
+    {
+      "control": "simulate_benchmark con datos reales sin autorización",
+      "observado": "P6OutcomeGateError",
+      "esperado": "P6OutcomeGateError",
+      "ok": true
+    },
+    {
+      "control": "marca confirmatoria ausente",
+      "observado": false,
+      "esperado": false,
+      "ok": true
+    },
+    {
+      "control": "determinismo sintético byte a byte",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    }
+  ],
+  "fin_utc": "2026-10-03T16:20:13.519383+00:00",
+  "ok": true,
+  "definitivo": true
+}
