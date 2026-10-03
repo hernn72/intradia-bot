@@ -380,8 +380,10 @@ def derive_window(config: AdvisorConfig, universe: Universe, vintage: VintageLoa
     end = min(days[-1] for days in dates.values())
     missing = 0
     for symbol in symbols:
-        window_days = [day for day in dates[symbol] if start <= day <= end]
-        expected = expected_sessions(markets[symbol], start, end)
+        # Desde la primera barra del activo: antes de cotizar (ARM, Q8Y0.DE) no hay «sesión sin barra».
+        listed_from = max(start, dates[symbol][0])
+        window_days = [day for day in dates[symbol] if listed_from <= day <= end]
+        expected = expected_sessions(markets[symbol], listed_from, end)
         missing += len(set(expected) - set(window_days))
     snapshot_days = sorted({day for days in dates.values() for day in days if start <= day <= end})
     span = (snapshot_days[-1] - start).days
