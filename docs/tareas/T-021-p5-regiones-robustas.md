@@ -1,5 +1,26 @@
 # T-021 — P5 Regiones robustas de parámetros: B2 y S2, con pre-registro (A-05)
 
+Estado: **ACEPTADA — GATE P5 CRUZADO el 2026-10-03 (D-67 y D-68).** P5 se ejecutó **una sola
+vez** el 2026-10-03.
+
+**Identidad.**
+- `P5_PREREG_SHA = a7c3d238d651b4ea8f48834848c03c0a5a462dfa`
+- `P5_CODE_SHA = 6c7f9135774f157e82634b6abf82a847d9b99bd9`
+- `P5_PREFLIGHT_HEAD = 7446602114b26f56cae549d2ec299d7bbc07b459`
+- `P5_RUN_HEAD_SHA = 282b1ce991bb4567ff2ad41a28e00c9518662115`
+- Evidencia `86ddd5baf8ceabe6e9d3747d645c7c99d719343c`
+
+**Resultado (D-67):** **B2 ROBUSTA** y **S2 ROBUSTA**, con supervivientes **`[B2, S2]`**:
+- 13/13 vecinos ACEPTABLES;
+- 6/6 LOCRO con IC95 inferior > 0;
+- 71/71 comparaciones, 0 confirmatorias nuevas;
+- ninguna candidata FRÁGIL, DEPENDIENTE_DE_MERCADO ni NO_CONCLUYENTE.
+
+Cierre y handoff en la sección «Cierre (2026-10-03)», al final. Lo que sigue a continuación es el
+pre-registro tal como quedó fijado; no se reescribe.
+
+---
+
 Estado: **PRE-REGISTRO — OD-P5-1 a OD-P5-16 CERRADAS en D-66 (2026-10-02).** P5 **no se ha
 ejecutado** y no se ha calculado ningún resultado (`net_R`, ΔR, PF, expectancy ni intervalo) de
 ningún punto nuevo de ninguna superficie. Las recomendaciones de la ficha son ahora **reglas
@@ -1495,3 +1516,22 @@ Corregido después, sin cambiar ninguna regla:
 - **OBSERVACIÓN:** los vecinos publican su hash como `diagnostico_sha256`, nunca como
   `policy_sha256` (sección 28).
 - **OBSERVACIÓN:** quitados los restos de «recomendación» fuera de la sección 33.
+
+
+## Cierre (2026-10-03)
+
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+- **Ejecución única:** marca a las 09:44:05 UTC, recuento derivado 71, `p5-parada.json` inexistente,
+  y `código de salida: 0` archivado en la consola. P5 no se repite.
+- **Resultado y superficies completas:** `evidence/2026-10-03-T-021-p5-cierre/resultado-p5.md`
+  (transcripción literal de `run/`, sin recalcular) y D-67.
+- **Políticas candidatas:** `[B2, S2]`, con `config` completa y `policy_sha256` en
+  `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`. P5 no ordena una sobre la otra.
+- **Revisión final independiente:** 0 BLOCKER, 0 IMPORTANTE, 0 MENOR y 1 OBSERVACIÓN sin impacto
+  (`revision-final.md`). GATE P5 cruzado (D-68, `gate-p5-final.md`).
+- **Handoff a P6:** P6 (sistema completo con exceso sobre el buy-and-hold del universo) recibe B2 y
+  S2 como políticas candidatas de investigación. Está desbloqueado, pero **no iniciado**: su ficha
+  necesita una autorización aparte. Producción no cambia: ninguna de las dos se activa,
+  `config.yaml` sigue en `"1.0"` con C0, Score v2 sigue inactivo y la Pi en `v0.4.1`. El resultado es
+  de desarrollo; la validación independiente sigue en P7 (INV-15).

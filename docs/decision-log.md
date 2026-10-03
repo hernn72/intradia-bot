@@ -1544,6 +1544,42 @@ generado con `policy_payload` y `canonical_json`. El `policy_sha256` se regenera
 - El resultado es de desarrollo sobre una cosecha ya consumida, no una validación (INV-15). La
   validación independiente sigue en P7.
 
+### D-68 — 2026-10-03 — GATE P5 cruzado
+Cierre mecánico de GATE P5 con la regla del propietario: los cuatro requisitos de `docs/gates.md`
+satisfechos y la revisión final independiente sin ningún BLOCKER ni IMPORTANTE.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+- **P5 se ejecutó exactamente una vez:** el 2026-10-03, desde `P5_RUN_HEAD_SHA = 282b1ce`, con
+  `P5_CODE_SHA = 6c7f913`, `P5_PREREG_SHA = a7c3d23` y la marca a las 09:44:05 UTC. La evidencia está
+  congelada en `86ddd5b` (`evidence/2026-10-02-T-021-p5/run/`, 11/11 SHA256), y ningún commit
+  posterior la toca. P5 no se repite.
+- **71/71 comparaciones**, de ellas 0 confirmatorias nuevas.
+- **B2: ROBUSTA.** **S2: ROBUSTA.** `centro_p4 = True` y F1–F6 = False en las dos (D-67).
+- **13/13 vecinos ACEPTABLES:** 8/8 de B2 y 5/5 de S2, incluidos los dos iso-RR críticos de S2.
+- **6/6 LOCRO decisorios superados:** todos estimables y con IC95 inferior > 0.
+- **Supervivientes: `[B2, S2]`.** Ninguna se ordena sobre la otra.
+- **Configuraciones completas y hashes** en `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`:
+  - B2: `advisor_config_hash c5d60f44…1760`, `policy_sha256 d5d6a533…01b9`;
+  - S2: `advisor_config_hash 8a151b80…0dbb`, `policy_sha256 e37ee933…4d11`.
+  Se regeneraron desde `canonical_json` y coinciden con la marca y con el preflight.
+- **Ninguna candidata descartada** por fragilidad, por dependencia de mercado ni por resultado no
+  concluyente. Las 3 ausencias de S2 son estructurales (RR < 1,5, D-66), no descartes por resultado.
+- **Revisión final independiente:** 0 BLOCKER, 0 IMPORTANTE, 0 MENOR y 1 OBSERVACIÓN sin impacto
+  (`evidence/2026-10-03-T-021-p5-cierre/revision-final.md`).
+- **GATE P5 CRUZADO.** La matriz está en `evidence/2026-10-03-T-021-p5-cierre/gate-p5-final.md`.
+- **A-05 / T-021 queda ACEPTADA.**
+- **P6 queda desbloqueado, pero NO iniciado.** Su ficha se escribe con una autorización aparte.
+
+**Lo que no cambia.** No se toca producción:
+- B2 y S2 son políticas candidatas de investigación y **ninguna se activa**;
+- `config.yaml` sigue en `"1.0"` con la geometría C0;
+- Score v2 sigue inactivo;
+- la Pi sigue en `v0.4.1`;
+- no hay release ni despliegue.
+
+El resultado es de desarrollo sobre una cosecha ya consumida; la validación independiente sigue en
+P7 (INV-15).
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

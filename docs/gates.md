@@ -231,6 +231,32 @@ Desbloquea: P5.
 
 ## GATE P5 — Regiones robustas
 
+**GATE P5 CRUZADO el 2026-10-03 (D-68).** Los cuatro requisitos se cumplen. T-021 (A-05) ejecutó P5
+una sola vez:
+- `P5_PREREG_SHA = a7c3d23`;
+- `P5_CODE_SHA = 6c7f913`;
+- `P5_RUN_HEAD_SHA = 282b1ce`;
+- evidencia en `86ddd5b`.
+
+D-67 registra el resultado:
+- **B2 ROBUSTA** y **S2 ROBUSTA**;
+- 13/13 vecinos ACEPTABLES;
+- 6/6 LOCRO con IC95 inferior > 0;
+- 71/71 comparaciones, 0 confirmatorias nuevas;
+- **supervivientes `[B2, S2]`**, con su `config` completa y su hash.
+
+No hay ninguna candidata descartada por fragilidad ni por dependencia de mercado. Las 3 ausencias de
+S2 son estructurales (RR < 1,5). La revisión final independiente no deja ningún BLOCKER ni ningún
+IMPORTANTE. Producción no cambia: B2 y S2 son candidatas de investigación y ninguna se activa.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Evidencia:
+- `evidence/2026-10-02-T-021-p5-diseno/` (inventario estructural del diseño);
+- `evidence/2026-10-02-T-021-p5/preflight/` y `…/run/` (preflight y ejecución única);
+- `evidence/2026-10-03-T-021-p5-lookahead/` (revisión de look-ahead, previa a la ejecución);
+- `evidence/2026-10-03-T-021-p5-cierre/` (resultado, `politicas-finales.json`, revisión final y
+  `gate-p5-final.md`).
+
 Requisitos: superficies de parámetros publicadas; configuraciones descartadas
 por fragilidad o dependencia de un solo mercado listadas con motivo; conjunto
 de políticas candidatas ≤ 5, cada una con su `config` completa y hash.
