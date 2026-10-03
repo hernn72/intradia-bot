@@ -91,6 +91,29 @@ P4_RUN_TABLES = Path("evidence/2026-10-01-T-020-p4/run/tablas")
 P4_PREFLIGHT_JSON = Path("evidence/2026-10-01-T-020-p4/preflight/p4-preflight.json")
 P5_STRUCTURAL_INVENTORY = Path("evidence/2026-10-02-T-021-p5-diseno/inventario-estructural.json")
 
+# Bytes exactos de la evidencia publicada que P5 lee para decidir. Se verifican sobre los mismos
+# bytes que se parsean, así que una evidencia retocada después del preflight no llega a usarse.
+P4_EVIDENCE_SHA256: Dict[str, str] = {
+    "evidence/2026-10-01-T-020-p4/run/tablas/criterio.tsv": "be1f94e54a70e4bffaa686a7be42a4832799da40fb4410132bff6708e246a596",
+    "evidence/2026-10-01-T-020-p4/run/tablas/estimaciones.tsv": "dd178515bddb759b4045fa694060e234c86b75873605e74ff681778dddc7ad60",
+    "evidence/2026-10-01-T-020-p4/run/tablas/nivel.tsv": "1d6d7e862dc5870107460316d4c68806e8bc6e2228114a6df74ce21e3049c01f",
+    "evidence/2026-10-01-T-020-p4/run/tablas/capacidad.tsv": "ec5c5af6eaae362a9bc705b1096ba45b26d1724bfe0f5fc43a2344117d1f23b6",
+    "evidence/2026-10-01-T-020-p4/run/tablas/emparejamiento.tsv": "b40f5be02056070d02da1f0b4e6c5d27f6dc068933121de630f5e452e633a4dd",
+    "evidence/2026-10-01-T-020-p4/preflight/p4-preflight.json": "1b939dc7ab94dfb55ba7cad4260b5a249366a421733d3854b3f8b1ab30e900b2",
+    "evidence/2026-10-02-T-021-p5-diseno/inventario-estructural.json": "c49598011e39685fc3d0239dd12b13d835c9ee045c5586fc892a0a20145da0e2",
+}
+# Condiciones de P4 (D-64) que vetan y que no; los IDs son los de `criterio.tsv`.
+P4_VETO_CONDITION_IDS = ("1", "2", "3", "5", "6", "8", "9", "10")
+P4_DESCRIPTIVE_CONDITION_IDS = ("4", "7")
+EXPECTED_P4_VETO_CONDITIONS = frozenset(f"P4_{condition}" for condition in P4_VETO_CONDITION_IDS)
+# levels_sha256 de C0, B2 y S2 publicados por el preflight de P4: únicos niveles que la guarda deja
+# evaluar antes de la marca.
+PRE_MARKER_LEVELS_SHA256 = {
+    "C0": "e07a33a9a713c6b3662baa615c718ba2621a9070e736c84d4fb5458f32b79f75",
+    "B2": "f18694c316c0ad6d94ac566107db52bde0b7335a72a1206d2b49e731b54fbd02",
+    "S2": "8c3b3e0a81274a9cb4c9b8c2c33a9b763f769a5b16079db64079121dd4016a8c",
+}
+
 PRIMARY_BLOCK_LENGTH = 60
 SENSITIVITY_BLOCK_LENGTH = 120
 FIRST_HALF_BLOCKS = tuple(range(2, 12))
@@ -410,16 +433,42 @@ def policy_payload(config: AdvisorConfig, cell: P5Cell) -> Dict[str, Any]:
     }
 
 
-def policy_sha256(config: AdvisorConfig, cell: P5Cell) -> str:
+def canonical_cell(cell: P5Cell) -> P5Cell:
+    """La celda congelada de `GRID` idéntica a `cell` (id, geometría y rol); si no la hay, error."""
+
+    canonical = CELLS_BY_ID.get(cell.gid)
+    if canonical is None or canonical != cell:
+        raise ValueError(f"{cell.gid}: la celda no coincide con la rejilla congelada de P5")
+    return canonical
+
+
+def _geometry_sha256(config: AdvisorConfig, cell: P5Cell) -> str:
     return hashlib.sha256(canonical_json(policy_payload(config, cell)).encode("utf-8")).hexdigest()
 
 
+def policy_sha256(config: AdvisorConfig, cell: P5Cell) -> str:
+    """Hash de política: solo C0, B2 y S2 canónicos."""
+
+    if canonical_cell(cell).role not in (ROLE_CONTROL, ROLE_CENTER):
+        raise ValueError(f"{cell.gid}: solo C0, B2 y S2 tienen hash de política")
+    return _geometry_sha256(config, cell)
+
+
+def diagnostico_sha256(config: AdvisorConfig, cell: P5Cell) -> str:
+    """El mismo cálculo para un vecino canónico, publicado como diagnóstico y nunca como política."""
+
+    if canonical_cell(cell).role != ROLE_NEIGHBOR:
+        raise ValueError(f"{cell.gid}: solo los vecinos tienen hash de diagnóstico")
+    return _geometry_sha256(config, cell)
+
+
 def published_cell_hash(config: AdvisorConfig, cell: P5Cell) -> Dict[str, Any]:
-    data = {"procedencia": {"rol": cell.role}, "advisor_config_hash": advisor_config_hash(config, cell)}
-    if cell.role in (ROLE_CONTROL, ROLE_CENTER):
-        data["policy_sha256"] = policy_sha256(config, cell)
-    elif cell.role == ROLE_NEIGHBOR:
-        data["diagnostico_sha256"] = policy_sha256(config, cell)
+    canonical = canonical_cell(cell)
+    data = {"procedencia": {"rol": canonical.role}, "advisor_config_hash": advisor_config_hash(config, canonical)}
+    if canonical.role in (ROLE_CONTROL, ROLE_CENTER):
+        data["policy_sha256"] = policy_sha256(config, canonical)
+    elif canonical.role == ROLE_NEIGHBOR:
+        data["diagnostico_sha256"] = diagnostico_sha256(config, canonical)
     return data
 
 
@@ -436,12 +485,29 @@ def _geometry_key(cell: P5Cell | Geometry) -> Tuple[float, Tuple[float, float, f
 
 
 class OutcomeGate:
-    """Autoriza todos los desenlaces de P5 y bloquea vecinos antes de la marca."""
+    """Autoriza todos los desenlaces de P5 y bloquea vecinos antes de la marca.
 
-    def __init__(self, *, marker_exists: bool = False, phase: str = "preflight") -> None:
+    Cada evaluación exige una celda canónica de `GRID` y que los niveles recibidos sean los suyos
+    (`levels_sha256`): antes de la marca, los publicados por P4 para C0, B2 y S2; después, los que
+    fija la marca para cada celda válida.
+    """
+
+    def __init__(
+        self,
+        *,
+        marker_exists: bool = False,
+        phase: str = "preflight",
+        expected_levels_sha256: Optional[Mapping[str, str]] = None,
+    ) -> None:
         self.marker_exists = marker_exists
         self.phase = phase
         self._allowed_pre_marker = {_geometry_key(C0_CELL), _geometry_key(B2_CELL), _geometry_key(S2_CELL)}
+        self._expected_levels = dict(PRE_MARKER_LEVELS_SHA256)
+        if expected_levels_sha256 is not None:
+            for gid in PRE_MARKER_LEVELS_SHA256:
+                if expected_levels_sha256.get(gid) != PRE_MARKER_LEVELS_SHA256[gid]:
+                    raise P5OutcomeGateError(f"{gid}: los levels_sha256 de la marca no son los publicados por P4")
+            self._expected_levels.update(expected_levels_sha256)
 
     def require_pre_marker_allowed(self, cell: P5Cell, *, token: Optional[ConfirmatoryToken] = None) -> None:
         if _geometry_key(cell) not in self._allowed_pre_marker:
@@ -449,6 +515,19 @@ class OutcomeGate:
                 _require_token(token)
                 return
             raise P5OutcomeGateError(f"{cell.gid}: P5 no puede leer desenlaces de esta geometría antes de la marca")
+
+    def require_levels_of(self, cell: P5Cell, levels: Mapping[str, Optional[Levels]]) -> None:
+        try:
+            canonical = canonical_cell(cell)
+        except ValueError as exc:
+            raise P5OutcomeGateError(str(exc)) from exc
+        if canonical.role == ROLE_ABSENCE:
+            raise P5OutcomeGateError(f"{cell.gid}: una ausencia estructural no se evalúa")
+        expected = self._expected_levels.get(canonical.gid)
+        if expected is None:
+            raise P5OutcomeGateError(f"{cell.gid}: no hay levels_sha256 fijado para esta celda")
+        if levels_sha256(levels) != expected:
+            raise P5OutcomeGateError(f"{cell.gid}: los niveles recibidos no son los de esta celda")
 
     def evaluate_frozen(
         self,
@@ -460,6 +539,7 @@ class OutcomeGate:
         token: Optional[ConfirmatoryToken] = None,
     ) -> Tuple[Dict[str, ManagedEvent], Dict[str, PotentialEvent], Tuple[str, ...]]:
         self.require_pre_marker_allowed(cell, token=token)
+        self.require_levels_of(cell, levels)
         return p4_evaluate_frozen(population, vintage, levels)
 
 
@@ -474,6 +554,15 @@ class P5FrozenPreflight:
     population: P4Population
     levels: Dict[str, Dict[str, Optional[Levels]]]
     report: Dict[str, Any]
+
+
+def create_marker_exclusive(marker: Path) -> int:
+    """Crea la marca de forma atómica y exclusiva; si ya existe, P5 ya se inició y no se toca."""
+
+    try:
+        return os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    except FileExistsError as exc:
+        raise P5AlreadyExecutedError(f"la ejecución confirmatoria ya se inició ({marker}); P5 no se repite") from exc
 
 
 def build_confirmatory_token(marker_path: Path, payload: Mapping[str, Any]) -> ConfirmatoryToken:
@@ -729,9 +818,10 @@ def estimate_neighbor(
     token = _require_token(token)
     if cell.role != ROLE_NEIGHBOR:
         raise ValueError(f"{cell.gid} no es vecino válido")
+    if gate is None:
+        raise P5OutcomeGateError("estimate_neighbor exige la guarda creada con los levels_sha256 de la marca")
     cell_levels = levels if levels is not None else _levels_for_cell(population, base, cell)
-    outcome_gate = gate or OutcomeGate(marker_exists=True, phase="confirmatoria")
-    events, potentials, without_levels = outcome_gate.evaluate_frozen(population, vintage, cell, cell_levels, token=token)
+    events, potentials, without_levels = gate.evaluate_frozen(population, vintage, cell, cell_levels, token=token)
     observed = _estimate_from_events(cell, population, control, events, without_levels, potentials, control_potentials)
     pairs = observed["emparejamiento"]["pares_finales"]
     observed["capacidad"] = _capacity_with_min_pairs(observed["capacidad"], pairs, CELL_MIN_PAIRS, "celda")
@@ -862,14 +952,74 @@ class LocroRow:
     ic_inferior: Optional[float]
 
 
+NEIGHBOR_CLASSES = frozenset({ACEPTABLE, DÉBIL, CONTRARIA, NO_ESTIMABLE})
+
+
+def _is_finite_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
 def locro_row(row: Mapping[str, Any]) -> LocroRow:
-    estimation = row.get("estimacion")
+    """Lo decisorio de una fila LOCRO, solo desde la forma de `estimate_locro`.
+
+    estimable := capacidad.ok; ic_inferior := estimacion.ic_inferior. Cualquier otra forma es error.
+    """
+
     capacity = row.get("capacidad")
-    if "estimable" in row or "ic_inferior" in row:
-        return LocroRow(bool(row.get("estimable", False)), cast(Optional[float], row.get("ic_inferior")))
-    estimable = bool(capacity.get("ok", False)) if isinstance(capacity, Mapping) else False
+    if not isinstance(capacity, Mapping) or not isinstance(capacity.get("ok"), bool):
+        raise ValueError("fila LOCRO sin capacidad.ok booleana")
+    estimable = cast(bool, capacity["ok"])
+    estimation = row.get("estimacion")
+    if estimation is not None and not isinstance(estimation, Mapping):
+        raise ValueError("fila LOCRO con estimacion no canónica")
     lower = estimation.get("ic_inferior") if isinstance(estimation, Mapping) else None
+    if estimable and not _is_finite_number(lower):
+        raise ValueError(f"fila LOCRO estimable sin ic_inferior finito ({lower!r})")
+    if lower is not None and not _is_finite_number(lower):
+        raise ValueError(f"fila LOCRO con ic_inferior no finito ({lower!r})")
     return LocroRow(estimable, cast(Optional[float], lower))
+
+
+def validate_candidate_inputs(
+    center_evidence: CenterEvidence,
+    neighbor_classes: Mapping[str, str],
+    locro: Mapping[str, Mapping[str, Any]],
+) -> None:
+    """Exige la estructura completa: una ausencia no puede convertirse en un veredicto."""
+
+    center_id = center_evidence.center_id
+    if center_id not in ("B2", "S2"):
+        raise ValueError("P5 solo evalúa B2 y S2")
+    valid_neighbor_ids = {cell.gid for cell in neighbors(center_id)}
+    missing = valid_neighbor_ids - set(neighbor_classes)
+    unexpected = set(neighbor_classes) - valid_neighbor_ids
+    if missing or unexpected:
+        raise ValueError(
+            f"{center_id}: las clases de vecinos deben ser exactamente los {len(valid_neighbor_ids)} vecinos válidos "
+            f"(faltan {sorted(missing)}; no esperadas {sorted(unexpected)})"
+        )
+    unknown = {gid: klass for gid, klass in neighbor_classes.items() if klass not in NEIGHBOR_CLASSES}
+    if unknown:
+        raise ValueError(f"{center_id}: clases de vecino desconocidas: {unknown}")
+    if set(locro) != set(CORE_REGIONS):
+        raise ValueError(f"{center_id}: el LOCRO debe traer exactamente {list(CORE_REGIONS)}, no {sorted(locro)}")
+    for region in CORE_REGIONS:
+        row = locro[region]
+        expected = {
+            "centro": center_id,
+            "sin_region": region,
+            "denominador": LOCRO_DENOMINATORS[region],
+            "pares_minimos": LOCRO_MIN_PAIRS[region],
+        }
+        observed = {key: row.get(key) for key in expected}
+        if observed != expected:
+            raise ValueError(f"{center_id}: fila LOCRO {region} no corresponde a este centro y región: {observed}")
+        locro_row(row)
+    conditions = center_evidence.p4_conditions
+    if set(conditions) != EXPECTED_P4_VETO_CONDITIONS:
+        raise ValueError(f"{center_id}: condiciones P4 {sorted(conditions)} distintas de {sorted(EXPECTED_P4_VETO_CONDITIONS)}")
+    if not all(isinstance(value, bool) for value in conditions.values()):
+        raise ValueError(f"{center_id}: las condiciones P4 deben ser booleanas")
 
 
 def evaluate_candidate(
@@ -877,18 +1027,16 @@ def evaluate_candidate(
     neighbor_classes: Mapping[str, str],
     locro: Mapping[str, Mapping[str, Any]],
 ) -> Dict[str, Any]:
-    if center_evidence.center_id not in ("B2", "S2"):
-        raise ValueError("P5 solo evalúa B2 y S2")
+    validate_candidate_inputs(center_evidence, neighbor_classes, locro)
     planes = SEMIPLANES[center_evidence.center_id]
     valid_neighbor_ids = {cell.gid for cell in neighbors(center_evidence.center_id)}
-    unexpected = set(neighbor_classes) - valid_neighbor_ids
-    if unexpected:
-        raise ValueError(f"{center_evidence.center_id}: clases de vecinos no esperadas: {sorted(unexpected)}")
     estimable = {gid for gid, klass in neighbor_classes.items() if gid in valid_neighbor_ids and klass in (ACEPTABLE, DÉBIL, CONTRARIA)}
     acceptable = {gid for gid, klass in neighbor_classes.items() if gid in valid_neighbor_ids and klass == ACEPTABLE}
     non_estimable = {gid for gid, klass in neighbor_classes.items() if gid in valid_neighbor_ids and klass == NO_ESTIMABLE}
     conditions: Dict[str, Any] = {}
-    conditions["centro_p4"] = center_evidence.p4_reproducido and all(center_evidence.p4_conditions.values())
+    conditions["centro_p4"] = center_evidence.p4_reproducido is True and all(
+        center_evidence.p4_conditions[key] is True for key in EXPECTED_P4_VETO_CONDITIONS
+    )
     conditions["F1"] = any(klass == CONTRARIA for klass in neighbor_classes.values())
     conditions["F2"] = any(any(g in estimable for g in planes[name]) and not any(g in acceptable for g in planes[name]) for name in ("s_minus", "s_plus"))
     conditions["F3"] = any(any(g in estimable for g in planes[name]) and not any(g in acceptable for g in planes[name]) for name in ("m2_minus", "m2_plus"))
@@ -910,7 +1058,7 @@ def evaluate_candidate(
         if gids and all(neighbor_classes.get(gid) == NO_ESTIMABLE for gid in gids):
             capacity_unknown = True
             conditions[f"{name}_todo_no_estimable"] = True
-    locro_rows = [locro_row(row) for row in locro.values()]
+    locro_rows = [locro_row(locro[region]) for region in CORE_REGIONS]
     locro_not_estimable = any(not row.estimable for row in locro_rows)
     market_dependent = any(row.estimable and row.ic_inferior is not None and row.ic_inferior <= 0 for row in locro_rows)
     fragile = (not conditions["centro_p4"]) or any(bool(conditions[f"F{i}"]) for i in range(1, 7))
@@ -946,10 +1094,36 @@ def survivors(verdicts: Mapping[str, Mapping[str, Any]]) -> Tuple[str, ...]:
     return tuple(gid for gid in allowed if gid in out)
 
 
+def _evidence_key(path: Path) -> Optional[str]:
+    for key in P4_EVIDENCE_SHA256:
+        if path.resolve() == Path(key).resolve():
+            return key
+    return None
+
+
+def read_evidence_text(path: Path) -> str:
+    """Lee un fichero; si es evidencia fijada en `P4_EVIDENCE_SHA256`, verifica esos mismos bytes."""
+
+    data = path.read_bytes()
+    key = _evidence_key(path)
+    if key is not None:
+        observed = hashlib.sha256(data).hexdigest()
+        if observed != P4_EVIDENCE_SHA256[key]:
+            raise P5PreflightError(f"{key}: sha256 {observed} distinto del fijado {P4_EVIDENCE_SHA256[key]}")
+    return data.decode("utf-8")
+
+
+def p4_evidence_sha256() -> Dict[str, Optional[str]]:
+    return {
+        key: hashlib.sha256(Path(key).read_bytes()).hexdigest() if Path(key).is_file() else None
+        for key in P4_EVIDENCE_SHA256
+    }
+
+
 def _read_tsv(path: Path) -> List[Dict[str, str]]:
     rows = []
     header: Optional[List[str]] = None
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in read_evidence_text(path).splitlines():
         if not line or line.startswith("#"):
             continue
         parts = line.split("\t")
@@ -1075,6 +1249,9 @@ def reproduce_p4_whitelist(
         result[cell.gid] = {"agregados": _p4_whitelist_view(observed), "checks": checks}
         result["checks"].extend(checks)
     result["p4_published_results_reproduced"] = all(check["ok"] for check in result["checks"])
+    # Las condiciones de veto de P4 se congelan aquí, antes de la marca; la confirmatoria ya no lee
+    # criterio.tsv.
+    result["condiciones_p4"] = {gid: _p4_veto_conditions(gid) for gid in ("B2", "S2")}
     return result
 
 
@@ -1122,7 +1299,7 @@ def _checks_dicts(checks: Iterable[Tuple[str, Any, Any, bool]]) -> List[Dict[str
 def _load_json_if_present(path: Path) -> Optional[Dict[str, Any]]:
     if not path.is_file():
         return None
-    return cast(Dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+    return cast(Dict[str, Any], json.loads(read_evidence_text(path)))
 
 
 def _inventory_view(row: Mapping[str, Any]) -> Dict[str, Any]:
@@ -1185,7 +1362,10 @@ def preflight_fingerprint(report: Mapping[str, Any]) -> Dict[str, Any]:
         "p4_reproduccion": {
             "p4_published_results_reproduced": report.get("p4_reproduccion", {}).get("p4_published_results_reproduced"),
             "checks": report.get("p4_reproduccion", {}).get("checks"),
+            "condiciones_p4": report.get("p4_reproduccion", {}).get("condiciones_p4"),
         },
+        "p4_evidencia_sha256": report.get("p4_evidencia_sha256"),
+        "levels_sha256": {gid: row.get("levels_sha256") for gid, row in cast(Mapping[str, Mapping[str, Any]], report.get("niveles", {})).items()},
     }
 
 
@@ -1233,13 +1413,36 @@ def _run_preflight_frozen(
     for region, expected in LOCRO_DENOMINATORS.items():
         check(f"LOCRO sin {region}", locro[region]["poblacion"], expected)
 
+    check("regiones LOCRO exactas", list(locro), list(CORE_REGIONS))
+    for center_id, count in (("B2", 8), ("S2", 5)):
+        check(f"vecinos válidos {center_id} completos", len({cell.gid for cell in neighbors(center_id)}), count)
+    check("ausencias estructurales (solo S2)", (len(absences()), len(absences("S2"))), (3, 3))
+    evidence_sha = p4_evidence_sha256()
+    for key, expected_sha in P4_EVIDENCE_SHA256.items():
+        check(f"sha256 {key}", evidence_sha[key], expected_sha)
+
     hashes = {cell.gid: published_cell_hash(config, cell) for cell in GRID if cell.role != ROLE_ABSENCE}
+    for cell in GRID:
+        if cell.role == ROLE_ABSENCE:
+            continue
+        wanted = "policy_sha256" if cell.role in (ROLE_CONTROL, ROLE_CENTER) else "diagnostico_sha256"
+        check(f"hash {cell.gid} por rol canónico", sorted(hashes[cell.gid]), sorted(["advisor_config_hash", "procedencia", wanted]))
     gate = OutcomeGate(marker_exists=(CONFIRMATORY_OUTPUT_DIR / RUN_MARKER).exists(), phase="preflight")
     p4_repro = reproduce_p4_whitelist(gate, population, vintage, config, config.levels, levels) if population.ok else {"p4_published_results_reproduced": False, "checks": []}
     check("P4 publicado reproducido", p4_repro.get("p4_published_results_reproduced"), True)
+    c0_repro = cast(Mapping[str, Any], p4_repro.get("C0", {}))
+    check("C0 advisor_config_hash_ok", c0_repro.get("advisor_config_hash_ok"), True)
+    check("C0 niveles_event_study_diferencias", c0_repro.get("niveles_event_study_diferencias"), 0)
+    check("C0 sin_niveles", c0_repro.get("sin_niveles"), 0)
+    p4_conditions = cast(Mapping[str, Any], p4_repro.get("condiciones_p4", {}))
+    for center_id in ("B2", "S2"):
+        check(f"condiciones P4 de veto {center_id} exactas y cumplidas", p4_conditions.get(center_id), dict.fromkeys(sorted(EXPECTED_P4_VETO_CONDITIONS), True))
     niveles = structural_levels_report(population, config.levels, levels) if population.ok else {}
     _append_structural_inventory_checks(checks, niveles)
     _append_p4_level_hash_checks(checks, niveles)
+    valid_level_hashes = [row.get("levels_sha256") for gid, row in niveles.items() if CELLS_BY_ID[gid].role != ROLE_ABSENCE]
+    # Niveles distintos por celda: así unos niveles ajenos nunca pasan la guarda de otra celda.
+    check("levels_sha256 distintos por celda válida", len(set(valid_level_hashes)), len([c for c in GRID if c.role != ROLE_ABSENCE]))
     report: Dict[str, Any] = {
         "fase": "preflight",
         "modo": "DESARROLLO (no es evidencia)" if development else "DEFINITIVO",
@@ -1265,6 +1468,7 @@ def _run_preflight_frozen(
         "grid_sha256": grid_sha256(),
         "hashes": hashes,
         "p4_reproduccion": p4_repro,
+        "p4_evidencia_sha256": evidence_sha,
         "checks": _checks_dicts(tuple(population.checks) + tuple(checks)),
         "label": UNIVERSE_LABEL,
         "fin_utc": utc_now(),
@@ -1319,12 +1523,25 @@ def _load_stored_preflight(path: Path) -> Dict[str, Any]:
 
 
 def _p4_veto_conditions(center_id: str, tables_dir: Path = P4_RUN_TABLES) -> Dict[str, bool]:
+    """Las ocho condiciones de P4 que vetan, exactas, desde `criterio.tsv`; cualquier otra forma es error."""
+
+    rows = [row for row in _read_tsv(tables_dir / "criterio.tsv") if row.get("geometria") == center_id]
+    ids = [row.get("condicion", "") for row in rows]
+    expected_ids = sorted(P4_VETO_CONDITION_IDS + P4_DESCRIPTIVE_CONDITION_IDS, key=int)
+    if sorted(ids, key=lambda value: int(value) if value.isdigit() else -1) != expected_ids:
+        raise P5PreflightError(f"{center_id}: criterio.tsv no trae exactamente las condiciones 1–10 una vez ({ids})")
     conditions: Dict[str, bool] = {}
-    for row in _read_tsv(tables_dir / "criterio.tsv"):
-        if row.get("geometria") != center_id or row.get("veta") != "True":
+    for row in rows:
+        condition_id = row["condicion"]
+        if condition_id in P4_DESCRIPTIVE_CONDITION_IDS:
+            if row.get("veta") != "False" or row.get("cumple") != "N/D":
+                raise P5PreflightError(f"{center_id}: la condición descriptiva {condition_id} de P4 no es veta=False, cumple=N/D")
             continue
-        condition_id = row.get("condicion", "")
-        conditions[f"P4_{condition_id}"] = row.get("cumple") == "True"
+        if row.get("veta") != "True" or row.get("cumple") not in ("True", "False"):
+            raise P5PreflightError(f"{center_id}: la condición {condition_id} de P4 no es una condición de veto válida")
+        conditions[f"P4_{condition_id}"] = row["cumple"] == "True"
+    if set(conditions) != EXPECTED_P4_VETO_CONDITIONS:
+        raise P5PreflightError(f"{center_id}: condiciones de veto P4 {sorted(conditions)} distintas de las ocho fijadas")
     return conditions
 
 
@@ -1354,6 +1571,8 @@ def marker_payload(started: str, ident: P5Identity, executor: str, preflight: Ma
         },
         "semiplanos": SEMIPLANES,
         "locro": preflight["locro"],
+        "condiciones_p4": preflight["p4_reproduccion"]["condiciones_p4"],
+        "p4_evidencia_sha256": preflight["p4_evidencia_sha256"],
         "seed": SEED,
         "recuento": planned_comparisons()["total"],
         "label": UNIVERSE_LABEL,
@@ -1370,9 +1589,8 @@ def _center_evidence(center_id: str, p4_repro: Mapping[str, Any]) -> CenterEvide
     sensitivity = cast(Mapping[str, Any], estimates.get("bloque_120", {}))
     conservative = cast(Mapping[str, Any], estimates.get("cota_conservadora", {}))
     level = cast(Mapping[str, Any], estimates.get("nivel", {}))
-    p4_conditions = _p4_veto_conditions(center_id)
-    if not p4_conditions:
-        p4_conditions = {"p4_condiciones_publicadas": False}
+    # Del preflight congelado antes de la marca: tras la marca no se vuelve a leer criterio.tsv.
+    p4_conditions = dict(cast(Mapping[str, bool], p4_repro["condiciones_p4"][center_id]))
     return CenterEvidence(
         center_id=center_id,
         p4_reproducido=bool(p4_repro.get("p4_published_results_reproduced")),
@@ -1531,17 +1749,22 @@ def run_confirmatory(
     if _normalized(preflight_fingerprint(preflight)) != _normalized(preflight_fingerprint(stored)):
         return 2, "STOP: el preflight interno no coincide con el preflight definitivo guardado. P5 NO SE EJECUTA.\n"
     out_dir.mkdir(parents=True, exist_ok=True)
+    if any(out_dir.iterdir()):
+        raise P5AlreadyExecutedError(f"{out_dir} no está vacío: P5 no se repite ni se sobrescribe")
     started = utc_now()
     payload = marker_payload(started, ident, executor, preflight)
-    marker.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    token = build_confirmatory_token(marker, payload)
+    marker_fd = create_marker_exclusive(marker)
+    # Desde aquí la marca existe y no se borra nunca: cualquier fallo deja p5-parada.json.
     try:
+        with os.fdopen(marker_fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+        token = build_confirmatory_token(marker, payload)
         population = frozen.population
         levels = frozen.levels
         observed_level_hashes = {gid: levels_sha256(value) for gid, value in levels.items()}
         if observed_level_hashes != payload["levels_sha256"]:
             raise P5PreflightError("los levels_sha256 de ejecución no coinciden con la marca confirmatoria")
-        gate = OutcomeGate(marker_exists=True, phase="confirmatoria")
+        gate = OutcomeGate(marker_exists=True, phase="confirmatoria", expected_levels_sha256=payload["levels_sha256"])
         control, control_potentials, _ = gate.evaluate_frozen(population, vintage, C0_CELL, levels["C0"], token=token)
         centers: Dict[str, Tuple[Dict[str, ManagedEvent], Dict[str, PotentialEvent], Tuple[str, ...]]] = {}
         for center_cell in (B2_CELL, S2_CELL):
@@ -1583,6 +1806,9 @@ def run_confirmatory(
             for center_id in ("B2", "S2")
         }
         survivor_ids = survivors(criteria)
+        # Una celda NO_ESTIMABLE con pares conserva sus cinco estimaciones y el recuento sigue en 71.
+        # Solo una celda sin ningún par (inalcanzable con los 101.251 niveles válidos congelados) no
+        # tendría primaria: entonces se para aquí, con la marca puesta y sin inventar un resultado.
         derived_count = sum(
             sum(1 for key in ("primaria_60", "bloque_120", "cota_conservadora", "cota_favorable", "nivel") if key in row["estimaciones"])
             for row in neighbor_outputs.values()
@@ -1672,7 +1898,9 @@ def run_confirmatory(
         )
         (out_dir / "p5-resumen.md").write_text(summary, encoding="utf-8")
         return 0, summary
-    except Exception as exc:
+    except BaseException as exc:
         parada = {"fase": "confirmatoria", "parada": type(exc).__name__, "detalle": str(exc), "fin_utc": utc_now()}
         write_json(out_dir / "p5-parada.json", parada)
+        if not isinstance(exc, Exception):
+            raise
         return 2, f"STOP P5 confirmatoria: {type(exc).__name__}: {exc}\n"
