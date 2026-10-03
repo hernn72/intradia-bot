@@ -1,7 +1,11 @@
 # T-022 — P6 Sistema completo de cartera: B2 y S2 como sistemas, con pre-registro (A-06)
 
-Estado: **PRE-REGISTRO — OD-P6-1 a OD-P6-43 CERRADAS en D-69 (2026-10-03); pendiente de la revisión
-final.** No existe todavía `P6_PREREG_SHA`. Las recomendaciones de esta ficha son ahora **reglas
+Estado: **PRE-REGISTRO CONGELADO (2026-10-03).** OD-P6-1 a OD-P6-43 CERRADAS en D-69; revisión
+final con 0 BLOCKER y 0 IMPORTANTE en las dos revisiones independientes; precisiones de D-69
+ratificadas por el propietario. **`P6_PREREG_SHA` = HEAD del commit de congelación** que añade
+`evidence/2026-10-03-T-022-p6-prereg-final/` (se identifica en el PR #40; el commit no puede contener su
+propio SHA). P6 **no** está implementado ni ejecutado; el sidecar FX, el mapa de sector y `p6.py`
+necesitan autorizaciones aparte. Las recomendaciones de esta ficha son ahora **reglas
 vinculantes**: el propietario adoptó todas las recomendadas (sección 24). El criterio decisorio está en
 la sección 16 y en D-69.
 
@@ -1980,6 +1984,16 @@ Corregido:
 - la sección 23 y D-69 exigen la ratificación expresa del propietario antes de `P6_PREREG_SHA`;
 - reintentos solo ante excepción; la primera llamada sin excepción se congela y se comprueba una vez.
 
-### Vuelta 4 (confirmación)
+### Vuelta 4 (sobre `00ce356`)
 
-(Pendiente.)
+- **`revisor`:** APROBADO. 0 BLOCKER, 0 IMPORTANTE, 0 MENOR y 0 OBSERVACIÓN. MENOR-C y OBSERVACIÓN-B
+  cerrados; el diff `f657f18..00ce356` no introduce nada más.
+- **Codex** (hilo nuevo, primera vuelta completa tras sus dos cortes): 0 BLOCKER, 0 IMPORTANTE y 0
+  MENOR. Cierra todos los hallazgos de las vueltas 1 a 3. Su única observación es de proceso: la
+  ratificación previa al `P6_PREREG_SHA`.
+
+### Ratificación y congelación
+
+El propietario ratificó expresamente las cinco «Precisiones de la revisión final» de D-69 el
+2026-10-03. Con eso y las dos revisiones en 0 BLOCKER y 0 IMPORTANTE, el pre-registro queda congelado
+en el commit que añade `evidence/2026-10-03-T-022-p6-prereg-final/`, cuyo HEAD es `P6_PREREG_SHA`.

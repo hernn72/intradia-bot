@@ -1768,8 +1768,12 @@ descriptivos. No hay ranking entre B2 y S2.
   `v0.4.1`.
 
 **Precisiones de la revisión final del pre-registro** (2026-10-03). **Especificación derivada de la
-revisión, no elección del propietario; pendiente de su ratificación expresa.** `P6_PREREG_SHA` **no se
-fija sin esa ratificación**, registrada antes de congelar (en una D-nn o en el commit de congelación). No cambian ninguna letra
+revisión, **ratificada expresamente por el propietario el 2026-10-03, antes de congelar** el
+pre-registro (las cinco precisiones, una a una: `mean_R_local` decide y la media por bloques es
+descriptiva; fuente B del BCE con 17:00 Europe/Berlin, último tipo causal y `1/tipo`; petición fija de
+Yahoo y fallo de A ante cualquier barra que falte, sobre o cambie de las 1.300 de `EURUSD=X`; comisión
+dentro del 1/90 y de cada reinversión; población OPERAR `broker_neutral`).** `P6_PREREG_SHA` es el
+HEAD del commit de congelación que registra esta ratificación. No cambian ninguna letra
 de D-69. Añaden parámetros que el texto no fijaba (17:00 Europe/Berlin para la fuente B, la comisión
 dentro del importe del benchmark, el predicado broker neutral, la petición fija de la fuente A) y
 nombran la consecuencia de usar `mean_R_local` frente a INV-14. Se añadieron para cerrar ambigüedades
