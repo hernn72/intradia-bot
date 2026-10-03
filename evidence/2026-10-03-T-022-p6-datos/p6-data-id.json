@@ -1,30 +1,28 @@
 {
   "esquema": "intradia.p6.data_id.v1",
-  "componentes": {
+  "payload": {
     "market_data_vintage": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
     "universe_vintage": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
-    "asset_list_sha256": "36355796a57e55a68ea16957b7edc6975360fb2085e7fd91841d20e2d7812f50",
-    "fx": {
-      "fuente_usada": "B",
-      "fx_vintage_id": "10e832ef38daa5d7e81a444bcd3bc99a5e783a382a14a4a14c68e6736dfeac0b",
-      "fx_sidecar_csv_sha256": "222e94e787344ce91285d4a06ea6acd216038e14db75f5e082b6d4c9ee39fddf"
-    },
-    "sector_map": {
-      "canonical_sha256": "24f45421a582cc79ee16f8436e3e008d252ccafc06f34503961d5dfccea662cd",
-      "yaml_sha256": "220b21ed2ce74c60c0c1988e36e3eaf12f5c7357ae53e620005762e379f0e93c"
-    },
+    "fx_vintage": "10e832ef38daa5d7e81a444bcd3bc99a5e783a382a14a4a14c68e6736dfeac0b",
+    "sector_map": "24f45421a582cc79ee16f8436e3e008d252ccafc06f34503961d5dfccea662cd",
     "calendar": {
       "exchange_calendars": "4.13.2",
       "exchange_overrides_sha256": "87e4aa21def5eaf057745cf4b98711c4df694dae2f6cfbf27245823d946539db",
-      "tzdata": "2026.4",
-      "zoneinfo_tzpath": [
-        "/usr/share/zoneinfo",
-        "/usr/lib/zoneinfo",
-        "/usr/share/lib/zoneinfo",
-        "/etc/zoneinfo"
-      ]
-    }
+      "tzdata": "2026.4"
+    },
+    "asset_list": "36355796a57e55a68ea16957b7edc6975360fb2085e7fd91841d20e2d7812f50"
   },
-  "canonical_json": "{\"asset_list_sha256\":\"36355796a57e55a68ea16957b7edc6975360fb2085e7fd91841d20e2d7812f50\",\"calendar\":{\"exchange_calendars\":\"4.13.2\",\"exchange_overrides_sha256\":\"87e4aa21def5eaf057745cf4b98711c4df694dae2f6cfbf27245823d946539db\",\"tzdata\":\"2026.4\",\"zoneinfo_tzpath\":[\"/usr/share/zoneinfo\",\"/usr/lib/zoneinfo\",\"/usr/share/lib/zoneinfo\",\"/etc/zoneinfo\"]},\"fx\":{\"fuente_usada\":\"B\",\"fx_sidecar_csv_sha256\":\"222e94e787344ce91285d4a06ea6acd216038e14db75f5e082b6d4c9ee39fddf\",\"fx_vintage_id\":\"10e832ef38daa5d7e81a444bcd3bc99a5e783a382a14a4a14c68e6736dfeac0b\"},\"market_data_vintage\":\"071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841\",\"sector_map\":{\"canonical_sha256\":\"24f45421a582cc79ee16f8436e3e008d252ccafc06f34503961d5dfccea662cd\",\"yaml_sha256\":\"220b21ed2ce74c60c0c1988e36e3eaf12f5c7357ae53e620005762e379f0e93c\"},\"universe_vintage\":\"237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19\"}",
-  "P6_DATA_ID": "8759d6c876ce513d6a0d63d4ddb3d43508349ec60f56408b913cb6993756acd3"
+  "canonical_json": "{\"asset_list\":\"36355796a57e55a68ea16957b7edc6975360fb2085e7fd91841d20e2d7812f50\",\"calendar\":{\"exchange_calendars\":\"4.13.2\",\"exchange_overrides_sha256\":\"87e4aa21def5eaf057745cf4b98711c4df694dae2f6cfbf27245823d946539db\",\"tzdata\":\"2026.4\"},\"fx_vintage\":\"10e832ef38daa5d7e81a444bcd3bc99a5e783a382a14a4a14c68e6736dfeac0b\",\"market_data_vintage\":\"071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841\",\"sector_map\":\"24f45421a582cc79ee16f8436e3e008d252ccafc06f34503961d5dfccea662cd\",\"universe_vintage\":\"237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19\"}",
+  "P6_DATA_ID": "572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383",
+  "metadatos_fuera_del_hash": {
+    "fx_fuente_usada": "B",
+    "fx_sidecar_csv_sha256": "222e94e787344ce91285d4a06ea6acd216038e14db75f5e082b6d4c9ee39fddf",
+    "sector_map_yaml_sha256": "220b21ed2ce74c60c0c1988e36e3eaf12f5c7357ae53e620005762e379f0e93c",
+    "zoneinfo_tzpath": [
+      "/usr/share/zoneinfo",
+      "/usr/lib/zoneinfo",
+      "/usr/share/lib/zoneinfo",
+      "/etc/zoneinfo"
+    ]
+  }
 }

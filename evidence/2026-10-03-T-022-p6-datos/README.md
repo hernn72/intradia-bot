@@ -53,14 +53,18 @@ Las descargas de Yahoo se conservan solo como evidencia del intento A fallido; *
 
 ## `P6_DATA_ID` (T-022 §18)
 
-**`P6_DATA_ID = 8759d6c876ce513d6a0d63d4ddb3d43508349ec60f56408b913cb6993756acd3`**
-(`calcular_p6_data_id.py` → `p6-data-id.json`). Es el sha256 del JSON canónico de:
-- la cosecha `071ddb2b…` y el universo `237b0056…`;
-- la lista de activos `36355796…`;
-- el FX (fuente B, `fx_vintage_id` y sha256 del sidecar);
-- el mapa sectorial (canónico y YAML);
-- el calendario: `exchange_calendars` 4.13.2, `exchange_overrides.yaml` `87e4aa21…`, `tzdata` 2026.4 y
-  `zoneinfo.TZPATH`.
+**`P6_DATA_ID = 572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383`**
+(`calcular_p6_data_id.py` → `p6-data-id.json`). Es el sha256 del JSON canónico
+(`sort_keys=True`, `separators=(",", ":")`, `ensure_ascii=False`) del **payload literal de T-022 §18**:
+
+```json
+{"asset_list":"36355796a57e55a68ea16957b7edc6975360fb2085e7fd91841d20e2d7812f50","calendar":{"exchange_calendars":"4.13.2","exchange_overrides_sha256":"87e4aa21def5eaf057745cf4b98711c4df694dae2f6cfbf27245823d946539db","tzdata":"2026.4"},"fx_vintage":"10e832ef38daa5d7e81a444bcd3bc99a5e783a382a14a4a14c68e6736dfeac0b","market_data_vintage":"071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841","sector_map":"24f45421a582cc79ee16f8436e3e008d252ccafc06f34503961d5dfccea662cd","universe_vintage":"237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19"}
+```
+
+La fuente FX usada (B), el sha256 del sidecar y del YAML sectorial y `zoneinfo.TZPATH` se publican
+como **metadatos fuera del hash** (`metadatos_fuera_del_hash`). **Corrección:** la primera versión de
+este ID (`8759d6c8…acd3`) añadía campos que T-022 no congeló y cambiaba la estructura; queda
+sustituida sin regenerar ni descargar ningún dato (FX y sector intactos).
 
 `SHA256SUMS.txt` cubre todos los ficheros de este directorio. Los scripts se niegan a ejecutarse de
 nuevo si su salida ya existe: no se vuelve a descargar nada.
