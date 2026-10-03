@@ -1580,6 +1580,193 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 El resultado es de desarrollo sobre una cosecha ya consumida; la validación independiente sigue en
 P7 (INV-15).
 
+### D-69 — 2026-10-03 — P6: decisiones de diseño cerradas
+Decisión del propietario. Cierra **OD-P6-1 a OD-P6-43** de la ficha T-022 (A-06). Se toma **antes de
+implementar P6 y sin ningún desenlace de sistema**. Lo único calculado sobre la cosecha es el censo
+estructural sin desenlaces de `evidence/2026-10-03-T-022-p6-diseno/`. La ficha
+`docs/tareas/T-022-p6-sistema-completo.md` es la especificación; aquí se resumen las elecciones, y las
+alternativas no elegidas se conservan como historial en la ficha.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Qué es P6.** P6 ejecuta B2 y S2, las políticas candidatas de P5 (D-67/D-68), como **sistemas
+completos** sobre una cartera con capital finito. No usa operaciones pareadas. C0 es un control
+descriptivo. Es desarrollo sobre una cosecha ya consumida, **no validación**: la validación
+independiente sigue en P7 (INV-15).
+
+**Decisiones:**
+
+| OD | Decisión | OD | Decisión |
+|---|---|---|---|
+| 1 Capital | A | 23 Activos tardíos del benchmark | B |
+| 2 Unidades | A | 24 Dividendos del benchmark | B |
+| 3 Base del sizing | A | 25 Costes del benchmark | A |
+| 4 Cash insuficiente | A | 26 Sharpe y risk-free | A |
+| 5 Límites globales | A | 27 Exceso principal | A |
+| 6 Orden de entradas simultáneas | D | 28 ¿Veta el exceso? | A |
+| 7 Cronología intradía | A | 29 C0 | A |
+| 8 Liquidación | A | 30 Muestra mínima | A |
+| 9 Costes | A | 31 Drawdown máximo | C |
+| 10 Slippage | D | 32 Sharpe, Sortino y Calmar | A |
+| 11 Precio de ejecutabilidad | A | 33 Incertidumbre | A + C |
+| 12 Derecho al dividendo | A | 34 Salida | A |
+| 13 Fecha del dividendo | C | 35 Hash de sistema | A |
+| 14 Fiscalidad | A | 36 Empates | A |
+| 15 Fuente FX | A (con B de respaldo) | 37 Población de señales | **C** |
+| 16 Regla causal FX | A | 38 Mismo activo | A |
+| 17 Exposición por divisa | C | 39 Universo | A |
+| 18 Sector | A para acciones + categorías de C para ETF/ETC | 40 Caja en divisas | A |
+| 19 UNKNOWN y ETF/ETC | A | 41 Calendario | A |
+| 20 Valoración | C | 42 Contexto | A |
+| 21 Ventana | A | 43 Moneda del R decisorio | A |
+| 22 Buy-and-hold | A | | |
+
+**Semántica vinculante.**
+
+1. **Capital, unidades y sizing (OD-P6-1/2/3).**
+   - 100.000 EUR iniciales y unidades fraccionarias.
+   - Sizing sobre la equity causal inmediatamente anterior al lote de entrada.
+   - `risk_per_trade_pct = 0,5 %` y `max_position_pct = 10 %` sin cambio; no se optimizan en P6.
+2. **Cash (OD-P6-4/5).**
+   - Long only, sin margen, sin apalancamiento y cash nunca negativo.
+   - Si la posición calculada no cabe con la comisión incluida → `INSUFFICIENT_CASH`, rechazada
+     entera. No se reduce el tamaño ni se prorratea.
+   - Sin límites globales de posiciones, riesgo, región, sector o divisa: son de R-01, después de P7.
+3. **Desempate (OD-P6-6).** Entradas con el mismo `timestamp_utc`, en orden ascendente de
+   `sha256("intradia.p6.desempate.v1" ‖ signal_id)`. La misma regla para B2, S2 y C0. Ni score ni
+   alfabeto.
+4. **Cronología (OD-P6-7/8/36/41).**
+   - Causal y global, con timestamps reales de mercado.
+   - Calendario = `exchange_calendars` + `exchange_overrides.yaml` + versión de tzdata, todo en
+     `P6_DATA_ID`.
+   - Fases en empate: `OPEN_EXIT < OPEN_ENTRY < CLOSE_EXIT < CLOSE_DIVIDEND < CLOSE_VALUATION <
+     SIGNAL`.
+   - Una salida por hueco libera el cash en la apertura; una salida intradía, solo en el cierre.
+   - Entre plazas manda el tiempo UTC real.
+   - El cash de una venta está disponible desde que se materializa la salida; no se modela T+1/T+2.
+5. **Costes (OD-P6-9).** 0,10 % sobre el nominal de entrada y 0,10 % sobre el de salida. No es
+   algebraicamente idéntico al 0,20 % fijo de P4 salvo cuando salida = entrada.
+6. **Slippage (OD-P6-10).** Primario de 5 pb por lado; sensibilidad de 10 pb por lado, **solo
+   descriptiva**: no veta, no rescata y no cambia los supervivientes.
+7. **Ejecutabilidad (OD-P6-11).** El RR, `entry_max`, el riesgo y el sizing se evalúan con el **precio
+   efectivo después del slippage**.
+8. **Dividendos (OD-P6-12/13/14).**
+   - Cobra la posición abierta al cierre de la sesión anterior a la fecha ex. Una compra en la fecha ex
+     no cobra; una venta en su apertura de una posición que venía abierta sí cobra.
+   - Sin fecha de pago: el dividendo entra en cash al **cierre de la sesión ex**.
+   - Bruto, sin retención.
+   - La misma regla para las políticas y el benchmark.
+9. **FX (OD-P6-15/16).**
+   - Más adelante, con autorización aparte, se crea un sidecar congelado de `EURUSD=X`, `EURJPY=X` y
+     `EURHKD=X` desde Yahoo/yfinance.
+   - **Integridad obligatoria:** el `EURUSD=X` del sidecar tiene que reproducir exactamente la cadena
+     canónica de la cosecha. Si falla, no se excluye ningún activo, no se acepta una serie aproximada,
+     se documenta el fallo y se usa como fuente FX la **alternativa B** pre-registrada (tipos de
+     referencia diarios oficiales).
+   - Regla causal: para un evento en τ, el cierre de la última barra FX **completa y disponible antes
+     de τ**, nunca el cierre futuro del mismo día.
+   - `fx_rate_to_EUR = 1 / close(EURXXX=X)`.
+   - En este commit no se descarga nada.
+10. **Exposición por divisa (OD-P6-17).** Se publican dos: la divisa de cotización y liquidación y la
+    `economic_currency`. `MULTI` es una categoría propia. Sin look-through.
+11. **Sector (OD-P6-18/19).**
+    - Acciones: sector externo verificable, congelado con `instrument_id`, `sector`, `taxonomy`,
+      `source` y `observed_at`.
+    - ETF y ETC: categorías estructurales por tipo, sin look-through.
+    - `UNKNOWN` es válida, queda en el denominador y se publica.
+    - El sector es **solo descriptivo**: nunca decide una entrada, un veto ni la supervivencia.
+    - Todavía no se obtienen estos datos.
+12. **Valoración (OD-P6-20).** El ledger por eventos es la fuente de verdad. Más adelante se genera una
+    serie diaria de equity a las 23:59:59 UTC de cada día con al menos una sesión. `periodos_por_año`
+    sale del calendario antes de cualquier desenlace.
+13. **Ventana (OD-P6-21).** Regla A.
+    - Con OD-P6-37 = C y OD-P6-42 = A, el inicio exige el calentamiento estructural de los 88 activos
+      iniciales y la SMA200 de `^STOXX50E` causalmente completa.
+    - Fecha estimada: **2022-06-14**. El preflight deriva y fija la fecha exacta de forma mecánica.
+    - Fin: **2026-08-27**, la última sesión común.
+    - Las exclusiones puntuales posteriores por contexto asiático no mueven el inicio.
+14. **Benchmark (OD-P6-22/23/24/25).**
+    - Pesos iguales sobre los 90 activos, sin rebalanceo.
+    - ARM y Q8Y0.DE: su 1/90 queda en cash hasta la apertura de la barra siguiente a su barra 120.
+    - Dividendos reinvertidos en el mismo activo en la apertura siguiente al abono.
+    - Paga los mismos costes, slippage, FX y reglas de dividendos que las políticas, incluidas la
+      compra inicial, las reinversiones y la liquidación final.
+15. **Sharpe y Sortino (OD-P6-26).** Sharpe con **rf = 0** y Sortino con **MAR = 0**, rotulados así.
+    No se aplica hacia atrás el 2,25 % actual.
+16. **Exceso (OD-P6-27/28).** Principal: `excess_CAGR_pp = 100·(CAGR_policy − CAGR_buy_hold)`;
+    también se publica `excess_terminal_pp`. Para sobrevivir es **obligatorio**
+    `excess_CAGR_pp > 0`. No hay otro umbral de exceso.
+17. **C0 (OD-P6-29).** Solo control descriptivo. Nunca veta ni rescata a B2 o S2, nunca pasa a P7 y
+    nunca vuelve a ser candidata.
+18. **Muestra (OD-P6-30).** `N_closed ≥ 100`. Por debajo, **`NO EVALUABLE POR MUESTRA`**, y no pasa a
+    P7. Se publican las operaciones por año y los años con operaciones, sin otro veto. El recuento
+    nunca reabre esta OD.
+19. **Drawdown (OD-P6-31).** `max_drawdown ≥ −25 %`; uno peor veta. El umbral no se cambia después de
+    ver resultados.
+20. **Métricas descriptivas (OD-P6-32).** Sharpe, Sortino y Calmar son **solo descriptivos**: no vetan
+    ni rescatan.
+21. **Incertidumbre (OD-P6-33).** Ni bootstrap ni IC de trayectoria. Se publican las métricas de
+    trayectoria completas, los resultados por año natural y por primera y segunda mitad de la ventana,
+    rotulados «**robustez temporal interna sobre datos de desarrollo**». Solo descriptivo: no es
+    validación y no veta.
+22. **Salida (OD-P6-34).** Exactamente `[]`, `[B2]`, `[S2]` o `[B2, S2]`. Si las dos pasan, las dos
+    van a P7. No se elige la mejor ni se crea una combinación de B2 y S2.
+23. **Identidad (OD-P6-35).** Más adelante se crean `intradia.p6.system.v1`, con un `system_sha256`
+    que identifica todas las decisiones económicas y de contexto de T-022, y el `P6_DATA_ID`
+    compuesto. Los dos existen y quedan congelados antes de la ejecución.
+24. **Población (OD-P6-37 = C, especialmente vinculante).**
+    - **Primaria y única decisoria:** OPERAR con Score v1 y el contexto point-in-time de OD-P6-42.
+    - **Puente descriptivo hacia P4/P5:** una corrida con **todas las barras elegibles**. No veta, no
+      rescata, no elige y no modifica el resultado de P6.
+    - Cada corrida tiene su propio `system_sha256`.
+    - Se declara expresamente, sin ocultar la diferencia de población:
+      - P4/P5 midieron todas las barras, no OPERAR;
+      - el Score v1 no tiene ordenación demostrada (A-02, D-42);
+      - P3 estudió el Score v2, no el v1;
+      - el RR forma parte del Score v1: B2 recibe mecánicamente 15 puntos de RR, frente a 10 en S2 y
+        C0.
+25. **Mismo activo (OD-P6-38).** Una señal nueva de un activo con posición abierta →
+    `IGNORED_ALREADY_OPEN`, contada y publicada. Sin piramidar y sin modificar el stop ni los
+    objetivos.
+26. **Universo (OD-P6-39).** Exactamente los 90 activos de P4/P5. ARM y Q8Y0.DE entran en su
+    elegibilidad: la apertura de la barra siguiente a su barra 120. No se elimina ningún activo por FX,
+    sector, región o conveniencia.
+27. **Caja (OD-P6-40).** Una sola caja en EUR. Cada flujo en otra divisa se convierte con el FX causal,
+    sin coste FX adicional porque no hay un coste congelado defendible. La limitación se declara.
+28. **Contexto (OD-P6-42).**
+    - Obligatorio `context_mode = "point_in_time"`, con la función R-CTX de D-52/D-53/D-56 y el
+      `analysis_timestamp` de D-50.
+    - `NO_CALCULABLE_CONTEXT_HISTORY` o la falta del contexto exigido excluye la señal, y se cuenta.
+    - No se usa `legacy_v1` ni se neutraliza para fabricar un contexto ausente.
+    - Replica el contrato causal del laboratorio y de P3, y **no es idéntico al contexto v1 activo hoy
+      en producción**.
+29. **R decisorio (OD-P6-43).**
+    - El PF y el R que deciden el gate son `trade_R_local`, `profit_factor_local` y `mean_R_local`, en
+      la divisa de cotización y sin efecto FX. El R y el PF en EUR son **solo descriptivos**.
+    - El efecto FX entra íntegro en la equity en EUR, el retorno, el CAGR, el drawdown y el exceso
+      frente al benchmark.
+
+**Criterio decisorio de P6.** B2 o S2 pasan P6 solo si se cumplen **a la vez**:
+
+```text
+N_closed >= 100
+profit_factor_local > 1
+mean_R_local > 0
+max_drawdown >= -25 %
+excess_CAGR_pp > 0
+```
+
+Sharpe, Sortino, Calmar, las sensibilidades, C0, los subperiodos y el puente de todas las barras son
+descriptivos. No hay ranking entre B2 y S2.
+
+**Lo que no cambia.**
+- P6 **no se ha ejecutado**: no existe `p6.py`, no se ha descargado el FX ni el sector y no se ha
+  calculado ninguna señal OPERAR ni ningún desenlace.
+- No existe todavía `P6_PREREG_SHA`: será el HEAD documental que quede tras la revisión final del
+  pre-registro y sus correcciones, con 0 BLOCKER y 0 IMPORTANTE.
+- La implementación, el sidecar FX y el mapa de sector necesitan autorizaciones aparte.
+- Producción no cambia: `config.yaml` en `"1.0"` con C0, Score v1 70/60, Score v2 inactivo y la Pi en
+  `v0.4.1`.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

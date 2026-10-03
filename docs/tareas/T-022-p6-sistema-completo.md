@@ -1,14 +1,19 @@
 # T-022 — P6 Sistema completo de cartera: B2 y S2 como sistemas, con pre-registro (A-06)
 
-Estado: **EN DISEÑO / PRE-REGISTRO** desde el 2026-10-03. Desbloqueado por D-68. **P6 no se ha
+Estado: **PRE-REGISTRO — OD-P6-1 a OD-P6-43 CERRADAS en D-69 (2026-10-03); pendiente de la revisión
+final.** No existe todavía `P6_PREREG_SHA`. Las recomendaciones de esta ficha son ahora **reglas
+vinculantes**: el propietario adoptó todas las recomendadas (sección 24). El criterio decisorio está en
+la sección 16 y en D-69.
+
+Historial: EN DISEÑO / PRE-REGISTRO desde el 2026-10-03. Desbloqueado por D-68. **P6 no se ha
 ejecutado.** No existe `p6.py`. No se ha simulado ninguna cartera ni calculado ninguna métrica de
 sistema (equity, CAGR, drawdown, Sharpe, número de operaciones, exposición, dividendos cobrados ni
 exceso) de B2, de S2, de C0 ni del buy-and-hold. Lo único calculado sobre la cosecha es un **censo
 estructural sin desenlaces** (`evidence/2026-10-03-T-022-p6-diseno/`).
 
-Las OD-P6 están **ABIERTAS**. Las recomendaciones de esta ficha no son vinculantes hasta que el
-propietario las cierre. Después vendrán la revisión final del pre-registro y el `P6_PREREG_SHA`. La
-implementación del simulador y del preflight necesita **otra autorización**.
+Las OD-P6 se cerraron en D-69. Siguen la revisión final del pre-registro y el `P6_PREREG_SHA`. El
+sidecar FX, el mapa de sector y la implementación del simulador y del preflight necesitan
+**autorizaciones aparte**.
 
 _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._ El
 buy-and-hold del mismo universo **mitiga la interpretación**, pero **no corrige** ese sesgo.
@@ -201,9 +206,10 @@ Está prohibido:
 Está permitido leer código, inspeccionar esquemas, hacer álgebra, contar cobertura estructural sin
 resultados de política, diseñar sidecars FX y de sector, usar datos sintéticos y calcular hashes.
 
-## 7. Contrato de simulación propuesto
+## 7. Contrato de simulación
 
-Cada apartado remite a su OD. Lo que dice «se propone» no es vinculante hasta que se cierre.
+Cada apartado remite a su OD. **Todo lo que dice «se propone» en las secciones 7 a 21 quedó adoptado
+tal cual por D-69** y es vinculante; el texto se conserva como se escribió.
 
 ### 7.1 Capital (OD-P6-1)
 Se propone **100.000 EUR** iniciales por sistema, idénticos para B2, S2, C0 y el buy-and-hold.
@@ -784,12 +790,16 @@ Score v1 70/60 legacy y Pi `v0.4.1`. No hay release ni despliegue.
 
 ---
 
-## 24. OWNER_DECISION_REQUIRED (ABIERTAS)
+## 24. OWNER_DECISION_REQUIRED — todas CERRADAS en D-69 (2026-10-03)
 
-Cada OD bloquea el `P6_PREREG_SHA` hasta que se cierre. «Qué bloquea» indica además qué parte del
-diseño depende de ella.
+El propietario cerró las 43 OD en D-69, todas con la alternativa recomendada (OD-P6-15 con la B como
+respaldo si el `EURUSD=X` del sidecar no reproduce la cosecha; OD-P6-18 con A para acciones y las
+categorías de C para ETF/ETC). Debajo de cada título está la decisión vinculante; las alternativas y
+consecuencias se conservan como historial.
 
-### OD-P6-1 — Capital inicial
+### OD-P6-1 — Capital inicial · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** 100.000 EUR iniciales por sistema y para el benchmark. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Con qué capital inicial EUR arranca cada sistema y el benchmark?
 
@@ -810,7 +820,9 @@ metodológico es nulo siempre que se fije antes de medir.
 
 Qué bloquea: sizing, cash, ledger y `system_sha256`.
 
-### OD-P6-2 — Unidades fraccionarias o enteras
+### OD-P6-2 — Unidades fraccionarias o enteras · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Unidades fraccionarias. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Se permiten unidades fraccionarias?
 
@@ -831,7 +843,9 @@ valores, pero no en todos).
 
 Qué bloquea: sizing y tests 2–4.
 
-### OD-P6-3 — Base del sizing
+### OD-P6-3 — Base del sizing · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Sizing sobre la equity causal inmediatamente anterior al lote de entrada; `risk_per_trade_pct = 0,5 %` y `max_position_pct = 10 %` sin cambio y sin optimizar en P6. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Sobre qué se calculan el 0,5 % de riesgo y el 10 % máximo?
 
@@ -851,7 +865,9 @@ de `config.yaml`. Cambiarlos convertiría P6 en otra optimización.
 
 Qué bloquea: sizing y `system_sha256`.
 
-### OD-P6-4 — Cash insuficiente
+### OD-P6-4 — Cash insuficiente · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Si la posición no cabe con la comisión incluida → `INSUFFICIENT_CASH`, rechazada entera; ni reducir ni prorratear. Long only, sin margen ni apalancamiento, cash nunca negativo. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 Si una entrada ejecutable no cabe en el cash, ¿qué se hace?
 
@@ -871,7 +887,9 @@ Recomendación técnica: A.
 
 Qué bloquea: contrato de ejecución y tests 4–6.
 
-### OD-P6-5 — Límites globales
+### OD-P6-5 — Límites globales · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Sin límites globales de posiciones, riesgo, región, sector o divisa (son de R-01, después de P7). El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Impone P6 algún límite global (posiciones, riesgo agregado, región, sector, divisa)?
 
@@ -890,7 +908,9 @@ Recomendación técnica: A.
 
 Qué bloquea: contrato de cartera.
 
-### OD-P6-6 — Orden de entradas simultáneas
+### OD-P6-6 — Orden de entradas simultáneas · **CERRADA (D-69): D**
+
+**Decisión del propietario (vinculante):** `sha256("intradia.p6.desempate.v1" ‖ signal_id)` ascendente, la misma regla para B2, S2 y C0; ni score ni alfabeto. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 Cuando varias entradas coinciden en el mismo `timestamp_utc`, ¿en qué orden se intentan?
 
@@ -917,7 +937,9 @@ manipulable después.
 
 Qué bloquea: cronología y test 6.
 
-### OD-P6-7 — Cronología intradía y reutilización de cash
+### OD-P6-7 — Cronología intradía y reutilización de cash · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Una salida por hueco libera el cash en la apertura; una salida intradía, solo en el cierre; entre plazas manda el tiempo UTC real. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Cuándo está disponible el cash de una salida?
 
@@ -936,7 +958,9 @@ Recomendación técnica: A, con aperturas y cierres de `exchange_calendars`.
 
 Qué bloquea: cronología y tests 9 y 10.
 
-### OD-P6-8 — Liquidación
+### OD-P6-8 — Liquidación · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** El cash está disponible desde que se materializa la salida; no se modela T+1/T+2 (limitación declarada). El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Cuándo está disponible el cash de una venta?
 
@@ -954,7 +978,9 @@ Recomendación técnica: A, declarando la limitación.
 
 Qué bloquea: cash.
 
-### OD-P6-9 — Costes
+### OD-P6-9 — Costes · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** 0,10 % sobre el nominal de entrada y 0,10 % sobre el de salida; no es algebraicamente idéntico al 0,20 % fijo de P4 salvo cuando salida = entrada. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Cómo se traduce el 0,20 % de ida y vuelta de P4 a flujos de cash?
 
@@ -972,7 +998,9 @@ Recomendación técnica: A. El 0,20 % total no cambia; la diferencia algebraica 
 
 Qué bloquea: ledger y test 33.
 
-### OD-P6-10 — Slippage
+### OD-P6-10 — Slippage · **CERRADA (D-69): D**
+
+**Decisión del propietario (vinculante):** Primario de 5 pb por lado; sensibilidad de 10 pb por lado solo descriptiva: no veta, no rescata y no cambia los supervivientes. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué slippage se usa?
 
@@ -994,7 +1022,9 @@ lo cambia. La alternativa D′ hace que la sensibilidad también vete.
 
 Qué bloquea: ejecución y `system_sha256`.
 
-### OD-P6-11 — Ejecutabilidad con precio efectivo o con precio observado
+### OD-P6-11 — Ejecutabilidad con precio efectivo o con precio observado · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** El RR, `entry_max`, el riesgo y el sizing se evalúan con el precio efectivo después del slippage. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Con qué precio se evalúan el RR, `entry_max` y el tamaño en la apertura?
 
@@ -1010,7 +1040,9 @@ Recomendación técnica: A.
 
 Qué bloquea: ejecución y test 32.
 
-### OD-P6-12 — Derecho al dividendo
+### OD-P6-12 — Derecho al dividendo · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Cobra la posición abierta al cierre de la sesión anterior a la fecha ex; una compra en la fecha ex no cobra; una venta en su apertura de una posición que venía abierta sí cobra. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué posición cobra un dividendo con fecha ex `d`?
 
@@ -1029,7 +1061,9 @@ Recomendación técnica: A.
 
 Qué bloquea: dividendos y tests 11–13.
 
-### OD-P6-13 — Fecha económica y de cash del dividendo
+### OD-P6-13 — Fecha económica y de cash del dividendo · **CERRADA (D-69): C**
+
+**Decisión del propietario (vinculante):** Sin fecha de pago, el dividendo entra en cash al cierre de la sesión ex. La misma regla para las políticas y el benchmark. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 Sin fecha de pago en la cosecha, ¿cuándo se abona el dividendo?
 
@@ -1048,7 +1082,9 @@ Recomendación técnica: C.
 
 Qué bloquea: dividendos y cash.
 
-### OD-P6-14 — Fiscalidad de los dividendos
+### OD-P6-14 — Fiscalidad de los dividendos · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Dividendo bruto, sin retención. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Se aplica retención?
 
@@ -1066,7 +1102,9 @@ Recomendación técnica: A, publicando la limitación. El benchmark recibe el mi
 
 Qué bloquea: dividendos.
 
-### OD-P6-15 — Fuente y vintage FX
+### OD-P6-15 — Fuente y vintage FX · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Sidecar congelado de `EURUSD=X`, `EURJPY=X` y `EURHKD=X` (Yahoo/yfinance), creado más adelante con autorización aparte. El `EURUSD=X` tiene que reproducir exactamente la cadena canónica de la cosecha. Si falla: no se excluye ningún activo, no se acepta una serie aproximada, se documenta el fallo y se usa la alternativa B como fuente FX. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿De dónde salen `EURJPY` y `EURHKD`, que faltan, y cómo se congelan?
 
@@ -1086,7 +1124,9 @@ Recomendación técnica: A, y B solo si A no reproduce el `EURUSD=X` de la cosec
 
 Qué bloquea: FX, `P6_DATA_ID` y todo el preflight.
 
-### OD-P6-16 — Regla causal FX
+### OD-P6-16 — Regla causal FX · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Para un evento en τ, el cierre de la última barra FX completa y disponible antes de τ, nunca el cierre futuro del mismo día; `fx_rate_to_EUR = 1 / close(EURXXX=X)`. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué tipo FX se usa en un evento en τ?
 
@@ -1104,7 +1144,9 @@ Recomendación técnica: A.
 
 Qué bloquea: FX y test 28.
 
-### OD-P6-17 — Exposición por divisa
+### OD-P6-17 — Exposición por divisa · **CERRADA (D-69): C**
+
+**Decisión del propietario (vinculante):** Se publican las dos: divisa de cotización y liquidación y `economic_currency`; `MULTI` como categoría propia; sin look-through. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué significa «exposición por divisa» en GATE P6?
 
@@ -1123,7 +1165,9 @@ Recomendación técnica: C.
 
 Qué bloquea: salidas y test 17.
 
-### OD-P6-18 — Fuente y taxonomía de sector
+### OD-P6-18 — Fuente y taxonomía de sector · **CERRADA (D-69): A para acciones + categorías de C para ETF/ETC**
+
+**Decisión del propietario (vinculante):** Acciones: sector externo verificable, congelado con `instrument_id`, `sector`, `taxonomy`, `source` y `observed_at`. ETF y ETC: categorías estructurales por tipo, sin look-through. Solo descriptivo. Todavía no se obtienen los datos. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Cómo se obtiene el sector de los 90 activos?
 
@@ -1144,7 +1188,9 @@ Recomendación técnica: A para las acciones, más las categorías de C para los
 
 Qué bloquea: el requisito de sector de GATE P6 y `P6_DATA_ID`.
 
-### OD-P6-19 — UNKNOWN y ETF/ETC en el sector
+### OD-P6-19 — UNKNOWN y ETF/ETC en el sector · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** `UNKNOWN` es una categoría válida, queda en el denominador y se publica. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Cómo se tratan los instrumentos sin sector?
 
@@ -1162,7 +1208,9 @@ Recomendación técnica: A; los ETF y ETC sin look-through, con su categoría.
 
 Qué bloquea: la exposición por sector.
 
-### OD-P6-20 — Calendario de valoración
+### OD-P6-20 — Calendario de valoración · **CERRADA (D-69): C**
+
+**Decisión del propietario (vinculante):** El ledger por eventos es la fuente de verdad, más una serie diaria a las 23:59:59 UTC de cada día con al menos una sesión; `periodos_por_año` sale del calendario antes de cualquier desenlace. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Cómo se construye la curva de equity?
 
@@ -1181,7 +1229,9 @@ Recomendación técnica: C, con `periodos_por_año` calculado antes de medir, so
 
 Qué bloquea: métricas y test 29.
 
-### OD-P6-21 — Ventana exacta de P6
+### OD-P6-21 — Ventana exacta de P6 · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Inicio: calentamiento de los 88 activos iniciales y SMA200 de `^STOXX50E` causalmente completa (estimación 2022-06-14; el preflight fija la fecha exacta de forma mecánica). Fin: 2026-08-27. Las exclusiones asiáticas puntuales posteriores no mueven el inicio. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué inicio y qué fin?
 
@@ -1208,7 +1258,9 @@ exacta en la marca.
 
 Qué bloquea: todas las métricas.
 
-### OD-P6-22 — Construcción del buy-and-hold
+### OD-P6-22 — Construcción del buy-and-hold · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Pesos iguales sobre los 90 activos, sin rebalanceo. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué ponderación y qué rebalanceo?
 
@@ -1226,7 +1278,9 @@ Recomendación técnica: A, con el mismo FX, dividendos, costes y slippage.
 
 Qué bloquea: el benchmark y el exceso.
 
-### OD-P6-23 — Activos sin precio al inicio del benchmark
+### OD-P6-23 — Activos sin precio al inicio del benchmark · **CERRADA (D-69): B**
+
+**Decisión del propietario (vinculante):** El 1/90 de ARM y de Q8Y0.DE queda en cash hasta la apertura de la barra siguiente a su barra 120. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué hace el benchmark con ARM y Q8Y0.DE?
 
@@ -1246,7 +1300,9 @@ Recomendación técnica: B.
 
 Qué bloquea: el benchmark.
 
-### OD-P6-24 — Dividendos del benchmark
+### OD-P6-24 — Dividendos del benchmark · **CERRADA (D-69): B**
+
+**Decisión del propietario (vinculante):** Los dividendos del benchmark se reinvierten en el mismo activo en la apertura siguiente al abono. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué se hace con los dividendos que cobra el benchmark?
 
@@ -1264,7 +1320,9 @@ Recomendación técnica: B, por ser lo más conservador frente a las candidatas.
 
 Qué bloquea: el benchmark.
 
-### OD-P6-25 — Costes y slippage del benchmark
+### OD-P6-25 — Costes y slippage del benchmark · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** El benchmark paga los mismos costes, slippage, FX y reglas de dividendos que las políticas, incluidas la compra inicial, las reinversiones y la liquidación final. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Paga el benchmark costes y slippage?
 
@@ -1282,7 +1340,9 @@ Recomendación técnica: A.
 
 Qué bloquea: el benchmark.
 
-### OD-P6-26 — Sharpe y risk-free
+### OD-P6-26 — Sharpe y risk-free · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Sharpe con rf = 0 y Sortino con MAR = 0, rotulados; no se aplica hacia atrás el 2,25 % actual. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué tipo libre de riesgo usan el Sharpe y el Sortino?
 
@@ -1300,7 +1360,9 @@ Recomendación técnica: A. Como Sharpe y Sortino son descriptivos (OD-P6-32), e
 
 Qué bloquea: métricas.
 
-### OD-P6-27 — Exceso principal
+### OD-P6-27 — Exceso principal · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** `excess_CAGR_pp = 100·(CAGR_policy − CAGR_buy_hold)` principal; también se publica `excess_terminal_pp`. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Cuál es el exceso principal?
 
@@ -1319,7 +1381,9 @@ benchmark sin stop.
 
 Qué bloquea: el criterio.
 
-### OD-P6-28 — ¿Veta el exceso?
+### OD-P6-28 — ¿Veta el exceso? · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** `excess_CAGR_pp > 0` obligatorio para sobrevivir; no hay otro umbral de exceso. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Es `excess_CAGR_pp > 0` condición para pasar a P7?
 
@@ -1339,7 +1403,9 @@ Recomendación técnica: A. El coste es el sesgo contra los sistemas con cash pa
 
 Qué bloquea: el criterio y la salida.
 
-### OD-P6-29 — C0 como control
+### OD-P6-29 — C0 como control · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** C0 es solo control descriptivo: nunca veta ni rescata a B2 o S2, nunca pasa a P7 ni vuelve a ser candidata. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Se simula C0?
 
@@ -1358,7 +1424,9 @@ Recomendación técnica: A. C0 nunca puede pasar a P7.
 
 Qué bloquea: salidas.
 
-### OD-P6-30 — Muestra mínima
+### OD-P6-30 — Muestra mínima · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** `N_closed ≥ 100`; por debajo, `NO EVALUABLE POR MUESTRA`, y no pasa a P7. Se publican las operaciones por año y los años con operaciones, sin otro veto. El recuento nunca reabre esta OD. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Cuántas operaciones cerradas hacen falta como mínimo?
 
@@ -1381,7 +1449,9 @@ recuento bajo no reabre ni esta OD ni OD-P6-37.
 
 Qué bloquea: el criterio.
 
-### OD-P6-31 — Drawdown máximo permitido
+### OD-P6-31 — Drawdown máximo permitido · **CERRADA (D-69): C**
+
+**Decisión del propietario (vinculante):** `max_drawdown ≥ −25 %`; uno peor veta. El umbral no se cambia después de ver resultados. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué drawdown veta?
 
@@ -1403,7 +1473,9 @@ No se ha mirado ningún resultado.
 
 Qué bloquea: el criterio.
 
-### OD-P6-32 — Sharpe, Sortino y Calmar: ¿descriptivos o vetos?
+### OD-P6-32 — Sharpe, Sortino y Calmar: ¿descriptivos o vetos? · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Sharpe, Sortino y Calmar son solo descriptivos: no vetan ni rescatan. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Deciden Sharpe, Sortino o Calmar si una política pasa a P7?
 
@@ -1421,7 +1493,9 @@ Recomendación técnica: A.
 
 Qué bloquea: el criterio.
 
-### OD-P6-33 — Incertidumbre y subperiodos
+### OD-P6-33 — Incertidumbre y subperiodos · **CERRADA (D-69): A + C**
+
+**Decisión del propietario (vinculante):** Ni bootstrap ni IC de trayectoria. Se publican las métricas de trayectoria, los resultados por año natural y por primera y segunda mitad, rotulados «robustez temporal interna sobre datos de desarrollo»: solo descriptivo, no es validación y no veta. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué incertidumbre y qué robustez temporal se publican, y vetan?
 
@@ -1442,7 +1516,9 @@ validación.
 
 Qué bloquea: salidas y criterio.
 
-### OD-P6-34 — Salida a P7
+### OD-P6-34 — Salida a P7 · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Solo `[]`, `[B2]`, `[S2]` o `[B2, S2]`; si las dos pasan, las dos van a P7; no se elige la mejor ni se crea una combinación. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué conjunto puede salir?
 
@@ -1460,7 +1536,9 @@ Recomendación técnica: A.
 
 Qué bloquea: la salida.
 
-### OD-P6-35 — Hash canónico de sistema
+### OD-P6-35 — Hash canónico de sistema · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** `intradia.p6.system.v1` con `system_sha256` de todas las decisiones económicas y de contexto, y `P6_DATA_ID` compuesto, congelados antes de la ejecución. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué identifica a un sistema P6?
 
@@ -1479,7 +1557,9 @@ Recomendación técnica: A, publicado antes de ejecutar.
 
 Qué bloquea: el preflight.
 
-### OD-P6-36 — Política ante empates de timestamp
+### OD-P6-36 — Política ante empates de timestamp · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Fases en empate: `OPEN_EXIT < OPEN_ENTRY < CLOSE_EXIT < CLOSE_DIVIDEND < CLOSE_VALUATION < SIGNAL`. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 Además del orden de entradas (OD-P6-6), ¿cómo se ordenan los demás eventos con el mismo
 `timestamp_utc`?
@@ -1501,7 +1581,9 @@ Recomendación técnica: A.
 
 Qué bloquea: cronología.
 
-### OD-P6-37 — Población de señales del sistema
+### OD-P6-37 — Población de señales del sistema · **CERRADA (D-69): C**
+
+**Decisión del propietario (vinculante):** Primaria y única decisoria: OPERAR con Score v1 y el contexto point-in-time de OD-P6-42. Puente descriptivo hacia P4/P5: una corrida de todas las barras elegibles que no veta, no rescata, no elige y no modifica el resultado. Cada una con su `system_sha256`. Se declara: P4/P5 midieron todas las barras; el Score v1 no tiene ordenación demostrada; P3 estudió el v2; el RR forma parte del v1 (B2 15 puntos frente a 10 en S2 y C0). El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué señales puede intentar operar el sistema, y cuál decide?
 
@@ -1543,7 +1625,9 @@ más consecuencias de P6.**
 
 Qué bloquea: todo el contrato, `system_sha256`, la ventana y la muestra.
 
-### OD-P6-38 — Señales con posición abierta en el mismo activo
+### OD-P6-38 — Señales con posición abierta en el mismo activo · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** `IGNORED_ALREADY_OPEN`, contado y publicado; sin piramidar y sin modificar el stop ni los objetivos. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué se hace con una señal nueva de un activo con posición abierta?
 
@@ -1560,7 +1644,9 @@ Recomendación técnica: A.
 
 Qué bloquea: ejecución y test 27.
 
-### OD-P6-39 — Universo y activos tardíos en el sistema
+### OD-P6-39 — Universo y activos tardíos en el sistema · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Exactamente los 90 activos de P4/P5; ARM y Q8Y0.DE desde la apertura de la barra siguiente a su barra 120; no se elimina ningún activo por FX, sector, región o conveniencia. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Qué universo opera el sistema y cuándo entran ARM y Q8Y0.DE?
 
@@ -1579,7 +1665,9 @@ Recomendación técnica: A.
 
 Qué bloquea: el universo y el benchmark.
 
-### OD-P6-40 — Caja en divisas
+### OD-P6-40 — Caja en divisas · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Una sola caja en EUR; cada flujo se convierte con el FX causal, sin coste FX adicional (limitación declarada). El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Hay una sola caja en EUR o una caja por divisa?
 
@@ -1598,7 +1686,9 @@ trato se aplica al benchmark.
 
 Qué bloquea: FX y ledger.
 
-### OD-P6-41 — Fuente de las horas de apertura y cierre
+### OD-P6-41 — Fuente de las horas de apertura y cierre · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Calendario = `exchange_calendars` + `exchange_overrides.yaml` + versión de tzdata, en `P6_DATA_ID`. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿De dónde salen las horas de apertura y de cierre por sesión?
 
@@ -1619,7 +1709,9 @@ Recomendación técnica: A.
 
 Qué bloquea: cronología.
 
-### OD-P6-42 — Contexto de mercado del Score v1 en P6
+### OD-P6-42 — Contexto de mercado del Score v1 en P6 · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** `context_mode = "point_in_time"` obligatorio (R-CTX, D-52/D-53/D-56, `analysis_timestamp` de D-50). Una señal sin contexto exigido (`NO_CALCULABLE_CONTEXT_HISTORY` o equivalente) se excluye y se cuenta. Ni `legacy_v1` ni neutralización. No es idéntico al contexto v1 de producción. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿Cómo se calcula el contexto (VIX, tendencia de `^STOXX50E` con SMA200, Asia) del Score v1 en las
 poblaciones que usan el score?
@@ -1647,7 +1739,9 @@ más a producción es B.
 
 Qué bloquea: la población primaria, la ventana y `system_sha256`.
 
-### OD-P6-43 — Moneda del R decisorio
+### OD-P6-43 — Moneda del R decisorio · **CERRADA (D-69): A**
+
+**Decisión del propietario (vinculante):** Deciden `trade_R_local`, `profit_factor_local` y `mean_R_local`, en divisa de cotización y sin FX. El R y el PF en EUR son solo descriptivos. El FX entra íntegro en la equity, el retorno, el CAGR, el drawdown y el exceso. El texto que sigue es el historial de la pregunta tal como se planteó.
 
 ¿El profit factor y `mean(trade_R)` que vetan se miden en la divisa de cotización o en EUR?
 
