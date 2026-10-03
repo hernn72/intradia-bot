@@ -2,7 +2,7 @@
 
 _condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)_
 
-`policy_sha256` solo en C0 y en los centros; los vecinos publican el mismo cálculo como `diagnostico_sha256`. Las ausencias no tienen hash.
+`policy_sha256` solo en C0 y en los centros; los vecinos publican el mismo cálculo como `diagnostico_sha256`. Las ausencias no tienen hash. La celda tiene que coincidir con la rejilla congelada (id, geometría y rol) o el cálculo lanza error.
 
 | Celda | Rol | m3_auxiliar | advisor_config_hash | policy_sha256 | diagnostico_sha256 |
 |---|---|---|---|---|---|

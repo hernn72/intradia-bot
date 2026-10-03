@@ -5,7 +5,10 @@ _condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 Fuente: `p5-preflight.json` → `p4_reproduccion`. Igualdad de **cadenas** con el formato de P4 (`"{:.6f}"`), sin tolerancia.
 
 - `p4_published_results_reproduced = True`; 162/162 cadenas iguales.
-- C0: `advisor_config_hash_ok = True`, diferencias de niveles con la enumeración del event study = 0, sin niveles = 0.
+- C0: `advisor_config_hash_ok = True`, diferencias de niveles con la enumeración del event study = 0, sin niveles = 0 (los tres son ahora controles del preflight).
+- Condiciones de veto de P4 congeladas antes de la marca (`p4_reproduccion.condiciones_p4`, leídas de `criterio.tsv` con su sha256 verificado sobre los mismos bytes):
+  - B2: P4_1=True, P4_2=True, P4_3=True, P4_5=True, P4_6=True, P4_8=True, P4_9=True, P4_10=True
+  - S2: P4_1=True, P4_2=True, P4_3=True, P4_5=True, P4_6=True, P4_8=True, P4_9=True, P4_10=True
 
 | Clave | Columna | Esperado (P4) | Observado (P5) | Igual |
 |---|---|---|---|---|

@@ -1,12 +1,13 @@
-HEAD (P5_CODE_CANDIDATE_SHA) = eaa7506b69dbeec1fbc796e99273764e5bd523e4
+HEAD (P5_CODE_CANDIDATE_SHA) = 6c7f9135774f157e82634b6abf82a847d9b99bd9
 P5_PREREG_SHA en la historia: sí
-árbol (ficheros con seguimiento): 0 cambios
-config.yaml score_model_version:  score_model_version: "1.0"
+árbol (ficheros con seguimiento) al generar el preflight: 0 cambios
+config.yaml scoring.score_model_version: "1.0"
 config.yaml sin cambios desde P5_PREREG_SHA: sí
-ficheros tocados desde P5_PREREG_SHA:
+ficheros tocados desde P5_PREREG_SHA (código):
    advisor/main.py        |   33 +
-   advisor/research/p5.py | 1678 ++++++++++++++++++++++++++++++++++++++++++++++++
-   tests/test_p5.py       |  838 ++++++++++++++++++++++++
-   3 files changed, 2549 insertions(+)
+   advisor/research/p5.py | 1906 ++++++++++++++++++++++++++++++++++++++++++++++++
+   tests/test_p5.py       | 1314 +++++++++++++++++++++++++++++++++
+   3 files changed, 3253 insertions(+)
+commits del ejecutor sobre P5_PREREG_SHA: eaa7506 (supersedido), 6c7f913
 marca P5 existe: no
 run/ P5 existe: no

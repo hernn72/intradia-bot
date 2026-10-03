@@ -3,7 +3,7 @@
   "modo": "DEFINITIVO",
   "identidad": {
     "p5_prereg_sha": "a7c3d238d651b4ea8f48834848c03c0a5a462dfa",
-    "p5_executor_sha": "eaa7506b69dbeec1fbc796e99273764e5bd523e4",
+    "p5_executor_sha": "6c7f9135774f157e82634b6abf82a847d9b99bd9",
     "git_dirty": false,
     "prereg_en_historia": true,
     "data_vintage_id": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
@@ -19,7 +19,7 @@
     "new_confirmatory": [],
     "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)"
   },
-  "inicio_utc": "2026-10-02T12:35:12.901705+00:00",
+  "inicio_utc": "2026-10-03T09:20:05.308525+00:00",
   "new_p5_outcomes_read": false,
   "outcomes_leidos": "solo C0/B2/S2, solo estimaciones ya publicadas en P4",
   "p5_confirmatory_executed": false,
@@ -5022,7 +5022,38 @@
         }
       ]
     },
-    "p4_published_results_reproduced": true
+    "p4_published_results_reproduced": true,
+    "condiciones_p4": {
+      "B2": {
+        "P4_1": true,
+        "P4_2": true,
+        "P4_3": true,
+        "P4_5": true,
+        "P4_6": true,
+        "P4_8": true,
+        "P4_9": true,
+        "P4_10": true
+      },
+      "S2": {
+        "P4_1": true,
+        "P4_2": true,
+        "P4_3": true,
+        "P4_5": true,
+        "P4_6": true,
+        "P4_8": true,
+        "P4_9": true,
+        "P4_10": true
+      }
+    }
+  },
+  "p4_evidencia_sha256": {
+    "evidence/2026-10-01-T-020-p4/run/tablas/criterio.tsv": "be1f94e54a70e4bffaa686a7be42a4832799da40fb4410132bff6708e246a596",
+    "evidence/2026-10-01-T-020-p4/run/tablas/estimaciones.tsv": "dd178515bddb759b4045fa694060e234c86b75873605e74ff681778dddc7ad60",
+    "evidence/2026-10-01-T-020-p4/run/tablas/nivel.tsv": "1d6d7e862dc5870107460316d4c68806e8bc6e2228114a6df74ce21e3049c01f",
+    "evidence/2026-10-01-T-020-p4/run/tablas/capacidad.tsv": "ec5c5af6eaae362a9bc705b1096ba45b26d1724bfe0f5fc43a2344117d1f23b6",
+    "evidence/2026-10-01-T-020-p4/run/tablas/emparejamiento.tsv": "b40f5be02056070d02da1f0b4e6c5d27f6dc068933121de630f5e452e633a4dd",
+    "evidence/2026-10-01-T-020-p4/preflight/p4-preflight.json": "1b939dc7ab94dfb55ba7cad4260b5a249366a421733d3854b3f8b1ab30e900b2",
+    "evidence/2026-10-02-T-021-p5-diseno/inventario-estructural.json": "c49598011e39685fc3d0239dd12b13d835c9ee045c5586fc892a0a20145da0e2"
   },
   "checks": [
     {
@@ -5348,9 +5379,379 @@
       "ok": true
     },
     {
+      "control": "regiones LOCRO exactas",
+      "observado": [
+        "USA",
+        "EUROPA",
+        "ASIA"
+      ],
+      "esperado": [
+        "USA",
+        "EUROPA",
+        "ASIA"
+      ],
+      "ok": true
+    },
+    {
+      "control": "vecinos válidos B2 completos",
+      "observado": 8,
+      "esperado": 8,
+      "ok": true
+    },
+    {
+      "control": "vecinos válidos S2 completos",
+      "observado": 5,
+      "esperado": 5,
+      "ok": true
+    },
+    {
+      "control": "ausencias estructurales (solo S2)",
+      "observado": [
+        3,
+        3
+      ],
+      "esperado": [
+        3,
+        3
+      ],
+      "ok": true
+    },
+    {
+      "control": "sha256 evidence/2026-10-01-T-020-p4/run/tablas/criterio.tsv",
+      "observado": "be1f94e54a70e4bffaa686a7be42a4832799da40fb4410132bff6708e246a596",
+      "esperado": "be1f94e54a70e4bffaa686a7be42a4832799da40fb4410132bff6708e246a596",
+      "ok": true
+    },
+    {
+      "control": "sha256 evidence/2026-10-01-T-020-p4/run/tablas/estimaciones.tsv",
+      "observado": "dd178515bddb759b4045fa694060e234c86b75873605e74ff681778dddc7ad60",
+      "esperado": "dd178515bddb759b4045fa694060e234c86b75873605e74ff681778dddc7ad60",
+      "ok": true
+    },
+    {
+      "control": "sha256 evidence/2026-10-01-T-020-p4/run/tablas/nivel.tsv",
+      "observado": "1d6d7e862dc5870107460316d4c68806e8bc6e2228114a6df74ce21e3049c01f",
+      "esperado": "1d6d7e862dc5870107460316d4c68806e8bc6e2228114a6df74ce21e3049c01f",
+      "ok": true
+    },
+    {
+      "control": "sha256 evidence/2026-10-01-T-020-p4/run/tablas/capacidad.tsv",
+      "observado": "ec5c5af6eaae362a9bc705b1096ba45b26d1724bfe0f5fc43a2344117d1f23b6",
+      "esperado": "ec5c5af6eaae362a9bc705b1096ba45b26d1724bfe0f5fc43a2344117d1f23b6",
+      "ok": true
+    },
+    {
+      "control": "sha256 evidence/2026-10-01-T-020-p4/run/tablas/emparejamiento.tsv",
+      "observado": "b40f5be02056070d02da1f0b4e6c5d27f6dc068933121de630f5e452e633a4dd",
+      "esperado": "b40f5be02056070d02da1f0b4e6c5d27f6dc068933121de630f5e452e633a4dd",
+      "ok": true
+    },
+    {
+      "control": "sha256 evidence/2026-10-01-T-020-p4/preflight/p4-preflight.json",
+      "observado": "1b939dc7ab94dfb55ba7cad4260b5a249366a421733d3854b3f8b1ab30e900b2",
+      "esperado": "1b939dc7ab94dfb55ba7cad4260b5a249366a421733d3854b3f8b1ab30e900b2",
+      "ok": true
+    },
+    {
+      "control": "sha256 evidence/2026-10-02-T-021-p5-diseno/inventario-estructural.json",
+      "observado": "c49598011e39685fc3d0239dd12b13d835c9ee045c5586fc892a0a20145da0e2",
+      "esperado": "c49598011e39685fc3d0239dd12b13d835c9ee045c5586fc892a0a20145da0e2",
+      "ok": true
+    },
+    {
+      "control": "hash C0 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "policy_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "policy_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash B2_s1p75_m24p500 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash B2_s1p75_m24p875 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash B2_s1p75_m25p250 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash B2_s2p00_m24p500 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash B2 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "policy_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "policy_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash B2_s2p00_m25p250 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash B2_s2p25_m24p500 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash B2_s2p25_m24p875 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash B2_s2p25_m25p250 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash S2_s2p25_m23p375 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash S2_s2p25_m23p750 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash S2_s2p25_m24p125 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash S2 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "policy_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "policy_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash S2_s2p50_m24p125 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
+      "control": "hash S2_s2p75_m24p125 por rol canónico",
+      "observado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "esperado": [
+        "advisor_config_hash",
+        "diagnostico_sha256",
+        "procedencia"
+      ],
+      "ok": true
+    },
+    {
       "control": "P4 publicado reproducido",
       "observado": true,
       "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "C0 advisor_config_hash_ok",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "C0 niveles_event_study_diferencias",
+      "observado": 0,
+      "esperado": 0,
+      "ok": true
+    },
+    {
+      "control": "C0 sin_niveles",
+      "observado": 0,
+      "esperado": 0,
+      "ok": true
+    },
+    {
+      "control": "condiciones P4 de veto B2 exactas y cumplidas",
+      "observado": {
+        "P4_1": true,
+        "P4_2": true,
+        "P4_3": true,
+        "P4_5": true,
+        "P4_6": true,
+        "P4_8": true,
+        "P4_9": true,
+        "P4_10": true
+      },
+      "esperado": {
+        "P4_1": true,
+        "P4_10": true,
+        "P4_2": true,
+        "P4_3": true,
+        "P4_5": true,
+        "P4_6": true,
+        "P4_8": true,
+        "P4_9": true
+      },
+      "ok": true
+    },
+    {
+      "control": "condiciones P4 de veto S2 exactas y cumplidas",
+      "observado": {
+        "P4_1": true,
+        "P4_2": true,
+        "P4_3": true,
+        "P4_5": true,
+        "P4_6": true,
+        "P4_8": true,
+        "P4_9": true,
+        "P4_10": true
+      },
+      "esperado": {
+        "P4_1": true,
+        "P4_10": true,
+        "P4_2": true,
+        "P4_3": true,
+        "P4_5": true,
+        "P4_6": true,
+        "P4_8": true,
+        "P4_9": true
+      },
       "ok": true
     },
     {
@@ -6284,10 +6685,16 @@
       "observado": "8c3b3e0a81274a9cb4c9b8c2c33a9b763f769a5b16079db64079121dd4016a8c",
       "esperado": "8c3b3e0a81274a9cb4c9b8c2c33a9b763f769a5b16079db64079121dd4016a8c",
       "ok": true
+    },
+    {
+      "control": "levels_sha256 distintos por celda válida",
+      "observado": 16,
+      "esperado": 16,
+      "ok": true
     }
   ],
   "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
-  "fin_utc": "2026-10-02T12:35:12.912060+00:00",
+  "fin_utc": "2026-10-03T09:20:05.321410+00:00",
   "ok": true,
   "definitivo": true
 }
