@@ -328,11 +328,13 @@ class _Event:
         return (self.at, PHASE_RANK[self.phase], self.key)
 
 
-def _require_authorization(market: MarketData, authorize: Optional[Callable[[], None]]) -> None:
+def _require_authorization(market: MarketData, authorize: Optional[Callable[[SimSpec], None]], spec: SimSpec) -> None:
+    """Con datos reales, la autorización recibe el spec concreto: solo vale para las corridas pre-registradas."""
+
     if market.origin == ORIGIN_REAL:
         if authorize is None:
             raise P6OutcomeGateError("P6: los datos reales solo se simulan con el ConfirmatoryToken de la marca")
-        authorize()
+        authorize(spec)
 
 
 def _session_events(market: MarketData) -> List[_Event]:
@@ -459,11 +461,11 @@ def simulate(
     fx: FxTable,
     spec: SimSpec,
     *,
-    authorize: Optional[Callable[[], None]] = None,
+    authorize: Optional[Callable[[SimSpec], None]] = None,
 ) -> SimResult:
     """Simula un sistema completo. Con ``origin == "real"`` exige ``authorize`` (token de la marca)."""
 
-    _require_authorization(market, authorize)
+    _require_authorization(market, authorize, spec)
     book = _Book(market, fx, spec)
     events = _session_events(market)
     signal_list = sorted(signals, key=lambda item: (item.analysis_ts, item.signal_id))
@@ -807,11 +809,11 @@ def simulate_benchmark(
     fx: FxTable,
     spec: SimSpec,
     *,
-    authorize: Optional[Callable[[], None]] = None,
+    authorize: Optional[Callable[[SimSpec], None]] = None,
 ) -> BenchmarkResult:
     """Pesos iguales sobre todos los activos, sin rebalanceo; comisión dentro del importe asignado."""
 
-    _require_authorization(market, authorize)
+    _require_authorization(market, authorize, spec)
     holdings: Dict[str, _Holding] = {}
 
     def bh_equity(at: datetime) -> float:

@@ -635,56 +635,6 @@ def _frozen_report(**extra: Any) -> Dict[str, Any]:
     }
 
 
-def _allow_clearance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stored: Optional[Dict[str, Any]] = None,
-                     live: Optional[Dict[str, Any]] = None) -> Path:
-    """Preflight definitivo en disco (ruta temporal) y preflight vivo recalculado igual a él."""
-
-    pre_dir = tmp_path / "preflight-autorizacion"
-    pre_dir.mkdir(exist_ok=True)
-    stored = _frozen_report() if stored is None else stored
-    (pre_dir / "p6-preflight.json").write_text(json.dumps(stored), encoding="utf-8")
-    monkeypatch.setattr(p6, "PREFLIGHT_DIR", pre_dir)
-    monkeypatch.setattr(p6, "executor_unchanged_since", lambda *_a, **_k: True)
-    monkeypatch.setattr(p6, "_live_preflight", lambda: (True, _frozen_report() if live is None else live))
-    return pre_dir
-
-
-def test_guarda_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    run_dir = tmp_path / "run"
-    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.require_token(None)
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.require_token(p6.ConfirmatoryToken(run_dir / p6.RUN_MARKER, "0" * 64))
-    run_dir.mkdir()
-    marker = run_dir / p6.RUN_MARKER
-    _allow_clearance(tmp_path, monkeypatch)
-    fd = p6.create_marker_exclusive(marker, p6._issue_clearance())
-    with open(fd, "w", encoding="utf-8") as handle:
-        handle.write(json.dumps({"a": 1}, ensure_ascii=False, indent=2) + "\n")
-    token = p6.build_confirmatory_token(marker, {"a": 1})
-    assert p6.require_token(token) is token
-    with pytest.raises(p6.P6AlreadyExecutedError):
-        p6.create_marker_exclusive(marker, p6._issue_clearance())
-    other = tmp_path / "otra" / p6.RUN_MARKER
-    other.parent.mkdir()
-    other.write_text(marker.read_text(encoding="utf-8"), encoding="utf-8")
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.require_token(p6.ConfirmatoryToken(other, token.marker_payload_sha256))
-    # Un token fabricado a mano con la ruta y el sha correctos no vale: no lo emitió build_confirmatory_token.
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.require_token(p6.ConfirmatoryToken(marker, token.marker_payload_sha256 + ""))
-    # Una marca que existe pero no creó este proceso no da token.
-    foreign = tmp_path / "ajena"
-    foreign.mkdir()
-    (foreign / p6.RUN_MARKER).write_text(json.dumps({"a": 1}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.build_confirmatory_token(foreign / p6.RUN_MARKER, {"a": 1})
-    marker.write_text("cambiada", encoding="utf-8")
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.require_token(token)
-
-
 def test_confirmatoria_rechaza_marca_existente(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()
@@ -738,55 +688,6 @@ def _synthetic_vintage(symbols: Dict[str, Tuple[str, str]], start: date, end: da
     return VintageLoad(data_vintage_id=p6.DATA_VINTAGE_ID, manifest={}, by_symbol=by_symbol)
 
 
-def test_humo_ruta_real_con_token_sobre_cosecha_sintetica(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ejercita build_real_market, build_real_signals, simulate y benchmark con token en tmp_path.
-
-    Los precios son sintéticos: no se abre ningún desenlace de la cosecha real.
-    """
-
-    from advisor.universe.loader import load_universe
-
-    config = load_config("config.yaml")
-    universe = load_universe(config.universe_path)
-    symbols = {
-        "SAP.DE": ("XETRA", "Europe/Berlin"), "AAPL": ("NASDAQ", "America/New_York"), "7203.T": ("JPX", "Asia/Tokyo"),
-        "^STOXX": ("XETRA", "Europe/Berlin"), "^GSPC": ("NYSE", "America/New_York"), "^N225": ("JPX", "Asia/Tokyo"),
-        "^VIX": ("NYSE", "America/New_York"), "^STOXX50E": ("XETRA", "Europe/Berlin"), "^HSI": ("HKG", "Asia/Hong_Kong"),
-        "^KS11": ("KSC", "Asia/Seoul"), "^TWII": ("TAI", "Asia/Taipei"), "510300.SS": ("SHH", "Asia/Shanghai"),
-    }
-    vintage = _synthetic_vintage(symbols, date(2021, 8, 30), date(2023, 3, 31))
-    monkeypatch.setattr(p6, "asset_list", lambda: ["7203.T", "AAPL", "SAP.DE"])
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
-    payload = {"humo": True}
-    _allow_clearance(tmp_path, monkeypatch)
-    fd = p6.create_marker_exclusive(run_dir / p6.RUN_MARKER, p6._issue_clearance())
-    with open(fd, "w", encoding="utf-8") as handle:
-        handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
-    token = p6.build_confirmatory_token(run_dir / p6.RUN_MARKER, payload)
-
-    window = p6.derive_window(config, universe, p6.vintage_index(vintage))
-    assert window.start > window.sma_complete_session and window.start > window.warmup_last_initial
-    fx, _ = p6.load_fx()
-    real_market = p6.build_real_market(token, config, universe, vintage, window, dict.fromkeys(("7203.T", "AAPL", "SAP.DE"), "Technology"))
-    assert real_market.origin == sim.ORIGIN_REAL
-    for population in (p6.POPULATION_OPERAR, p6.POPULATION_ALL_BARS):
-        signals, counts = p6.build_real_signals(token, config, universe, vintage, "B2", population, window)
-        assert all(window.start <= real_market.assets[s.asset].session_dates[s.bar_index + 1] <= window.end for s in signals)
-        assert counts and all(s.analysis_ts < real_market.assets[s.asset].open_utc[s.bar_index + 1] for s in signals)
-        if population == p6.POPULATION_OPERAR:
-            # Con precios aleatorios casi nada llega a OPERAR: basta con que el contexto PIT y el score se calculen.
-            assert counts.get("no_operar", 0) > 0
-        result = sim.simulate(real_market, signals, fx, sim.SimSpec("B2", "h" * 64), authorize=p6.authorization(token))
-        cash = [r["cash_after"] for r in result.ledger if r["cash_after"] != ""]
-        assert result.snapshots and (not cash or min(cash) >= 0)
-    _all_bars, counts = p6.build_real_signals(token, config, universe, vintage, "B2", p6.POPULATION_ALL_BARS, window)
-    assert counts.get("senales", 0) > 100
-    bench = sim.simulate_benchmark(real_market, fx, sim.SimSpec("benchmark", "b" * 64), authorize=p6.authorization(token))
-    assert bench.snapshots[-1].positions == 0 and bench.snapshots[0].equity == pytest.approx(100_000.0, rel=0.01)
-
-
 def test_r_reconstruible_desde_el_ledger_publicado() -> None:
     m, fx, signals = p6.synthetic_market()
     result = sim.simulate(m, signals, fx, spec(fee_rate=0.001, slippage_bps=5))
@@ -830,186 +731,6 @@ def test_capital_pedido_frente_a_disponible() -> None:
     assert occupancy["rechazadas_por_cash"] == 1 and occupancy["fraccion_ejecutables_rechazadas_por_cash"] == 0.5
     assert occupancy["capital_pedido_rechazado_eur"] == pytest.approx(60_000.0)
     assert occupancy["capital_disponible_en_esos_rechazos_eur"] == pytest.approx(40_000.0)
-
-
-def test_clearance_no_acepta_informes_del_llamador(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """(1) Ya no se pueden inyectar diccionarios fabricados: la firma no recibe nada."""
-
-    import inspect
-
-    assert list(inspect.signature(p6._issue_clearance).parameters) == []
-    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
-    _allow_clearance(tmp_path, monkeypatch)
-    fake = {"ok": True, "definitivo": True}
-    with pytest.raises(TypeError):
-        p6._issue_clearance(fake, fake)  # type: ignore[call-arg]
-    with pytest.raises(TypeError):
-        p6._issue_clearance(stored=fake, live=fake)  # type: ignore[call-arg]
-
-
-def test_clearance_sin_preflight_definitivo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """(2) Preflight definitivo inexistente → rechazo."""
-
-    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
-    pre_dir = _allow_clearance(tmp_path, monkeypatch)
-    (pre_dir / "p6-preflight.json").unlink()
-    with pytest.raises(sim.P6OutcomeGateError, match="no existe el preflight definitivo"):
-        p6._issue_clearance()
-
-
-@pytest.mark.parametrize("campo, motivo", [("ok", "ok != true"), ("definitivo", "no es definitivo")])
-def test_clearance_preflight_de_disco_no_ok_o_no_definitivo(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, campo: str, motivo: str
-) -> None:
-    """(3) ok=False y (4) definitivo=False en el preflight de disco → rechazo."""
-
-    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
-    _allow_clearance(tmp_path, monkeypatch, stored=_frozen_report(**{campo: False}))
-    with pytest.raises(sim.P6OutcomeGateError, match=motivo):
-        p6._issue_clearance()
-
-
-def test_clearance_huella_distinta(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """(5) Huella guardada ≠ huella recalculada → rechazo; también si el recálculo no es correcto."""
-
-    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
-    _allow_clearance(tmp_path, monkeypatch, live=_frozen_report(ventana={"inicio": "otra"}))
-    with pytest.raises(sim.P6OutcomeGateError, match="no coincide"):
-        p6._issue_clearance()
-    _allow_clearance(tmp_path, monkeypatch, live=_frozen_report(ok=False))
-    with pytest.raises(sim.P6OutcomeGateError, match="recalculado no es correcto"):
-        p6._issue_clearance()
-
-
-@pytest.mark.parametrize("ruta, valor", [
-    (("identidad", "p6_prereg_sha"), "0" * 40), (("identidad", "p6_data_id"), "0" * 64),
-    (("identidad", "data_vintage_id"), "0" * 64), (("identidad", "fx_vintage_id"), "0" * 64),
-    (("identidad", "sector_map"), "0" * 64), (("identidad", "git_dirty"), True),
-    (("politicas", "B2"), {"policy_sha256": "0" * 64, "advisor_config_hash": "0" * 64}),
-])
-def test_clearance_identidades_congeladas_incorrectas(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ruta: Tuple[str, str], valor: Any
-) -> None:
-    """(6) Identidades congeladas incorrectas en el preflight de disco → rechazo."""
-
-    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
-    stored = _frozen_report()
-    stored[ruta[0]][ruta[1]] = valor
-    _allow_clearance(tmp_path, monkeypatch, stored=stored, live=stored)
-    with pytest.raises(sim.P6OutcomeGateError, match="identidades congeladas"):
-        p6._issue_clearance()
-
-
-def test_clearance_ejecutor_cambiado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
-    _allow_clearance(tmp_path, monkeypatch)
-    monkeypatch.setattr(p6, "executor_unchanged_since", lambda *_a, **_k: False)
-    with pytest.raises(sim.P6OutcomeGateError, match="ejecutor cambió"):
-        p6._issue_clearance()
-
-
-def test_marca_solo_con_autorizacion_de_run_confirmatory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """(7) marca existente, (8) una sola marca, (9) reutilizar, (10) fabricar, (11) otra ruta."""
-
-    import os
-
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
-    _allow_clearance(tmp_path, monkeypatch)
-    marker = run_dir / p6.RUN_MARKER
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.create_marker_exclusive(marker, "fabricada")
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.create_marker_exclusive(marker, "0" * 64)
-    with pytest.raises(sim.P6OutcomeGateError, match="solo puede ser"):
-        p6.create_marker_exclusive(tmp_path / "otra" / p6.RUN_MARKER, p6._issue_clearance())
-    assert not marker.exists()
-    clearance = p6._issue_clearance()
-    os.close(p6.create_marker_exclusive(marker, clearance))
-    assert marker.is_file()
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.create_marker_exclusive(marker, clearance)
-    with pytest.raises(p6.P6AlreadyExecutedError):
-        p6._issue_clearance()
-
-
-def test_marca_existente_no_da_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """(12) Quien solo encuentra una marca existente no puede fabricar ConfirmatoryToken ni crear otra."""
-
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
-    payload = {"a": 1}
-    marker = run_dir / p6.RUN_MARKER
-    marker.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    _allow_clearance(tmp_path, monkeypatch)
-    with pytest.raises(p6.P6AlreadyExecutedError):
-        p6._issue_clearance()
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.build_confirmatory_token(marker, payload)
-    digest = hashlib.sha256(marker.read_bytes()).hexdigest()
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.require_token(p6.ConfirmatoryToken(marker, digest))
-
-
-def _synthetic_confirmatory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, fail_signals: bool = False) -> Tuple[Path, Any]:
-    m, fx, signals = p6.synthetic_market()
-    days = sim.snapshot_days(m)
-    ppy = len(days) / ((days[-1] - m.window_start).days / 365.25)
-    window = p6.Window(m.window_start, m.window_end, m.window_start, m.window_start, 0, len(days), ppy)
-    run_dir, pre_dir = tmp_path / "run", tmp_path / "preflight"
-    pre_dir.mkdir()
-    config = load_config("config.yaml")
-    report = _frozen_report(ventana=window.as_dict(), system_hashes=p6.system_hashes(config, window),
-                            determinismo=p6.synthetic_determinism())
-    (pre_dir / "p6-preflight.json").write_text(json.dumps(report), encoding="utf-8")
-    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
-    monkeypatch.setattr(p6, "PREFLIGHT_DIR", pre_dir)
-    monkeypatch.setattr(p6, "executor_unchanged_since", lambda *_a, **_k: True)
-    monkeypatch.setattr(p6, "run_preflight", lambda *_a, **_k: (True, report))
-    monkeypatch.setattr(p6, "derive_window", lambda *_a, **_k: window)
-    monkeypatch.setattr(p6, "load_fx", lambda: (fx, {"fuente_usada": "B"}))
-    monkeypatch.setattr(p6, "load_sector_map", lambda: {})
-    monkeypatch.setattr(p6, "load_structure", lambda: None)
-    monkeypatch.setattr(p6, "load_full_vintage", lambda: p6.VintageLoad("sintetica", {}, {}))
-
-    def fake_market(token: Any, *_a: Any, **_k: Any) -> sim.MarketData:
-        p6.require_token(token)
-        return replace(m, origin=sim.ORIGIN_REAL)
-
-    def fake_signals(token: Any, *_a: Any, **_k: Any) -> Tuple[List[sim.Signal], Dict[str, int]]:
-        p6.require_token(token)
-        if fail_signals:
-            raise RuntimeError("fallo inyectado tras la marca")
-        return list(signals), {"senales": len(signals)}
-
-    monkeypatch.setattr(p6, "build_real_market", fake_market)
-    monkeypatch.setattr(p6, "build_real_signals", fake_signals)
-    ident = p6.P6Identity("sha", False, True, p6.EXPECTED_CONFIG_HASH, "1.0")
-    return run_dir, (config, ident)
-
-
-def test_confirmatoria_sintetica_completa(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    run_dir, (config, ident) = _synthetic_confirmatory(tmp_path, monkeypatch)
-    code, text = p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
-    assert code == 0, text
-    result = json.loads((run_dir / "p6-resultado.json").read_text(encoding="utf-8"))
-    assert set(result["corridas"]) == {run for run, *_ in p6.RUNS}
-    assert set(result["etiquetas_decisorias"]) == {"B2", "S2"} and not (run_dir / "p6-parada.json").exists()
-    for run, *_ in p6.RUNS:
-        assert (run_dir / "tablas" / f"{run}-operaciones.csv").is_file()
-    with pytest.raises(p6.P6AlreadyExecutedError):
-        p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
-
-
-def test_confirmatoria_sintetica_fallo_tras_la_marca(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    run_dir, (config, ident) = _synthetic_confirmatory(tmp_path, monkeypatch, fail_signals=True)
-    code, text = p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
-    assert code == 2 and "fallo inyectado" in text
-    assert (run_dir / p6.RUN_MARKER).is_file() and (run_dir / "p6-parada.json").is_file()
-    with pytest.raises(p6.P6AlreadyExecutedError):
-        p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
 
 
 def _structure_with_dividends(dividend_scale: float) -> Tuple[Any, Any]:
@@ -1107,11 +828,320 @@ def test_preflight_real_sin_cargar_precios(monkeypatch: pytest.MonkeyPatch) -> N
     assert not report["dividendos_splits"]["fuera_de_tolerancia"]
 
 
-def test_confirmatoria_no_salta_el_recalculo_de_la_autorizacion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Aunque las comprobaciones propias de run_confirmatory pasen, la marca exige el recálculo interno."""
+# ---------------------------------------------------------------------------
+# Ejecución confirmatoria sellada (guarda de desenlaces). Todo con datos sintéticos en tmp_path.
+# ---------------------------------------------------------------------------
 
-    run_dir, (config, ident) = _synthetic_confirmatory(tmp_path, monkeypatch)
-    monkeypatch.setattr(p6, "_live_preflight", lambda: (True, _frozen_report(ventana={"inicio": "otra"})))
-    with pytest.raises(sim.P6OutcomeGateError, match="no coincide"):
-        p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
+
+def _sealed_env(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    stored: Optional[Dict[str, Any]] = None,
+    live: Optional[Dict[str, Any]] = None,
+    fail_signals: bool = False,
+) -> Tuple[Path, Any, Any, Dict[str, Any]]:
+    """Preflight definitivo en disco (tmp), preflight vivo y cosecha sintéticos; constructores reales falsos."""
+
+    m, fx, signals = p6.synthetic_market()
+    days = sim.snapshot_days(m)
+    ppy = len(days) / ((days[-1] - m.window_start).days / 365.25)
+    window = p6.Window(m.window_start, m.window_end, m.window_start, m.window_start, 0, len(days), ppy)
+    config = load_config("config.yaml")
+    report = _frozen_report(ventana=window.as_dict(), system_hashes=p6.system_hashes(config, window),
+                            determinismo=p6.synthetic_determinism())
+    run_dir, pre_dir = tmp_path / "run", tmp_path / "preflight"
+    pre_dir.mkdir(exist_ok=True)
+    (pre_dir / "p6-preflight.json").write_text(json.dumps(report if stored is None else stored), encoding="utf-8")
+    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
+    monkeypatch.setattr(p6, "PREFLIGHT_DIR", pre_dir)
+    monkeypatch.setattr(p6, "executor_unchanged_since", lambda *_a, **_k: True)
+    monkeypatch.setattr(p6, "_sources", lambda: (config, None))
+    monkeypatch.setattr(p6, "_live_preflight", lambda *_a, **_k: (True, report if live is None else live))
+    monkeypatch.setattr(p6, "derive_window", lambda *_a, **_k: window)
+    monkeypatch.setattr(p6, "load_fx", lambda: (fx, {"fuente_usada": "B"}))
+    monkeypatch.setattr(p6, "load_sector_map", lambda: {})
+    monkeypatch.setattr(p6, "load_full_vintage", lambda: p6.VintageLoad("sintetica", {}, {}))
+
+    def fake_market(token: Any, *_a: Any, **_k: Any) -> sim.MarketData:
+        p6.require_token(token)
+        return replace(m, origin=sim.ORIGIN_REAL)
+
+    def fake_signals(token: Any, *_a: Any, **_k: Any) -> Tuple[List[sim.Signal], Dict[str, int]]:
+        p6.require_token(token)
+        if fail_signals:
+            raise RuntimeError("fallo inyectado tras la marca")
+        return list(signals), {"senales": len(signals)}
+
+    monkeypatch.setattr(p6, "build_real_market", fake_market)
+    monkeypatch.setattr(p6, "build_real_signals", fake_signals)
+    ident = p6.P6Identity("sha", False, True, p6.EXPECTED_CONFIG_HASH, "1.0")
+    return run_dir, config, ident, report
+
+
+def _run(config: Any, ident: Any, run_dir: Path) -> Tuple[int, str]:
+    return p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
+
+
+def test_s01_s03_no_existen_piezas_componibles() -> None:
+    """(1–3) _issue_clearance, create_marker_exclusive y build_confirmatory_token ya no existen."""
+
+    for name in ("_issue_clearance", "create_marker_exclusive", "build_confirmatory_token", "authorization",
+                 "_abrir_confirmatoria", "_CLEARANCES", "_CREATED_MARKERS"):
+        assert not hasattr(p6, name), name
+
+
+def test_s04_token_fabricado_no_vale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(4) Un ConfirmatoryToken construido a mano no se acepta, ni siquiera tras una apertura real."""
+
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    with pytest.raises(sim.P6OutcomeGateError):
+        p6.require_token(None)
+    code, text = _run(config, ident, run_dir)
+    assert code == 0 and isinstance(text, str)
+    marker = run_dir / p6.RUN_MARKER
+    digest = hashlib.sha256(marker.read_bytes()).hexdigest()
+    for fake in (p6.ConfirmatoryToken(marker, digest), p6.ConfirmatoryToken(marker, digest, "0" * 64)):
+        with pytest.raises(sim.P6OutcomeGateError):
+            p6.require_token(fake)
+    # El motor no acepta datos reales con una autorización que no salga del flujo sellado.
+    market = replace(p6.synthetic_market()[0], origin=sim.ORIGIN_REAL)
+    with pytest.raises(sim.P6OutcomeGateError):
+        sim.simulate(market, [], EUR, sim.SimSpec("B2_primaria_5pb", "0" * 64),
+                     authorize=lambda spec: p6.require_token(p6.ConfirmatoryToken(marker, digest)))
+
+
+def test_s05_s07_no_se_aceptan_payload_preflight_ni_ventana() -> None:
+    """(5–7) Ningún punto de entrada acepta payload, preflight, ventana, token ni hashes."""
+
+    import inspect
+
+    assert list(inspect.signature(p6._ejecutar_confirmatoria_sellada).parameters) == []
+    assert list(inspect.signature(p6._verified_authorization).parameters) == []
+    assert list(inspect.signature(p6.run_confirmatory).parameters) == ["config", "universe", "ident", "out_dir"]
+    forbidden = {"payload", "preflight", "stored", "live", "window", "ventana", "token", "clearance", "hashes",
+                 "fingerprint", "marker", "marker_path"}
+    for name in ("run_confirmatory", "_ejecutar_confirmatoria_sellada", "_verified_authorization"):
+        assert not forbidden & set(inspect.signature(getattr(p6, name)).parameters), name
+
+
+def test_s08_sin_preflight_definitivo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(8) Sin preflight definitivo en disco no hay apertura ni marca."""
+
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    (p6.PREFLIGHT_DIR / "p6-preflight.json").unlink()
+    with pytest.raises(sim.P6OutcomeGateError, match="no existe el preflight definitivo"):
+        _run(config, ident, run_dir)
     assert not (run_dir / p6.RUN_MARKER).exists()
+
+
+@pytest.mark.parametrize("cambio, motivo", [
+    ({"ok": False}, "ok != true"),
+    ({"definitivo": False}, "no es definitivo"),
+    ({"ventana": {"inicio": "otra"}}, "no coincide"),
+    ({"identidad": {**_frozen_report()["identidad"], "p6_prereg_sha": "0" * 40}}, "identidades congeladas"),
+    ({"identidad": {**_frozen_report()["identidad"], "p6_data_id": "0" * 64}}, "identidades congeladas"),
+    ({"politicas": {}}, "identidades congeladas"),
+])
+def test_s09_preflight_de_disco_modificado(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cambio: Dict[str, Any], motivo: str
+) -> None:
+    """(9) Preflight de disco modificado → rechazo, sin marca."""
+
+    run_dir, config, ident, report = _sealed_env(tmp_path, monkeypatch)
+    (p6.PREFLIGHT_DIR / "p6-preflight.json").write_text(json.dumps({**report, **cambio}), encoding="utf-8")
+    with pytest.raises(sim.P6OutcomeGateError, match=motivo):
+        _run(config, ident, run_dir)
+    assert not (run_dir / p6.RUN_MARKER).exists()
+
+
+def test_s09_preflight_vivo_distinto_o_incorrecto(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_dir, config, ident, report = _sealed_env(tmp_path, monkeypatch)
+    for live, motivo in (({**report, "ventana": {"inicio": "otra"}}, "no coincide"),
+                         ({**report, "ok": False}, "no es correcto")):
+        monkeypatch.setattr(p6, "_live_preflight", lambda *_a, live=live, **_k: (True, live))
+        with pytest.raises(sim.P6OutcomeGateError, match=motivo):
+            _run(config, ident, run_dir)
+    assert not (run_dir / p6.RUN_MARKER).exists()
+
+
+def test_s10_codigo_cambiado_desde_el_preflight(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    monkeypatch.setattr(p6, "executor_unchanged_since", lambda *_a, **_k: False)
+    with pytest.raises(sim.P6OutcomeGateError, match="ejecutor cambió"):
+        _run(config, ident, run_dir)
+    assert not (run_dir / p6.RUN_MARKER).exists()
+
+
+def test_s11_p6_data_id_distinto(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    monkeypatch.setattr(p6, "p6_data_id", lambda: "f" * 64)
+    with pytest.raises(sim.P6OutcomeGateError, match="P6_DATA_ID"):
+        _run(config, ident, run_dir)
+    assert not (run_dir / p6.RUN_MARKER).exists()
+
+
+def test_s12_ventana_de_la_cosecha_completa_distinta(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(12) Si la cosecha completa no reproduce la ventana, se para antes de crear la marca."""
+
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    otra = p6.Window(date(2022, 6, 15), date(2026, 8, 27), date(2022, 2, 25), date(2022, 6, 13), 27, 1094, 260.0)
+    monkeypatch.setattr(p6, "derive_window", lambda *_a, **_k: otra)
+    with pytest.raises(p6.P6PreflightError, match="ventana"):
+        _run(config, ident, run_dir)
+    assert not (run_dir / p6.RUN_MARKER).exists()
+
+
+def test_s13_marca_existente(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    run_dir.mkdir()
+    (run_dir / p6.RUN_MARKER).write_text("{}\n", encoding="utf-8")
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        _run(config, ident, run_dir)
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        p6._ejecutar_confirmatoria_sellada()
+
+
+def test_s14_ruta_alternativa_de_marca(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(14) Ninguna función recibe la ruta de la marca y run_confirmatory solo escribe en RUN_DIR."""
+
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    with pytest.raises(p6.P6PreflightError, match="solo escribe"):
+        _run(config, ident, tmp_path / "otra")
+    assert not (tmp_path / "otra").exists() and not (run_dir / p6.RUN_MARKER).exists()
+
+
+def test_s15_s17_solo_los_simspec_pre_registrados(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(15) SimSpec no pre-registrado, (16) system_sha256 alterado, (17) benchmark alterado → rechazo."""
+
+    config = load_config("config.yaml")
+    m, _fx, _signals = p6.synthetic_market()
+    days = sim.snapshot_days(m)
+    window = p6.Window(m.window_start, m.window_end, m.window_start, m.window_start, 0, len(days), 252.0)
+    hashes = p6.system_hashes(config, window)
+    allowed = p6._preregistered_specs(config, hashes)
+    guard = p6._spec_guard(allowed)
+    assert len(allowed) == 9
+    for spec in allowed:
+        guard(spec)
+    primary = next(spec for spec in allowed if spec.policy_id == "B2_primaria_5pb")
+    bench = next(spec for spec in allowed if spec.policy_id == "benchmark" and spec.slippage_bps == 5.0)
+    for bad in (
+        sim.SimSpec("B2_exploratoria", primary.system_sha256),
+        replace(primary, slippage_bps=20.0),
+        replace(primary, risk_pct=2.0),
+        replace(primary, system_sha256="0" * 64),
+        replace(bench, system_sha256="0" * 64),
+        replace(bench, slippage_bps=10.0),
+    ):
+        with pytest.raises(sim.P6OutcomeGateError, match="no pre-registrado"):
+            guard(bad)
+
+
+def test_s15_flujo_sellado_rechaza_spec_fuera_del_contrato(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """La autorización interna del flujo aplica el contrato: un spec fuera de él para la corrida."""
+
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    real = p6._preregistered_specs
+    monkeypatch.setattr(p6, "_preregistered_specs",
+                        lambda *a: frozenset(s for s in real(*a) if s.policy_id != "C0_primaria_5pb"))
+    code, text = _run(config, ident, run_dir)
+    assert code == 2 and "no pre-registrado" in text and "C0_primaria_5pb" in text
+    assert (run_dir / "p6-parada.json").is_file()
+
+
+def test_s18_s19_apertura_consume_la_ejecucion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(18) Tras abrir, la marca existe con el payload canónico; (19) una segunda apertura falla."""
+
+    run_dir, config, ident, report = _sealed_env(tmp_path, monkeypatch)
+    code, text = _run(config, ident, run_dir)
+    assert code == 0, text
+    payload = json.loads((run_dir / p6.RUN_MARKER).read_text(encoding="utf-8"))
+    assert set(payload) == {"inicio_utc", "p6_prereg_sha", "p6_code_sha_preflight", "head_sha", "p6_data_id",
+                            "ventana", "system_hashes", "benchmark_hashes", "label"}
+    assert payload["p6_prereg_sha"] == p6.P6_PREREG_SHA and payload["p6_data_id"] == p6.P6_DATA_ID
+    assert payload["ventana"] == report["ventana"]
+    assert payload["system_hashes"] == {r: report["system_hashes"][r]["system_sha256"] for r, *_ in p6.RUNS}
+    assert payload["benchmark_hashes"] == {r: report["system_hashes"][r]["benchmark_sha256"] for r, _ in p6.BENCHMARK_RUNS}
+    result = json.loads((run_dir / "p6-resultado.json").read_text(encoding="utf-8"))
+    assert set(result["corridas"]) == {run for run, *_ in p6.RUNS} and "token" not in result
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        _run(config, ident, run_dir)
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        p6._ejecutar_confirmatoria_sellada()
+
+
+def test_s20_otro_proceso_ve_la_marca_en_disco(tmp_path: Path) -> None:
+    """(20) Otro proceso con la marca ya en disco no puede abrir P6."""
+
+    import subprocess
+    import sys
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / p6.RUN_MARKER).write_text("{}\n", encoding="utf-8")
+    script = (
+        "import sys\nfrom pathlib import Path\nimport advisor.research.p6 as p6\n"
+        f"p6.RUN_DIR = Path({str(run_dir)!r})\n"
+        "ident = p6.P6Identity('sha', False, True, p6.EXPECTED_CONFIG_HASH, '1.0')\n"
+        "try:\n    p6.run_confirmatory(None, None, ident, p6.RUN_DIR)\n"
+        "except p6.P6AlreadyExecutedError:\n    print('YA_EJECUTADA'); sys.exit(0)\n"
+        "print('ABRIO'); sys.exit(1)\n"
+    )
+    done = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, cwd=Path.cwd())
+    assert done.returncode == 0 and "YA_EJECUTADA" in done.stdout, done.stderr
+    assert not (run_dir / "p6-resultado.json").exists()
+
+
+def test_confirmatoria_sintetica_fallo_tras_la_marca(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch, fail_signals=True)
+    code, text = _run(config, ident, run_dir)
+    assert code == 2 and "fallo inyectado" in text
+    assert (run_dir / p6.RUN_MARKER).is_file() and (run_dir / "p6-parada.json").is_file()
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        _run(config, ident, run_dir)
+
+
+def test_humo_flujo_sellado_con_constructores_reales_sobre_cosecha_sintetica(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """build_real_market, build_real_signals, simulate y benchmark reales, solo por el flujo sellado.
+
+    Los precios son sintéticos (tmp_path): no se abre ningún desenlace de la cosecha real.
+    """
+
+    from advisor.universe.loader import load_universe
+
+    config = load_config("config.yaml")
+    universe = load_universe(config.universe_path)
+    symbols = {
+        "SAP.DE": ("XETRA", "Europe/Berlin"), "AAPL": ("NASDAQ", "America/New_York"), "7203.T": ("JPX", "Asia/Tokyo"),
+        "^STOXX": ("XETRA", "Europe/Berlin"), "^GSPC": ("NYSE", "America/New_York"), "^N225": ("JPX", "Asia/Tokyo"),
+        "^VIX": ("NYSE", "America/New_York"), "^STOXX50E": ("XETRA", "Europe/Berlin"), "^HSI": ("HKG", "Asia/Hong_Kong"),
+        "^KS11": ("KSC", "Asia/Seoul"), "^TWII": ("TAI", "Asia/Taipei"), "510300.SS": ("SHH", "Asia/Shanghai"),
+    }
+    vintage = _synthetic_vintage(symbols, date(2021, 8, 30), date(2023, 3, 31))
+    monkeypatch.setattr(p6, "asset_list", lambda: ["7203.T", "AAPL", "SAP.DE"])
+    window = p6.derive_window(config, universe, p6.vintage_index(vintage))
+    assert window.start > window.sma_complete_session and window.start > window.warmup_last_initial
+    report = _frozen_report(ventana=window.as_dict(), system_hashes=p6.system_hashes(config, window))
+    pre_dir, run_dir = tmp_path / "preflight", tmp_path / "run"
+    pre_dir.mkdir()
+    (pre_dir / "p6-preflight.json").write_text(json.dumps(report), encoding="utf-8")
+    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
+    monkeypatch.setattr(p6, "PREFLIGHT_DIR", pre_dir)
+    monkeypatch.setattr(p6, "executor_unchanged_since", lambda *_a, **_k: True)
+    monkeypatch.setattr(p6, "_sources", lambda: (config, universe))
+    monkeypatch.setattr(p6, "_live_preflight", lambda *_a, **_k: (True, report))
+    monkeypatch.setattr(p6, "load_full_vintage", lambda: vintage)
+    monkeypatch.setattr(p6, "load_sector_map", lambda: dict.fromkeys(("7203.T", "AAPL", "SAP.DE"), "Technology"))
+
+    ident = p6.P6Identity("sha", False, True, p6.EXPECTED_CONFIG_HASH, "1.0")
+    code, text = _run(config, ident, run_dir)
+    assert code == 0, text
+    result = json.loads((run_dir / "p6-resultado.json").read_text(encoding="utf-8"))
+    assert result["senales"]["B2_todas_las_barras_5pb"].get("senales", 0) > 100
+    # Con precios aleatorios casi nada llega a OPERAR: basta con que el contexto PIT y el score se calculen.
+    assert result["senales"]["B2_primaria_5pb"].get("no_operar", 0) > 0
+    ledger = (run_dir / "tablas" / "benchmark_5pb-ledger.csv").read_text(encoding="utf-8")
+    assert "BH_SELL_FINAL" in ledger

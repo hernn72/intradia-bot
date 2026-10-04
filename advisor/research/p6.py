@@ -27,7 +27,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, NoReturn, Optional, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, FrozenSet, List, Mapping, NoReturn, Optional, Sequence, Tuple, cast
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -145,13 +145,10 @@ class ConfirmatoryToken:
     nonce: str = ""
 
 
-# Marcas creadas en exclusiva por este proceso y tokens emitidos sobre ellas: un token solo vale en
-# el proceso que creó la marca. Otro proceso que lea una marca existente no puede obtener uno. La
-# marca solo se crea con un clearance de _issue_clearance, que reconstruye sus precondiciones desde
-# disco y las recalcula; nada que aporte el llamador cuenta como autoridad.
-_CREATED_MARKERS: set[Path] = set()
+# Tokens emitidos en este proceso. Solo _ejecutar_confirmatoria_sellada crea uno, después de crear la
+# marca en exclusiva con el payload canónico que calcula ella misma; el token no sale de esa función.
+# No hay piezas sueltas (autorización, marca, token) que un llamador pueda encadenar.
 _ISSUED_TOKENS: set[ConfirmatoryToken] = set()
-_CLEARANCES: set[str] = set()
 
 
 def _deny(reason: str) -> NoReturn:
@@ -183,25 +180,28 @@ def _frozen_identity_mismatches(report: Mapping[str, Any]) -> List[str]:
     return wrong
 
 
-def _live_preflight() -> Tuple[bool, Dict[str, Any]]:
-    """Preflight vivo recalculado desde las fuentes de verdad, sin nada que aporte el llamador."""
+def _sources() -> Tuple[AdvisorConfig, Universe]:
+    """Configuración y universo canónicos, cargados desde el repositorio (no del llamador)."""
 
     from advisor.config import load_config
     from advisor.universe.loader import load_universe
 
     config = load_config(CONFIG_PATH)
-    universe = load_universe(config.universe_path)
+    return config, load_universe(config.universe_path)
+
+
+def _live_preflight(config: AdvisorConfig, universe: Universe) -> Tuple[bool, Dict[str, Any]]:
+    """Preflight vivo recalculado con la función canónica, sobre la cosecha estructural."""
+
     return run_preflight(config, universe, load_structure(), current_identity(config), write=False,
                          determinism=synthetic_determinism())
 
 
-def _issue_clearance() -> str:
-    """Autorización de un solo uso para crear la marca, reconstruida desde las fuentes de verdad.
+def _verified_authorization() -> Tuple[AdvisorConfig, Universe, Dict[str, Any], Dict[str, Any]]:
+    """Precondiciones de la ejecución confirmatoria, reconstruidas desde las fuentes de verdad.
 
-    No recibe nada del llamador: lee el preflight definitivo de su ruta fija, comprueba que es correcto,
-    definitivo y que reproduce las identidades congeladas, que el ejecutor no cambió desde él y que
-    ``P6_DATA_ID`` se reproduce; recalcula el preflight vivo con ``run_preflight`` y exige la misma
-    huella; y comprueba que la marca no existe. Solo entonces emite el clearance.
+    No recibe nada del llamador y no emite nada: devolver sin error no autoriza a crear la marca, que
+    solo crea _ejecutar_confirmatoria_sellada.
     """
 
     stored_path = PREFLIGHT_DIR / "p6-preflight.json"
@@ -224,50 +224,22 @@ def _issue_clearance() -> str:
         _deny("P6_DATA_ID no se reproduce en este entorno")
     if not executor_unchanged_since(str(stored["identidad"]["p6_executor_sha"]), "."):
         _deny("el ejecutor cambió desde el preflight definitivo")
-    live_ok, live = _live_preflight()
+    config, universe = _sources()
+    live_ok, live = _live_preflight(config, universe)
     if not (live_ok and live.get("ok") is True and live.get("definitivo") is True):
         _deny("el preflight recalculado no es correcto y definitivo")
     if canonical_json(preflight_fingerprint(live)) != canonical_json(preflight_fingerprint(stored)):
         _deny("el preflight recalculado no coincide con el definitivo guardado")
     if (RUN_DIR / RUN_MARKER).exists():
         raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({RUN_DIR / RUN_MARKER}); no se repite")
-    clearance = secrets.token_hex(32)
-    _CLEARANCES.add(clearance)
-    return clearance
-
-
-def create_marker_exclusive(marker: Path, clearance: str) -> int:
-    if clearance not in _CLEARANCES:
-        raise P6OutcomeGateError("la marca de P6 solo se crea desde run_confirmatory, tras sus comprobaciones")
-    if marker.resolve() != (RUN_DIR / RUN_MARKER).resolve():
-        raise P6OutcomeGateError(f"la marca de P6 solo puede ser {RUN_DIR / RUN_MARKER}")
-    _CLEARANCES.discard(clearance)
-    try:
-        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-    except FileExistsError as exc:
-        raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({marker}); no se repite") from exc
-    _CREATED_MARKERS.add(marker.resolve())
-    return fd
-
-
-def build_confirmatory_token(marker: Path, payload: Mapping[str, Any]) -> ConfirmatoryToken:
-    if marker.resolve() not in _CREATED_MARKERS:
-        raise P6OutcomeGateError("solo el proceso que creó la marca en exclusiva puede obtener el token")
-    if not marker.is_file():
-        raise P6OutcomeGateError("la marca confirmatoria de P6 no existe")
-    observed = marker.read_text(encoding="utf-8")
-    if observed != json.dumps(payload, ensure_ascii=False, indent=2) + "\n":
-        raise P6OutcomeGateError("la marca confirmatoria de P6 no coincide con el payload escrito")
-    token = ConfirmatoryToken(marker, hashlib.sha256(observed.encode("utf-8")).hexdigest(), secrets.token_hex(32))
-    _ISSUED_TOKENS.add(token)
-    return token
+    return config, universe, stored, live
 
 
 def require_token(token: Optional[ConfirmatoryToken]) -> ConfirmatoryToken:
     if token is None:
         raise P6OutcomeGateError("P6: abrir desenlaces exige ConfirmatoryToken")
     if token not in _ISSUED_TOKENS:
-        raise P6OutcomeGateError("ConfirmatoryToken no emitido por build_confirmatory_token en este proceso")
+        raise P6OutcomeGateError("ConfirmatoryToken no emitido por la ejecución confirmatoria sellada en este proceso")
     expected = (RUN_DIR / RUN_MARKER).resolve()
     if token.marker_path.resolve() != expected:
         raise P6OutcomeGateError("ConfirmatoryToken apunta a una marca que no es la de P6")
@@ -276,13 +248,6 @@ def require_token(token: Optional[ConfirmatoryToken]) -> ConfirmatoryToken:
     if hashlib.sha256(token.marker_path.read_bytes()).hexdigest() != token.marker_payload_sha256:
         raise P6OutcomeGateError("ConfirmatoryToken no coincide con la marca en disco")
     return token
-
-
-def authorization(token: ConfirmatoryToken) -> Callable[[], None]:
-    def check() -> None:
-        require_token(token)
-
-    return check
 
 
 # ---------------------------------------------------------------------------
@@ -660,6 +625,8 @@ def build_real_signals(
     """Señales reales de una política cuya entrada cae en la ventana: abre desenlaces, exige el token."""
 
     require_token(token)
+    if (policy, population) not in {(p, pop) for _run, p, pop, _slip in RUNS}:
+        raise P6OutcomeGateError(f"P6: señales reales solo para corridas pre-registradas, no {policy}/{population}")
     cfg = policy_config(config, policy)
     resolver: PointInTimeContextResolver = _context_resolver(config, universe, vintage)
     window_cfg = config.horizonte(HORIZONTE)
@@ -1085,74 +1052,88 @@ def _run_metrics(result: Any, benchmark_paths: Mapping[float, Mapping[str, Any]]
     }
 
 
-def run_confirmatory(
-    config: AdvisorConfig,
-    universe: Universe,
-    ident: P6Identity,
-    out_dir: Path,
-) -> Tuple[int, str]:
-    if out_dir.resolve() != RUN_DIR.resolve():
-        raise P6PreflightError(f"la ejecución confirmatoria solo escribe en {RUN_DIR}")
-    marker = out_dir / RUN_MARKER
-    if marker.exists():
-        raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({marker}); no se repite")
-    if ident.git_dirty is not False:
-        raise P6PreflightError(f"árbol no limpio (git_dirty={ident.git_dirty})")
-    if ident.prereg_in_history is not True:
-        raise P6PreflightError("P6_PREREG_SHA no está en la historia de HEAD")
-    if out_dir.exists() and any(out_dir.iterdir()):
-        raise P6AlreadyExecutedError(f"{out_dir} no está vacío: P6 no se repite")
-    stored_path = PREFLIGHT_DIR / "p6-preflight.json"
-    if not stored_path.is_file():
-        raise P6PreflightError("falta el preflight definitivo")
-    stored = json.loads(stored_path.read_text(encoding="utf-8"))
-    if not (stored.get("ok") is True and stored.get("definitivo") is True):
-        raise P6PreflightError("el preflight guardado no es definitivo y correcto")
-    executor = str(stored["identidad"]["p6_executor_sha"])
-    if not executor_unchanged_since(executor, "."):
-        raise P6PreflightError(f"el ejecutor cambió desde el preflight definitivo ({executor})")
-    ok, preflight = run_preflight(config, universe, load_structure(), ident, write=False,
-                                  determinism=synthetic_determinism())
-    if not ok:
-        return 2, format_preflight(preflight) + "PREFLIGHT FALLIDO: P6 NO SE EJECUTA.\n"
-    if canonical_json(preflight_fingerprint(preflight)) != canonical_json(preflight_fingerprint(stored)):
-        return 2, "STOP: el preflight interno no coincide con el definitivo guardado. P6 NO SE EJECUTA.\n"
-    # Los precios se cargan aquí, tras el preflight y antes de la marca: si la cosecha completa no
-    # reproduce la ventana del preflight, P6 se detiene sin consumir su única ejecución.
+def _preregistered_specs(config: AdvisorConfig, hashes: Mapping[str, Mapping[str, str]]) -> FrozenSet[SimSpec]:
+    """Los 9 SimSpec del contrato congelado (7 corridas + 2 benchmarks) con los hashes del preflight."""
+
+    specs = {
+        SimSpec(run_id, hashes[run_id]["system_sha256"], capital=CAPITAL, slippage_bps=slippage,
+                risk_pct=config.portfolio.risk_per_trade_pct, max_position_pct=config.portfolio.max_position_pct,
+                min_rr=config.risk.min_rr_ratio)
+        for run_id, _policy, _population, slippage in RUNS
+    }
+    specs |= {SimSpec("benchmark", hashes[run_id]["benchmark_sha256"], capital=CAPITAL, slippage_bps=slippage)
+              for run_id, slippage in BENCHMARK_RUNS}
+    return frozenset(specs)
+
+
+def _spec_guard(allowed: FrozenSet[SimSpec]) -> Callable[[SimSpec], None]:
+    """Rechaza cualquier SimSpec que no sea exactamente uno de los pre-registrados."""
+
+    def check(spec: SimSpec) -> None:
+        if spec not in allowed:
+            raise P6OutcomeGateError(f"P6: SimSpec no pre-registrado ({spec.policy_id}, {spec.system_sha256[:12]}…)")
+
+    return check
+
+
+def _ejecutar_confirmatoria_sellada() -> Tuple[int, str]:
+    """Único camino que abre desenlaces: apertura y corridas pre-registradas, sin argumentos.
+
+    1. autorización reconstruida desde disco y preflight recalculado (_verified_authorization);
+    2. cosecha completa y ventana idéntica a la del preflight (si no, para sin consumir la marca);
+    3. payload canónico de la marca calculado aquí con los hashes del preflight definitivo verificado;
+    4. marca en RUN_DIR/RUN_MARKER con O_CREAT|O_EXCL;
+    5. token atado al sha256 de ese payload, que no sale de esta función;
+    6. solo las 9 corridas pre-registradas: la autorización exige el token y que el SimSpec sea uno de ellos.
+    """
+
+    config, universe, stored, live = _verified_authorization()
     vintage = load_full_vintage()
     window = derive_window(config, universe, vintage_index(vintage))
-    if window.as_dict() != preflight["ventana"]:
-        return 2, "STOP: la cosecha completa no reproduce la ventana del preflight. P6 NO SE EJECUTA.\n"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    if any(out_dir.iterdir()):
-        raise P6AlreadyExecutedError(f"{out_dir} no está vacío")
+    if window.as_dict() != live["ventana"]:
+        raise P6PreflightError("la cosecha completa no reproduce la ventana del preflight; P6 no se ejecuta")
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
+    if any(RUN_DIR.iterdir()):
+        raise P6AlreadyExecutedError(f"{RUN_DIR} no está vacío: P6 no se repite")
+    hashes: Dict[str, Dict[str, str]] = stored["system_hashes"]
     payload = {
         "inicio_utc": utc_now(),
         "p6_prereg_sha": P6_PREREG_SHA,
-        "p6_code_sha_preflight": executor,
-        "head_sha": ident.head_sha,
+        "p6_code_sha_preflight": stored["identidad"]["p6_executor_sha"],
+        "head_sha": git_sha("."),
         "p6_data_id": P6_DATA_ID,
-        "ventana": preflight["ventana"],
-        "system_hashes": preflight["system_hashes"],
+        "ventana": stored["ventana"],
+        "system_hashes": {run_id: hashes[run_id]["system_sha256"] for run_id, *_ in RUNS},
+        "benchmark_hashes": {run_id: hashes[run_id]["benchmark_sha256"] for run_id, _ in BENCHMARK_RUNS},
         "label": UNIVERSE_LABEL,
     }
-    # La autorización no usa nada de lo calculado aquí: lo reconstruye desde disco y lo recalcula.
-    fd = create_marker_exclusive(marker, _issue_clearance())
+    text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    marker = RUN_DIR / RUN_MARKER
+    try:
+        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    except FileExistsError as exc:
+        raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({marker}); no se repite") from exc
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
-        token = build_confirmatory_token(marker, payload)
+            handle.write(text)
+        token = ConfirmatoryToken(marker, hashlib.sha256(text.encode("utf-8")).hexdigest(), secrets.token_hex(32))
+        _ISSUED_TOKENS.add(token)
+        guard = _spec_guard(_preregistered_specs(config, hashes))
+
+        def authorize(spec: SimSpec) -> None:
+            require_token(token)
+            guard(spec)
+
         fx, _ = load_fx()
         sectors = load_sector_map()
         market = build_real_market(token, config, universe, vintage, window, sectors)
-        hashes = preflight["system_hashes"]
         bench: Dict[float, Any] = {}
         bench_paths: Dict[float, Dict[str, Any]] = {}
-        tables = out_dir / "tablas"
+        tables = RUN_DIR / "tablas"
         tables.mkdir(parents=True, exist_ok=True)
         for run_id, slippage in BENCHMARK_RUNS:
             spec = SimSpec("benchmark", hashes[run_id]["benchmark_sha256"], capital=CAPITAL, slippage_bps=slippage)
-            bench[slippage] = simulate_benchmark(market, fx, spec, authorize=authorization(token))
+            bench[slippage] = simulate_benchmark(market, fx, spec, authorize=authorize)
             series = equity_series(CAPITAL, window.start, bench[slippage].snapshots)
             bench_paths[slippage] = path_metrics(series, expected_ppy=window.periods_per_year)
             (tables / f"{run_id}-ledger.csv").write_text(ledger_csv(bench[slippage].ledger), encoding="utf-8")
@@ -1165,7 +1146,7 @@ def run_confirmatory(
             spec = SimSpec(run_id, hashes[run_id]["system_sha256"], capital=CAPITAL, slippage_bps=slippage,
                            risk_pct=config.portfolio.risk_per_trade_pct, max_position_pct=config.portfolio.max_position_pct,
                            min_rr=config.risk.min_rr_ratio)
-            result = simulate(market, signals, fx, spec, authorize=authorization(token))
+            result = simulate(market, signals, fx, spec, authorize=authorize)
             results[run_id] = _run_metrics(result, bench_paths, slippage, window.periods_per_year)
             (tables / f"{run_id}-ledger.csv").write_text(ledger_csv(result.ledger), encoding="utf-8")
             (tables / f"{run_id}-operaciones.csv").write_text(trades_csv(result.trades), encoding="utf-8")
@@ -1184,15 +1165,40 @@ def run_confirmatory(
             "supervivientes": list(survivors(labels)),
             "fin_utc": utc_now(),
         }
-        write_json(out_dir / "p6-resultado.json", output)
+        write_json(RUN_DIR / "p6-resultado.json", output)
         summary = "# P6 confirmatoria\n\n" + "".join(f"- {p}: {labels[p]}\n" for p in CANDIDATES) + (
             f"- supervivientes: {', '.join(output['supervivientes']) or 'ninguno'}\n")
-        (out_dir / "p6-resumen.md").write_text(summary, encoding="utf-8")
+        (RUN_DIR / "p6-resumen.md").write_text(summary, encoding="utf-8")
         return 0, summary
     except BaseException as exc:
-        write_json(out_dir / "p6-parada.json", {"fase": "confirmatoria", "parada": type(exc).__name__,
+        write_json(RUN_DIR / "p6-parada.json", {"fase": "confirmatoria", "parada": type(exc).__name__,
                                                 "detalle": str(exc), "fin_utc": utc_now()})
         if not isinstance(exc, Exception):
             raise
         return 2, f"STOP P6 confirmatoria: {type(exc).__name__}: {exc}\n"
 
+
+def run_confirmatory(
+    config: AdvisorConfig,
+    universe: Universe,
+    ident: P6Identity,
+    out_dir: Path,
+) -> Tuple[int, str]:
+    """Ejecución confirmatoria única. Devuelve solo código y resumen, nunca el token.
+
+    ``config``, ``universe`` e ``ident`` solo sirven para rechazar pronto un estado imposible; todo lo
+    que decide la ejecución lo reconstruye _ejecutar_confirmatoria_sellada desde las fuentes de verdad.
+    """
+
+    del config, universe
+    if out_dir.resolve() != RUN_DIR.resolve():
+        raise P6PreflightError(f"la ejecución confirmatoria solo escribe en {RUN_DIR}")
+    if (RUN_DIR / RUN_MARKER).exists():
+        raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({RUN_DIR / RUN_MARKER}); no se repite")
+    if ident.git_dirty is not False:
+        raise P6PreflightError(f"árbol no limpio (git_dirty={ident.git_dirty})")
+    if ident.prereg_in_history is not True:
+        raise P6PreflightError("P6_PREREG_SHA no está en la historia de HEAD")
+    if RUN_DIR.exists() and any(RUN_DIR.iterdir()):
+        raise P6AlreadyExecutedError(f"{RUN_DIR} no está vacío: P6 no se repite")
+    return _ejecutar_confirmatoria_sellada()
