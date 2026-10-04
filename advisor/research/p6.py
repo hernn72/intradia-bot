@@ -756,11 +756,16 @@ def guard_checks(config: AdvisorConfig, universe: Universe, window: Window) -> L
                 lambda: build_real_market(cast(Any, None), config, universe, vintage, window, {}, frozenset()))
     expect_gate("build_real_signals sin token", lambda: build_real_signals(cast(Any, None), config, universe, vintage, "B2", POPULATION_OPERAR, window))
     expect_gate("build_real_signals con token fabricado", lambda: build_real_signals(fake, config, universe, vintage, "B2", POPULATION_OPERAR, window))
-    empty_real = MarketData(assets={}, window_start=window.start, window_end=window.end, origin=ORIGIN_REAL)
     fx_stub = FxTable({})
     spec = SimSpec("guarda", "0" * 64)
-    expect_gate("simulate con datos reales sin autorización", lambda: simulate(empty_real, [], fx_stub, spec))
-    expect_gate("simulate_benchmark con datos reales sin autorización", lambda: simulate_benchmark(empty_real, fx_stub, spec))
+
+    def empty_real() -> MarketData:
+        return MarketData(assets={}, window_start=window.start, window_end=window.end, origin=ORIGIN_REAL,
+                          contract=frozenset({spec}))
+
+    expect_gate("simulate con datos reales sin autorización", lambda: simulate(empty_real(), [], fx_stub, spec))
+    expect_gate("simulate_benchmark con datos reales sin autorización",
+                lambda: simulate_benchmark(empty_real(), fx_stub, spec))
     checks.append(("marca confirmatoria ausente", (RUN_DIR / RUN_MARKER).exists(), False, not (RUN_DIR / RUN_MARKER).exists()))
     return checks
 

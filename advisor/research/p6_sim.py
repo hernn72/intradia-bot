@@ -138,9 +138,18 @@ class AssetSeries:
         return [i for i, day in enumerate(self.session_dates) if start <= day <= end]
 
 
+def _require_live_confirmatory() -> None:
+    """Datos reales solo dentro de la ejecución confirmatoria sellada de P6, con su token vigente."""
+
+    from advisor.research import p6  # diferido: p6 importa este módulo
+
+    p6.require_token(p6._ACTIVE_TOKEN)
+
+
 @dataclass(frozen=True)
 class MarketData:
-    """Datos de mercado. Con ``origin == "real"`` llevan el contrato inmutable de corridas autorizadas."""
+    """Datos de mercado. Con ``origin == "real"`` llevan el contrato inmutable de corridas autorizadas
+    y solo pueden construirse mientras corre la ejecución confirmatoria sellada."""
 
     assets: Mapping[str, AssetSeries]
     window_start: date
@@ -157,6 +166,10 @@ class MarketData:
             isinstance(self.contract, frozenset) and all(isinstance(spec, SimSpec) for spec in self.contract)
         ):
             raise P6OutcomeGateError("el contrato de corridas debe ser un frozenset de SimSpec")
+        if self.origin == ORIGIN_REAL:
+            if not self.contract:
+                raise P6OutcomeGateError("P6: datos reales sin contrato de corridas pre-registradas")
+            _require_live_confirmatory()
 
 
 @dataclass(frozen=True)
@@ -340,7 +353,7 @@ class _Event:
 
 
 def _require_authorization(market: MarketData, authorize: Optional[Callable[[SimSpec], None]], spec: SimSpec) -> None:
-    """Datos reales → contrato presente → spec idéntico a una entrada → autorización vigente.
+    """Datos reales → ejecución sellada en curso → contrato presente → spec idéntico → autorización.
 
     El motor comprueba el contrato por sí mismo: una autorización del llamador no basta para simular un
     spec que difiera en un solo campo de los pre-registrados. Los datos sintéticos admiten specs libres.
@@ -348,6 +361,7 @@ def _require_authorization(market: MarketData, authorize: Optional[Callable[[Sim
 
     if market.origin != ORIGIN_REAL:
         return
+    _require_live_confirmatory()
     if not market.contract:
         raise P6OutcomeGateError("P6: datos reales sin contrato de corridas pre-registradas")
     if spec not in market.contract:

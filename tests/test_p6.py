@@ -611,11 +611,11 @@ def test_regresion_p4_p5_y_motor_intactos() -> None:
 
 
 def test_guarda_datos_reales_sin_autorizacion() -> None:
-    real = sim.MarketData({}, date(2024, 1, 1), date(2024, 1, 2), origin=sim.ORIGIN_REAL)
-    with pytest.raises(sim.P6OutcomeGateError):
-        sim.simulate(real, [], EUR, spec())
-    with pytest.raises(sim.P6OutcomeGateError):
-        sim.simulate_benchmark(real, EUR, spec())
+    """Fuera de la ejecución sellada no se pueden ni construir datos reales, con o sin contrato."""
+
+    for contract in (None, frozenset({spec()})):
+        with pytest.raises(sim.P6OutcomeGateError):
+            sim.MarketData({}, date(2024, 1, 1), date(2024, 1, 2), origin=sim.ORIGIN_REAL, contract=contract)
 
 
 def _frozen_report(**extra: Any) -> Dict[str, Any]:
@@ -904,11 +904,10 @@ def test_s04_token_fabricado_no_vale(tmp_path: Path, monkeypatch: pytest.MonkeyP
     for fake in (p6.ConfirmatoryToken(marker, digest), p6.ConfirmatoryToken(marker, digest, "0" * 64)):
         with pytest.raises(sim.P6OutcomeGateError):
             p6.require_token(fake)
-    # El motor no acepta datos reales con una autorización que no salga del flujo sellado.
-    market = replace(p6.synthetic_market()[0], origin=sim.ORIGIN_REAL)
+    # Terminada la ejecución, no se pueden construir datos reales, ni con un contrato propio.
     with pytest.raises(sim.P6OutcomeGateError):
-        sim.simulate(market, [], EUR, sim.SimSpec("B2_primaria_5pb", "0" * 64),
-                     authorize=lambda spec: p6.require_token(p6.ConfirmatoryToken(marker, digest)))
+        replace(p6.synthetic_market()[0], origin=sim.ORIGIN_REAL,
+                contract=frozenset({sim.SimSpec("B2", "0" * 64)}))
 
 
 def test_s05_s07_no_se_aceptan_payload_preflight_ni_ventana() -> None:
@@ -1170,12 +1169,9 @@ def test_s21_token_revocado_al_terminar(tmp_path: Path, monkeypatch: pytest.Monk
     assert p6._ACTIVE_TOKEN is None
     with pytest.raises(sim.P6OutcomeGateError, match="no vigente"):
         p6.require_token(token)
-    market = replace(p6.synthetic_market()[0], origin=sim.ORIGIN_REAL)
     for spec in (sim.SimSpec("B2_exploratoria", "0" * 64), sim.SimSpec("benchmark", "0" * 64)):
         with pytest.raises(sim.P6OutcomeGateError):
-            sim.simulate(market, [], EUR, spec, authorize=lambda _spec: p6.require_token(token))
-        with pytest.raises(sim.P6OutcomeGateError):
-            sim.simulate_benchmark(market, EUR, spec, authorize=lambda _spec: p6.require_token(token))
+            replace(p6.synthetic_market()[0], origin=sim.ORIGIN_REAL, contract=frozenset({spec}))
 
 
 @pytest.mark.parametrize("parcial", [False, True])
@@ -1216,6 +1212,24 @@ def test_s22_fallo_al_escribir_la_marca(tmp_path: Path, monkeypatch: pytest.Monk
 # ---------------------------------------------------------------------------
 
 
+def _live_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> p6.ConfirmatoryToken:
+    """Simula, solo en tests, una ejecución sellada en curso: marca en tmp y token vigente."""
+
+    run_dir = tmp_path / "run-viva"
+    run_dir.mkdir(exist_ok=True)
+    marker = run_dir / p6.RUN_MARKER
+    marker.write_text("{}\n", encoding="utf-8")
+    token = p6.ConfirmatoryToken(marker, hashlib.sha256(marker.read_bytes()).hexdigest(), "t" * 64)
+    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
+    monkeypatch.setattr(p6, "_ACTIVE_TOKEN", token)
+    return token
+
+
+@pytest.fixture
+def live(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> p6.ConfirmatoryToken:
+    return _live_run(tmp_path, monkeypatch)
+
+
 def _contract_market() -> Tuple[sim.MarketData, FrozenSet[sim.SimSpec], Dict[str, sim.SimSpec]]:
     config = load_config("config.yaml")
     m, _fx, _signals = p6.synthetic_market()
@@ -1229,7 +1243,7 @@ def _allow(_spec: sim.SimSpec) -> None:
     """Autorización permisiva: aísla la comprobación propia del contrato en p6_sim."""
 
 
-def test_c01_contrato_spec_exacto_valido_y_completo() -> None:
+def test_c01_contrato_spec_exacto_valido_y_completo(live: p6.ConfirmatoryToken) -> None:
     """(1) Datos reales + spec exacto B2 primaria → válido; el contrato fija las 9 identidades."""
 
     market, contract, by_run = _contract_market()
@@ -1255,7 +1269,7 @@ def test_c01_contrato_spec_exacto_valido_y_completo() -> None:
     ("max_hold_bars", 60),                             # (10)
     ("run_id", "B2_exploratoria"),
 ])
-def test_c02_c10_un_solo_campo_distinto_se_rechaza(campo: str, valor: Any) -> None:
+def test_c02_c10_un_solo_campo_distinto_se_rechaza(live: p6.ConfirmatoryToken, campo: str, valor: Any) -> None:
     """(2–10) Con autorización permisiva, p6_sim rechaza un spec que difiera en un solo campo."""
 
     market, _contract, by_run = _contract_market()
@@ -1264,7 +1278,7 @@ def test_c02_c10_un_solo_campo_distinto_se_rechaza(campo: str, valor: Any) -> No
         sim.simulate(market, [], EUR, bad, authorize=_allow)
 
 
-def test_c11_c12_spec_y_benchmark_inventados() -> None:
+def test_c11_c12_spec_y_benchmark_inventados(live: p6.ConfirmatoryToken) -> None:
     market, _contract, by_run = _contract_market()
     with pytest.raises(sim.P6OutcomeGateError, match="no pre-registrado"):
         sim.simulate(market, [], EUR, sim.SimSpec("B2", "0" * 64), authorize=_allow)
@@ -1274,21 +1288,20 @@ def test_c11_c12_spec_y_benchmark_inventados() -> None:
             sim.simulate_benchmark(market, EUR, bad, authorize=_allow)
 
 
-def test_c13_autorizacion_valida_no_basta_sin_contrato() -> None:
+def test_c13_autorizacion_valida_no_basta_sin_contrato(live: p6.ConfirmatoryToken) -> None:
     """(13) Autorización que acepta todo + spec no registrado → rechazo; real sin contrato → rechazo."""
 
     market, _contract, _by_run = _contract_market()
     with pytest.raises(sim.P6OutcomeGateError, match="no pre-registrado"):
         sim.simulate(market, [], EUR, sim.SimSpec("C0", "1" * 64), authorize=_allow)
-    sin_contrato = replace(market, contract=None)
     with pytest.raises(sim.P6OutcomeGateError, match="sin contrato"):
-        sim.simulate(sin_contrato, [], EUR, sim.SimSpec("C0", "1" * 64), authorize=_allow)
+        replace(market, contract=None)
     with pytest.raises(sim.P6OutcomeGateError):
         replace(market, contract=frozenset({"no es un SimSpec"}))  # type: ignore[arg-type]
 
 
-def test_c14_spec_registrado_sin_autorizacion_vigente() -> None:
-    """(14) Spec del contrato pero sin autorización, o con un token no vigente → rechazo."""
+def test_c14_spec_registrado_sin_autorizacion_vigente(live: p6.ConfirmatoryToken) -> None:
+    """(14) Spec del contrato pero sin autorización, con un token no vigente o ya sin ejecución → rechazo."""
 
     market, _contract, by_run = _contract_market()
     spec = by_run["S2_primaria_5pb"]
@@ -1297,6 +1310,10 @@ def test_c14_spec_registrado_sin_autorizacion_vigente() -> None:
     stale = p6.ConfirmatoryToken(p6.RUN_DIR / p6.RUN_MARKER, "0" * 64, "0" * 64)
     with pytest.raises(sim.P6OutcomeGateError):
         sim.simulate(market, [], EUR, spec, authorize=lambda _s: p6.require_token(stale))
+    # Acabada la ejecución (token revocado), el motor rechaza incluso los datos ya construidos.
+    p6._ACTIVE_TOKEN = None
+    with pytest.raises(sim.P6OutcomeGateError):
+        sim.simulate(market, [], EUR, spec, authorize=_allow)
 
 
 def test_c15_sinteticos_sin_contrato_admiten_specs_libres() -> None:
