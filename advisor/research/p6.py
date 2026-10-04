@@ -145,10 +145,10 @@ class ConfirmatoryToken:
     nonce: str = ""
 
 
-# Tokens emitidos en este proceso. Solo _ejecutar_confirmatoria_sellada crea uno, después de crear la
-# marca en exclusiva con el payload canónico que calcula ella misma; el token no sale de esa función.
-# No hay piezas sueltas (autorización, marca, token) que un llamador pueda encadenar.
-_ISSUED_TOKENS: set[ConfirmatoryToken] = set()
+# Token vigente: solo existe mientras corre _ejecutar_confirmatoria_sellada, que lo crea tras escribir
+# y verificar la marca y lo revoca en un finally (también si falla). No hay registro de tokens emitidos
+# ni piezas sueltas (autorización, marca, token) que un llamador pueda encadenar o reutilizar después.
+_ACTIVE_TOKEN: Optional[ConfirmatoryToken] = None
 
 
 def _deny(reason: str) -> NoReturn:
@@ -238,8 +238,8 @@ def _verified_authorization() -> Tuple[AdvisorConfig, Universe, Dict[str, Any], 
 def require_token(token: Optional[ConfirmatoryToken]) -> ConfirmatoryToken:
     if token is None:
         raise P6OutcomeGateError("P6: abrir desenlaces exige ConfirmatoryToken")
-    if token not in _ISSUED_TOKENS:
-        raise P6OutcomeGateError("ConfirmatoryToken no emitido por la ejecución confirmatoria sellada en este proceso")
+    if _ACTIVE_TOKEN is None or token != _ACTIVE_TOKEN:
+        raise P6OutcomeGateError("ConfirmatoryToken no vigente: solo vale durante la ejecución confirmatoria sellada")
     expected = (RUN_DIR / RUN_MARKER).resolve()
     if token.marker_path.resolve() != expected:
         raise P6OutcomeGateError("ConfirmatoryToken apunta a una marca que no es la de P6")
@@ -1107,17 +1107,28 @@ def _ejecutar_confirmatoria_sellada() -> Tuple[int, str]:
         "benchmark_hashes": {run_id: hashes[run_id]["benchmark_sha256"] for run_id, _ in BENCHMARK_RUNS},
         "label": UNIVERSE_LABEL,
     }
-    text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    data = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    payload_sha256 = hashlib.sha256(data).hexdigest()
     marker = RUN_DIR / RUN_MARKER
     try:
         fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
     except FileExistsError as exc:
         raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({marker}); no se repite") from exc
+    # Desde aquí la ejecución está consumida. Si la marca no queda completa, la parada guarda el payload
+    # canónico íntegro y su sha256, para que la evidencia de inicio no dependa de la marca parcial.
+    written = 0
+    global _ACTIVE_TOKEN
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(text)
-        token = ConfirmatoryToken(marker, hashlib.sha256(text.encode("utf-8")).hexdigest(), secrets.token_hex(32))
-        _ISSUED_TOKENS.add(token)
+        try:
+            while written < len(data):
+                written += os.write(fd, data[written:])
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        if marker.read_bytes() != data:
+            raise P6OutcomeGateError("la marca escrita no coincide con el payload canónico")
+        token = ConfirmatoryToken(marker, payload_sha256, secrets.token_hex(32))
+        _ACTIVE_TOKEN = token
         guard = _spec_guard(_preregistered_specs(config, hashes))
 
         def authorize(spec: SimSpec) -> None:
@@ -1171,11 +1182,16 @@ def _ejecutar_confirmatoria_sellada() -> Tuple[int, str]:
         (RUN_DIR / "p6-resumen.md").write_text(summary, encoding="utf-8")
         return 0, summary
     except BaseException as exc:
-        write_json(RUN_DIR / "p6-parada.json", {"fase": "confirmatoria", "parada": type(exc).__name__,
-                                                "detalle": str(exc), "fin_utc": utc_now()})
+        write_json(RUN_DIR / "p6-parada.json", {
+            "fase": "confirmatoria", "parada": type(exc).__name__, "detalle": str(exc), "fin_utc": utc_now(),
+            "marca": {"payload_canonico": payload, "payload_sha256": payload_sha256,
+                      "bytes_escritos": written, "bytes_esperados": len(data)},
+        })
         if not isinstance(exc, Exception):
             raise
         return 2, f"STOP P6 confirmatoria: {type(exc).__name__}: {exc}\n"
+    finally:
+        _ACTIVE_TOKEN = None
 
 
 def run_confirmatory(

@@ -887,7 +887,7 @@ def test_s01_s03_no_existen_piezas_componibles() -> None:
     """(1–3) _issue_clearance, create_marker_exclusive y build_confirmatory_token ya no existen."""
 
     for name in ("_issue_clearance", "create_marker_exclusive", "build_confirmatory_token", "authorization",
-                 "_abrir_confirmatoria", "_CLEARANCES", "_CREATED_MARKERS"):
+                 "_abrir_confirmatoria", "_CLEARANCES", "_CREATED_MARKERS", "_ISSUED_TOKENS"):
         assert not hasattr(p6, name), name
 
 
@@ -1145,3 +1145,64 @@ def test_humo_flujo_sellado_con_constructores_reales_sobre_cosecha_sintetica(
     assert result["senales"]["B2_primaria_5pb"].get("no_operar", 0) > 0
     ledger = (run_dir / "tablas" / "benchmark_5pb-ledger.csv").read_text(encoding="utf-8")
     assert "BH_SELL_FINAL" in ledger
+
+
+
+@pytest.mark.parametrize("fail_signals", [False, True])
+def test_s21_token_revocado_al_terminar(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fail_signals: bool) -> None:
+    """El token no se puede reutilizar tras la ejecución (bien o con error), ni con una autorización propia."""
+
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch, fail_signals=fail_signals)
+    captured: List[Any] = []
+    real_fake_market = p6.build_real_market
+
+    def capture(token: Any, *a: Any, **k: Any) -> sim.MarketData:
+        captured.append(token)
+        return real_fake_market(token, *a, **k)
+
+    monkeypatch.setattr(p6, "build_real_market", capture)
+    code, _text = _run(config, ident, run_dir)
+    assert code == (2 if fail_signals else 0) and len(captured) == 1
+    token = captured[0]
+    assert p6._ACTIVE_TOKEN is None
+    with pytest.raises(sim.P6OutcomeGateError, match="no vigente"):
+        p6.require_token(token)
+    market = replace(p6.synthetic_market()[0], origin=sim.ORIGIN_REAL)
+    for spec in (sim.SimSpec("B2_exploratoria", "0" * 64), sim.SimSpec("benchmark", "0" * 64)):
+        with pytest.raises(sim.P6OutcomeGateError):
+            sim.simulate(market, [], EUR, spec, authorize=lambda _spec: p6.require_token(token))
+        with pytest.raises(sim.P6OutcomeGateError):
+            sim.simulate_benchmark(market, EUR, spec, authorize=lambda _spec: p6.require_token(token))
+
+
+@pytest.mark.parametrize("parcial", [False, True])
+def test_s22_fallo_al_escribir_la_marca(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, parcial: bool) -> None:
+    """Un fallo entre O_EXCL y la escritura consume la ejecución y la parada guarda el payload canónico."""
+
+    import os as os_module
+
+    run_dir, config, ident, report = _sealed_env(tmp_path, monkeypatch)
+    real_write = os_module.write
+    calls: List[int] = []
+
+    def failing_write(fd: int, data: bytes) -> int:
+        calls.append(len(data))
+        if parcial and len(calls) == 1:
+            return real_write(fd, data[: len(data) // 2])
+        raise OSError("disco lleno (inyectado)")
+
+    monkeypatch.setattr(p6.os, "write", failing_write)
+    code, text = _run(config, ident, run_dir)
+    monkeypatch.setattr(p6.os, "write", real_write)
+    assert code == 2 and "disco lleno" in text
+    marker = run_dir / p6.RUN_MARKER
+    assert marker.is_file() and p6._ACTIVE_TOKEN is None
+    stop = json.loads((run_dir / "p6-parada.json").read_text(encoding="utf-8"))
+    canonical = stop["marca"]["payload_canonico"]
+    expected = (json.dumps(canonical, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    assert stop["marca"]["payload_sha256"] == hashlib.sha256(expected).hexdigest()
+    assert stop["marca"]["bytes_escritos"] == len(marker.read_bytes()) < stop["marca"]["bytes_esperados"]
+    assert canonical["ventana"] == report["ventana"] and canonical["p6_data_id"] == p6.P6_DATA_ID
+    assert not (run_dir / "p6-resultado.json").exists()
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        _run(config, ident, run_dir)
