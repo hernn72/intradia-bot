@@ -7,5 +7,8 @@
 - simulate_benchmark con datos reales sin autorización: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
 - marca confirmatoria ausente: observado=False esperado=False ok=True
 
-Además (tests): la marca solo se crea con la autorización interna de run_confirmatory; el token solo lo
-emite el proceso que creó la marca en exclusiva, con nonce; el motor rechaza datos reales sin autorización.
+Las funciones reciben una cosecha nula: la guarda salta antes de tocarla; cualquier otro error deja el control en rojo.
+El preflight no carga la cosecha de precios (load_vintage/build_views): test_preflight_real_sin_cargar_precios lo
+comprueba con esas funciones prohibidas. Además (tests): la marca solo se crea en RUN_DIR/RUN_MARKER con la
+autorización de run_confirmatory, que revalida sus precondiciones; el token solo lo emite el proceso que creó la
+marca en exclusiva, con nonce; el motor rechaza datos reales sin autorización.

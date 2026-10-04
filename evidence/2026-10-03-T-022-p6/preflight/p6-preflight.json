@@ -2,13 +2,14 @@
   "fase": "preflight",
   "modo": "DEFINITIVO",
   "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
-  "inicio_utc": "2026-10-03T16:20:13.519358+00:00",
+  "inicio_utc": "2026-10-04T08:23:45.596165+00:00",
   "new_p6_outcomes_read": false,
   "outcomes_leidos": "ninguno: solo identidades, fechas, calendario, FX y sector congelados",
+  "datos_de_mercado_leidos": "fechas y acciones corporativas verificadas (corporate_actions_hash) de toda la cosecha; los CSV se leen como texto y las columnas de precio solo sirven para descartar filas sin precio; únicamente Close y Adj Close de la víspera y la fecha ex de los activos con split y dividendo se convierten a número (T-022 §10.1); no se construye ninguna vista de precios",
   "p6_confirmatory_executed": false,
   "identidad": {
     "p6_prereg_sha": "03f04a42ea9d2be893e7c4cc09de76bd1c55778b",
-    "p6_executor_sha": "d4f213b866006069708f24c056c5a6a542d2685c",
+    "p6_executor_sha": "6ef1aa951f571e83067b12334318d64bdc5378e0",
     "git_dirty": false,
     "prereg_en_historia": true,
     "p6_data_id": "572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383",
@@ -97,6 +98,127 @@
     "benchmark_10pb": {
       "benchmark_sha256": "a4e552abf5c8981083928ed50ab84f51a59a4ce01e43b13aa4e701a4c45ce332",
       "slippage_pb": "10.0"
+    }
+  },
+  "dividendos_splits": {
+    "tolerancia": 1e-05,
+    "identidad": "r(d-1)/r(d) = 1 - D(d)/Close(d-1), r = Adj Close / Close",
+    "nota": "solo las fechas ex previas al último split de cada activo discriminan un dividendo sin ajustar; los activos sin ninguna no aportan comprobación. Close/Adj Close de esas filas no se verifican contra series_hash (Adj Close no está en ningún hash); load_vintage los verifica en la confirmatoria.",
+    "activos_con_split": {
+      "6501.T": {
+        "splits": 1,
+        "fechas_ex": 10,
+        "fechas_ex_previas_a_split": 6,
+        "residuo_max": 1.946e-07
+      },
+      "6758.T": {
+        "splits": 1,
+        "fechas_ex": 10,
+        "fechas_ex_previas_a_split": 6,
+        "residuo_max": 1.264e-07
+      },
+      "6857.T": {
+        "splits": 1,
+        "fechas_ex": 10,
+        "fechas_ex_previas_a_split": 4,
+        "residuo_max": 2.427e-07
+      },
+      "7011.T": {
+        "splits": 1,
+        "fechas_ex": 10,
+        "fechas_ex_previas_a_split": 5,
+        "residuo_max": 1.171e-07
+      },
+      "7203.T": {
+        "splits": 1,
+        "fechas_ex": 10,
+        "fechas_ex_previas_a_split": 0,
+        "residuo_max": 1.484e-07
+      },
+      "8035.T": {
+        "splits": 1,
+        "fechas_ex": 10,
+        "fechas_ex_previas_a_split": 3,
+        "residuo_max": 1.43e-07
+      },
+      "AMZN": {
+        "splits": 1,
+        "fechas_ex": 0,
+        "fechas_ex_previas_a_split": 0,
+        "residuo_max": null
+      },
+      "AVGO": {
+        "splits": 1,
+        "fechas_ex": 20,
+        "fechas_ex_previas_a_split": 12,
+        "residuo_max": 2.581e-07
+      },
+      "AZN": {
+        "splits": 1,
+        "fechas_ex": 9,
+        "fechas_ex_previas_a_split": 8,
+        "residuo_max": 9.914e-08
+      },
+      "CRWD": {
+        "splits": 1,
+        "fechas_ex": 0,
+        "fechas_ex_previas_a_split": 0,
+        "residuo_max": null
+      },
+      "GOOGL": {
+        "splits": 1,
+        "fechas_ex": 9,
+        "fechas_ex_previas_a_split": 0,
+        "residuo_max": 1.348e-07
+      },
+      "NFLX": {
+        "splits": 1,
+        "fechas_ex": 0,
+        "fechas_ex_previas_a_split": 0,
+        "residuo_max": null
+      },
+      "NOW": {
+        "splits": 1,
+        "fechas_ex": 0,
+        "fechas_ex_previas_a_split": 0,
+        "residuo_max": null
+      },
+      "NVDA": {
+        "splits": 1,
+        "fechas_ex": 20,
+        "fechas_ex_previas_a_split": 11,
+        "residuo_max": 2.56e-07
+      },
+      "PANW": {
+        "splits": 2,
+        "fechas_ex": 0,
+        "fechas_ex_previas_a_split": 0,
+        "residuo_max": null
+      },
+      "TSLA": {
+        "splits": 1,
+        "fechas_ex": 0,
+        "fechas_ex_previas_a_split": 0,
+        "residuo_max": null
+      }
+    },
+    "fuera_de_tolerancia": [],
+    "xetra_importe_no_redondo": [
+      "BSP.DE",
+      "EQQQ.DE",
+      "EXH1.DE",
+      "EXSA.DE",
+      "EXV1.DE",
+      "IQQK.DE",
+      "IQQT.DE",
+      "R6C0.DE",
+      "RRU.DE"
+    ],
+    "xetra_nota": "superconjunto: activos .DE con algún dividendo no redondo a 4 decimales, compatible con un importe convertido de otra divisa con un único tipo; incluye ETF que reparten en EUR con 6 decimales. No se corrige el dato (T-022 §10.1).",
+    "xetra_control": {
+      "simbolo": "R6C0.DE",
+      "tipo": 1.1587,
+      "ok": true
     }
   },
   "determinismo": {
@@ -273,6 +395,30 @@
       "ok": true
     },
     {
+      "control": "activos con split (16)",
+      "observado": 16,
+      "esperado": 16,
+      "ok": true
+    },
+    {
+      "control": "coherencia algebraica Dividends/splits (fechas ex fuera de tolerancia)",
+      "observado": 0,
+      "esperado": 0,
+      "ok": true
+    },
+    {
+      "control": "control R6C0.DE: importe × 1.1587 redondo a 4 decimales",
+      "observado": true,
+      "esperado": true,
+      "ok": true
+    },
+    {
+      "control": "lista Xetra contiene el control y los sospechosos de T-022",
+      "observado": [],
+      "esperado": [],
+      "ok": true
+    },
+    {
       "control": "build_real_market sin token",
       "observado": "P6OutcomeGateError",
       "esperado": "P6OutcomeGateError",
@@ -315,7 +461,7 @@
       "ok": true
     }
   ],
-  "fin_utc": "2026-10-03T16:20:13.519383+00:00",
+  "fin_utc": "2026-10-04T08:23:45.596187+00:00",
   "ok": true,
   "definitivo": true
 }

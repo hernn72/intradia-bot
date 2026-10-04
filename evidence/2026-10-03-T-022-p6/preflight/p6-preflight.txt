@@ -6,4 +6,4 @@ ventana: 2022-06-14 → 2026-08-27
 new_p6_outcomes_read: False
 label: condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
 
-Checks: 31/31 OK.
+Checks: 35/35 OK.

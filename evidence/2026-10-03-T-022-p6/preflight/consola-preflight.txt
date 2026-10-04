@@ -1,3 +1,4 @@
+$ .venv/bin/python -m advisor.main p6 --fase preflight
 # P6 preflight
 modo: DEFINITIVO
 ok: True
@@ -6,5 +7,5 @@ ventana: 2022-06-14 → 2026-08-27
 new_p6_outcomes_read: False
 label: condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
 
-Checks: 31/31 OK.
-código de salida: 0
+Checks: 35/35 OK.
+exit=0
