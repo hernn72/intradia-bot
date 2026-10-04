@@ -798,7 +798,6 @@ def cmd_p6(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) 
     from advisor.research import p6
 
     ident = p6.current_identity(config)
-    vintage = load_vintage(p6.DATA_VINTAGE_ID)
     if args.fase == "preflight":
         development = p6.development_mode()
         if not development and ident.git_dirty is not False:
@@ -807,12 +806,13 @@ def cmd_p6(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) 
                 f"para iterar sin escribir evidencia: {p6.DEVELOPMENT_ENV}=1"
             )
         ok, report = p6.run_preflight(
-            config, universe, vintage, ident, development=development, determinism=p6.synthetic_determinism()
+            config, universe, p6.load_structure(), ident, development=development,
+            determinism=p6.synthetic_determinism(),
         )
         print(p6.format_preflight(report), end="")
         return 0 if ok else 2
     try:
-        code, text = p6.run_confirmatory(config, universe, vintage, ident, p6.RUN_DIR)
+        code, text = p6.run_confirmatory(config, universe, ident, p6.RUN_DIR)
     except (p6.P6PreflightError, p6.P6AlreadyExecutedError) as exc:
         print(f"STOP: {exc}", file=sys.stderr)
         return 2

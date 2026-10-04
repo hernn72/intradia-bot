@@ -8,7 +8,9 @@ ratificadas. Este módulo contiene:
   ``EJECUCION_CONFIRMATORIA_P6_INICIADA``; sin token no se cargan precios reales, no se generan
   señales reales y el motor (``p6_sim``) se niega a simular datos reales;
 - la carga estructural (FX congelado, mapa sectorial, calendario, ventana) y ``system_sha256``;
-- el preflight, que **no abre ningún desenlace**;
+- el preflight, que **no abre ningún desenlace** ni carga la cosecha de precios: solo fechas y acciones
+  corporativas verificadas y, para la coherencia dividendo/split (T-022 §10.1), ``Close``/``Adj Close``
+  en la víspera y la fecha ex de los activos afectados;
 - la ejecución confirmatoria única, implementada pero que solo se lanza con autorización expresa.
 
 _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
@@ -69,7 +71,14 @@ from advisor.research.p6_sim import (
     trades_csv,
     turnover,
 )
-from advisor.research.vintage import VintageLoad, frozen_close
+from advisor.research.vintage import (
+    VintageLoad,
+    VintageStructure,
+    frozen_close,
+    load_price_rows,
+    load_vintage,
+    load_vintage_structure,
+)
 from advisor.run.git import git_sha
 from advisor.run.manifest import config_hash
 from advisor.universe.models import Universe
@@ -143,9 +152,23 @@ _ISSUED_TOKENS: set[ConfirmatoryToken] = set()
 _CLEARANCES: set[str] = set()
 
 
-def _issue_clearance() -> str:
-    """Solo la llama run_confirmatory, después de identidad, árbol, preflight, ejecutor y huella."""
+def _issue_clearance(stored: Mapping[str, Any], live: Mapping[str, Any]) -> str:
+    """Autorización de un solo uso para crear la marca.
 
+    Vuelve a comprobar sobre los informes que recibe las precondiciones que run_confirmatory ya
+    verificó (preflight guardado definitivo y correcto, preflight interno correcto, huellas idénticas,
+    marca ausente). Es una barrera contra el uso accidental, no contra código que fabrique los informes:
+    la garantía de ejecución única es la marca en la ruta fija creada con O_EXCL.
+    """
+
+    if not (stored.get("ok") is True and stored.get("definitivo") is True):
+        raise P6OutcomeGateError("autorización denegada: el preflight guardado no es definitivo y correcto")
+    if live.get("ok") is not True:
+        raise P6OutcomeGateError("autorización denegada: el preflight interno no es correcto")
+    if canonical_json(preflight_fingerprint(live)) != canonical_json(preflight_fingerprint(stored)):
+        raise P6OutcomeGateError("autorización denegada: el preflight interno no coincide con el definitivo")
+    if (RUN_DIR / RUN_MARKER).exists():
+        raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({RUN_DIR / RUN_MARKER}); no se repite")
     clearance = secrets.token_hex(32)
     _CLEARANCES.add(clearance)
     return clearance
@@ -154,6 +177,8 @@ def _issue_clearance() -> str:
 def create_marker_exclusive(marker: Path, clearance: str) -> int:
     if clearance not in _CLEARANCES:
         raise P6OutcomeGateError("la marca de P6 solo se crea desde run_confirmatory, tras sus comprobaciones")
+    if marker.resolve() != (RUN_DIR / RUN_MARKER).resolve():
+        raise P6OutcomeGateError(f"la marca de P6 solo puede ser {RUN_DIR / RUN_MARKER}")
     _CLEARANCES.discard(clearance)
     try:
         fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
@@ -340,8 +365,26 @@ class Window:
         }
 
 
-def derive_window(config: AdvisorConfig, universe: Universe, vintage: VintageLoad) -> Window:
-    """Regla de T-022 §7.9 (D-69 punto 13), solo con fechas de sesión."""
+def structure_index(structure: VintageStructure) -> Dict[str, pd.Index]:
+    return {symbol: frame.index for symbol, frame in structure.by_symbol.items()}
+
+
+def vintage_index(vintage: VintageLoad) -> Dict[str, pd.Index]:
+    return {symbol: views.execution_prices.index for symbol, views in vintage.by_symbol.items()}
+
+
+def load_structure() -> VintageStructure:
+    return load_vintage_structure(DATA_VINTAGE_ID)
+
+
+def load_full_vintage() -> VintageLoad:
+    """Cosecha con precios: solo la usa la ejecución confirmatoria, nunca el preflight."""
+
+    return load_vintage(DATA_VINTAGE_ID)
+
+
+def derive_window(config: AdvisorConfig, universe: Universe, index: Mapping[str, pd.Index]) -> Window:
+    """Regla de T-022 §7.9 (D-69 punto 13), solo con fechas de sesión (``index``: timestamps por símbolo)."""
 
     symbols = asset_list()
     dates: Dict[str, List[date]] = {}
@@ -350,14 +393,14 @@ def derive_window(config: AdvisorConfig, universe: Universe, vintage: VintageLoa
         asset = universe.get(symbol)
         if asset is None:
             raise P6PreflightError(f"{symbol} ausente del universo")
-        dates[symbol] = _local_dates(vintage.by_symbol[symbol].execution_prices.index, asset.timezone)
+        dates[symbol] = _local_dates(index[symbol], asset.timezone)
         markets[symbol] = mercado_para_simbolo(asset, symbol)
     first = min(days[0] for days in dates.values())
     initial = [symbol for symbol, days in dates.items() if days[0] == first]
     warmup_last = max(dates[symbol][WARMUP_BARS] for symbol in initial)
     trend_symbol = config.market_context.trend_symbol
     trend_market = market_for_symbol(trend_symbol)
-    trend_dates = _local_dates(vintage.by_symbol[trend_symbol].execution_prices.index, market_session(trend_market).timezone)
+    trend_dates = _local_dates(index[trend_symbol], market_session(trend_market).timezone)
     sma_session = trend_dates[TREND_SMA - 1]
     sma_available = session_close_at(trend_market, sma_session)
     if sma_available is None:
@@ -652,16 +695,24 @@ def development_mode() -> bool:
     return os.getenv(DEVELOPMENT_ENV) == "1"
 
 
-def guard_checks(config: AdvisorConfig, universe: Universe, vintage: VintageLoad, window: Window) -> List[Tuple[str, Any, Any, bool]]:
-    """Demuestra que sin token no se abre ningún desenlace (sin abrir ninguno)."""
+def guard_checks(config: AdvisorConfig, universe: Universe, window: Window) -> List[Tuple[str, Any, Any, bool]]:
+    """Demuestra que sin token no se abre ningún desenlace (sin abrir ninguno).
+
+    Las funciones reciben una cosecha nula: la guarda tiene que saltar antes de tocarla. Si no
+    saltara, el fallo sería otro error y el control queda en rojo.
+    """
 
     checks: List[Tuple[str, Any, Any, bool]] = []
+    vintage = cast(Any, None)
 
     def expect_gate(name: str, call: Callable[[], Any]) -> None:
         try:
             call()
         except P6OutcomeGateError:
             checks.append((name, "P6OutcomeGateError", "P6OutcomeGateError", True))
+            return
+        except Exception as exc:
+            checks.append((name, type(exc).__name__, "P6OutcomeGateError", False))
             return
         checks.append((name, "sin error", "P6OutcomeGateError", False))
 
@@ -676,6 +727,98 @@ def guard_checks(config: AdvisorConfig, universe: Universe, vintage: VintageLoad
     expect_gate("simulate_benchmark con datos reales sin autorización", lambda: simulate_benchmark(empty_real, fx_stub, spec))
     checks.append(("marca confirmatoria ausente", (RUN_DIR / RUN_MARKER).exists(), False, not (RUN_DIR / RUN_MARKER).exists()))
     return checks
+
+
+DIVIDEND_SPLIT_ASSETS = 16
+DIVIDEND_SPLIT_TOLERANCE = 1e-5
+# T-022 §10.1: R6C0.DE comprobado (importe × 1,1587 = dividendo en USD); el resto, sospechosos sin verificar.
+XETRA_FX_CONTROL = ("R6C0.DE", 1.1587)
+XETRA_FX_SUSPECTS = ("BSP.DE", "RRU.DE", "EQQQ.DE", "IQQK.DE", "IQQT.DE")
+
+
+def _not_round(amount: float, decimals: int) -> bool:
+    scaled = amount * 10**decimals
+    return abs(scaled - round(scaled)) > 1e-6
+
+
+def dividend_split_checks(
+    structure: VintageStructure,
+    price_rows: Callable[..., pd.DataFrame] = load_price_rows,
+) -> Tuple[List[Tuple[str, Any, Any, bool]], Dict[str, Any]]:
+    """T-022 §10.1 sin desenlaces: coherencia algebraica Dividends/splits y lista Xetra.
+
+    Yahoo construye ``Adj Close`` multiplicando, en cada fecha ex ``d``, por ``1 − D(d)/Close(d−1)``.
+    Con ``r = Adj Close / Close`` se cumple ``r(d−1)/r(d) = 1 − D(d)/Close(d−1)`` si ``Dividends`` está en
+    las mismas unidades (ajustadas por split) que ``Close``; con un dividendo sin ajustar el residuo
+    sería del orden del factor de split. Solo se leen la víspera y la fecha ex de esos activos.
+    """
+
+    checks: List[Tuple[str, Any, Any, bool]] = []
+    symbols = asset_list()
+    split_assets = [s for s in symbols if (structure.by_symbol[s]["Stock Splits"] != 0).any()]
+    checks.append((f"activos con split ({DIVIDEND_SPLIT_ASSETS})", len(split_assets), DIVIDEND_SPLIT_ASSETS,
+                   len(split_assets) == DIVIDEND_SPLIT_ASSETS))
+    per_asset: Dict[str, Any] = {}
+    violations: List[str] = []
+    for symbol in split_assets:
+        frame = structure.by_symbol[symbol]
+        ex_positions = [i for i, amount in enumerate(frame["Dividends"]) if amount > 0]
+        if ex_positions and ex_positions[0] == 0:
+            violations.append(f"{symbol} {frame.index[0]}: fecha ex sin víspera en la cosecha")
+            ex_positions = ex_positions[1:]
+        residuals: List[float] = []
+        if ex_positions:
+            stamps = sorted({frame.index[i] for i in ex_positions} | {frame.index[i - 1] for i in ex_positions})
+            rows = price_rows(structure.data_vintage_id, symbol, stamps, ("Close", "Adj Close"))
+            for i in ex_positions:
+                eve, ex = rows.loc[frame.index[i - 1]], rows.loc[frame.index[i]]
+                lhs = (eve["Adj Close"] / eve["Close"]) / (ex["Adj Close"] / ex["Close"])
+                rhs = 1.0 - float(frame["Dividends"].iloc[i]) / eve["Close"]
+                residual = abs(float(lhs - rhs))
+                residuals.append(residual)
+                if not residual <= DIVIDEND_SPLIT_TOLERANCE:
+                    violations.append(f"{symbol} {frame.index[i]}: residuo {residual:.3e}")
+        last_split = max(i for i, factor in enumerate(frame["Stock Splits"]) if factor != 0)
+        per_asset[symbol] = {
+            "splits": int((frame["Stock Splits"] != 0).sum()),
+            "fechas_ex": len(ex_positions),
+            # Solo estas discriminan: tras el último split, ajustado y sin ajustar dan el mismo importe.
+            "fechas_ex_previas_a_split": sum(1 for i in ex_positions if i < last_split),
+            "residuo_max": float(f"{max(residuals):.3e}") if residuals else None,
+        }
+    checks.append(("coherencia algebraica Dividends/splits (fechas ex fuera de tolerancia)", len(violations), 0,
+                   not violations))
+
+    not_round = []
+    for symbol in symbols:
+        if not symbol.endswith(".DE"):
+            continue
+        amounts = [float(v) for v in structure.by_symbol[symbol]["Dividends"] if v > 0]
+        if any(_not_round(amount, 4) for amount in amounts):
+            not_round.append(symbol)
+    control, rate = XETRA_FX_CONTROL
+    control_amounts = [float(v) for v in structure.by_symbol[control]["Dividends"] if v > 0]
+    # Yahoo redondea el importe convertido: tolerancia de 2·10⁻⁵ sobre el importe en USD a 4 decimales.
+    control_ok = bool(control_amounts) and all(abs(a * rate - round(a * rate, 4)) < 2e-5 for a in control_amounts)
+    checks.append((f"control {control}: importe × {rate} redondo a 4 decimales", control_ok, True, control_ok))
+    checks.append(("lista Xetra contiene el control y los sospechosos de T-022",
+                   sorted({control, *XETRA_FX_SUSPECTS} - set(not_round)), [],
+                   {control, *XETRA_FX_SUSPECTS} <= set(not_round)))
+    section = {
+        "tolerancia": DIVIDEND_SPLIT_TOLERANCE,
+        "identidad": "r(d-1)/r(d) = 1 - D(d)/Close(d-1), r = Adj Close / Close",
+        "nota": ("solo las fechas ex previas al último split de cada activo discriminan un dividendo sin ajustar; "
+                 "los activos sin ninguna no aportan comprobación. Close/Adj Close de esas filas no se verifican "
+                 "contra series_hash (Adj Close no está en ningún hash); load_vintage los verifica en la confirmatoria."),
+        "activos_con_split": per_asset,
+        "fuera_de_tolerancia": violations,
+        "xetra_importe_no_redondo": not_round,
+        "xetra_nota": ("superconjunto: activos .DE con algún dividendo no redondo a 4 decimales, compatible con "
+                       "un importe convertido de otra divisa con un único tipo; incluye ETF que reparten en EUR "
+                       "con 6 decimales. No se corrige el dato (T-022 §10.1)."),
+        "xetra_control": {"simbolo": control, "tipo": rate, "ok": control_ok},
+    }
+    return checks, section
 
 
 def synthetic_market() -> Tuple[MarketData, FxTable, List[Signal]]:
@@ -737,7 +880,7 @@ def synthetic_determinism() -> Dict[str, Any]:
 def run_preflight(
     config: AdvisorConfig,
     universe: Universe,
-    vintage: VintageLoad,
+    structure: VintageStructure,
     ident: P6Identity,
     *,
     development: bool = False,
@@ -753,7 +896,7 @@ def run_preflight(
     check("P6_PREREG_SHA en la historia", ident.prereg_in_history, True)
     check("config_hash", ident.config_hash, EXPECTED_CONFIG_HASH)
     check("score_model_version", ident.score_model_version, "1.0")
-    check("data_vintage_id", vintage.data_vintage_id, DATA_VINTAGE_ID)
+    check("data_vintage_id", structure.data_vintage_id, DATA_VINTAGE_ID)
     check("exchange_calendars", importlib.metadata.version("exchange_calendars"), EXCHANGE_CALENDARS_VERSION)
     check("tzdata", importlib.metadata.version("tzdata"), TZDATA_VERSION)
     check("exchange_overrides_sha256", sha256_file(Path("exchange_overrides.yaml")), EXCHANGE_OVERRIDES_SHA256)
@@ -772,13 +915,15 @@ def run_preflight(
     check("FX pares", fx_meta["pares"], ["HKD", "JPY", "USD"])
     sectors = load_sector_map()
     check("sector 90/90", sorted(sectors) == asset_list(), True)
-    window = derive_window(config, universe, vintage)
+    window = derive_window(config, universe, structure_index(structure))
     check("ventana inicio", window.start.isoformat(), "2022-06-14")
     check("ventana fin", window.end.isoformat(), "2026-08-27")
     hashes = system_hashes(config, window)
     check("9 identidades de corrida", len(hashes), 9)
     check("system_sha256 distintos", len({v.get("system_sha256") or v.get("benchmark_sha256") for v in hashes.values()}), 9)
-    checks.extend(guard_checks(config, universe, vintage, window))
+    dividend_checks, dividends_section = dividend_split_checks(structure)
+    checks.extend(dividend_checks)
+    checks.extend(guard_checks(config, universe, window))
     if determinism is not None:
         check("determinismo sintético byte a byte", determinism.get("identico"), True)
     report: Dict[str, Any] = {
@@ -788,6 +933,11 @@ def run_preflight(
         "inicio_utc": utc_now(),
         "new_p6_outcomes_read": False,
         "outcomes_leidos": "ninguno: solo identidades, fechas, calendario, FX y sector congelados",
+        "datos_de_mercado_leidos": ("fechas y acciones corporativas verificadas (corporate_actions_hash) de toda la "
+                                    "cosecha; los CSV se leen como texto y las columnas de precio solo sirven para descartar "
+                                    "filas sin precio; únicamente Close y Adj Close de la víspera y la fecha ex de los "
+                                    "activos con split y dividendo se convierten a número (T-022 §10.1); no se "
+                                    "construye ninguna vista de precios"),
         "p6_confirmatory_executed": (RUN_DIR / RUN_MARKER).exists(),
         "identidad": {
             "p6_prereg_sha": P6_PREREG_SHA,
@@ -803,6 +953,7 @@ def run_preflight(
         "politicas": identities,
         "ventana": window.as_dict(),
         "system_hashes": hashes,
+        "dividendos_splits": dividends_section,
         "determinismo": dict(determinism) if determinism is not None else None,
         "checks": [{"control": n, "observado": o, "esperado": e, "ok": ok} for n, o, e, ok in checks],
         "fin_utc": utc_now(),
@@ -838,7 +989,8 @@ def format_preflight(report: Mapping[str, Any]) -> str:
 
 
 def preflight_fingerprint(report: Mapping[str, Any]) -> Dict[str, Any]:
-    return {key: report.get(key) for key in ("politicas", "ventana", "system_hashes", "determinismo")} | {
+    return {key: report.get(key) for key in ("politicas", "ventana", "system_hashes", "dividendos_splits",
+                                              "determinismo")} | {
         "identidad": {k: v for k, v in cast(Mapping[str, Any], report.get("identidad", {})).items()
                       if k not in ("p6_executor_sha", "git_dirty")},
     }
@@ -874,7 +1026,6 @@ def _run_metrics(result: Any, benchmark_paths: Mapping[float, Mapping[str, Any]]
 def run_confirmatory(
     config: AdvisorConfig,
     universe: Universe,
-    vintage: VintageLoad,
     ident: P6Identity,
     out_dir: Path,
 ) -> Tuple[int, str]:
@@ -898,11 +1049,18 @@ def run_confirmatory(
     executor = str(stored["identidad"]["p6_executor_sha"])
     if not executor_unchanged_since(executor, "."):
         raise P6PreflightError(f"el ejecutor cambió desde el preflight definitivo ({executor})")
-    ok, preflight = run_preflight(config, universe, vintage, ident, write=False, determinism=synthetic_determinism())
+    ok, preflight = run_preflight(config, universe, load_structure(), ident, write=False,
+                                  determinism=synthetic_determinism())
     if not ok:
         return 2, format_preflight(preflight) + "PREFLIGHT FALLIDO: P6 NO SE EJECUTA.\n"
     if canonical_json(preflight_fingerprint(preflight)) != canonical_json(preflight_fingerprint(stored)):
         return 2, "STOP: el preflight interno no coincide con el definitivo guardado. P6 NO SE EJECUTA.\n"
+    # Los precios se cargan aquí, tras el preflight y antes de la marca: si la cosecha completa no
+    # reproduce la ventana del preflight, P6 se detiene sin consumir su única ejecución.
+    vintage = load_full_vintage()
+    window = derive_window(config, universe, vintage_index(vintage))
+    if window.as_dict() != preflight["ventana"]:
+        return 2, "STOP: la cosecha completa no reproduce la ventana del preflight. P6 NO SE EJECUTA.\n"
     out_dir.mkdir(parents=True, exist_ok=True)
     if any(out_dir.iterdir()):
         raise P6AlreadyExecutedError(f"{out_dir} no está vacío")
@@ -916,12 +1074,11 @@ def run_confirmatory(
         "system_hashes": preflight["system_hashes"],
         "label": UNIVERSE_LABEL,
     }
-    fd = create_marker_exclusive(marker, _issue_clearance())
+    fd = create_marker_exclusive(marker, _issue_clearance(stored, preflight))
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
         token = build_confirmatory_token(marker, payload)
-        window = derive_window(config, universe, vintage)
         fx, _ = load_fx()
         sectors = load_sector_map()
         market = build_real_market(token, config, universe, vintage, window, sectors)

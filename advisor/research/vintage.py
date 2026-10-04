@@ -195,6 +195,101 @@ def load_vintage(data_vintage_id: str, *, root_dir: str | Path = "data/vintages"
     return VintageLoad(data_vintage_id=data_vintage_id, manifest=manifest, by_symbol=loaded)
 
 
+@dataclass(frozen=True)
+class VintageStructure:
+    """Fechas y acciones corporativas de una cosecha, sin precios.
+
+    ``by_symbol`` tiene, por símbolo, las filas que ``load_vintage`` conservaría (mismo índice que
+    ``execution_prices``) con solo ``Dividends`` y ``Stock Splits``, verificadas contra el
+    ``corporate_actions_hash`` del manifiesto.
+    """
+
+    data_vintage_id: str
+    manifest: Dict
+    by_symbol: Dict[str, pd.DataFrame]
+
+
+def _verified_manifest(data_vintage_id: str, root_dir: str | Path) -> tuple[Path, Dict]:
+    vintage_dir = Path(root_dir) / data_vintage_id
+    manifest_path = vintage_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"No existe el manifiesto de la cosecha: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("data_vintage_id") != data_vintage_id:
+        raise ValueError("El data_vintage_id del manifiesto no coincide con el directorio solicitado")
+    manifest_body = {k: v for k, v in manifest.items() if k not in {"manifest_hash", "data_vintage_id"}}
+    expected_manifest_hash = manifest.get("manifest_hash")
+    if hash_manifest(manifest_body) != expected_manifest_hash or expected_manifest_hash != data_vintage_id:
+        raise ValueError("Hash de manifiesto inválido: la cosecha fue editada o está corrupta")
+    return vintage_dir, manifest
+
+
+def _structural_rows(path: Path) -> pd.DataFrame:
+    """Filas de ``read_raw_csv`` con solo las acciones corporativas.
+
+    Las columnas de precio se leen como texto y solo para saber qué filas descarta
+    ``normalize_raw_history`` (las que tienen algún precio vacío): ningún precio se convierte a número.
+    """
+
+    df = pd.read_csv(path, index_col="timestamp", dtype=str)
+    df.index = pd.Index([str(value) for value in df.index], name="timestamp")
+    df = df.sort_index()
+    df.index = pd.Index([_normalize_timestamp(ts) for ts in df.index], name="timestamp")
+    present = [column for column in PRICE_COLUMNS if column in df.columns]
+    keep = df[present].notna().all(axis=1) if len(present) == len(PRICE_COLUMNS) else pd.Series(False, index=df.index)
+    actions = pd.DataFrame(index=df.index)
+    for column in ACTION_COLUMNS:
+        actions[column] = df[column].astype(float).fillna(0.0) if column in df.columns else 0.0
+    actions = actions.loc[keep.to_numpy()]
+    if actions.empty:
+        raise ValueError("histórico vacío tras limpiar precios")
+    return actions
+
+
+def load_vintage_structure(data_vintage_id: str, *, root_dir: str | Path = "data/vintages") -> VintageStructure:
+    """Carga solo fechas y acciones corporativas, verificadas contra el manifiesto, sin abrir precios."""
+
+    vintage_dir, manifest = _verified_manifest(data_vintage_id, root_dir)
+    loaded: Dict[str, pd.DataFrame] = {}
+    for asset_entry in manifest["assets"]:
+        symbol = asset_entry["symbol"]
+        actions = _structural_rows(vintage_dir / asset_entry["filename"])
+        if _hash_action_rows(actions) != asset_entry["corporate_actions_hash"]:
+            raise ValueError(f"Hash de acciones corporativas inválido para {symbol}")
+        loaded[symbol] = actions
+    return VintageStructure(data_vintage_id=data_vintage_id, manifest=manifest, by_symbol=loaded)
+
+
+def load_price_rows(
+    data_vintage_id: str,
+    symbol: str,
+    timestamps: Iterable[str],
+    columns: Iterable[str],
+    *,
+    root_dir: str | Path = "data/vintages",
+) -> pd.DataFrame:
+    """Lee solo las filas y columnas pedidas de un símbolo, ya normalizadas.
+
+    Sirve para comprobaciones estructurales que necesitan unos pocos precios (p. ej. la coherencia
+    dividendo/split en las fechas ex) sin construir las vistas. ``Adj Close`` no entra en
+    ``series_hash``; estas filas no se verifican contra el manifiesto, solo el manifiesto en sí.
+    """
+
+    vintage_dir, manifest = _verified_manifest(data_vintage_id, root_dir)
+    entry = next((asset for asset in manifest["assets"] if asset["symbol"] == symbol), None)
+    if entry is None:
+        raise KeyError(f"{symbol} no está en la cosecha {data_vintage_id}")
+    wanted = set(timestamps)
+    cols = list(columns)
+    df = pd.read_csv(vintage_dir / entry["filename"], index_col="timestamp", dtype=str)
+    df.index = pd.Index([_normalize_timestamp(str(ts)) for ts in df.index], name="timestamp")
+    rows = df.loc[df.index.isin(wanted), cols].astype(float)
+    missing = wanted - set(rows.index)
+    if missing:
+        raise KeyError(f"{symbol}: filas ausentes en la cosecha: {sorted(missing)[:3]}")
+    return rows.sort_index()
+
+
 def resolve_vintage_id(value: str, root_dir: str | Path = "data/vintages") -> str:
     """Acepta el identificador entero o un prefijo inequívoco.
 
@@ -248,7 +343,10 @@ def hash_series(raw: pd.DataFrame) -> str:
 def hash_actions(raw: pd.DataFrame) -> str:
     """Hash canónico de dividendos y splits."""
 
-    normalized = normalize_raw_history(raw)
+    return _hash_action_rows(normalize_raw_history(raw))
+
+
+def _hash_action_rows(normalized: pd.DataFrame) -> str:
     rows = _canonical_rows(normalized, CANONICAL_ACTION_COLUMNS)
     return _sha256(_canonical_json({"columns": CANONICAL_ACTION_COLUMNS, "rows": rows}))
 

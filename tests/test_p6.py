@@ -618,6 +618,9 @@ def test_guarda_datos_reales_sin_autorizacion() -> None:
         sim.simulate_benchmark(real, EUR, spec())
 
 
+PREFLIGHT_OK = {"ok": True, "definitivo": True}
+
+
 def test_guarda_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     run_dir = tmp_path / "run"
     monkeypatch.setattr(p6, "RUN_DIR", run_dir)
@@ -627,13 +630,13 @@ def test_guarda_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         p6.require_token(p6.ConfirmatoryToken(run_dir / p6.RUN_MARKER, "0" * 64))
     run_dir.mkdir()
     marker = run_dir / p6.RUN_MARKER
-    fd = p6.create_marker_exclusive(marker, p6._issue_clearance())
+    fd = p6.create_marker_exclusive(marker, p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK))
     with open(fd, "w", encoding="utf-8") as handle:
         handle.write(json.dumps({"a": 1}, ensure_ascii=False, indent=2) + "\n")
     token = p6.build_confirmatory_token(marker, {"a": 1})
     assert p6.require_token(token) is token
     with pytest.raises(p6.P6AlreadyExecutedError):
-        p6.create_marker_exclusive(marker, p6._issue_clearance())
+        p6.create_marker_exclusive(marker, p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK))
     other = tmp_path / "otra" / p6.RUN_MARKER
     other.parent.mkdir()
     other.write_text(marker.read_text(encoding="utf-8"), encoding="utf-8")
@@ -660,7 +663,7 @@ def test_confirmatoria_rechaza_marca_existente(tmp_path: Path, monkeypatch: pyte
     monkeypatch.setattr(p6, "RUN_DIR", run_dir)
     ident = p6.P6Identity("sha", False, True, p6.EXPECTED_CONFIG_HASH, "1.0")
     with pytest.raises(p6.P6AlreadyExecutedError):
-        p6.run_confirmatory(load_config("config.yaml"), None, None, ident, run_dir)  # type: ignore[arg-type]
+        p6.run_confirmatory(load_config("config.yaml"), None, ident, run_dir)  # type: ignore[arg-type]
 
 
 def test_criterio_solo_cinco_condiciones_y_salidas_permitidas() -> None:
@@ -728,12 +731,12 @@ def test_humo_ruta_real_con_token_sobre_cosecha_sintetica(tmp_path: Path, monkey
     run_dir.mkdir()
     monkeypatch.setattr(p6, "RUN_DIR", run_dir)
     payload = {"humo": True}
-    fd = p6.create_marker_exclusive(run_dir / p6.RUN_MARKER, p6._issue_clearance())
+    fd = p6.create_marker_exclusive(run_dir / p6.RUN_MARKER, p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK))
     with open(fd, "w", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     token = p6.build_confirmatory_token(run_dir / p6.RUN_MARKER, payload)
 
-    window = p6.derive_window(config, universe, vintage)
+    window = p6.derive_window(config, universe, p6.vintage_index(vintage))
     assert window.start > window.sma_complete_session and window.start > window.warmup_last_initial
     fx, _ = p6.load_fx()
     real_market = p6.build_real_market(token, config, universe, vintage, window, dict.fromkeys(("7203.T", "AAPL", "SAP.DE"), "Technology"))
@@ -799,17 +802,27 @@ def test_capital_pedido_frente_a_disponible() -> None:
     assert occupancy["capital_disponible_en_esos_rechazos_eur"] == pytest.approx(40_000.0)
 
 
-def test_marca_solo_con_autorizacion_de_run_confirmatory(tmp_path: Path) -> None:
+def test_marca_solo_con_autorizacion_de_run_confirmatory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(p6, "RUN_DIR", tmp_path)
     marker = tmp_path / p6.RUN_MARKER
     with pytest.raises(sim.P6OutcomeGateError):
         p6.create_marker_exclusive(marker, "fabricada")
+    # La autorización comprueba ella misma las precondiciones de run_confirmatory.
+    for stored, live in (({"ok": True, "definitivo": False}, PREFLIGHT_OK), (PREFLIGHT_OK, {"ok": False}),
+                         (PREFLIGHT_OK, {**PREFLIGHT_OK, "ventana": {"inicio": "otra"}})):
+        with pytest.raises(sim.P6OutcomeGateError):
+            p6._issue_clearance(stored, live)
     assert not marker.exists()
-    clearance = p6._issue_clearance()
     import os
 
+    with pytest.raises(sim.P6OutcomeGateError):
+        p6.create_marker_exclusive(tmp_path / "otra", p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK))
+    clearance = p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK)
     os.close(p6.create_marker_exclusive(marker, clearance))
     with pytest.raises(sim.P6OutcomeGateError):
-        p6.create_marker_exclusive(tmp_path / "otra", clearance)
+        p6.create_marker_exclusive(marker, clearance)
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK)
 
 
 def _synthetic_confirmatory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, fail_signals: bool = False) -> Tuple[Path, Any]:
@@ -831,6 +844,8 @@ def _synthetic_confirmatory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, 
     monkeypatch.setattr(p6, "derive_window", lambda *_a, **_k: window)
     monkeypatch.setattr(p6, "load_fx", lambda: (fx, {"fuente_usada": "B"}))
     monkeypatch.setattr(p6, "load_sector_map", lambda: {})
+    monkeypatch.setattr(p6, "load_structure", lambda: None)
+    monkeypatch.setattr(p6, "load_full_vintage", lambda: p6.VintageLoad("sintetica", {}, {}))
 
     def fake_market(token: Any, *_a: Any, **_k: Any) -> sim.MarketData:
         p6.require_token(token)
@@ -850,7 +865,7 @@ def _synthetic_confirmatory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, 
 
 def test_confirmatoria_sintetica_completa(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     run_dir, (config, ident) = _synthetic_confirmatory(tmp_path, monkeypatch)
-    code, text = p6.run_confirmatory(config, None, None, ident, run_dir)  # type: ignore[arg-type]
+    code, text = p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
     assert code == 0, text
     result = json.loads((run_dir / "p6-resultado.json").read_text(encoding="utf-8"))
     assert set(result["corridas"]) == {run for run, *_ in p6.RUNS}
@@ -858,13 +873,107 @@ def test_confirmatoria_sintetica_completa(tmp_path: Path, monkeypatch: pytest.Mo
     for run, *_ in p6.RUNS:
         assert (run_dir / "tablas" / f"{run}-operaciones.csv").is_file()
     with pytest.raises(p6.P6AlreadyExecutedError):
-        p6.run_confirmatory(config, None, None, ident, run_dir)  # type: ignore[arg-type]
+        p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
 
 
 def test_confirmatoria_sintetica_fallo_tras_la_marca(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     run_dir, (config, ident) = _synthetic_confirmatory(tmp_path, monkeypatch, fail_signals=True)
-    code, text = p6.run_confirmatory(config, None, None, ident, run_dir)  # type: ignore[arg-type]
+    code, text = p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
     assert code == 2 and "fallo inyectado" in text
     assert (run_dir / p6.RUN_MARKER).is_file() and (run_dir / "p6-parada.json").is_file()
     with pytest.raises(p6.P6AlreadyExecutedError):
-        p6.run_confirmatory(config, None, None, ident, run_dir)  # type: ignore[arg-type]
+        p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
+
+
+def _structure_with_dividends(dividend_scale: float) -> Tuple[Any, Any]:
+    """Activo sintético con split 2:1 y dos fechas ex; ``Adj Close`` construido como Yahoo."""
+
+    index = [f"2024-01-0{d}" for d in range(1, 8)]
+    close = [100.0, 101.0, 50.0, 51.0, 52.0, 53.0, 54.0]
+    dividends = [0.0, 0.5, 0.0, 0.0, 0.3, 0.0, 0.0]
+    splits = [0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0]
+    factor = [1.0] * len(index)
+    for k in range(len(index) - 1, 0, -1):
+        factor[k - 1] = factor[k] * (1.0 - dividends[k] / close[k - 1] if dividends[k] else 1.0)
+    prices = pd.DataFrame({"Close": close, "Adj Close": [c * f for c, f in zip(close, factor)]}, index=index)
+    # La escala solo se aplica antes del split: así se ve un dividendo previo sin ajustar.
+    scaled = [d * dividend_scale if k < 2 else d for k, d in enumerate(dividends)]
+    actions = pd.DataFrame({"Dividends": scaled, "Stock Splits": splits}, index=index)
+    structure = p6.VintageStructure("sintetica", {}, {"SPL": actions,
+                                                       "R6C0.DE": pd.DataFrame({"Dividends": [0.0, 0.20711999],
+                                                                                "Stock Splits": [0.0, 0.0]})})
+
+    def rows(_vid: str, symbol: str, stamps: Sequence[str], columns: Sequence[str]) -> pd.DataFrame:
+        assert symbol == "SPL"
+        return prices.loc[list(stamps), list(columns)]
+
+    return structure, rows
+
+
+def test_coherencia_dividendo_split_detecta_dividendo_sin_ajustar(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(p6, "asset_list", lambda: ["R6C0.DE", "SPL"])
+    monkeypatch.setattr(p6, "DIVIDEND_SPLIT_ASSETS", 1)
+    monkeypatch.setattr(p6, "XETRA_FX_SUSPECTS", ())
+
+    structure, rows = _structure_with_dividends(1.0)
+    checks, section = p6.dividend_split_checks(structure, rows)
+    assert all(ok for *_, ok in checks), checks
+    assert section["activos_con_split"]["SPL"]["fechas_ex"] == 2 and section["xetra_importe_no_redondo"] == ["R6C0.DE"]
+    assert section["activos_con_split"]["SPL"]["fechas_ex_previas_a_split"] == 1
+
+    # Un dividendo previo al split en unidades sin ajustar (×2) rompe la identidad en esa fecha ex.
+    structure, rows = _structure_with_dividends(2.0)
+    checks, section = p6.dividend_split_checks(structure, rows)
+    failed = [name for name, *_, ok in checks if not ok]
+    assert failed == ["coherencia algebraica Dividends/splits (fechas ex fuera de tolerancia)"]
+    assert len(section["fuera_de_tolerancia"]) == 1 and "2024-01-02" in section["fuera_de_tolerancia"][0]
+
+
+def test_cli_preflight_no_carga_la_cosecha_de_precios(monkeypatch: pytest.MonkeyPatch) -> None:
+    import argparse
+
+    import advisor.main as main
+
+    def forbidden(*_a: Any, **_k: Any) -> Any:
+        raise AssertionError("el preflight no debe cargar la cosecha de precios")
+
+    seen: Dict[str, Any] = {}
+
+    def fake_preflight(_config: Any, _universe: Any, structure: Any, _ident: Any, **_k: Any) -> Tuple[bool, Dict[str, Any]]:
+        seen["structure"] = structure
+        return True, {"modo": "x", "ventana": {"inicio": "a", "fin": "b"}, "new_p6_outcomes_read": False, "checks": []}
+
+    monkeypatch.setattr(main, "load_vintage", forbidden)
+    monkeypatch.setattr(p6, "load_vintage", forbidden)
+    monkeypatch.setattr(p6, "load_full_vintage", forbidden)
+    monkeypatch.setattr(p6, "load_structure", lambda: "estructura")
+    monkeypatch.setattr(p6, "run_preflight", fake_preflight)
+    monkeypatch.setattr(p6, "synthetic_determinism", lambda: {})
+    monkeypatch.setattr(p6, "development_mode", lambda: True)
+    monkeypatch.setattr(p6, "current_identity", lambda _c: p6.P6Identity("sha", True, True, "h", "1.0"))
+
+    assert main.cmd_p6(argparse.Namespace(fase="preflight"), load_config("config.yaml"), None) == 0  # type: ignore[arg-type]
+    assert seen["structure"] == "estructura"
+
+
+def test_preflight_real_sin_cargar_precios(monkeypatch: pytest.MonkeyPatch) -> None:
+    """El run_preflight real, sobre la cosecha congelada, con la carga de precios prohibida."""
+
+    import advisor.research.vintage as vintage_module
+    from advisor.universe.loader import load_universe
+
+    if not (Path("data/vintages") / p6.DATA_VINTAGE_ID / "manifest.json").is_file():
+        pytest.skip("data/vintages no está disponible")
+
+    def forbidden(*_a: Any, **_k: Any) -> Any:
+        raise AssertionError("el preflight no debe cargar la cosecha de precios")
+
+    for module, name in ((vintage_module, "load_vintage"), (vintage_module, "build_views"), (p6, "load_vintage"),
+                         (p6, "load_full_vintage")):
+        monkeypatch.setattr(module, name, forbidden)
+    config = load_config("config.yaml")
+    ok, report = p6.run_preflight(config, load_universe(config.universe_path), p6.load_structure(),
+                                  p6.current_identity(config), development=True, write=False)
+    assert ok, [row for row in report["checks"] if not row["ok"]]
+    assert report["ventana"]["inicio"] == "2022-06-14" and report["ventana"]["fin"] == "2026-08-27"
+    assert not report["dividendos_splits"]["fuera_de_tolerancia"]
