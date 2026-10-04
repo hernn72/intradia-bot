@@ -18,7 +18,7 @@ activos con split y dividendo se convierten a número, para T-022 §10.1.
 |---|---|
 | `P6_PREREG_SHA` | `03f04a42ea9d2be893e7c4cc09de76bd1c55778b` (en la historia de HEAD) |
 | `P6_DATA_ID` | `572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383` (reproducido) |
-| Ejecutor | `d35ae7fec9e8dbddf0d03b76d98950f0ce0b9995` (candidato a `P6_CODE_SHA`): `advisor/research/p6.py`, `advisor/research/p6_sim.py`, `advisor/research/vintage.py` (lector estructural), CLI `p6` y `tests/test_p6.py` |
+| Ejecutor | `bc0636d4320b38ef5a620fa9ae94cee35df47580` (candidato a `P6_CODE_SHA`): `advisor/research/p6.py`, `advisor/research/p6_sim.py`, `advisor/research/vintage.py` (lector estructural), CLI `p6` y `tests/test_p6.py` |
 | Cosecha / universo | `071ddb2b…` / `237b0056…` |
 | FX | `fx_vintage_id 10e832ef…` (fuente B, BCE), verificado contra su manifiesto y su sha256 |
 | Sector | `24f45421…`, 90/90 |
@@ -55,13 +55,13 @@ activos con split y dividendo se convierten a número, para T-022 §10.1.
     hash); `load_vintage` verifica la serie completa en la confirmatoria.
 - **Guardas** (`guardas-outcome.txt`): sin token no se cargan precios reales ni se generan señales; un
   token fabricado no vale; el motor rechaza datos reales sin autorización; la marca no existe.
-- **Ejecución confirmatoria sellada** (0ba98a3 → d81a358 → c91c4d6 → b6f0aaf → beaa9ec → d35ae7f): un único camino abre desenlaces,
+- **Ejecución confirmatoria sellada** (0ba98a3 → d81a358 → c91c4d6 → b6f0aaf → beaa9ec → d35ae7f → bc0636d): un único camino abre desenlaces,
   `run_confirmatory` → `_ejecutar_confirmatoria_sellada()`, sin argumentos. Reconstruye la autorización
   desde el preflight definitivo en disco y recalcula preflight y ventana. Persiste y verifica el payload
   canónico **antes** de crear la marca con `O_EXCL`, que lo referencia por hash. El token solo está
   vigente durante la ejecución. El `MarketData` real lleva el contrato inmutable de las 9 corridas y
   `p6_sim` exige por sí mismo que cada `SimSpec` coincida exactamente; fuera de la ejecución sellada no
-  se pueden construir ni simular datos `real`. Las APIs propias de `advisor.research.p6` no exponen lectores arbitrarios de precios ni la carga completa de la cosecha fuera del flujo confirmatorio sellado. La única excepción del preflight es la lectura mínima interna de Close/Adj Close requerida por T-022 §10.1. Modelo de amenaza
+  se pueden construir ni simular datos `real`. Las APIs propias de `advisor.research.p6` no exponen lectores arbitrarios de precios ni extractores de precios desde `VintageLoad` fuera del flujo confirmatorio sellado. El preflight solo realiza internamente la lectura mínima de `Close/Adj Close` exigida por T-022 §10.1. Queda fuera del modelo el uso deliberado de APIs genéricas de otros módulos (`advisor.research.vintage`, etc.) desde código externo para reconstruir datos y falsear su procedencia. Modelo de amenaza
   declarado en `guardas-outcome.txt`.
 - **Determinismo** (`determinismo.txt`): el fixture sintético da el mismo ledger, la misma serie diaria,
   las mismas métricas y el mismo ledger del benchmark, byte a byte.

@@ -11,7 +11,7 @@ Las funciones reciben una cosecha nula: la guarda salta antes de tocarla; cualqu
 El preflight no carga la cosecha de precios (load_vintage/build_views): test_preflight_real_sin_cargar_precios lo
 comprueba con esas funciones prohibidas.
 
-Ejecución confirmatoria sellada (0ba98a3, d81a358, c91c4d6, b6f0aaf, beaa9ec, d35ae7f). Un único camino abre desenlaces:
+Ejecución confirmatoria sellada (0ba98a3, d81a358, c91c4d6, b6f0aaf, beaa9ec, d35ae7f, bc0636d). Un único camino abre desenlaces:
 run_confirmatory → _ejecutar_confirmatoria_sellada(), sin argumentos, que en orden:
   1. lee el preflight definitivo de su ruta fija y exige ok, definitivo y las identidades congeladas
      (P6_PREREG_SHA, P6_DATA_ID, cosecha, universo, FX, sector, políticas B2/S2/C0);
@@ -42,14 +42,19 @@ dos veces ni alterar las identidades congeladas sin que falle la apertura. Fuera
 hostil concurrente en el mismo intérprete (introspección de frames, gc, globals, closures, monkeypatch
 durante la ejecución), escritura o borrado manual de los archivos de control y modificación del código.
 
-Namespace de P6 (d35ae7f): Las APIs propias de advisor.research.p6 no exponen lectores arbitrarios de precios ni la carga completa de la cosecha fuera del flujo confirmatorio sellado. La única excepción del preflight es la lectura mínima interna de Close/Adj Close requerida por T-022 §10.1.
-En concreto, advisor.research.p6 no expone load_vintage, load_full_vintage, load_price_rows, frozen_close ni
-ningún módulo de advisor (p5 se importa localmente). La carga completa es un import local dentro de
+Namespace de P6 (d35ae7f, bc0636d): Las APIs propias de advisor.research.p6 no exponen lectores arbitrarios de precios ni extractores de precios desde VintageLoad fuera del flujo confirmatorio sellado. El preflight solo realiza internamente la lectura mínima de Close/Adj Close exigida por T-022 §10.1.
+En concreto, advisor.research.p6 no expone load_vintage, load_full_vintage, load_price_rows, frozen_close,
+_context_resolver ni ningún módulo de advisor (p5 se importa localmente); de p4 solo executor_unchanged_since,
+run_git y tree_dirty. La carga completa es un import local dentro de
 _ejecutar_confirmatoria_sellada; load_price_rows es un import local dentro de dividend_split_checks(), que no
 recibe argumentos y calcula ella misma las filas (víspera y fecha ex de los activos con split y dividendo) y
-las columnas (Close, Adj Close); frozen_close es un import local dentro de build_real_signals, tras el token.
+las columnas (Close, Adj Close); frozen_close y _context_resolver son imports locales dentro de
+build_real_signals, tras el token.
 La carga estructural (load_structure) solo devuelve timestamps, dividendos y splits. Un test inspecciona el
-namespace completo de p6 (test_n01_n04_namespace_de_p6_sin_lectores_de_precios).
+namespace completo de p6 con una política cerrada de imports (test_n01_n04_namespace_de_p6_sin_lectores_de_precios:
+un callable nuevo importado de otro módulo de advisor falla hasta clasificarlo) y otro audita las funciones propias
+que tocan precios (test_n10_solo_las_rutas_autorizadas_de_p6_tocan_precios: flujo sellado, build_real_* con token,
+§10.1 e índices).
 
 Aclaración final del modelo (propietario, 2026-10-04): P6 no pretende impedir el uso hostil de otros módulos
 genéricos del repositorio. Queda fuera del modelo que un script externo importe deliberadamente desde
@@ -57,5 +62,5 @@ advisor.research.vintage funciones genéricas como load_vintage o load_price_row
 MarketData etiquetado falsamente como "synthetic"; también modificar código, monkeypatching, introspección
 hostil, manipulación manual de archivos y los demás casos ya declarados. Lo que sí se exige es que P6 no
 proporcione esa vía por sí mismo. Esto no rebaja ninguna guarda del camino P6.
-Tests: test_s01 … test_s22, test_c01 … test_c20, test_l01 … test_l05, test_n01 … test_n09 y
+Tests: test_s01 … test_s22, test_c01 … test_c20, test_l01 … test_l05, test_n01 … test_n10 y
 test_humo_flujo_sellado_con_constructores_reales_sobre_cosecha_sintetica.
