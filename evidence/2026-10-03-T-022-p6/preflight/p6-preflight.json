@@ -2,14 +2,14 @@
   "fase": "preflight",
   "modo": "DEFINITIVO",
   "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
-  "inicio_utc": "2026-10-04T10:04:03.686991+00:00",
+  "inicio_utc": "2026-10-04T10:23:50.125304+00:00",
   "new_p6_outcomes_read": false,
   "outcomes_leidos": "ninguno: solo identidades, fechas, calendario, FX y sector congelados",
   "datos_de_mercado_leidos": "fechas y acciones corporativas verificadas (corporate_actions_hash) de toda la cosecha; los CSV se leen como texto y las columnas de precio solo sirven para descartar filas sin precio; únicamente Close y Adj Close de la víspera y la fecha ex de los activos con split y dividendo se convierten a número (T-022 §10.1); no se construye ninguna vista de precios",
   "p6_confirmatory_executed": false,
   "identidad": {
     "p6_prereg_sha": "03f04a42ea9d2be893e7c4cc09de76bd1c55778b",
-    "p6_executor_sha": "b6f0aaf64c8fc05b5c2e6baa079e11eb0624d94d",
+    "p6_executor_sha": "beaa9ecfd1b60602f57cd9e9855fb351294d4602",
     "git_dirty": false,
     "prereg_en_historia": true,
     "p6_data_id": "572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383",
@@ -461,7 +461,7 @@
       "ok": true
     }
   ],
-  "fin_utc": "2026-10-04T10:04:03.687017+00:00",
+  "fin_utc": "2026-10-04T10:23:50.125326+00:00",
   "ok": true,
   "definitivo": true
 }

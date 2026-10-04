@@ -11,13 +11,14 @@ Las funciones reciben una cosecha nula: la guarda salta antes de tocarla; cualqu
 El preflight no carga la cosecha de precios (load_vintage/build_views): test_preflight_real_sin_cargar_precios lo
 comprueba con esas funciones prohibidas.
 
-Ejecución confirmatoria sellada (0ba98a3, d81a358, c91c4d6, b6f0aaf). Un único camino abre desenlaces:
+Ejecución confirmatoria sellada (0ba98a3, d81a358, c91c4d6, b6f0aaf, beaa9ec). Un único camino abre desenlaces:
 run_confirmatory → _ejecutar_confirmatoria_sellada(), sin argumentos, que en orden:
   1. lee el preflight definitivo de su ruta fija y exige ok, definitivo y las identidades congeladas
      (P6_PREREG_SHA, P6_DATA_ID, cosecha, universo, FX, sector, políticas B2/S2/C0);
   2. exige que P6_DATA_ID se reproduzca y que el ejecutor no haya cambiado desde ese preflight;
   3. recalcula el preflight vivo con run_preflight y exige la misma huella; comprueba que la marca no existe;
-  4. carga la cosecha completa y exige la misma ventana; si no, para sin crear la marca;
+  4. carga la cosecha completa (import local de load_vintage, solo aquí) y exige la misma ventana; si no,
+     para sin crear la marca. advisor.research.p6 no expone load_vintage ni ningún otro cargador completo;
   5. calcula dentro el payload canónico y el contrato de corridas (9 SimSpec completos: run_id,
      policy_id, población, slippage, hash, capital, riesgo, tope, comisión, min_rr, tiempo máximo) con
      los hashes del preflight definitivo verificado;
@@ -40,5 +41,12 @@ ventana, hashes o SimSpec, reutilizar una autorización, ejecutar una corrida no
 dos veces ni alterar las identidades congeladas sin que falle la apertura. Fuera: código deliberadamente
 hostil concurrente en el mismo intérprete (introspección de frames, gc, globals, closures, monkeypatch
 durante la ejecución), escritura o borrado manual de los archivos de control y modificación del código.
-Tests: test_s01 … test_s22, test_c01 … test_c20 y
+
+Aclaración final del modelo (propietario, 2026-10-04): P6 garantiza que sus APIs y su CLI no permiten
+obtener ni simular la cosecha real fuera del flujo confirmatorio sellado. Queda fuera del modelo usar
+deliberadamente desde código externo el cargador genérico advisor.research.vintage.load_vintage para
+construir a mano un MarketData etiquetado falsamente como "synthetic"; también modificar código,
+monkeypatching, introspección hostil, manipulación manual de archivos y los demás casos ya declarados.
+Esto no rebaja ninguna guarda del camino P6.
+Tests: test_s01 … test_s22, test_c01 … test_c20, test_l01 … test_l05 y
 test_humo_flujo_sellado_con_constructores_reales_sobre_cosecha_sintetica.
