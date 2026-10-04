@@ -764,14 +764,14 @@ def test_coherencia_dividendo_split_detecta_dividendo_sin_ajustar(monkeypatch: p
     monkeypatch.setattr(p6, "XETRA_FX_SUSPECTS", ())
 
     structure, rows = _structure_with_dividends(1.0)
-    checks, section = p6.dividend_split_checks(structure, rows)
+    checks, section = p6._dividend_split_checks(structure, rows)
     assert all(ok for *_, ok in checks), checks
     assert section["activos_con_split"]["SPL"]["fechas_ex"] == 2 and section["xetra_importe_no_redondo"] == ["R6C0.DE"]
     assert section["activos_con_split"]["SPL"]["fechas_ex_previas_a_split"] == 1
 
     # Un dividendo previo al split en unidades sin ajustar (×2) rompe la identidad en esa fecha ex.
     structure, rows = _structure_with_dividends(2.0)
-    checks, section = p6.dividend_split_checks(structure, rows)
+    checks, section = p6._dividend_split_checks(structure, rows)
     failed = [name for name, *_, ok in checks if not ok]
     assert failed == ["coherencia algebraica Dividends/splits (fechas ex fuera de tolerancia)"]
     assert len(section["fuera_de_tolerancia"]) == 1 and "2024-01-02" in section["fuera_de_tolerancia"][0]
@@ -1488,3 +1488,85 @@ def test_l05_sin_apertura_sellada_no_hay_marketdata_real() -> None:
     assert p6._ACTIVE_TOKEN is None
     with pytest.raises(sim.P6OutcomeGateError):
         replace(m, origin=sim.ORIGIN_REAL, contract=contract)
+
+
+
+# ---------------------------------------------------------------------------
+# Invariante del namespace de P6: ningún lector de precios ni cargador completo.
+# ---------------------------------------------------------------------------
+
+
+def _price_readers() -> Dict[str, Any]:
+    import advisor.research.vintage as vintage_module
+
+    return {name: getattr(vintage_module, name) for name in (
+        "load_vintage", "load_price_rows", "frozen_close", "read_raw_csv", "build_views", "freeze_vintage",
+    )}
+
+
+def test_n01_n04_namespace_de_p6_sin_lectores_de_precios() -> None:
+    """(1–4) p6 no expone load_vintage, load_full_vintage, load_price_rows ni frozen_close, con ningún nombre.
+
+    Inspecciona todo el namespace: cualquier regresión de esta familia (otro alias, otro accesor de
+    vintage, o reexportar un módulo de advisor que los traiga) hace fallar el test.
+    """
+
+    import types
+
+    for name in ("load_vintage", "load_full_vintage", "load_price_rows", "frozen_close"):
+        assert not hasattr(p6, name), name
+    readers = _price_readers()
+    exposed = [name for name, value in vars(p6).items() if any(value is reader for reader in readers.values())]
+    assert exposed == [], exposed
+    advisor_modules = [name for name, value in vars(p6).items()
+                       if isinstance(value, types.ModuleType) and value.__name__.startswith("advisor.")]
+    assert advisor_modules == [], advisor_modules
+
+
+def test_n05_load_structure_es_solo_estructural(tmp_path: Path) -> None:
+    """(5) La carga estructural devuelve solo timestamps, dividendos y splits."""
+
+    from advisor.research.vintage import VintageStructure, load_vintage_structure
+
+    assert p6.load_structure.__code__.co_names.count("load_vintage_structure") == 1
+    import inspect
+
+    assert inspect.signature(load_vintage_structure).return_annotation in (VintageStructure, "VintageStructure")
+    if not (Path("data/vintages") / p6.DATA_VINTAGE_ID / "AAPL.csv").is_file():
+        pytest.skip("data/vintages no está disponible")
+    structure = p6.load_structure()
+    assert {tuple(frame.columns) for frame in structure.by_symbol.values()} == {("Dividends", "Stock Splits")}
+
+
+def test_n06_seccion_10_1_lee_solo_filas_y_columnas_minimas(monkeypatch: pytest.MonkeyPatch) -> None:
+    """(6) §10.1 pide solo Close/Adj Close de la víspera y la fecha ex, calculadas por la función."""
+
+    import inspect
+
+    assert list(inspect.signature(p6.dividend_split_checks).parameters) == []
+    monkeypatch.setattr(p6, "asset_list", lambda: ["R6C0.DE", "SPL"])
+    monkeypatch.setattr(p6, "DIVIDEND_SPLIT_ASSETS", 1)
+    monkeypatch.setattr(p6, "XETRA_FX_SUSPECTS", ())
+    structure, rows = _structure_with_dividends(1.0)
+    asked: List[Tuple[str, Tuple[str, ...], Tuple[str, ...]]] = []
+
+    def spy(vid: str, symbol: str, stamps: Sequence[str], columns: Sequence[str]) -> pd.DataFrame:
+        asked.append((symbol, tuple(stamps), tuple(columns)))
+        return rows(vid, symbol, stamps, columns)
+
+    p6._dividend_split_checks(structure, spy)
+    assert asked == [("SPL", ("2024-01-01", "2024-01-02", "2024-01-04", "2024-01-05"), ("Close", "Adj Close"))]
+
+
+def test_n09_constructores_reales_exigen_token_vigente() -> None:
+    """(9) build_real_market y build_real_signals rechazan sin token, con token fabricado o no vigente."""
+
+    config = load_config("config.yaml")
+    m, _fx, _signals = p6.synthetic_market()
+    window = p6.Window(m.window_start, m.window_end, m.window_start, m.window_start, 0, 10, 252.0)
+    fake = p6.ConfirmatoryToken(p6.RUN_DIR / p6.RUN_MARKER, "0" * 64, "0" * 64)
+    for token in (None, fake):
+        with pytest.raises(sim.P6OutcomeGateError):
+            p6.build_real_market(token, config, None, None, window, {}, frozenset())  # type: ignore[arg-type]
+        with pytest.raises(sim.P6OutcomeGateError):
+            p6.build_real_signals(token, config, None, None, "B2", p6.POPULATION_OPERAR, window)  # type: ignore[arg-type]

@@ -42,7 +42,6 @@ from advisor.context.point_in_time import PointInTimeContextResolver, analysis_t
 from advisor.data.calendars import exchange_calendar, expected_sessions
 from advisor.data.freshness import mercado_para_simbolo
 from advisor.data.sessions import market_for_symbol, market_session, session_close_at
-from advisor.research import p5
 from advisor.research.observations import stable_signal_id
 from advisor.research.p3 import utc_now, write_json
 from advisor.research.p4 import _context_resolver, executor_unchanged_since, run_git, tree_dirty
@@ -74,8 +73,6 @@ from advisor.research.p6_sim import (
 from advisor.research.vintage import (
     VintageLoad,
     VintageStructure,
-    frozen_close,
-    load_price_rows,
     load_vintage_structure,
 )
 from advisor.run.git import git_sha
@@ -270,10 +267,14 @@ def asset_list() -> List[str]:
 
 
 def policy_cells() -> Dict[str, Any]:
+    from advisor.research import p5  # local: p6 no reexporta el módulo de P5
+
     return {"B2": p5.B2_CELL, "S2": p5.S2_CELL, "C0": p5.C0_CELL}
 
 
 def policy_identities(config: AdvisorConfig) -> Dict[str, Dict[str, str]]:
+    from advisor.research import p5
+
     out = {}
     for policy, cell in policy_cells().items():
         out[policy] = {
@@ -626,6 +627,8 @@ def build_real_signals(
     require_token(token)
     if (policy, population) not in {(p, pop) for _run, p, pop, _slip in RUNS}:
         raise P6OutcomeGateError(f"P6: señales reales solo para corridas pre-registradas, no {policy}/{population}")
+    from advisor.research.vintage import frozen_close  # local, tras el token: p6 no expone accesores de precios
+
     cfg = policy_config(config, policy)
     resolver: PointInTimeContextResolver = _context_resolver(config, universe, vintage)
     window_cfg = config.horizonte(HORIZONTE)
@@ -764,6 +767,7 @@ def guard_checks(config: AdvisorConfig, universe: Universe, window: Window) -> L
 
 
 DIVIDEND_SPLIT_ASSETS = 16
+SECTION_10_1_COLUMNS = ("Close", "Adj Close")
 DIVIDEND_SPLIT_TOLERANCE = 1e-5
 # T-022 §10.1: R6C0.DE comprobado (importe × 1,1587 = dividendo en USD); el resto, sospechosos sin verificar.
 XETRA_FX_CONTROL = ("R6C0.DE", 1.1587)
@@ -775,11 +779,27 @@ def _not_round(amount: float, decimals: int) -> bool:
     return abs(scaled - round(scaled)) > 1e-6
 
 
-def dividend_split_checks(
+def dividend_split_checks() -> Tuple[List[Tuple[str, Any, Any, bool]], Dict[str, Any]]:
+    """T-022 §10.1 sobre la cosecha congelada, sin argumentos del llamador.
+
+    Carga ella misma la estructura verificada por hash (fechas, dividendos y splits) y el lector de
+    filas con import local: ni las filas ni las columnas que se leen dependen del llamador, y
+    ``advisor.research.p6`` no expone ningún lector de precios.
+    """
+
+    from advisor.research.vintage import load_price_rows
+
+    return _dividend_split_checks(load_vintage_structure(DATA_VINTAGE_ID), load_price_rows)
+
+
+def _dividend_split_checks(
     structure: VintageStructure,
-    price_rows: Callable[..., pd.DataFrame] = load_price_rows,
+    price_rows: Callable[..., pd.DataFrame],
 ) -> Tuple[List[Tuple[str, Any, Any, bool]], Dict[str, Any]]:
-    """T-022 §10.1 sin desenlaces: coherencia algebraica Dividends/splits y lista Xetra.
+    """Cálculo de T-022 §10.1: coherencia algebraica Dividends/splits y lista Xetra.
+
+    Solo pide a ``price_rows`` ``Close`` y ``Adj Close`` de la víspera y la fecha ex de los activos con
+    split y dividendo, filas que calcula aquí a partir de las acciones corporativas.
 
     Yahoo construye ``Adj Close`` multiplicando, en cada fecha ex ``d``, por ``1 − D(d)/Close(d−1)``.
     Con ``r = Adj Close / Close`` se cumple ``r(d−1)/r(d) = 1 − D(d)/Close(d−1)`` si ``Dividends`` está en
@@ -803,7 +823,7 @@ def dividend_split_checks(
         residuals: List[float] = []
         if ex_positions:
             stamps = sorted({frame.index[i] for i in ex_positions} | {frame.index[i - 1] for i in ex_positions})
-            rows = price_rows(structure.data_vintage_id, symbol, stamps, ("Close", "Adj Close"))
+            rows = price_rows(structure.data_vintage_id, symbol, stamps, SECTION_10_1_COLUMNS)
             for i in ex_positions:
                 eve, ex = rows.loc[frame.index[i - 1]], rows.loc[frame.index[i]]
                 lhs = (eve["Adj Close"] / eve["Close"]) / (ex["Adj Close"] / ex["Close"])
@@ -940,6 +960,8 @@ def run_preflight(
     for policy, (policy_hash, cfg_hash) in POLICY_HASHES.items():
         check(f"policy_sha256 {policy}", identities[policy]["policy_sha256"], policy_hash)
         check(f"advisor_config_hash {policy}", identities[policy]["advisor_config_hash"], cfg_hash)
+    from advisor.research import p5
+
     final = json.loads(Path("evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json").read_text(encoding="utf-8"))
     for record in final["politicas"]:
         regenerated = p5.canonical_json(p5.policy_payload(config, policy_cells()[record["id"]]))
@@ -955,7 +977,7 @@ def run_preflight(
     hashes = system_hashes(config, window)
     check("9 identidades de corrida", len(hashes), 9)
     check("system_sha256 distintos", len({v.get("system_sha256") or v.get("benchmark_sha256") for v in hashes.values()}), 9)
-    dividend_checks, dividends_section = dividend_split_checks(structure)
+    dividend_checks, dividends_section = dividend_split_checks()
     checks.extend(dividend_checks)
     checks.extend(guard_checks(config, universe, window))
     if determinism is not None:
