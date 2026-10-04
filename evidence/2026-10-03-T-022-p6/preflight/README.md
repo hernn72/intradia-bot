@@ -18,7 +18,7 @@ activos con split y dividendo se convierten a número, para T-022 §10.1.
 |---|---|
 | `P6_PREREG_SHA` | `03f04a42ea9d2be893e7c4cc09de76bd1c55778b` (en la historia de HEAD) |
 | `P6_DATA_ID` | `572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383` (reproducido) |
-| Ejecutor | `6ef1aa951f571e83067b12334318d64bdc5378e0` (candidato a `P6_CODE_SHA`): `advisor/research/p6.py`, `advisor/research/p6_sim.py`, `advisor/research/vintage.py` (lector estructural), CLI `p6` y `tests/test_p6.py` |
+| Ejecutor | `d13441b13116d11c58bbb2771ab40490747412b4` (candidato a `P6_CODE_SHA`): `advisor/research/p6.py`, `advisor/research/p6_sim.py`, `advisor/research/vintage.py` (lector estructural), CLI `p6` y `tests/test_p6.py` |
 | Cosecha / universo | `071ddb2b…` / `237b0056…` |
 | FX | `fx_vintage_id 10e832ef…` (fuente B, BCE), verificado contra su manifiesto y su sha256 |
 | Sector | `24f45421…`, 90/90 |
@@ -55,6 +55,9 @@ activos con split y dividendo se convierten a número, para T-022 §10.1.
     hash); `load_vintage` verifica la serie completa en la confirmatoria.
 - **Guardas** (`guardas-outcome.txt`): sin token no se cargan precios reales ni se generan señales; un
   token fabricado no vale; el motor rechaza datos reales sin autorización; la marca no existe.
+- **Autorización de la marca** (desde d13441b): `_issue_clearance()` no acepta informes del llamador;
+  reconstruye sus precondiciones desde el preflight definitivo en disco y recalcula el preflight vivo
+  (cierra el IMPORTANTE de Codex sobre b7f7da2). Detalle en `guardas-outcome.txt`.
 - **Determinismo** (`determinismo.txt`): el fixture sintético da el mismo ledger, la misma serie diaria,
   las mismas métricas y el mismo ledger del benchmark, byte a byte.
 

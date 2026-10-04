@@ -9,6 +9,13 @@
 
 Las funciones reciben una cosecha nula: la guarda salta antes de tocarla; cualquier otro error deja el control en rojo.
 El preflight no carga la cosecha de precios (load_vintage/build_views): test_preflight_real_sin_cargar_precios lo
-comprueba con esas funciones prohibidas. Además (tests): la marca solo se crea en RUN_DIR/RUN_MARKER con la
-autorización de run_confirmatory, que revalida sus precondiciones; el token solo lo emite el proceso que creó la
-marca en exclusiva, con nonce; el motor rechaza datos reales sin autorización.
+comprueba con esas funciones prohibidas.
+
+Autorización de la marca (d13441b): `_issue_clearance()` no recibe nada del llamador. Lee el preflight
+definitivo de su ruta fija, exige ok, definitivo, las identidades congeladas (P6_PREREG_SHA, P6_DATA_ID,
+cosecha, universo, FX, sector, políticas), que P6_DATA_ID se reproduzca y que el ejecutor no haya cambiado;
+recalcula el preflight vivo con run_preflight y exige la misma huella; y comprueba que la marca no existe.
+El clearance es de un solo uso; `create_marker_exclusive` solo acepta la ruta RUN_DIR/RUN_MARKER y crea con
+O_CREAT|O_EXCL. El token solo lo emite el proceso que creó la marca en exclusiva, con nonce; el motor rechaza
+datos reales sin autorización. Tests: test_clearance_* , test_marca_solo_con_autorizacion_de_run_confirmatory,
+test_marca_existente_no_da_token, test_confirmatoria_no_salta_el_recalculo_de_la_autorizacion.
