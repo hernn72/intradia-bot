@@ -44,7 +44,7 @@ from advisor.data.freshness import mercado_para_simbolo
 from advisor.data.sessions import market_for_symbol, market_session, session_close_at
 from advisor.research.observations import stable_signal_id
 from advisor.research.p3 import utc_now, write_json
-from advisor.research.p4 import _context_resolver, executor_unchanged_since, run_git, tree_dirty
+from advisor.research.p4 import executor_unchanged_since, run_git, tree_dirty
 from advisor.research.p6_sim import (
     ORIGIN_REAL,
     AssetSeries,
@@ -627,7 +627,9 @@ def build_real_signals(
     require_token(token)
     if (policy, population) not in {(p, pop) for _run, p, pop, _slip in RUNS}:
         raise P6OutcomeGateError(f"P6: señales reales solo para corridas pre-registradas, no {policy}/{population}")
-    from advisor.research.vintage import frozen_close  # local, tras el token: p6 no expone accesores de precios
+    # Locales y tras el token: p6 no expone accesores de precios ni extractores desde un VintageLoad.
+    from advisor.research.p4 import _context_resolver
+    from advisor.research.vintage import frozen_close
 
     cfg = policy_config(config, policy)
     resolver: PointInTimeContextResolver = _context_resolver(config, universe, vintage)

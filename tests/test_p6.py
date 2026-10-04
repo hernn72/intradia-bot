@@ -1504,23 +1504,93 @@ def _price_readers() -> Dict[str, Any]:
     )}
 
 
-def test_n01_n04_namespace_de_p6_sin_lectores_de_precios() -> None:
-    """(1–4) p6 no expone load_vintage, load_full_vintage, load_price_rows ni frozen_close, con ningún nombre.
+# Política del namespace de p6: cada callable importado de otro módulo de advisor está clasificado a mano.
+# Un callable nuevo hace fallar el test hasta que se incorpore conscientemente. Los de procesamiento operan
+# sobre datos que les entrega el llamador; ninguno lee la cosecha ni extrae precios de un VintageLoad.
+P6_IMPORTED_CALLABLES = {
+    "advisor.analysis.benchmark": {"resolve_benchmark_symbol"},
+    "advisor.analysis.levels": {"compute_levels"},
+    "advisor.analysis.snapshot": {"build_snapshot_series", "snapshot_from_series"},
+    "advisor.backtest.engine": {"_signal"},
+    "advisor.config": {"AdvisorConfig"},
+    "advisor.context.point_in_time": {"PointInTimeContextResolver", "analysis_timestamp_for_signal"},
+    "advisor.data.calendars": {"exchange_calendar", "expected_sessions"},
+    "advisor.data.freshness": {"mercado_para_simbolo"},
+    "advisor.data.sessions": {"market_for_symbol", "market_session", "session_close_at"},
+    "advisor.research.observations": {"stable_signal_id"},
+    "advisor.research.p3": {"utc_now", "write_json"},
+    # De P4 solo los helpers de git/árbol; nunca _context_resolver ni otro acceso a datos.
+    "advisor.research.p4": {"executor_unchanged_since", "tree_dirty"},
+    "advisor.run.git": {"git_sha", "run_git"},
+    "advisor.research.p6_sim": {
+        "AssetSeries", "FxTable", "MarketData", "P6OutcomeGateError", "Signal", "SimSpec", "canonical_json",
+        "cash_occupancy", "criterion", "equity_series", "excess", "exposure_metrics", "ledger_csv", "path_metrics",
+        "series_csv", "simulate", "simulate_benchmark", "subperiods", "survivors", "trade_metrics", "trades_csv",
+        "turnover",
+    },
+    # De vintage solo tipos y la carga estructural (timestamps, dividendos, splits).
+    "advisor.research.vintage": {"VintageLoad", "VintageStructure", "load_vintage_structure"},
+    "advisor.run.manifest": {"config_hash"},
+    "advisor.universe.models": {"Universe"},
+}
 
-    Inspecciona todo el namespace: cualquier regresión de esta familia (otro alias, otro accesor de
-    vintage, o reexportar un módulo de advisor que los traiga) hace fallar el test.
+# Funciones propias de p6 autorizadas a tocar precios o la estructura de la cosecha.
+P6_OWN_PRICE_PATHS = {
+    "_ejecutar_confirmatoria_sellada",   # flujo confirmatorio sellado
+    "build_real_market",                 # exige token vigente
+    "build_real_signals",                # exige token vigente
+    "dividend_split_checks",             # §10.1, sin argumentos del llamador
+    "_dividend_split_checks",            # cálculo de §10.1; el lector lo aporta quien llama
+    "structure_index",                   # solo timestamps
+    "vintage_index",                     # solo timestamps
+}
+
+
+def _p6_imported_callables() -> Dict[str, set]:
+    out: Dict[str, set] = {}
+    for name, value in vars(p6).items():
+        module = getattr(value, "__module__", None)
+        if callable(value) and module and module.startswith("advisor.") and module != p6.__name__:
+            out.setdefault(module, set()).add(name)
+    return out
+
+
+def test_n01_n04_namespace_de_p6_sin_lectores_de_precios() -> None:
+    """(1–4) Ningún lector de precios ni extractor desde VintageLoad en p6, con ningún nombre.
+
+    Política cerrada: los callables importados de otros módulos de advisor deben coincidir exactamente con
+    P6_IMPORTED_CALLABLES, y no se reexporta ningún módulo de advisor.
     """
 
     import types
 
-    for name in ("load_vintage", "load_full_vintage", "load_price_rows", "frozen_close"):
+    for name in ("load_vintage", "load_full_vintage", "load_price_rows", "frozen_close", "_context_resolver"):
         assert not hasattr(p6, name), name
     readers = _price_readers()
+    import advisor.research.p4 as p4_module
+
+    readers["_context_resolver"] = p4_module._context_resolver
     exposed = [name for name, value in vars(p6).items() if any(value is reader for reader in readers.values())]
     assert exposed == [], exposed
+    assert _p6_imported_callables() == P6_IMPORTED_CALLABLES
     advisor_modules = [name for name, value in vars(p6).items()
                        if isinstance(value, types.ModuleType) and value.__name__.startswith("advisor.")]
     assert advisor_modules == [], advisor_modules
+
+
+def test_n10_solo_las_rutas_autorizadas_de_p6_tocan_precios() -> None:
+    """Toda función propia de p6 que toca la cosecha o accesores de precios está en la lista autorizada."""
+
+    import inspect
+    import re
+
+    pattern = re.compile(r"\.by_symbol|frozen_close|signal_prices|execution_prices|\bload_vintage\(|load_price_rows"
+                         r"|read_raw_csv|_context_resolver|build_views")
+    touching = set()
+    for name, value in vars(p6).items():
+        if inspect.isfunction(value) and value.__module__ == p6.__name__ and pattern.search(inspect.getsource(value)):
+            touching.add(name)
+    assert touching == P6_OWN_PRICE_PATHS, touching ^ P6_OWN_PRICE_PATHS
 
 
 def test_n05_load_structure_es_solo_estructural(tmp_path: Path) -> None:
