@@ -618,7 +618,35 @@ def test_guarda_datos_reales_sin_autorizacion() -> None:
         sim.simulate_benchmark(real, EUR, spec())
 
 
-PREFLIGHT_OK = {"ok": True, "definitivo": True}
+def _frozen_report(**extra: Any) -> Dict[str, Any]:
+    """Informe de preflight definitivo con las identidades congeladas (sin desenlaces)."""
+
+    return {
+        "ok": True,
+        "definitivo": True,
+        "identidad": {
+            "p6_prereg_sha": p6.P6_PREREG_SHA, "p6_executor_sha": "sha", "git_dirty": False,
+            "prereg_en_historia": True, "p6_data_id": p6.P6_DATA_ID, "data_vintage_id": p6.DATA_VINTAGE_ID,
+            "universe_vintage_id": p6.UNIVERSE_VINTAGE_ID, "fx_vintage_id": p6.FX_VINTAGE_ID,
+            "sector_map": p6.SECTOR_MAP_SHA256,
+        },
+        "politicas": {policy: {"policy_sha256": ph, "advisor_config_hash": ch} for policy, (ph, ch) in p6.POLICY_HASHES.items()},
+        **extra,
+    }
+
+
+def _allow_clearance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stored: Optional[Dict[str, Any]] = None,
+                     live: Optional[Dict[str, Any]] = None) -> Path:
+    """Preflight definitivo en disco (ruta temporal) y preflight vivo recalculado igual a él."""
+
+    pre_dir = tmp_path / "preflight-autorizacion"
+    pre_dir.mkdir(exist_ok=True)
+    stored = _frozen_report() if stored is None else stored
+    (pre_dir / "p6-preflight.json").write_text(json.dumps(stored), encoding="utf-8")
+    monkeypatch.setattr(p6, "PREFLIGHT_DIR", pre_dir)
+    monkeypatch.setattr(p6, "executor_unchanged_since", lambda *_a, **_k: True)
+    monkeypatch.setattr(p6, "_live_preflight", lambda: (True, _frozen_report() if live is None else live))
+    return pre_dir
 
 
 def test_guarda_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -630,13 +658,14 @@ def test_guarda_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         p6.require_token(p6.ConfirmatoryToken(run_dir / p6.RUN_MARKER, "0" * 64))
     run_dir.mkdir()
     marker = run_dir / p6.RUN_MARKER
-    fd = p6.create_marker_exclusive(marker, p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK))
+    _allow_clearance(tmp_path, monkeypatch)
+    fd = p6.create_marker_exclusive(marker, p6._issue_clearance())
     with open(fd, "w", encoding="utf-8") as handle:
         handle.write(json.dumps({"a": 1}, ensure_ascii=False, indent=2) + "\n")
     token = p6.build_confirmatory_token(marker, {"a": 1})
     assert p6.require_token(token) is token
     with pytest.raises(p6.P6AlreadyExecutedError):
-        p6.create_marker_exclusive(marker, p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK))
+        p6.create_marker_exclusive(marker, p6._issue_clearance())
     other = tmp_path / "otra" / p6.RUN_MARKER
     other.parent.mkdir()
     other.write_text(marker.read_text(encoding="utf-8"), encoding="utf-8")
@@ -731,7 +760,8 @@ def test_humo_ruta_real_con_token_sobre_cosecha_sintetica(tmp_path: Path, monkey
     run_dir.mkdir()
     monkeypatch.setattr(p6, "RUN_DIR", run_dir)
     payload = {"humo": True}
-    fd = p6.create_marker_exclusive(run_dir / p6.RUN_MARKER, p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK))
+    _allow_clearance(tmp_path, monkeypatch)
+    fd = p6.create_marker_exclusive(run_dir / p6.RUN_MARKER, p6._issue_clearance())
     with open(fd, "w", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     token = p6.build_confirmatory_token(run_dir / p6.RUN_MARKER, payload)
@@ -802,27 +832,125 @@ def test_capital_pedido_frente_a_disponible() -> None:
     assert occupancy["capital_disponible_en_esos_rechazos_eur"] == pytest.approx(40_000.0)
 
 
+def test_clearance_no_acepta_informes_del_llamador(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(1) Ya no se pueden inyectar diccionarios fabricados: la firma no recibe nada."""
+
+    import inspect
+
+    assert list(inspect.signature(p6._issue_clearance).parameters) == []
+    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
+    _allow_clearance(tmp_path, monkeypatch)
+    fake = {"ok": True, "definitivo": True}
+    with pytest.raises(TypeError):
+        p6._issue_clearance(fake, fake)  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        p6._issue_clearance(stored=fake, live=fake)  # type: ignore[call-arg]
+
+
+def test_clearance_sin_preflight_definitivo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(2) Preflight definitivo inexistente → rechazo."""
+
+    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
+    pre_dir = _allow_clearance(tmp_path, monkeypatch)
+    (pre_dir / "p6-preflight.json").unlink()
+    with pytest.raises(sim.P6OutcomeGateError, match="no existe el preflight definitivo"):
+        p6._issue_clearance()
+
+
+@pytest.mark.parametrize("campo, motivo", [("ok", "ok != true"), ("definitivo", "no es definitivo")])
+def test_clearance_preflight_de_disco_no_ok_o_no_definitivo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, campo: str, motivo: str
+) -> None:
+    """(3) ok=False y (4) definitivo=False en el preflight de disco → rechazo."""
+
+    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
+    _allow_clearance(tmp_path, monkeypatch, stored=_frozen_report(**{campo: False}))
+    with pytest.raises(sim.P6OutcomeGateError, match=motivo):
+        p6._issue_clearance()
+
+
+def test_clearance_huella_distinta(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(5) Huella guardada ≠ huella recalculada → rechazo; también si el recálculo no es correcto."""
+
+    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
+    _allow_clearance(tmp_path, monkeypatch, live=_frozen_report(ventana={"inicio": "otra"}))
+    with pytest.raises(sim.P6OutcomeGateError, match="no coincide"):
+        p6._issue_clearance()
+    _allow_clearance(tmp_path, monkeypatch, live=_frozen_report(ok=False))
+    with pytest.raises(sim.P6OutcomeGateError, match="recalculado no es correcto"):
+        p6._issue_clearance()
+
+
+@pytest.mark.parametrize("ruta, valor", [
+    (("identidad", "p6_prereg_sha"), "0" * 40), (("identidad", "p6_data_id"), "0" * 64),
+    (("identidad", "data_vintage_id"), "0" * 64), (("identidad", "fx_vintage_id"), "0" * 64),
+    (("identidad", "sector_map"), "0" * 64), (("identidad", "git_dirty"), True),
+    (("politicas", "B2"), {"policy_sha256": "0" * 64, "advisor_config_hash": "0" * 64}),
+])
+def test_clearance_identidades_congeladas_incorrectas(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ruta: Tuple[str, str], valor: Any
+) -> None:
+    """(6) Identidades congeladas incorrectas en el preflight de disco → rechazo."""
+
+    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
+    stored = _frozen_report()
+    stored[ruta[0]][ruta[1]] = valor
+    _allow_clearance(tmp_path, monkeypatch, stored=stored, live=stored)
+    with pytest.raises(sim.P6OutcomeGateError, match="identidades congeladas"):
+        p6._issue_clearance()
+
+
+def test_clearance_ejecutor_cambiado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
+    _allow_clearance(tmp_path, monkeypatch)
+    monkeypatch.setattr(p6, "executor_unchanged_since", lambda *_a, **_k: False)
+    with pytest.raises(sim.P6OutcomeGateError, match="ejecutor cambió"):
+        p6._issue_clearance()
+
+
 def test_marca_solo_con_autorizacion_de_run_confirmatory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(p6, "RUN_DIR", tmp_path)
-    marker = tmp_path / p6.RUN_MARKER
-    with pytest.raises(sim.P6OutcomeGateError):
-        p6.create_marker_exclusive(marker, "fabricada")
-    # La autorización comprueba ella misma las precondiciones de run_confirmatory.
-    for stored, live in (({"ok": True, "definitivo": False}, PREFLIGHT_OK), (PREFLIGHT_OK, {"ok": False}),
-                         (PREFLIGHT_OK, {**PREFLIGHT_OK, "ventana": {"inicio": "otra"}})):
-        with pytest.raises(sim.P6OutcomeGateError):
-            p6._issue_clearance(stored, live)
-    assert not marker.exists()
+    """(7) marca existente, (8) una sola marca, (9) reutilizar, (10) fabricar, (11) otra ruta."""
+
     import os
 
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
+    _allow_clearance(tmp_path, monkeypatch)
+    marker = run_dir / p6.RUN_MARKER
     with pytest.raises(sim.P6OutcomeGateError):
-        p6.create_marker_exclusive(tmp_path / "otra", p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK))
-    clearance = p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK)
+        p6.create_marker_exclusive(marker, "fabricada")
+    with pytest.raises(sim.P6OutcomeGateError):
+        p6.create_marker_exclusive(marker, "0" * 64)
+    with pytest.raises(sim.P6OutcomeGateError, match="solo puede ser"):
+        p6.create_marker_exclusive(tmp_path / "otra" / p6.RUN_MARKER, p6._issue_clearance())
+    assert not marker.exists()
+    clearance = p6._issue_clearance()
     os.close(p6.create_marker_exclusive(marker, clearance))
+    assert marker.is_file()
     with pytest.raises(sim.P6OutcomeGateError):
         p6.create_marker_exclusive(marker, clearance)
     with pytest.raises(p6.P6AlreadyExecutedError):
-        p6._issue_clearance(PREFLIGHT_OK, PREFLIGHT_OK)
+        p6._issue_clearance()
+
+
+def test_marca_existente_no_da_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(12) Quien solo encuentra una marca existente no puede fabricar ConfirmatoryToken ni crear otra."""
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
+    payload = {"a": 1}
+    marker = run_dir / p6.RUN_MARKER
+    marker.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _allow_clearance(tmp_path, monkeypatch)
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        p6._issue_clearance()
+    with pytest.raises(sim.P6OutcomeGateError):
+        p6.build_confirmatory_token(marker, payload)
+    digest = hashlib.sha256(marker.read_bytes()).hexdigest()
+    with pytest.raises(sim.P6OutcomeGateError):
+        p6.require_token(p6.ConfirmatoryToken(marker, digest))
 
 
 def _synthetic_confirmatory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, fail_signals: bool = False) -> Tuple[Path, Any]:
@@ -833,9 +961,8 @@ def _synthetic_confirmatory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, 
     run_dir, pre_dir = tmp_path / "run", tmp_path / "preflight"
     pre_dir.mkdir()
     config = load_config("config.yaml")
-    report = {"ok": True, "definitivo": True, "identidad": {"p6_executor_sha": "sha"}, "politicas": {},
-              "ventana": window.as_dict(), "system_hashes": p6.system_hashes(config, window),
-              "determinismo": p6.synthetic_determinism()}
+    report = _frozen_report(ventana=window.as_dict(), system_hashes=p6.system_hashes(config, window),
+                            determinismo=p6.synthetic_determinism())
     (pre_dir / "p6-preflight.json").write_text(json.dumps(report), encoding="utf-8")
     monkeypatch.setattr(p6, "RUN_DIR", run_dir)
     monkeypatch.setattr(p6, "PREFLIGHT_DIR", pre_dir)
@@ -978,3 +1105,13 @@ def test_preflight_real_sin_cargar_precios(monkeypatch: pytest.MonkeyPatch) -> N
     assert ok, [row for row in report["checks"] if not row["ok"]]
     assert report["ventana"]["inicio"] == "2022-06-14" and report["ventana"]["fin"] == "2026-08-27"
     assert not report["dividendos_splits"]["fuera_de_tolerancia"]
+
+
+def test_confirmatoria_no_salta_el_recalculo_de_la_autorizacion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Aunque las comprobaciones propias de run_confirmatory pasen, la marca exige el recálculo interno."""
+
+    run_dir, (config, ident) = _synthetic_confirmatory(tmp_path, monkeypatch)
+    monkeypatch.setattr(p6, "_live_preflight", lambda: (True, _frozen_report(ventana={"inicio": "otra"})))
+    with pytest.raises(sim.P6OutcomeGateError, match="no coincide"):
+        p6.run_confirmatory(config, None, ident, run_dir)  # type: ignore[arg-type]
+    assert not (run_dir / p6.RUN_MARKER).exists()

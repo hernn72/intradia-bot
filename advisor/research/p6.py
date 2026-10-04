@@ -27,7 +27,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, List, Mapping, NoReturn, Optional, Sequence, Tuple, cast
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -106,6 +106,7 @@ POLICY_HASHES = {
 CANDIDATES = ("B2", "S2")
 CONTROL = "C0"
 
+CONFIG_PATH = Path("config.yaml")
 DATA_DIR = Path("evidence/2026-10-03-T-022-p6-datos")
 CENSUS = Path("evidence/2026-10-03-T-022-p6-diseno/censo-p6.json")
 PREFLIGHT_DIR = Path("evidence/2026-10-03-T-022-p6/preflight")
@@ -146,27 +147,88 @@ class ConfirmatoryToken:
 
 # Marcas creadas en exclusiva por este proceso y tokens emitidos sobre ellas: un token solo vale en
 # el proceso que creó la marca. Otro proceso que lea una marca existente no puede obtener uno. La
-# marca solo se crea con la autorización que emite run_confirmatory tras todas sus comprobaciones.
+# marca solo se crea con un clearance de _issue_clearance, que reconstruye sus precondiciones desde
+# disco y las recalcula; nada que aporte el llamador cuenta como autoridad.
 _CREATED_MARKERS: set[Path] = set()
 _ISSUED_TOKENS: set[ConfirmatoryToken] = set()
 _CLEARANCES: set[str] = set()
 
 
-def _issue_clearance(stored: Mapping[str, Any], live: Mapping[str, Any]) -> str:
-    """Autorización de un solo uso para crear la marca.
+def _deny(reason: str) -> NoReturn:
+    raise P6OutcomeGateError(f"autorización denegada: {reason}")
 
-    Vuelve a comprobar sobre los informes que recibe las precondiciones que run_confirmatory ya
-    verificó (preflight guardado definitivo y correcto, preflight interno correcto, huellas idénticas,
-    marca ausente). Es una barrera contra el uso accidental, no contra código que fabrique los informes:
-    la garantía de ejecución única es la marca en la ruta fija creada con O_EXCL.
+
+def _frozen_identity_mismatches(report: Mapping[str, Any]) -> List[str]:
+    """Campos del preflight guardado que no reproducen las identidades congeladas."""
+
+    identity = cast(Mapping[str, Any], report.get("identidad") or {})
+    expected = {
+        "p6_prereg_sha": P6_PREREG_SHA,
+        "p6_data_id": P6_DATA_ID,
+        "data_vintage_id": DATA_VINTAGE_ID,
+        "universe_vintage_id": UNIVERSE_VINTAGE_ID,
+        "fx_vintage_id": FX_VINTAGE_ID,
+        "sector_map": SECTOR_MAP_SHA256,
+        "prereg_en_historia": True,
+        "git_dirty": False,
+    }
+    wrong = [f"identidad.{key}" for key, value in expected.items() if identity.get(key) != value]
+    policies = cast(Mapping[str, Any], report.get("politicas") or {})
+    for policy, (policy_hash, cfg_hash) in POLICY_HASHES.items():
+        record = cast(Mapping[str, Any], policies.get(policy) or {})
+        if record.get("policy_sha256") != policy_hash or record.get("advisor_config_hash") != cfg_hash:
+            wrong.append(f"politicas.{policy}")
+    if not isinstance(identity.get("p6_executor_sha"), str) or not identity.get("p6_executor_sha"):
+        wrong.append("identidad.p6_executor_sha")
+    return wrong
+
+
+def _live_preflight() -> Tuple[bool, Dict[str, Any]]:
+    """Preflight vivo recalculado desde las fuentes de verdad, sin nada que aporte el llamador."""
+
+    from advisor.config import load_config
+    from advisor.universe.loader import load_universe
+
+    config = load_config(CONFIG_PATH)
+    universe = load_universe(config.universe_path)
+    return run_preflight(config, universe, load_structure(), current_identity(config), write=False,
+                         determinism=synthetic_determinism())
+
+
+def _issue_clearance() -> str:
+    """Autorización de un solo uso para crear la marca, reconstruida desde las fuentes de verdad.
+
+    No recibe nada del llamador: lee el preflight definitivo de su ruta fija, comprueba que es correcto,
+    definitivo y que reproduce las identidades congeladas, que el ejecutor no cambió desde él y que
+    ``P6_DATA_ID`` se reproduce; recalcula el preflight vivo con ``run_preflight`` y exige la misma
+    huella; y comprueba que la marca no existe. Solo entonces emite el clearance.
     """
 
-    if not (stored.get("ok") is True and stored.get("definitivo") is True):
-        raise P6OutcomeGateError("autorización denegada: el preflight guardado no es definitivo y correcto")
-    if live.get("ok") is not True:
-        raise P6OutcomeGateError("autorización denegada: el preflight interno no es correcto")
+    stored_path = PREFLIGHT_DIR / "p6-preflight.json"
+    if not stored_path.is_file():
+        _deny(f"no existe el preflight definitivo ({stored_path})")
+    try:
+        stored = json.loads(stored_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        _deny(f"preflight definitivo ilegible: {exc}")
+    if not isinstance(stored, dict):
+        _deny("preflight definitivo con formato inválido")
+    if stored.get("ok") is not True:
+        _deny("el preflight definitivo no es correcto (ok != true)")
+    if stored.get("definitivo") is not True:
+        _deny("el preflight guardado no es definitivo")
+    wrong = _frozen_identity_mismatches(stored)
+    if wrong:
+        _deny(f"el preflight definitivo no reproduce las identidades congeladas: {wrong}")
+    if p6_data_id() != P6_DATA_ID:
+        _deny("P6_DATA_ID no se reproduce en este entorno")
+    if not executor_unchanged_since(str(stored["identidad"]["p6_executor_sha"]), "."):
+        _deny("el ejecutor cambió desde el preflight definitivo")
+    live_ok, live = _live_preflight()
+    if not (live_ok and live.get("ok") is True and live.get("definitivo") is True):
+        _deny("el preflight recalculado no es correcto y definitivo")
     if canonical_json(preflight_fingerprint(live)) != canonical_json(preflight_fingerprint(stored)):
-        raise P6OutcomeGateError("autorización denegada: el preflight interno no coincide con el definitivo")
+        _deny("el preflight recalculado no coincide con el definitivo guardado")
     if (RUN_DIR / RUN_MARKER).exists():
         raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({RUN_DIR / RUN_MARKER}); no se repite")
     clearance = secrets.token_hex(32)
@@ -1074,7 +1136,8 @@ def run_confirmatory(
         "system_hashes": preflight["system_hashes"],
         "label": UNIVERSE_LABEL,
     }
-    fd = create_marker_exclusive(marker, _issue_clearance(stored, preflight))
+    # La autorización no usa nada de lo calculado aquí: lo reconstruye desde disco y lo recalcula.
+    fd = create_marker_exclusive(marker, _issue_clearance())
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
