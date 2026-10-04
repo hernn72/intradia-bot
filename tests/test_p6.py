@@ -791,9 +791,10 @@ def test_cli_preflight_no_carga_la_cosecha_de_precios(monkeypatch: pytest.Monkey
         seen["structure"] = structure
         return True, {"modo": "x", "ventana": {"inicio": "a", "fin": "b"}, "new_p6_outcomes_read": False, "checks": []}
 
+    import advisor.research.vintage as vintage_module
+
     monkeypatch.setattr(main, "load_vintage", forbidden)
-    monkeypatch.setattr(p6, "load_vintage", forbidden)
-    monkeypatch.setattr(p6, "load_full_vintage", forbidden)
+    monkeypatch.setattr(vintage_module, "load_vintage", forbidden)
     monkeypatch.setattr(p6, "load_structure", lambda: "estructura")
     monkeypatch.setattr(p6, "run_preflight", fake_preflight)
     monkeypatch.setattr(p6, "synthetic_determinism", lambda: {})
@@ -817,8 +818,7 @@ def test_preflight_real_sin_cargar_precios(monkeypatch: pytest.MonkeyPatch) -> N
     def forbidden(*_a: Any, **_k: Any) -> Any:
         raise AssertionError("el preflight no debe cargar la cosecha de precios")
 
-    for module, name in ((vintage_module, "load_vintage"), (vintage_module, "build_views"), (p6, "load_vintage"),
-                         (p6, "load_full_vintage")):
+    for module, name in ((vintage_module, "load_vintage"), (vintage_module, "build_views")):
         monkeypatch.setattr(module, name, forbidden)
     config = load_config("config.yaml")
     ok, report = p6.run_preflight(config, load_universe(config.universe_path), p6.load_structure(),
@@ -861,7 +861,9 @@ def _sealed_env(
     monkeypatch.setattr(p6, "derive_window", lambda *_a, **_k: window)
     monkeypatch.setattr(p6, "load_fx", lambda: (fx, {"fuente_usada": "B"}))
     monkeypatch.setattr(p6, "load_sector_map", lambda: {})
-    monkeypatch.setattr(p6, "load_full_vintage", lambda: p6.VintageLoad("sintetica", {}, {}))
+    import advisor.research.vintage as vintage_module
+
+    monkeypatch.setattr(vintage_module, "load_vintage", lambda *_a, **_k: p6.VintageLoad("sintetica", {}, {}))
 
     def fake_market(token: Any, *a: Any, **_k: Any) -> sim.MarketData:
         p6.require_token(token)
@@ -1135,7 +1137,9 @@ def test_humo_flujo_sellado_con_constructores_reales_sobre_cosecha_sintetica(
     monkeypatch.setattr(p6, "executor_unchanged_since", lambda *_a, **_k: True)
     monkeypatch.setattr(p6, "_sources", lambda: (config, universe))
     monkeypatch.setattr(p6, "_live_preflight", lambda *_a, **_k: (True, report))
-    monkeypatch.setattr(p6, "load_full_vintage", lambda: vintage)
+    import advisor.research.vintage as vintage_module
+
+    monkeypatch.setattr(vintage_module, "load_vintage", lambda *_a, **_k: vintage)
     monkeypatch.setattr(p6, "load_sector_map", lambda: dict.fromkeys(("7203.T", "AAPL", "SAP.DE"), "Technology"))
 
     ident = p6.P6Identity("sha", False, True, p6.EXPECTED_CONFIG_HASH, "1.0")
@@ -1387,3 +1391,100 @@ def test_c19_c20_marca_referencia_el_payload_ya_persistido(tmp_path: Path, monke
     assert marker["payload_sha256"] == seen["sha"] == hashlib.sha256((run_dir / p6.RUN_PAYLOAD).read_bytes()).hexdigest()
     with pytest.raises(p6.P6AlreadyExecutedError):
         _run(config, ident, run_dir)
+
+
+
+# ---------------------------------------------------------------------------
+# P6 no expone ningún cargador de la cosecha completa fuera del flujo sellado.
+# ---------------------------------------------------------------------------
+
+
+def test_l01_l02_p6_no_expone_cargadores_de_la_cosecha_completa() -> None:
+    """(1) sin load_full_vintage, (2) sin load_vintage, ni otro alias del cargador en el namespace de p6."""
+
+    import advisor.research.vintage as vintage_module
+
+    assert not hasattr(p6, "load_full_vintage") and not hasattr(p6, "load_vintage")
+    assert all(value is not vintage_module.load_vintage for value in vars(p6).values())
+    assert not hasattr(p6, "vintage") and not hasattr(p6, "vintage_module")
+
+
+def _calls_to(name: str) -> List[Tuple[str, int]]:
+    """Funciones de p6.py (con su línea) que llaman o importan ``name``."""
+
+    import ast
+    import inspect
+
+    tree = ast.parse(inspect.getsource(p6))
+    found: List[Tuple[str, int]] = []
+
+    def visit(node: ast.AST, owner: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            current = child.name if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) else owner
+            if isinstance(child, ast.Call):
+                func = child.func
+                called = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
+                if called == name:
+                    found.append((owner, child.lineno))
+            if isinstance(child, ast.ImportFrom) and any(alias.name == name for alias in child.names):
+                found.append((owner, child.lineno))
+            visit(child, current)
+
+    visit(tree, "<módulo>")
+    return found
+
+
+def test_l04_solo_el_flujo_sellado_alcanza_el_cargador_completo() -> None:
+    """(4) Las únicas apariciones de load_vintage en p6 están dentro de _ejecutar_confirmatoria_sellada."""
+
+    owners = {owner for owner, _line in _calls_to("load_vintage")}
+    assert owners == {"_ejecutar_confirmatoria_sellada"}, _calls_to("load_vintage")
+    # Y a esa función solo se llega desde run_confirmatory.
+    assert {owner for owner, _ in _calls_to("_ejecutar_confirmatoria_sellada")} == {"run_confirmatory"}
+
+
+def test_l03_l04_flujo_carga_la_cosecha_tras_verificar_y_el_preflight_nunca(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """(3) el preflight no carga la cosecha; (4) run_confirmatory la carga una vez, tras la autorización."""
+
+    import advisor.research.vintage as vintage_module
+
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    events: List[str] = []
+    real_auth = p6._verified_authorization
+
+    def spy_auth() -> Any:
+        events.append("autorizacion")
+        return real_auth()
+
+    def spy_load(*_a: Any, **_k: Any) -> Any:
+        events.append("cosecha_completa")
+        assert not (run_dir / p6.RUN_MARKER).exists(), "la cosecha se carga antes de la marca"
+        return p6.VintageLoad("sintetica", {}, {})
+
+    monkeypatch.setattr(p6, "_verified_authorization", spy_auth)
+    monkeypatch.setattr(vintage_module, "load_vintage", spy_load)
+    code, text = _run(config, ident, run_dir)
+    assert code == 0, text
+    assert events == ["autorizacion", "cosecha_completa"]
+
+    # Si la autorización falla, el cargador completo no se toca.
+    events.clear()
+    (p6.PREFLIGHT_DIR / "p6-preflight.json").unlink()
+    with pytest.raises((sim.P6OutcomeGateError, p6.P6AlreadyExecutedError)):
+        _run(config, ident, tmp_path / "run")
+    assert "cosecha_completa" not in events
+
+
+def test_l05_sin_apertura_sellada_no_hay_marketdata_real() -> None:
+    """(5) Sin ejecución sellada en curso no se construye MarketData real, ni con el contrato de verdad."""
+
+    config = load_config("config.yaml")
+    m, _fx, _signals = p6.synthetic_market()
+    days = sim.snapshot_days(m)
+    window = p6.Window(m.window_start, m.window_end, m.window_start, m.window_start, 0, len(days), 252.0)
+    contract = p6._preregistered_specs(config, p6.system_hashes(config, window))
+    assert p6._ACTIVE_TOKEN is None
+    with pytest.raises(sim.P6OutcomeGateError):
+        replace(m, origin=sim.ORIGIN_REAL, contract=contract)

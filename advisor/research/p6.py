@@ -76,7 +76,6 @@ from advisor.research.vintage import (
     VintageStructure,
     frozen_close,
     load_price_rows,
-    load_vintage,
     load_vintage_structure,
 )
 from advisor.run.git import git_sha
@@ -404,12 +403,6 @@ def vintage_index(vintage: VintageLoad) -> Dict[str, pd.Index]:
 
 def load_structure() -> VintageStructure:
     return load_vintage_structure(DATA_VINTAGE_ID)
-
-
-def load_full_vintage() -> VintageLoad:
-    """Cosecha con precios: solo la usa la ejecución confirmatoria, nunca el preflight."""
-
-    return load_vintage(DATA_VINTAGE_ID)
 
 
 def derive_window(config: AdvisorConfig, universe: Universe, index: Mapping[str, pd.Index]) -> Window:
@@ -1111,7 +1104,11 @@ def _ejecutar_confirmatoria_sellada() -> Tuple[int, str]:
     """
 
     config, universe, stored, live = _verified_authorization()
-    vintage = load_full_vintage()
+    # La cosecha completa solo se carga aquí, tras verificar preflight, identidades, P6_DATA_ID y ejecutor,
+    # y antes de la marca solo para reproducir la ventana. P6 no expone ningún otro cargador de precios.
+    from advisor.research.vintage import load_vintage
+
+    vintage = load_vintage(DATA_VINTAGE_ID)
     window = derive_window(config, universe, vintage_index(vintage))
     if window.as_dict() != live["ventana"]:
         raise P6PreflightError("la cosecha completa no reproduce la ventana del preflight; P6 no se ejecuta")
