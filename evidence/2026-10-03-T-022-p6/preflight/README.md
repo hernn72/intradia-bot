@@ -18,7 +18,7 @@ activos con split y dividendo se convierten a número, para T-022 §10.1.
 |---|---|
 | `P6_PREREG_SHA` | `03f04a42ea9d2be893e7c4cc09de76bd1c55778b` (en la historia de HEAD) |
 | `P6_DATA_ID` | `572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383` (reproducido) |
-| Ejecutor | `0ba98a3978acf2ab7dca7a0ec064324cd76577de` (candidato a `P6_CODE_SHA`): `advisor/research/p6.py`, `advisor/research/p6_sim.py`, `advisor/research/vintage.py` (lector estructural), CLI `p6` y `tests/test_p6.py` |
+| Ejecutor | `d81a3589badfbcc187a5dd7b7017c1097ab0a661` (candidato a `P6_CODE_SHA`): `advisor/research/p6.py`, `advisor/research/p6_sim.py`, `advisor/research/vintage.py` (lector estructural), CLI `p6` y `tests/test_p6.py` |
 | Cosecha / universo | `071ddb2b…` / `237b0056…` |
 | FX | `fx_vintage_id 10e832ef…` (fuente B, BCE), verificado contra su manifiesto y su sha256 |
 | Sector | `24f45421…`, 90/90 |
@@ -55,11 +55,12 @@ activos con split y dividendo se convierten a número, para T-022 §10.1.
     hash); `load_vintage` verifica la serie completa en la confirmatoria.
 - **Guardas** (`guardas-outcome.txt`): sin token no se cargan precios reales ni se generan señales; un
   token fabricado no vale; el motor rechaza datos reales sin autorización; la marca no existe.
-- **Ejecución confirmatoria sellada** (desde 0ba98a3): un único camino abre desenlaces,
+- **Ejecución confirmatoria sellada** (desde 0ba98a3; d81a358 revoca el token al terminar y escribe la marca verificada): un único camino abre desenlaces,
   `run_confirmatory` → `_ejecutar_confirmatoria_sellada()`, sin argumentos. Reconstruye la autorización
   desde el preflight definitivo en disco, recalcula el preflight y la ventana, calcula dentro el payload
-  de la marca, la crea con `O_EXCL` y usa un token que no sale de la función y solo autoriza los 9
-  `SimSpec` pre-registrados. Cierra el IMPORTANTE (b7f7da2) y el BLOCKER (9c0e5ca) de Codex. Detalle en
+  de la marca, la crea con `O_EXCL` y usa un token que no sale de la función, se revoca al terminar y
+  solo autoriza los 9 `SimSpec` pre-registrados. Cierra los hallazgos de Codex sobre b7f7da2, 9c0e5ca y
+  ea6940b. Detalle en
   `guardas-outcome.txt`.
 - **Determinismo** (`determinismo.txt`): el fixture sintético da el mismo ledger, la misma serie diaria,
   las mismas métricas y el mismo ledger del benchmark, byte a byte.

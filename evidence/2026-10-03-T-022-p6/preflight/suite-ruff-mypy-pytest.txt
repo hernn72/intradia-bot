@@ -1,8 +1,8 @@
-# sobre 0ba98a3978acf2ab7dca7a0ec064324cd76577de, árbol de código limpio (solo cambia evidence/)
+# sobre d81a3589badfbcc187a5dd7b7017c1097ab0a661, árbol de código limpio (solo cambia evidence/)
 $ .venv/bin/ruff check .
 All checks passed!
 $ .venv/bin/mypy advisor
 Success: no issues found in 75 source files
 $ .venv/bin/python -m pytest -q
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-1069 passed, 3 warnings in 450.22s (0:07:30)
+1073 passed, 3 warnings in 443.47s (0:07:23)
