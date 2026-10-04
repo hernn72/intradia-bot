@@ -29,7 +29,7 @@ import math
 from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
 from statistics import median
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from advisor.analysis.levels import rr_at_least
 
@@ -140,16 +140,23 @@ class AssetSeries:
 
 @dataclass(frozen=True)
 class MarketData:
+    """Datos de mercado. Con ``origin == "real"`` llevan el contrato inmutable de corridas autorizadas."""
+
     assets: Mapping[str, AssetSeries]
     window_start: date
     window_end: date
     origin: str = ORIGIN_SYNTHETIC
+    contract: Optional[FrozenSet[SimSpec]] = None
 
     def __post_init__(self) -> None:
         if self.origin not in (ORIGIN_SYNTHETIC, ORIGIN_REAL):
             raise ValueError(f"origen desconocido: {self.origin}")
         if self.window_end < self.window_start:
             raise ValueError("ventana vacía")
+        if self.contract is not None and not (
+            isinstance(self.contract, frozenset) and all(isinstance(spec, SimSpec) for spec in self.contract)
+        ):
+            raise P6OutcomeGateError("el contrato de corridas debe ser un frozenset de SimSpec")
 
 
 @dataclass(frozen=True)
@@ -206,6 +213,8 @@ class Signal:
 
 @dataclass(frozen=True)
 class SimSpec:
+    """Identidad completa de una corrida: todo campo que puede cambiar el desenlace forma parte de ella."""
+
     policy_id: str
     system_sha256: str
     capital: float = 100_000.0
@@ -215,6 +224,8 @@ class SimSpec:
     slippage_bps: float = 5.0
     min_rr: float = 1.5
     max_hold_bars: int = 40
+    run_id: str = ""
+    population: str = ""
 
     @property
     def slip(self) -> float:
@@ -329,12 +340,21 @@ class _Event:
 
 
 def _require_authorization(market: MarketData, authorize: Optional[Callable[[SimSpec], None]], spec: SimSpec) -> None:
-    """Con datos reales, la autorización recibe el spec concreto: solo vale para las corridas pre-registradas."""
+    """Datos reales → contrato presente → spec idéntico a una entrada → autorización vigente.
 
-    if market.origin == ORIGIN_REAL:
-        if authorize is None:
-            raise P6OutcomeGateError("P6: los datos reales solo se simulan con el ConfirmatoryToken de la marca")
-        authorize(spec)
+    El motor comprueba el contrato por sí mismo: una autorización del llamador no basta para simular un
+    spec que difiera en un solo campo de los pre-registrados. Los datos sintéticos admiten specs libres.
+    """
+
+    if market.origin != ORIGIN_REAL:
+        return
+    if not market.contract:
+        raise P6OutcomeGateError("P6: datos reales sin contrato de corridas pre-registradas")
+    if spec not in market.contract:
+        raise P6OutcomeGateError(f"P6: SimSpec no pre-registrado ({spec.run_id or spec.policy_id}, {spec.system_sha256[:12]}…)")
+    if authorize is None:
+        raise P6OutcomeGateError("P6: los datos reales solo se simulan con el ConfirmatoryToken de la marca")
+    authorize(spec)
 
 
 def _session_events(market: MarketData) -> List[_Event]:

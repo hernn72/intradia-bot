@@ -12,7 +12,7 @@ import math
 from dataclasses import replace
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Sequence, Tuple
 
 import pandas as pd
 import pytest
@@ -863,9 +863,9 @@ def _sealed_env(
     monkeypatch.setattr(p6, "load_sector_map", lambda: {})
     monkeypatch.setattr(p6, "load_full_vintage", lambda: p6.VintageLoad("sintetica", {}, {}))
 
-    def fake_market(token: Any, *_a: Any, **_k: Any) -> sim.MarketData:
+    def fake_market(token: Any, *a: Any, **_k: Any) -> sim.MarketData:
         p6.require_token(token)
-        return replace(m, origin=sim.ORIGIN_REAL)
+        return replace(m, origin=sim.ORIGIN_REAL, contract=a[-1])
 
     def fake_signals(token: Any, *_a: Any, **_k: Any) -> Tuple[List[sim.Signal], Dict[str, int]]:
         p6.require_token(token)
@@ -1024,8 +1024,8 @@ def test_s15_s17_solo_los_simspec_pre_registrados(tmp_path: Path, monkeypatch: p
     assert len(allowed) == 9
     for spec in allowed:
         guard(spec)
-    primary = next(spec for spec in allowed if spec.policy_id == "B2_primaria_5pb")
-    bench = next(spec for spec in allowed if spec.policy_id == "benchmark" and spec.slippage_bps == 5.0)
+    primary = next(spec for spec in allowed if spec.run_id == "B2_primaria_5pb")
+    bench = next(spec for spec in allowed if spec.run_id == "benchmark_5pb")
     for bad in (
         sim.SimSpec("B2_exploratoria", primary.system_sha256),
         replace(primary, slippage_bps=20.0),
@@ -1038,16 +1038,16 @@ def test_s15_s17_solo_los_simspec_pre_registrados(tmp_path: Path, monkeypatch: p
             guard(bad)
 
 
-def test_s15_flujo_sellado_rechaza_spec_fuera_del_contrato(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """La autorización interna del flujo aplica el contrato: un spec fuera de él para la corrida."""
+def test_s15_flujo_sellado_con_contrato_incompleto_no_ejecuta(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Las corridas salen del contrato: si le falta una, el flujo para tras la marca sin resultados."""
 
     run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
     real = p6._preregistered_specs
     monkeypatch.setattr(p6, "_preregistered_specs",
-                        lambda *a: frozenset(s for s in real(*a) if s.policy_id != "C0_primaria_5pb"))
+                        lambda *a: frozenset(s for s in real(*a) if s.run_id != "C0_primaria_5pb"))
     code, text = _run(config, ident, run_dir)
-    assert code == 2 and "no pre-registrado" in text and "C0_primaria_5pb" in text
-    assert (run_dir / "p6-parada.json").is_file()
+    assert code == 2 and "C0_primaria_5pb" in text
+    assert (run_dir / "p6-parada.json").is_file() and not (run_dir / "p6-resultado.json").exists()
 
 
 def test_s18_s19_apertura_consume_la_ejecucion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1056,7 +1056,10 @@ def test_s18_s19_apertura_consume_la_ejecucion(tmp_path: Path, monkeypatch: pyte
     run_dir, config, ident, report = _sealed_env(tmp_path, monkeypatch)
     code, text = _run(config, ident, run_dir)
     assert code == 0, text
-    payload = json.loads((run_dir / p6.RUN_MARKER).read_text(encoding="utf-8"))
+    marker = json.loads((run_dir / p6.RUN_MARKER).read_text(encoding="utf-8"))
+    persisted = (run_dir / p6.RUN_PAYLOAD).read_bytes()
+    assert marker == {"payload": p6.RUN_PAYLOAD, "payload_sha256": hashlib.sha256(persisted).hexdigest()}
+    payload = json.loads(persisted)
     assert set(payload) == {"inicio_utc", "p6_prereg_sha", "p6_code_sha_preflight", "head_sha", "p6_data_id",
                             "ventana", "system_hashes", "benchmark_hashes", "label"}
     assert payload["p6_prereg_sha"] == p6.P6_PREREG_SHA and payload["p6_data_id"] == p6.P6_DATA_ID
@@ -1177,7 +1180,7 @@ def test_s21_token_revocado_al_terminar(tmp_path: Path, monkeypatch: pytest.Monk
 
 @pytest.mark.parametrize("parcial", [False, True])
 def test_s22_fallo_al_escribir_la_marca(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, parcial: bool) -> None:
-    """Un fallo entre O_EXCL y la escritura consume la ejecución y la parada guarda el payload canónico."""
+    """Un fallo tras O_EXCL consume la ejecución; el payload canónico ya estaba persistido y verificado."""
 
     import os as os_module
 
@@ -1197,12 +1200,173 @@ def test_s22_fallo_al_escribir_la_marca(tmp_path: Path, monkeypatch: pytest.Monk
     assert code == 2 and "disco lleno" in text
     marker = run_dir / p6.RUN_MARKER
     assert marker.is_file() and p6._ACTIVE_TOKEN is None
-    stop = json.loads((run_dir / "p6-parada.json").read_text(encoding="utf-8"))
-    canonical = stop["marca"]["payload_canonico"]
-    expected = (json.dumps(canonical, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-    assert stop["marca"]["payload_sha256"] == hashlib.sha256(expected).hexdigest()
-    assert stop["marca"]["bytes_escritos"] == len(marker.read_bytes()) < stop["marca"]["bytes_esperados"]
+    persisted = (run_dir / p6.RUN_PAYLOAD).read_bytes()
+    canonical = json.loads(persisted)
     assert canonical["ventana"] == report["ventana"] and canonical["p6_data_id"] == p6.P6_DATA_ID
+    stop = json.loads((run_dir / "p6-parada.json").read_text(encoding="utf-8"))
+    assert stop["marca"]["payload_sha256"] == hashlib.sha256(persisted).hexdigest()
+    assert stop["marca"]["bytes_escritos"] == len(marker.read_bytes()) < stop["marca"]["bytes_esperados"]
     assert not (run_dir / "p6-resultado.json").exists()
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        _run(config, ident, run_dir)
+
+
+# ---------------------------------------------------------------------------
+# Contrato de corridas en los datos reales (p6_sim lo exige por sí mismo) y payload antes de la marca.
+# ---------------------------------------------------------------------------
+
+
+def _contract_market() -> Tuple[sim.MarketData, FrozenSet[sim.SimSpec], Dict[str, sim.SimSpec]]:
+    config = load_config("config.yaml")
+    m, _fx, _signals = p6.synthetic_market()
+    days = sim.snapshot_days(m)
+    window = p6.Window(m.window_start, m.window_end, m.window_start, m.window_start, 0, len(days), 252.0)
+    contract = p6._preregistered_specs(config, p6.system_hashes(config, window))
+    return replace(m, origin=sim.ORIGIN_REAL, contract=contract), contract, {s.run_id: s for s in contract}
+
+
+def _allow(_spec: sim.SimSpec) -> None:
+    """Autorización permisiva: aísla la comprobación propia del contrato en p6_sim."""
+
+
+def test_c01_contrato_spec_exacto_valido_y_completo() -> None:
+    """(1) Datos reales + spec exacto B2 primaria → válido; el contrato fija las 9 identidades."""
+
+    market, contract, by_run = _contract_market()
+    assert set(by_run) == {r for r, *_ in p6.RUNS} | {r for r, _ in p6.BENCHMARK_RUNS} and len(contract) == 9
+    b2 = by_run["B2_primaria_5pb"]
+    assert (b2.policy_id, b2.population, b2.slippage_bps) == ("B2", p6.POPULATION_OPERAR, 5.0)
+    assert by_run["benchmark_10pb"].population == p6.BENCHMARK_POPULATION
+    fx = p6.synthetic_market()[1]
+    sim.simulate(market, [], fx, b2, authorize=_allow)
+    sim.simulate_benchmark(market, fx, by_run["benchmark_5pb"], authorize=_allow)
+
+
+@pytest.mark.parametrize("campo, valor", [
+    ("system_sha256", "0" * 64),                       # (2)
+    ("policy_id", "S2"),                               # (3)
+    ("population", p6.POPULATION_ALL_BARS),            # (4)
+    ("slippage_bps", 10.0),                            # (5)
+    ("capital", 200_000.0),                            # (6)
+    ("risk_pct", 1.0),                                 # (7)
+    ("max_position_pct", 20.0),                        # (8)
+    ("fee_rate", 0.0),                                 # (9)
+    ("min_rr", 1.0),                                   # (10)
+    ("max_hold_bars", 60),                             # (10)
+    ("run_id", "B2_exploratoria"),
+])
+def test_c02_c10_un_solo_campo_distinto_se_rechaza(campo: str, valor: Any) -> None:
+    """(2–10) Con autorización permisiva, p6_sim rechaza un spec que difiera en un solo campo."""
+
+    market, _contract, by_run = _contract_market()
+    bad = replace(by_run["B2_primaria_5pb"], **{campo: valor})
+    with pytest.raises(sim.P6OutcomeGateError, match="no pre-registrado"):
+        sim.simulate(market, [], EUR, bad, authorize=_allow)
+
+
+def test_c11_c12_spec_y_benchmark_inventados() -> None:
+    market, _contract, by_run = _contract_market()
+    with pytest.raises(sim.P6OutcomeGateError, match="no pre-registrado"):
+        sim.simulate(market, [], EUR, sim.SimSpec("B2", "0" * 64), authorize=_allow)
+    for bad in (sim.SimSpec("benchmark", "0" * 64), replace(by_run["benchmark_5pb"], slippage_bps=20.0),
+                replace(by_run["benchmark_5pb"], system_sha256=by_run["benchmark_10pb"].system_sha256)):
+        with pytest.raises(sim.P6OutcomeGateError, match="no pre-registrado"):
+            sim.simulate_benchmark(market, EUR, bad, authorize=_allow)
+
+
+def test_c13_autorizacion_valida_no_basta_sin_contrato() -> None:
+    """(13) Autorización que acepta todo + spec no registrado → rechazo; real sin contrato → rechazo."""
+
+    market, _contract, _by_run = _contract_market()
+    with pytest.raises(sim.P6OutcomeGateError, match="no pre-registrado"):
+        sim.simulate(market, [], EUR, sim.SimSpec("C0", "1" * 64), authorize=_allow)
+    sin_contrato = replace(market, contract=None)
+    with pytest.raises(sim.P6OutcomeGateError, match="sin contrato"):
+        sim.simulate(sin_contrato, [], EUR, sim.SimSpec("C0", "1" * 64), authorize=_allow)
+    with pytest.raises(sim.P6OutcomeGateError):
+        replace(market, contract=frozenset({"no es un SimSpec"}))  # type: ignore[arg-type]
+
+
+def test_c14_spec_registrado_sin_autorizacion_vigente() -> None:
+    """(14) Spec del contrato pero sin autorización, o con un token no vigente → rechazo."""
+
+    market, _contract, by_run = _contract_market()
+    spec = by_run["S2_primaria_5pb"]
+    with pytest.raises(sim.P6OutcomeGateError, match="ConfirmatoryToken"):
+        sim.simulate(market, [], EUR, spec)
+    stale = p6.ConfirmatoryToken(p6.RUN_DIR / p6.RUN_MARKER, "0" * 64, "0" * 64)
+    with pytest.raises(sim.P6OutcomeGateError):
+        sim.simulate(market, [], EUR, spec, authorize=lambda _s: p6.require_token(stale))
+
+
+def test_c15_sinteticos_sin_contrato_admiten_specs_libres() -> None:
+    m, fx, signals = p6.synthetic_market()
+    assert m.origin == sim.ORIGIN_SYNTHETIC and m.contract is None
+    result = sim.simulate(m, signals, fx, sim.SimSpec("LIBRE", "x" * 64, risk_pct=3.0, max_hold_bars=7))
+    assert result.snapshots
+
+
+@pytest.mark.parametrize("fallo", ["write", "fsync", "distinto"])
+def test_c16_c18_fallo_al_persistir_el_payload_no_crea_marca(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fallo: str
+) -> None:
+    """(16) fallo al persistir, (17) fallo de fsync, (18) payload persistido distinto → sin marca ni outcomes."""
+
+    import os as os_module
+
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    if fallo == "write":
+        real_open = open
+
+        def broken_open(path: Any, mode: str = "r", *a: Any, **k: Any) -> Any:
+            if str(path).endswith(".tmp") and "w" in mode:
+                raise OSError("no se puede escribir (inyectado)")
+            return real_open(path, mode, *a, **k)
+
+        monkeypatch.setattr("builtins.open", broken_open)
+    elif fallo == "fsync":
+        def broken_fsync(_fd: int) -> None:
+            raise OSError("fsync falló (inyectado)")
+
+        monkeypatch.setattr(p6.os, "fsync", broken_fsync)
+    else:
+        real_replace = os_module.replace
+
+        def corrupting_replace(src: Any, dst: Any) -> None:
+            real_replace(src, dst)
+            Path(dst).write_bytes(b"{}\n")
+
+        monkeypatch.setattr(p6.os, "replace", corrupting_replace)
+    with pytest.raises((OSError, p6.P6PreflightError)):
+        _run(config, ident, run_dir)
+    monkeypatch.undo()
+    assert not (run_dir / p6.RUN_MARKER).exists()
+    assert not (run_dir / p6.RUN_PAYLOAD).exists() and not (run_dir / f".{p6.RUN_PAYLOAD}.tmp").exists()
+    assert not (run_dir / "p6-resultado.json").exists() and p6._ACTIVE_TOKEN is None
+
+
+def test_c19_c20_marca_referencia_el_payload_ya_persistido(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """(19) Al crear la marca el payload ya existe y su hash coincide; (20) segunda ejecución → rechazo."""
+
+    run_dir, config, ident, _ = _sealed_env(tmp_path, monkeypatch)
+    seen: Dict[str, Any] = {}
+    real_open = p6.os.open
+
+    def spy_open(path: Any, flags: int, *a: Any) -> int:
+        if Path(path).name == p6.RUN_MARKER:
+            persisted = run_dir / p6.RUN_PAYLOAD
+            seen["payload_antes_de_la_marca"] = persisted.is_file()
+            seen["sha"] = hashlib.sha256(persisted.read_bytes()).hexdigest() if persisted.is_file() else None
+            seen["excl"] = bool(flags & os.O_EXCL) and bool(flags & os.O_CREAT)
+        return real_open(path, flags, *a)
+
+    import os
+
+    monkeypatch.setattr(p6.os, "open", spy_open)
+    code, text = _run(config, ident, run_dir)
+    assert code == 0, text
+    assert seen["payload_antes_de_la_marca"] and seen["excl"]
+    marker = json.loads((run_dir / p6.RUN_MARKER).read_text(encoding="utf-8"))
+    assert marker["payload_sha256"] == seen["sha"] == hashlib.sha256((run_dir / p6.RUN_PAYLOAD).read_bytes()).hexdigest()
     with pytest.raises(p6.P6AlreadyExecutedError):
         _run(config, ident, run_dir)

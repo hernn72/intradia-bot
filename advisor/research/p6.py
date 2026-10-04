@@ -112,6 +112,8 @@ CENSUS = Path("evidence/2026-10-03-T-022-p6-diseno/censo-p6.json")
 PREFLIGHT_DIR = Path("evidence/2026-10-03-T-022-p6/preflight")
 RUN_DIR = Path("evidence/2026-10-03-T-022-p6/run")
 RUN_MARKER = "EJECUCION_CONFIRMATORIA_P6_INICIADA"
+RUN_PAYLOAD = "apertura-payload.json"
+BENCHMARK_POPULATION = "benchmark_pesos_iguales"
 DEVELOPMENT_ENV = "INTRADIA_P6_PREFLIGHT_DESARROLLO"
 
 HORIZONTE = "swing"
@@ -590,8 +592,11 @@ def build_real_market(
     vintage: VintageLoad,
     window: Window,
     sectors: Mapping[str, str],
+    contract: FrozenSet[SimSpec],
 ) -> MarketData:
     require_token(token)
+    if len(contract) != len(RUNS) + len(BENCHMARK_RUNS):
+        raise P6OutcomeGateError("P6: los datos reales exigen el contrato completo de corridas pre-registradas")
     assets: Dict[str, AssetSeries] = {}
     for symbol in asset_list():
         asset = universe.get(symbol)
@@ -610,7 +615,8 @@ def build_real_market(
             low=tuple(float(v) for v in prices["Low"]), close=tuple(float(v) for v in prices["Close"]),
             dividends=tuple(float(v) for v in dividends), eligible_from=WARMUP_BARS + 1,
         )
-    return MarketData(assets=assets, window_start=window.start, window_end=window.end, origin=ORIGIN_REAL)
+    return MarketData(assets=assets, window_start=window.start, window_end=window.end, origin=ORIGIN_REAL,
+                      contract=contract)
 
 
 def build_real_signals(
@@ -746,7 +752,8 @@ def guard_checks(config: AdvisorConfig, universe: Universe, window: Window) -> L
         checks.append((name, "sin error", "P6OutcomeGateError", False))
 
     fake = ConfirmatoryToken(RUN_DIR / RUN_MARKER, "0" * 64)
-    expect_gate("build_real_market sin token", lambda: build_real_market(cast(Any, None), config, universe, vintage, window, {}))
+    expect_gate("build_real_market sin token",
+                lambda: build_real_market(cast(Any, None), config, universe, vintage, window, {}, frozenset()))
     expect_gate("build_real_signals sin token", lambda: build_real_signals(cast(Any, None), config, universe, vintage, "B2", POPULATION_OPERAR, window))
     expect_gate("build_real_signals con token fabricado", lambda: build_real_signals(fake, config, universe, vintage, "B2", POPULATION_OPERAR, window))
     empty_real = MarketData(assets={}, window_start=window.start, window_end=window.end, origin=ORIGIN_REAL)
@@ -1053,16 +1060,24 @@ def _run_metrics(result: Any, benchmark_paths: Mapping[float, Mapping[str, Any]]
 
 
 def _preregistered_specs(config: AdvisorConfig, hashes: Mapping[str, Mapping[str, str]]) -> FrozenSet[SimSpec]:
-    """Los 9 SimSpec del contrato congelado (7 corridas + 2 benchmarks) con los hashes del preflight."""
+    """Contrato de corridas: los 9 SimSpec de T-022/D-69 (7 corridas + 2 benchmarks), completos.
 
+    Cada entrada fija run_id, policy_id, población, slippage, hash, capital, riesgo, tope por posición,
+    comisión, min_rr y tiempo máximo; ``hashes`` solo puede venir del preflight definitivo verificado.
+    """
+
+    defaults = SimSpec("", "")
     specs = {
-        SimSpec(run_id, hashes[run_id]["system_sha256"], capital=CAPITAL, slippage_bps=slippage,
-                risk_pct=config.portfolio.risk_per_trade_pct, max_position_pct=config.portfolio.max_position_pct,
-                min_rr=config.risk.min_rr_ratio)
-        for run_id, _policy, _population, slippage in RUNS
+        SimSpec(policy, hashes[run_id]["system_sha256"], capital=CAPITAL, risk_pct=config.portfolio.risk_per_trade_pct,
+                max_position_pct=config.portfolio.max_position_pct, fee_rate=defaults.fee_rate, slippage_bps=slippage,
+                min_rr=config.risk.min_rr_ratio, max_hold_bars=defaults.max_hold_bars, run_id=run_id, population=population)
+        for run_id, policy, population, slippage in RUNS
     }
-    specs |= {SimSpec("benchmark", hashes[run_id]["benchmark_sha256"], capital=CAPITAL, slippage_bps=slippage)
+    specs |= {SimSpec("benchmark", hashes[run_id]["benchmark_sha256"], capital=CAPITAL, fee_rate=defaults.fee_rate,
+                      slippage_bps=slippage, run_id=run_id, population=BENCHMARK_POPULATION)
               for run_id, slippage in BENCHMARK_RUNS}
+    if len(specs) != len(RUNS) + len(BENCHMARK_RUNS):
+        raise P6PreflightError("el contrato de corridas no tiene las 9 identidades distintas")
     return frozenset(specs)
 
 
@@ -1071,7 +1086,7 @@ def _spec_guard(allowed: FrozenSet[SimSpec]) -> Callable[[SimSpec], None]:
 
     def check(spec: SimSpec) -> None:
         if spec not in allowed:
-            raise P6OutcomeGateError(f"P6: SimSpec no pre-registrado ({spec.policy_id}, {spec.system_sha256[:12]}…)")
+            raise P6OutcomeGateError(f"P6: SimSpec no pre-registrado ({spec.run_id or spec.policy_id}, {spec.system_sha256[:12]}…)")
 
     return check
 
@@ -1081,10 +1096,13 @@ def _ejecutar_confirmatoria_sellada() -> Tuple[int, str]:
 
     1. autorización reconstruida desde disco y preflight recalculado (_verified_authorization);
     2. cosecha completa y ventana idéntica a la del preflight (si no, para sin consumir la marca);
-    3. payload canónico de la marca calculado aquí con los hashes del preflight definitivo verificado;
-    4. marca en RUN_DIR/RUN_MARKER con O_CREAT|O_EXCL;
-    5. token atado al sha256 de ese payload, que no sale de esta función;
-    6. solo las 9 corridas pre-registradas: la autorización exige el token y que el SimSpec sea uno de ellos.
+    3. payload canónico y contrato de corridas calculados aquí con los hashes del preflight verificado;
+    4. payload persistido (temporal, fsync, replace atómico, fsync del directorio) y verificado por hash;
+       si falla, no hay marca;
+    5. marca en RUN_DIR/RUN_MARKER con O_CREAT|O_EXCL que referencia y hashea ese payload;
+    6. token atado a la marca, vigente solo durante esta función;
+    7. solo las 9 corridas del contrato: el MarketData real lo lleva dentro y p6_sim lo exige por sí mismo,
+       además del token y del guard de esta función.
     """
 
     config, universe, stored, live = _verified_authorization()
@@ -1109,27 +1127,56 @@ def _ejecutar_confirmatoria_sellada() -> Tuple[int, str]:
     }
     data = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     payload_sha256 = hashlib.sha256(data).hexdigest()
+    contract = _preregistered_specs(config, hashes)
+    specs = {spec.run_id: spec for spec in contract}
+
+    # El payload canónico se persiste y verifica ANTES de la marca: si el proceso cae justo después de
+    # crearla, ya está archivado el contrato que consumió la ejecución. Si falla, no hay marca.
+    payload_path = RUN_DIR / RUN_PAYLOAD
+    tmp_path = RUN_DIR / f".{RUN_PAYLOAD}.tmp"
+    try:
+        with open(tmp_path, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, payload_path)
+        dir_fd = os.open(RUN_DIR, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+        if hashlib.sha256(payload_path.read_bytes()).hexdigest() != payload_sha256:
+            raise P6PreflightError("el payload de apertura persistido no coincide con el canónico")
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        payload_path.unlink(missing_ok=True)
+        raise
+
     marker = RUN_DIR / RUN_MARKER
+    marker_data = (json.dumps({"payload": RUN_PAYLOAD, "payload_sha256": payload_sha256}, ensure_ascii=False,
+                              indent=2) + "\n").encode("utf-8")
     try:
         fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
     except FileExistsError as exc:
         raise P6AlreadyExecutedError(f"la ejecución confirmatoria de P6 ya se inició ({marker}); no se repite") from exc
-    # Desde aquí la ejecución está consumida. Si la marca no queda completa, la parada guarda el payload
-    # canónico íntegro y su sha256, para que la evidencia de inicio no dependa de la marca parcial.
+    except BaseException:
+        payload_path.unlink(missing_ok=True)
+        raise
+    # Desde aquí la ejecución está consumida; el payload que la abrió ya está en disco y la marca lo hashea.
     written = 0
     global _ACTIVE_TOKEN
     try:
         try:
-            while written < len(data):
-                written += os.write(fd, data[written:])
+            while written < len(marker_data):
+                written += os.write(fd, marker_data[written:])
             os.fsync(fd)
         finally:
             os.close(fd)
-        if marker.read_bytes() != data:
-            raise P6OutcomeGateError("la marca escrita no coincide con el payload canónico")
-        token = ConfirmatoryToken(marker, payload_sha256, secrets.token_hex(32))
+        if marker.read_bytes() != marker_data:
+            raise P6OutcomeGateError("la marca escrita no coincide con la referencia al payload canónico")
+        token = ConfirmatoryToken(marker, hashlib.sha256(marker_data).hexdigest(), secrets.token_hex(32))
         _ACTIVE_TOKEN = token
-        guard = _spec_guard(_preregistered_specs(config, hashes))
+        guard = _spec_guard(contract)
 
         def authorize(spec: SimSpec) -> None:
             require_token(token)
@@ -1137,14 +1184,13 @@ def _ejecutar_confirmatoria_sellada() -> Tuple[int, str]:
 
         fx, _ = load_fx()
         sectors = load_sector_map()
-        market = build_real_market(token, config, universe, vintage, window, sectors)
+        market = build_real_market(token, config, universe, vintage, window, sectors, contract)
         bench: Dict[float, Any] = {}
         bench_paths: Dict[float, Dict[str, Any]] = {}
         tables = RUN_DIR / "tablas"
         tables.mkdir(parents=True, exist_ok=True)
         for run_id, slippage in BENCHMARK_RUNS:
-            spec = SimSpec("benchmark", hashes[run_id]["benchmark_sha256"], capital=CAPITAL, slippage_bps=slippage)
-            bench[slippage] = simulate_benchmark(market, fx, spec, authorize=authorize)
+            bench[slippage] = simulate_benchmark(market, fx, specs[run_id], authorize=authorize)
             series = equity_series(CAPITAL, window.start, bench[slippage].snapshots)
             bench_paths[slippage] = path_metrics(series, expected_ppy=window.periods_per_year)
             (tables / f"{run_id}-ledger.csv").write_text(ledger_csv(bench[slippage].ledger), encoding="utf-8")
@@ -1154,10 +1200,7 @@ def _ejecutar_confirmatoria_sellada() -> Tuple[int, str]:
         for run_id, policy, population, slippage in RUNS:
             signals, counts = build_real_signals(token, config, universe, vintage, policy, population, window)
             signal_counts[run_id] = counts
-            spec = SimSpec(run_id, hashes[run_id]["system_sha256"], capital=CAPITAL, slippage_bps=slippage,
-                           risk_pct=config.portfolio.risk_per_trade_pct, max_position_pct=config.portfolio.max_position_pct,
-                           min_rr=config.risk.min_rr_ratio)
-            result = simulate(market, signals, fx, spec, authorize=authorize)
+            result = simulate(market, signals, fx, specs[run_id], authorize=authorize)
             results[run_id] = _run_metrics(result, bench_paths, slippage, window.periods_per_year)
             (tables / f"{run_id}-ledger.csv").write_text(ledger_csv(result.ledger), encoding="utf-8")
             (tables / f"{run_id}-operaciones.csv").write_text(trades_csv(result.trades), encoding="utf-8")
@@ -1184,8 +1227,8 @@ def _ejecutar_confirmatoria_sellada() -> Tuple[int, str]:
     except BaseException as exc:
         write_json(RUN_DIR / "p6-parada.json", {
             "fase": "confirmatoria", "parada": type(exc).__name__, "detalle": str(exc), "fin_utc": utc_now(),
-            "marca": {"payload_canonico": payload, "payload_sha256": payload_sha256,
-                      "bytes_escritos": written, "bytes_esperados": len(data)},
+            "marca": {"payload": RUN_PAYLOAD, "payload_sha256": payload_sha256,
+                      "bytes_escritos": written, "bytes_esperados": len(marker_data)},
         })
         if not isinstance(exc, Exception):
             raise
