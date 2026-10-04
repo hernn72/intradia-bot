@@ -11,11 +11,21 @@ Las funciones reciben una cosecha nula: la guarda salta antes de tocarla; cualqu
 El preflight no carga la cosecha de precios (load_vintage/build_views): test_preflight_real_sin_cargar_precios lo
 comprueba con esas funciones prohibidas.
 
-Autorización de la marca (d13441b): `_issue_clearance()` no recibe nada del llamador. Lee el preflight
-definitivo de su ruta fija, exige ok, definitivo, las identidades congeladas (P6_PREREG_SHA, P6_DATA_ID,
-cosecha, universo, FX, sector, políticas), que P6_DATA_ID se reproduzca y que el ejecutor no haya cambiado;
-recalcula el preflight vivo con run_preflight y exige la misma huella; y comprueba que la marca no existe.
-El clearance es de un solo uso; `create_marker_exclusive` solo acepta la ruta RUN_DIR/RUN_MARKER y crea con
-O_CREAT|O_EXCL. El token solo lo emite el proceso que creó la marca en exclusiva, con nonce; el motor rechaza
-datos reales sin autorización. Tests: test_clearance_* , test_marca_solo_con_autorizacion_de_run_confirmatory,
-test_marca_existente_no_da_token, test_confirmatoria_no_salta_el_recalculo_de_la_autorizacion.
+Ejecución confirmatoria sellada (0ba98a3). Un único camino abre desenlaces:
+run_confirmatory → _ejecutar_confirmatoria_sellada(), sin argumentos, que en orden:
+  1. lee el preflight definitivo de su ruta fija y exige ok, definitivo y las identidades congeladas
+     (P6_PREREG_SHA, P6_DATA_ID, cosecha, universo, FX, sector, políticas B2/S2/C0);
+  2. exige que P6_DATA_ID se reproduzca y que el ejecutor no haya cambiado desde ese preflight;
+  3. recalcula el preflight vivo con run_preflight (config.yaml, universo, cosecha estructural) y exige la
+     misma huella; comprueba que la marca no existe;
+  4. carga la cosecha completa y exige la misma ventana; si no, para sin crear la marca;
+  5. calcula dentro el payload canónico (P6_PREREG_SHA, SHA del ejecutor del preflight, HEAD, P6_DATA_ID,
+     ventana, system_hashes, benchmark_hashes, inicio, label) con los hashes del preflight verificado;
+  6. crea evidence/2026-10-03-T-022-p6/run/EJECUCION_CONFIRMATORIA_P6_INICIADA con O_CREAT|O_EXCL;
+  7. crea el token atado al sha256 de ese payload, que no sale de la función;
+  8. ejecuta solo las 9 corridas pre-registradas: la autorización exige el token y que el SimSpec sea
+     exactamente uno de los 9 del contrato (7 corridas + 2 benchmarks, con sus hashes).
+No existen _issue_clearance, create_marker_exclusive, build_confirmatory_token ni authorization(): no hay
+piezas que encadenar. run_confirmatory devuelve solo código y resumen. Fuera del modelo: editar el código,
+borrar la marca o escribir ficheros a mano. Tests: test_s01 … test_s20 y
+test_humo_flujo_sellado_con_constructores_reales_sobre_cosecha_sintetica.
