@@ -11,24 +11,34 @@ Las funciones reciben una cosecha nula: la guarda salta antes de tocarla; cualqu
 El preflight no carga la cosecha de precios (load_vintage/build_views): test_preflight_real_sin_cargar_precios lo
 comprueba con esas funciones prohibidas.
 
-Ejecución confirmatoria sellada (0ba98a3, endurecida en d81a358). Un único camino abre desenlaces:
+Ejecución confirmatoria sellada (0ba98a3, d81a358, c91c4d6, b6f0aaf). Un único camino abre desenlaces:
 run_confirmatory → _ejecutar_confirmatoria_sellada(), sin argumentos, que en orden:
   1. lee el preflight definitivo de su ruta fija y exige ok, definitivo y las identidades congeladas
      (P6_PREREG_SHA, P6_DATA_ID, cosecha, universo, FX, sector, políticas B2/S2/C0);
   2. exige que P6_DATA_ID se reproduzca y que el ejecutor no haya cambiado desde ese preflight;
-  3. recalcula el preflight vivo con run_preflight (config.yaml, universo, cosecha estructural) y exige la
-     misma huella; comprueba que la marca no existe;
+  3. recalcula el preflight vivo con run_preflight y exige la misma huella; comprueba que la marca no existe;
   4. carga la cosecha completa y exige la misma ventana; si no, para sin crear la marca;
-  5. calcula dentro el payload canónico (P6_PREREG_SHA, SHA del ejecutor del preflight, HEAD, P6_DATA_ID,
-     ventana, system_hashes, benchmark_hashes, inicio, label) con los hashes del preflight verificado;
-  6. crea evidence/2026-10-03-T-022-p6/run/EJECUCION_CONFIRMATORIA_P6_INICIADA con O_CREAT|O_EXCL, la
-     escribe completa con fsync y la relee; si falla, la ejecución queda consumida y p6-parada.json guarda
-     el payload canónico, su sha256 y los bytes escritos;
-  7. crea el token atado al sha256 de ese payload; es el único vigente (_ACTIVE_TOKEN), no sale de la
-     función y se revoca en un finally al terminar, también si falla: no hay registro de tokens;
-  8. ejecuta solo las 9 corridas pre-registradas: la autorización exige el token y que el SimSpec sea
-     exactamente uno de los 9 del contrato (7 corridas + 2 benchmarks, con sus hashes).
-No existen _issue_clearance, create_marker_exclusive, build_confirmatory_token ni authorization(): no hay
-piezas que encadenar. run_confirmatory devuelve solo código y resumen. Fuera del modelo: editar el código,
-borrar la marca o escribir ficheros a mano. Tests: test_s01 … test_s22 y
+  5. calcula dentro el payload canónico y el contrato de corridas (9 SimSpec completos: run_id,
+     policy_id, población, slippage, hash, capital, riesgo, tope, comisión, min_rr, tiempo máximo) con
+     los hashes del preflight definitivo verificado;
+  6. persiste el payload en run/apertura-payload.json (temporal, fsync, replace atómico, fsync del
+     directorio) y lo verifica por hash; si falla, no hay marca;
+  7. crea run/EJECUCION_CONFIRMATORIA_P6_INICIADA con O_CREAT|O_EXCL, que referencia y hashea ese payload;
+     la escribe con fsync y la relee; si falla, la ejecución queda consumida con el payload ya archivado;
+  8. crea el token atado a la marca; es el único vigente (_ACTIVE_TOKEN) y se revoca en un finally;
+  9. el MarketData real lleva el contrato inmutable y p6_sim exige por sí mismo que cada SimSpec coincida
+     exactamente con una entrada, antes de la autorización (token vigente + guard del flujo);
+ 10. p6_sim solo deja construir y simular datos con origin="real" mientras la ejecución sellada está en
+     curso con su token vigente: fuera de ella no se puede montar un MarketData real ni con un contrato
+     propio ni con una autorización permisiva.
+No existen _issue_clearance, create_marker_exclusive, build_confirmatory_token, authorization() ni
+registro de tokens. run_confirmatory devuelve solo código y resumen.
+
+Modelo de amenaza (decisión del propietario, 2026-10-04). Dentro: con el código intacto no se puede
+abrir outcomes sin run_confirmatory, obtener autorización/token por piezas, aportar payload, preflight,
+ventana, hashes o SimSpec, reutilizar una autorización, ejecutar una corrida no pre-registrada, ejecutar
+dos veces ni alterar las identidades congeladas sin que falle la apertura. Fuera: código deliberadamente
+hostil concurrente en el mismo intérprete (introspección de frames, gc, globals, closures, monkeypatch
+durante la ejecución), escritura o borrado manual de los archivos de control y modificación del código.
+Tests: test_s01 … test_s22, test_c01 … test_c20 y
 test_humo_flujo_sellado_con_constructores_reales_sobre_cosecha_sintetica.
