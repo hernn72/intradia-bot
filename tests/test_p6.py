@@ -962,7 +962,8 @@ def test_preflight_real_sin_cargar_precios(monkeypatch: pytest.MonkeyPatch) -> N
     import advisor.research.vintage as vintage_module
     from advisor.universe.loader import load_universe
 
-    if not (Path("data/vintages") / p6.DATA_VINTAGE_ID / "manifest.json").is_file():
+    # En CI el manifiesto está versionado pero los CSV no: se comprueba un CSV.
+    if not (Path("data/vintages") / p6.DATA_VINTAGE_ID / "AAPL.csv").is_file():
         pytest.skip("data/vintages no está disponible")
 
     def forbidden(*_a: Any, **_k: Any) -> Any:
