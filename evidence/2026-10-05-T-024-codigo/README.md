@@ -8,9 +8,12 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 |---|---|
 | Base (`main`) | `b5b98526362db1bb39cc693e8e4a799f9df3449d` (merge del PR #44) |
 | `T024_PREREG_SHA` | `dfcca0ef3428df916089480a0ca574f47e550c24` (vinculante, con D-71 y D-72) |
-| **Candidato a `T024_CODE_SHA`** | **`70ffdf7557981b846c6ed9e6cd5c3390933e321e`**: el último commit que toca el ejecutor y la captura. **No está fijado**: `T024_CODE_SHA = None` en el código, de modo que la decisión se niega |
+| **`T024_CODE_SHA`** | **`ddcdb8de7e8781f87fa860db4c0ef0b0675f8356`**: el último commit que toca el ejecutor y la captura. Está fijado en el sidecar `evidence/2026-10-05-T-024-code-lock/T024_CODE_SHA.txt`, fuera de los `EXECUTOR_PATHS` |
 
-Commits de código, todos nuevos y sin amend: `3da05e7` → `e19e398` → `12420f8` → `65eb32f` → `70ffdf7`.
+Commits de código, todos nuevos y sin amend: `3da05e7` → `e19e398` → `12420f8` → `65eb32f` → `70ffdf7` → `789e4c1` →
+`ddcdb8d`. `70ffdf7` dejó de ser candidato: con `T024_CODE_SHA` como constante dentro de `advisor/`, fijarlo
+cambiaba el ejecutor tras ese SHA (BLOCKER detectado por el propietario). `789e4c1` lo sustituye por el
+sidecar versionado y `ddcdb8d` ancla la identidad al repositorio del código importado.
 
 ## Qué contiene
 
@@ -25,15 +28,19 @@ Commits de código, todos nuevos y sin amend: `3da05e7` → `e19e398` → `12420
   - φ por política y activo, y las exclusiones de §5.3;
   - el bootstrap de 10 semanas y el criterio;
   - registro forward, calendario de miradas, marca exclusiva y `TokenMirada`.
-- `tests/test_t024.py`: 70 tests (`tests-t024.md`). En CI, sin los CSV de `data/vintages` (están en `.gitignore`), los dos de desarrollo se omiten como en `tests/test_p6.py`: 68 passed y 2 skipped.
+- `tests/test_t024.py`: 88 tests (`tests-t024.md`), incluidos los del lock real en un repositorio git temporal, sin monkeypatch del SHA:
+  - el lock correcto pasa;
+  - deniega con ejecutor cambiado, con el SHA dentro de `advisor/` (la circularidad), y con el sidecar ausente, sin commitear, modificado, inválido o no ancestro.
+
+  En CI, sin los CSV de `data/vintages` (están en `.gitignore`), los dos de desarrollo se omiten, como en `tests/test_p6.py`.
 
 No modifica P6, B2, S2, C0, el score, `config.yaml`, `universe.yaml`, producción ni la Pi.
 
 ## Verificación
 
 `verificacion.txt`:
-- 70 tests de T-024 en verde, dos veces y con el mismo resultado;
-- suite completa: 1173 passed;
+- 88 tests de T-024 en verde, dos veces y con el mismo resultado;
+- suite completa: 1191 passed;
 - `ruff check .` y `mypy advisor` limpios;
 - el diff frente a `main` son solo los cuatro ficheros;
 - el `run/` de P6 sigue intacto (30/30);
@@ -50,7 +57,15 @@ No modifica P6, B2, S2, C0, el score, `config.yaml`, `universe.yaml`, producció
 | 5 | API y guardas | `12420f8` | **1 BLOCKER** | Las funciones de desenlace exigen el token con barras de cosecha (`origen`) |
 | 6 | **API y guardas (final)** | `65eb32f` | **0 BLOCKER · 0 IMPORTANTE** | — |
 | 7 | **Look-ahead (final)** | `65eb32f` | **0 BLOCKER · 0 IMPORTANTE** · 1 MENOR | `truncada_t1` solo para la regla final |
-| 8 | **Focalizada en el arreglo** | `70ffdf7` | **0 · 0 · 0** | — |
+| 8 | Focalizada en el arreglo | `70ffdf7` | 0 · 0 · 0 | — |
+| 9 | Identidad | `789e4c1` | 0 · **1 IMPORTANTE** | La ruta pública valida `REPO_ROOT`, sin `repo` |
+| 10 | API y guardas | `789e4c1` | **1 BLOCKER** · 1 IMPORTANTE | El mismo `repo`; el otro hallazgo era el sidecar aún inexistente, por diseño |
+| 11 | **Identidad (final)** | `ddcdb8d` | **0 BLOCKER · 0 IMPORTANTE** | — |
+| 12 | **API y guardas (final)** | `ddcdb8d` | **0 BLOCKER · 0 IMPORTANTE · 0 MENOR** | — |
+
+La revisión de look-ahead final sigue siendo la 7. Según la 12, el diff `70ffdf7..ddcdb8d` solo toca
+identidad, no las rutas de captura ni de decisión. Las revisiones de las 20:41 fallaron por límite de uso de
+Codex, sin veredicto, y se relanzaron sin cambios (`revisiones/00-nota-limite-de-uso.md`).
 
 Informes literales en `revisiones/`. Modelo de amenaza y guardas en `guardas-modelo-amenaza.md`.
 
@@ -75,5 +90,5 @@ ninguna mirada.
 
 ## Siguiente (solo con el propietario)
 
-1. Fijar `T024_CODE_SHA` (candidato `70ffdf7`) en un commit aparte, que no toque el ejecutor.
-2. Con autorización aparte: el registro forward y el primer checkpoint mensual (solo conteos).
+- Revisión y fusión del PR #45.
+- Con autorización aparte: el registro forward y el primer checkpoint mensual (solo conteos).

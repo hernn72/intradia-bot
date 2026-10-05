@@ -1,6 +1,6 @@
-# Tests de T-024 (tests/test_t024.py, 70)
+# Tests de T-024 (tests/test_t024.py, 88)
 
-Todos sintéticos salvo los dos de desarrollo marcados (DEV), que sobre la cosecha consumida `071ddb2b…` solo generan señales y conteos, sin salidas ni métricas.
+Todos sintéticos o sobre repositorios git temporales, salvo los dos de desarrollo marcados (DEV), que sobre la cosecha consumida `071ddb2b…` solo generan señales y conteos, sin salidas ni métricas.
 
 - `test_d1_sin_dividendo_formula_manual`
 - `test_d1_con_dividendo_formula_manual`
@@ -47,8 +47,26 @@ Todos sintéticos salvo los dos de desarrollo marcados (DEV), que sobre la cosec
 - `test_p6_sim_equivale_con_no_ejecutable_seguida_de_ejecutable`
 - `test_bootstrap_10_semanas_determinista_con_vacias`
 - `test_ic_bonferroni_delta_cuatro_estados`
-- `test_verificar_identidad_falla_si_code_sha_none`
 - `test_verificar_identidad_ramas_no_tautologicas`
+- `test_lock_real_sidecar_correcto_y_ejecutor_sin_cambios_pasa`
+- `test_lock_real_ejecutor_cambiado_despues_del_sha_deniega`
+- `test_lock_real_reproduce_la_circularidad_de_fijar_el_sha_en_advisor`
+- `test_lock_real_sidecar_ausente_deniega`
+- `test_lock_real_sidecar_sin_commitear_deniega`
+- `test_lock_real_sidecar_modificado_en_copia_de_trabajo_deniega`
+- `test_lock_real_sidecar_invalido_deniega[]`
+- `test_lock_real_sidecar_invalido_deniega[n]`
+- `test_lock_real_sidecar_invalido_deniega[abcn]`
+- `test_lock_real_sidecar_invalido_deniega[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAn]`
+- `test_lock_real_sidecar_invalido_deniega[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaan]`
+- `test_lock_real_sidecar_invalido_deniega[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaan]`
+- `test_lock_real_sidecar_invalido_deniega[ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaan]`
+- `test_lock_real_sidecar_invalido_deniega[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaann]`
+- `test_lock_real_sidecar_invalido_deniega[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa n]`
+- `test_lock_real_sha_no_ancestro_deniega`
+- `test_cargar_lock_no_admite_otra_ruta_ni_override`
+- `test_repo_root_es_la_raiz_git_del_modulo_importado`
+- `test_verificar_identidad_publica_usa_repo_root_no_el_cwd`
 - `test_construir_resultado_y_barras_decision_exigen_token`
 - `test_token_se_desactiva_tras_excepcion_en_ejecutar_mirada`
 - `test_mirada_reconfirmacion_fallida_no_consume_ni_abre`

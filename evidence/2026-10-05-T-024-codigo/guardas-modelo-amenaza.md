@@ -38,12 +38,16 @@ etiquetadas como sintéticas a partir de una cosecha. Eso queda fuera del modelo
 
 En este orden, antes de abrir ningún desenlace:
 
-1. **Identidad:**
-   - `T024_CODE_SHA` no es `None`;
-   - `T024_PREREG_SHA` es ancestro de `HEAD`;
+1. **Identidad** (`verificar_identidad()`, sin argumentos, sobre `REPO_ROOT`, la raíz git del módulo
+   importado):
+   - `T024_CODE_SHA` sale solo del sidecar `evidence/2026-10-05-T-024-code-lock/T024_CODE_SHA.txt`,
+     versionado en `HEAD` (`git show`), con la copia de trabajo idéntica y exactamente 40 hex en minúscula;
+   - `T024_PREREG_SHA` y `T024_CODE_SHA` son ancestros de `HEAD`;
    - el ejecutor no ha cambiado desde `T024_CODE_SHA`;
    - el árbol está limpio;
-   - si git no está disponible, falla cerrada.
+   - si git no está disponible, falla cerrada;
+   - no hay override por argumento, variable de entorno ni otra ruta;
+   - devuelve el SHA validado, que es el que registra la marca.
 2. **Mirada permitida:**
    - solo existen `mirada_1` (con `c_e` < 2027-08-27) y `mirada_final` (con `c_e` = 2027-08-27);
    - los estados de la mirada 1 se leen del registro, nunca de un argumento;
@@ -75,5 +79,5 @@ En este orden, antes de abrir ningún desenlace:
 
 ## Estado en esta entrega
 
-`T024_CODE_SHA = None` en el código: **la decisión se niega**. No existe ningún registro forward ni
-ninguna cosecha forward. No se ha consumido ninguna mirada.
+`T024_CODE_SHA = ddcdb8de7e8781f87fa860db4c0ef0b0675f8356`, fijado en el sidecar. No existe ningún registro
+forward ni ninguna cosecha forward. No se ha consumido ninguna mirada.

@@ -1,20 +1,19 @@
-# Verificación de la entrega de código de T-024 (sobre 70ffdf7557981b846c6ed9e6cd5c3390933e321e)
+# Verificación de la entrega de código de T-024 (sobre ddcdb8de7e8781f87fa860db4c0ef0b0675f8356 = T024_CODE_SHA)
 
 $ .venv/bin/python -m pytest -q tests/test_t024.py
-70 passed, 2 warnings in 41.46s
+88 passed, 2 warnings in 42.25s
 $ .venv/bin/python -m pytest -q tests/test_t024.py   (segunda ejecución, determinismo)
-70 passed, 2 warnings in 41.19s
+88 passed, 2 warnings in 42.88s
 $ .venv/bin/python -m pytest -q   (suite completa)
-1173 passed, 3 warnings in 491.24s (0:08:11)
+1191 passed, 3 warnings in 493.30s (0:08:13)
 $ .venv/bin/ruff check .
 All checks passed!
 $ .venv/bin/mypy advisor
 Success: no issues found in 78 source files
-$ git diff --name-only b5b98526362db1bb39cc693e8e4a799f9df3449d 70ffdf7
+$ git diff --name-only b5b98526362db1bb39cc693e8e4a799f9df3449d ddcdb8de7e8781f87fa860db4c0ef0b0675f8356 -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt
 advisor/research/t024_captura.py
 advisor/research/t024_comun.py
 advisor/research/t024_decision.py
-tests/test_t024.py
 $ (cd evidence/2026-10-03-T-022-p6/run && shasum -a 256 -c SHA256SUMS-ejecucion.txt) | grep -c ": OK$"
 30
 $ ls data/vintages/
