@@ -805,8 +805,12 @@ def test_cli_preflight_no_carga_la_cosecha_de_precios(monkeypatch: pytest.Monkey
     assert seen["structure"] == "estructura"
 
 
-def test_preflight_real_sin_cargar_precios(monkeypatch: pytest.MonkeyPatch) -> None:
-    """El run_preflight real, sobre la cosecha congelada, con la carga de precios prohibida."""
+def test_preflight_real_sin_cargar_precios(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """El run_preflight real, sobre la cosecha congelada, con la carga de precios prohibida.
+
+    RUN_DIR apunta a un directorio vacío: el test comprueba el preflight en un entorno anterior a la
+    ejecución y no depende de que la ejecución histórica de P6 exista ya en el repositorio.
+    """
 
     import advisor.research.vintage as vintage_module
     from advisor.universe.loader import load_universe
@@ -820,12 +824,38 @@ def test_preflight_real_sin_cargar_precios(monkeypatch: pytest.MonkeyPatch) -> N
 
     for module, name in ((vintage_module, "load_vintage"), (vintage_module, "build_views")):
         monkeypatch.setattr(module, name, forbidden)
+    monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")
     config = load_config("config.yaml")
     ok, report = p6.run_preflight(config, load_universe(config.universe_path), p6.load_structure(),
                                   p6.current_identity(config), development=True, write=False)
     assert ok, [row for row in report["checks"] if not row["ok"]]
     assert report["ventana"]["inicio"] == "2022-06-14" and report["ventana"]["fin"] == "2026-08-27"
     assert not report["dividendos_splits"]["fuera_de_tolerancia"]
+
+
+def test_marca_en_run_dir_consume_p6(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Con la marca en RUN_DIR la guarda da P6 por consumido y no deja iniciar otra ejecución."""
+
+    from advisor.universe.loader import load_universe
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    monkeypatch.setattr(p6, "RUN_DIR", run_dir)
+    config = load_config("config.yaml")
+    universe = load_universe(config.universe_path)
+
+    def marker_check() -> Tuple[Any, Any, bool]:
+        rows = [row for row in p6.guard_checks(config, universe, _window()) if row[0] == "marca confirmatoria ausente"]
+        assert len(rows) == 1
+        return rows[0][1], rows[0][2], rows[0][3]
+
+    assert marker_check() == (False, False, True)
+    (run_dir / p6.RUN_MARKER).write_text("{}\n", encoding="utf-8")
+    assert marker_check() == (True, False, False)
+    ident = p6.P6Identity("sha", False, True, p6.EXPECTED_CONFIG_HASH, "1.0")
+    with pytest.raises(p6.P6AlreadyExecutedError):
+        p6.run_confirmatory(config, universe, ident, run_dir)
+    assert sorted(path.name for path in run_dir.iterdir()) == [p6.RUN_MARKER]
 
 
 # ---------------------------------------------------------------------------

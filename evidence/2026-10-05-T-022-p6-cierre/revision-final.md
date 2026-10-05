@@ -46,7 +46,7 @@ después.
 | `origin/main` | `dac50249d5d047ff27d36fc827954e7a4c850e81`, sin cambios |
 | Pi (lectura por SSH, 2026-10-05) | `~/intradia-bot` en `8b2dddb` (v0.4.1), árbol limpio, sin `run/` de P6 |
 | Filas R-01 y V-01 de `docs/roadmap.md` | sin cambios |
-| Suite local al cerrar (`final-pytest-ruff-mypy.txt`) | ruff y mypy limpios; 1101 passed y 1 failed esperado: `test_preflight_real_sin_cargar_precios` ve la marca de P6 (control «marca confirmatoria ausente»), es decir, la guarda funcionando tras la ejecución única. En CI ese test se omite. No se modifica `tests/` |
+| Suite local al cerrar (`final-pytest-ruff-mypy.txt`) | ruff y mypy limpios; **1103 passed**, tras la corrección post-run de `tests/test_p6.py` (adenda) |
 
 ## Informe de Codex (literal)
 
@@ -110,3 +110,63 @@ Git emitió avisos de `xcrun_db` por el sandbox de solo lectura, pero los comand
 - `find evidence/2026-10-03-T-022-p6/run -name EJECUCION_CONFIRMATORIA_P6_INICIADA -print | wc -l`
 
 No ejecuté el simulador, `advisor.main p6`, `run_confirmatory`, `_ejecutar_confirmatoria_sellada`, `simulate`, `build_real_market`, `build_real_signals` ni `load_vintage`.
+
+## Adenda (2026-10-05): corrección post-run de `tests/test_p6.py`
+
+La primera pasada de la suite al cerrar dio 1101 passed y 1 failed: `test_preflight_real_sin_cargar_precios`
+leía el `RUN_DIR` real y su control «marca confirmatoria ausente» veía la marca de la ejecución única.
+Era una dependencia accidental del estado global. Con autorización del propietario:
+
+- ese test usa un `RUN_DIR` temporal vacío (`monkeypatch.setattr(p6, "RUN_DIR", tmp_path / "run")`),
+  sigue usando la cosecha real local y sigue prohibiendo `load_vintage` y `build_views`; la marca real no
+  se borra, oculta, renombra ni monkeypatchea;
+- `test_marca_en_run_dir_consume_p6`, nuevo, sin precios reales y con `tmp_path`: con la marca en
+  `RUN_DIR`, el control de `guard_checks` pasa a `observado = True, ok = False` y `run_confirmatory` lanza
+  `P6AlreadyExecutedError` sin escribir nada más.
+
+No cambia `advisor/` ni la configuración (`tests/` no está en `EXECUTOR_PATHS`), así que
+`P6_CODE_SHA = bc0636d` y `P6_RUN_HEAD_SHA = 353876d` no cambian. `run/` sigue íntegro (30/30 OK). Suite
+final: **1103 passed**, ruff y mypy limpios. Los dos tests pasan en local.
+
+### Revisión focalizada de Codex (literal)
+
+**Veredicto**
+
+0 BLOCKER y 0 IMPORTANTE observados. La corrección queda aceptable en revisión estática e integridad, con una salvedad: no pude ejecutar los dos tests por el sandbox de solo lectura, porque `pytest` no encontró ningún directorio temporal escribible antes de recolectar tests.
+
+**Hallazgos**
+
+OBSERVACIÓN: verificación dinámica no ejecutada por entorno, no por fallo del cambio.
+Reproducción: `.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_p6.py -k 'preflight_real_sin_cargar_precios or marca_en_run_dir_consume_p6'` falla antes de recolectar con `FileNotFoundError: No usable temporary directory found ...`. Esto impide confirmar en runtime los dos tests permitidos en este sandbox.
+
+**Comprobaciones**
+
+En /Users/fer/Desktop/Trading bot/intradia-bot/tests/test_p6.py:818, el test sigue saltando solo si falta `data/vintages/<P6_DATA_VINTAGE_ID>/AAPL.csv`. En tests/test_p6.py:825, siguen prohibidos `vintage.load_vintage` y `vintage.build_views` con el mismo `forbidden`.
+
+Lo único nuevo aislado en `test_preflight_real_sin_cargar_precios` es `p6.RUN_DIR` hacia `tmp_path / "run"` en tests/test_p6.py:827. No observé monkeypatch de `RUN_MARKER` ni de la marca histórica en ese test.
+
+`guard_checks` lee `RUN_DIR` en tiempo de llamada: usa `RUN_DIR / RUN_MARKER` dentro de la función en advisor/research/p6.py:752 y advisor/research/p6.py:767. Por tanto, el monkeypatch del global del módulo es efectivo para el preflight.
+
+La guarda de P6 consumido sigue cubierta: el test nuevo escribe solo en `tmp_path / "run"` y comprueba `guard_checks` y `run_confirmatory` en tests/test_p6.py:841. También siguen presentes coberturas existentes en tests/test_p6.py:638, :1026, :1084 y :1108.
+
+`git status --porcelain -- evidence/2026-10-03-T-022-p6/run` no devolvió entradas. `shasum -a 256 -c SHA256SUMS-ejecucion.txt` en esa carpeta devolvió todos los ficheros `OK`, incluida `EJECUCION_CONFIRMATORIA_P6_INICIADA`.
+
+`git diff --name-only` lista solo `tests/test_p6.py`. `git diff bc0636d HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt` no mostró diff. `EXECUTOR_PATHS` en advisor/research/p4.py:142 no incluye `tests/`. Inferencia: este cambio no altera el ejecutor ni el `P6_CODE_SHA` indicado.
+
+**Comandos ejecutados**
+
+- `git status --porcelain -- tests/test_p6.py evidence/2026-10-03-T-022-p6/run evidence/2026-10-05-T-022-p6-cierre advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt`
+- `git diff -- tests/test_p6.py`
+- `rg -n "RUN_DIR|RUN_MARKER|guard_checks|def guard_checks|run_confirmatory|P6AlreadyExecutedError|EXECUTOR_PATHS|test_preflight_real_sin_cargar_precios|test_marca_en_run_dir_consume_p6|test_confirmatoria_rechaza_marca_existente|test_s13_marca_existente|test_s18|test_s19|test_s20" advisor tests/test_p6.py`
+- `git diff --name-only`
+- `sed -n ...` y `nl -ba ...` sobre `advisor/research/p6.py`, `advisor/research/p4.py` y `tests/test_p6.py`
+- `git diff bc0636d HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt`
+- `git status --porcelain -- evidence/2026-10-03-T-022-p6/run`
+- `shasum -a 256 -c SHA256SUMS-ejecucion.txt` (en evidence/2026-10-03-T-022-p6/run)
+- `.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_p6.py -k 'preflight_real_sin_cargar_precios or marca_en_run_dir_consume_p6'` (falló por falta de directorio temporal, ver observación)
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse --short=7 HEAD`
+- `git status --porcelain -- evidence/2026-10-05-T-022-p6-cierre`
+
+La observación de Codex queda cubierta fuera de su sandbox: los dos tests pasan en local (`2 passed`) y
+dentro de la suite completa (1103 passed).
