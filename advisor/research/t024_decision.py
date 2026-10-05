@@ -6,7 +6,9 @@ import hashlib
 import json
 import math
 import os
+import secrets
 import subprocess
+from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
@@ -17,7 +19,7 @@ import numpy as np
 from advisor.config import AdvisorConfig
 from advisor.research import t024_comun as comun
 from advisor.research.p4 import executor_unchanged_since, tree_dirty
-from advisor.research.t024_captura import capturar
+from advisor.research.t024_captura import capturar, evaluar_ejecutabilidad
 from advisor.research.t024_comun import (
     BLOCK_WEEKS,
     C_E_FINAL,
@@ -63,6 +65,23 @@ class BarraDecision:
     low: float
     close: float
     dividend: float = 0.0
+
+
+@dataclass(frozen=True)
+class TokenMirada:
+    marca: Path
+    marca_sha256: str
+    nonce: str
+
+
+_TOKEN_ACTIVO: Optional[TokenMirada] = None
+
+
+@dataclass
+class _D3D4Bucket:
+    d3: list[float]
+    d4: list[float]
+    d4_truncadas: int = 0
 
 
 @dataclass(frozen=True)
@@ -134,6 +153,7 @@ class ResultadoVentanas:
     activos_excluidos_d2: int
     ventanas_excluidas_d2o: int
     activos_excluidos_d2o: int
+    rechazos_ejecutabilidad: Mapping[str, int]
 
 
 class FxCausal(Protocol):
@@ -146,6 +166,23 @@ class ActivoT024(Protocol):
 
 class UniversoT024(Protocol):
     def get(self, symbol: str) -> ActivoT024: ...
+
+
+def _sha256_path(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _crear_token_mirada(marca: Path) -> TokenMirada:
+    return TokenMirada(marca=marca, marca_sha256=_sha256_path(marca), nonce=secrets.token_hex(32))
+
+
+def _exigir_token(token: TokenMirada | None) -> None:
+    if token is None:
+        raise T024DecisionError("T-024: token de mirada ausente")
+    if token != _TOKEN_ACTIVO:
+        raise T024DecisionError("T-024: token de mirada no activo")
+    if _sha256_path(token.marca) != token.marca_sha256:
+        raise T024DecisionError("T-024: marca de mirada modificada")
 
 
 def d1_cerrada(open_entry: float, exit_price: float, dividend: float, *, fee: float = FEE, slip_bps: float = SLIP_BPS) -> float:
@@ -245,6 +282,7 @@ def construir_ventanas(
 ) -> ResultadoVentanas:
     abiertas_hasta: dict[tuple[str, str], int] = {}
     ignoradas = 0
+    rechazos: Counter[str] = Counter()
     ventanas: list[VentanaT024] = []
     for senal in sorted(senales, key=lambda s: (s.analysis_ts, s.signal_id)):
         if not comun.es_elegible_temporal(senal.s_session, senal.e_session, c_e):
@@ -261,10 +299,20 @@ def construir_ventanas(
         if no_solapar and abiertas_hasta.get(key, -1) >= e:
             ignoradas += 1
             continue
+        ejecutabilidad = evaluar_ejecutabilidad(senal, barras[e].open)
+        if not ejecutabilidad.ejecutable:
+            rechazos[ejecutabilidad.reason] += 1
+            continue
         x, reason, exit_price, dividend, truncada = salida_p6(senal, barras)
         abiertas_hasta[key] = x
         ventanas.append(calcular_ventana(senal, barras, x, reason, exit_price, dividend, t0=t0, t1=t1_asset, truncada_t1=truncada))
-    return recalcular_por_politica_activo(ventanas, barras_por_activo, t1_por_activo=t1_por_activo, ignoradas=ignoradas)
+    return recalcular_por_politica_activo(
+        ventanas,
+        barras_por_activo,
+        t1_por_activo=t1_por_activo,
+        ignoradas=ignoradas,
+        rechazos_ejecutabilidad=dict(sorted(rechazos.items())),
+    )
 
 
 def calcular_ventana(
@@ -333,6 +381,7 @@ def recalcular_por_politica_activo(
     *,
     t1_por_activo: Optional[Mapping[str, date]] = None,
     ignoradas: int = 0,
+    rechazos_ejecutabilidad: Optional[Mapping[str, int]] = None,
 ) -> ResultadoVentanas:
     grouped: dict[tuple[str, str], list[VentanaT024]] = {}
     for ventana in ventanas:
@@ -377,6 +426,7 @@ def recalcular_por_politica_activo(
         activos_excluidos_d2=excl_d2_assets,
         ventanas_excluidas_d2o=excl_d2o_windows,
         activos_excluidos_d2o=excl_d2o_assets,
+        rechazos_ejecutabilidad=dict(rechazos_ejecutabilidad or {}),
     )
 
 
@@ -611,7 +661,8 @@ def validar_mirada(*, mirada: str, c_e: date, evidence_dir: Path) -> None:
     politicas_para_mirada(mirada=mirada, c_e=c_e, evidence_dir=evidence_dir)
 
 
-def barras_decision(cosecha: VintageLoad, universe: UniversoT024, symbol: str) -> tuple[BarraDecision, ...]:
+def barras_decision(token: TokenMirada | None, cosecha: VintageLoad, universe: UniversoT024, symbol: str) -> tuple[BarraDecision, ...]:
+    _exigir_token(token)
     asset = universe.get(symbol)
     views = cosecha.by_symbol[symbol]
     sessions = comun.local_dates(views.execution_prices.index, asset.timezone)
@@ -631,6 +682,60 @@ def barras_decision(cosecha: VintageLoad, universe: UniversoT024, symbol: str) -
     return tuple(rows)
 
 
+def _region_de(universe: UniversoT024, symbol: str) -> str:
+    asset = universe.get(symbol)
+    region = getattr(asset, "region", None)
+    if region is None:
+        raise T024DecisionError(f"{symbol}: activo sin región para D3")
+    return str(region)
+
+
+def _descriptivos_d3_d4(
+    ventanas: Sequence[VentanaT024],
+    barras_por_activo: Mapping[str, Sequence[BarraDecision]],
+    universe: UniversoT024,
+    t1_por_activo: Mapping[str, date],
+) -> Mapping[str, object]:
+    regiones: dict[str, dict[str, Sequence[BarraDecision]]] = defaultdict(dict)
+    for symbol, rows in barras_por_activo.items():
+        regiones[_region_de(universe, symbol)][symbol] = _truncate_barras(rows, t1_por_activo[symbol])
+    indices = {region: indice_equiponderado_region(series) for region, series in regiones.items()}
+    d3_values: list[float] = []
+    d4_values: list[float] = []
+    d4_truncadas = 0
+    por_politica: dict[str, _D3D4Bucket] = {}
+    for ventana in ventanas:
+        symbol = ventana.senal.asset
+        rows = barras_por_activo[symbol]
+        region = _region_de(universe, symbol)
+        d3 = d3_region(ventana, rows, indices[region])
+        d4, truncada = d4_40_sesiones(ventana, rows, t1=t1_por_activo[symbol])
+        d3_values.append(d3)
+        d4_values.append(d4)
+        d4_truncadas += int(truncada)
+        bucket = por_politica.setdefault(ventana.senal.policy, _D3D4Bucket([], []))
+        bucket.d3.append(d3)
+        bucket.d4.append(d4)
+        bucket.d4_truncadas += int(truncada)
+    return {
+        "d3_media": media(d3_values),
+        "d3_n": len(d3_values),
+        "d4_media": media(d4_values),
+        "d4_n": len(d4_values),
+        "d4_truncadas": d4_truncadas,
+        "por_politica": {
+            policy: {
+                "d3_media": media(values.d3),
+                "d3_n": len(values.d3),
+                "d4_media": media(values.d4),
+                "d4_n": len(values.d4),
+                "d4_truncadas": values.d4_truncadas,
+            }
+            for policy, values in sorted(por_politica.items())
+        },
+    }
+
+
 def _fx_eur_descriptivo(
     ventanas: Sequence[VentanaT024],
     barras_por_activo: Mapping[str, Sequence[BarraDecision]],
@@ -648,6 +753,7 @@ def _fx_eur_descriptivo(
 
 
 def construir_resultado(
+    token: TokenMirada | None,
     config: AdvisorConfig,
     universe: UniversoT024,
     cosecha_decisiva: VintageLoad,
@@ -656,6 +762,7 @@ def construir_resultado(
     policies: Sequence[str],
     fx: Optional[FxCausal] = None,
 ) -> ResultadoDecision:
+    _exigir_token(token)
     from advisor.research import t024_captura as captura
 
     signals: list[SenalT024] = []
@@ -663,7 +770,7 @@ def construir_resultado(
         generated, _counts = captura.generar_senales_operar(config=config, universe=universe, vintage=cosecha_decisiva, policy=policy, c_e=c_e)
         signals.extend(generated)
     symbols = sorted({signal.asset for signal in signals})
-    barras_por_activo = {symbol: barras_decision(cosecha_decisiva, universe, symbol) for symbol in symbols}
+    barras_por_activo = {symbol: barras_decision(token, cosecha_decisiva, universe, symbol) for symbol in symbols}
     t1_por_activo = {symbol: rows[-1].session for symbol, rows in barras_por_activo.items() if rows}
     ventanas = construir_ventanas(signals, barras_por_activo, c_e=c_e, t1_por_activo=t1_por_activo)
     politicas = {policy: decidir_politica(policy, ventanas) for policy in policies}
@@ -671,15 +778,25 @@ def construir_resultado(
         policy: float(media(v.phi_a for v in ventanas.ventanas if v.senal.policy == policy) or 0.0)
         for policy in tuple(policies) + comun.POLITICAS_DESCRIPTIVAS
     }
+    d3_d4 = _descriptivos_d3_d4(ventanas.ventanas, barras_por_activo, universe, t1_por_activo)
     descriptivas: dict[str, object] = {
         "C0": decidir_politica("C0", ventanas, capacidad=True),
+        "d2_media_por_politica": {
+            policy: media(v.d2 for v in ventanas.ventanas if v.senal.policy == policy and v.d2 is not None)
+            for policy in tuple(policies) + comun.POLITICAS_DESCRIPTIVAS
+        },
         "d2o_media": media(v.d2o for v in ventanas.ventanas if v.d2o is not None),
         "d2c_media": media(v.d2c for v in ventanas.ventanas if v.d2c is not None),
         "d1_media": media(v.d1 for v in ventanas.ventanas),
-        "d3_media": None,
-        "d4_media": None,
+        "d3_media": d3_d4["d3_media"],
+        "d3_n": d3_d4["d3_n"],
+        "d4_media": d3_d4["d4_media"],
+        "d4_n": d3_d4["d4_n"],
+        "d4_truncadas": d3_d4["d4_truncadas"],
+        "d3_d4_por_politica": d3_d4["por_politica"],
         "convencion_b_media": media(v.d2_b for v in ventanas.ventanas if v.d2_b is not None),
         "coste_prorrateado_media": media(v.d2_coste_prorrateado for v in ventanas.ventanas if v.d2_coste_prorrateado is not None),
+        "rechazos_ejecutabilidad": ventanas.rechazos_ejecutabilidad,
     }
     return ResultadoDecision(
         politicas=politicas,
@@ -753,7 +870,13 @@ def ejecutar_mirada(
         resultado: Mapping[str, ResultadoPolitica] = {p: ResultadoPolitica(p, NO_EVALUABLE, 0, None, None) for p in policies}
         _registrar_consumo(evidence_dir, mirada, c_e, policies, resultado)
         return resultado
-    resultado_decision = construir_resultado(config, universe, cosecha_decisiva, c_e=c_e, policies=policies)
+    token = _crear_token_mirada(marca)
+    global _TOKEN_ACTIVO
+    _TOKEN_ACTIVO = token
+    try:
+        resultado_decision = construir_resultado(token, config, universe, cosecha_decisiva, c_e=c_e, policies=policies)
+    finally:
+        _TOKEN_ACTIVO = None
     _registrar_consumo(evidence_dir, mirada, c_e, policies, resultado_decision)
     return resultado_decision
 

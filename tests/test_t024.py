@@ -7,7 +7,7 @@ import math
 from dataclasses import replace
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 import pandas as pd
 import pytest
@@ -197,6 +197,33 @@ def test_d4_trunca_en_t1() -> None:
     assert dec.d4_40_sesiones(v, rows, t1=rows[10].session)[1] is True
 
 
+def test_construir_resultado_end_to_end_sintetico_con_d3_d4(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    rows_a = [cap.BarraCiega(d, 100, 101, 99, 100) for d in days(date(2026, 8, 28), 90)]
+    rows_b = [cap.BarraCiega(d, 200, 202, 198, 200) for d in days(date(2026, 8, 28), 90)]
+    vintage = _vintage_multi({"AAA": rows_a, "BBB": rows_b})
+    universe = _RegionalUniverse({"AAA": "USA", "BBB": "EUROPA"})
+    token = _activar_token(tmp_path, monkeypatch)
+
+    def fixed_signals(**kwargs: Any) -> tuple[list[SenalT024], dict[str, int]]:
+        policy = kwargs["policy"]
+        if policy == "B2":
+            return [senal(policy="B2", asset="AAA", s_index=1, stop=90, target=200, entry_max=200, sid="b2")], {}
+        if policy == "C0":
+            return [senal(policy="C0", asset="BBB", s_index=3, stop=180, target=400, entry_max=400, sid="c0")], {}
+        return [], {}
+
+    monkeypatch.setattr(cap, "generar_senales_operar", fixed_signals)
+    result = dec.construir_resultado(token, None, universe, vintage, c_e=date(2027, 8, 27), policies=["B2"])  # type: ignore[arg-type]
+    sigma = 0.0005
+    expected_l = math.log((100 * (1 - sigma) * (1 - 0.001)) / (100 * (1 + sigma) * (1 + 0.001)))
+    assert result.politicas["B2"].n == 1
+    assert result.politicas["B2"].etiqueta == dec.NO_EVALUABLE
+    assert result.descriptivas["d2_media_por_politica"]["B2"] == pytest.approx(expected_l)  # type: ignore[index]
+    assert result.descriptivas["d3_media"] is not None
+    assert result.descriptivas["d4_media"] is not None
+    assert result.descriptivas["d4_truncadas"] == 0
+
+
 def test_coste_prorrateado_exacto() -> None:
     assert dec.coste_roundtrip() == pytest.approx(math.log(1.0005 * 1.001) - math.log(0.9995 * 0.999))
 
@@ -242,13 +269,39 @@ def _vintage_from_rows(symbol: str, rows: Sequence[cap.BarraCiega]) -> VintageLo
     return VintageLoad("dev", {}, {symbol: views})
 
 
+def _vintage_multi(data: Mapping[str, Sequence[cap.BarraCiega]]) -> VintageLoad:
+    by_symbol: dict[str, VintageViews] = {}
+    for symbol, rows in data.items():
+        by_symbol.update(_vintage_from_rows(symbol, rows).by_symbol)
+    return VintageLoad("synthetic", {}, by_symbol)
+
+
 class _Asset:
     timezone = "UTC"
+    region = "USA"
 
 
 class _Universe:
     def get(self, _symbol: str) -> _Asset:
         return _Asset()
+
+
+class _RegionalUniverse:
+    def __init__(self, regiones: dict[str, str]) -> None:
+        self._regiones = regiones
+
+    def get(self, symbol: str) -> _Asset:
+        asset = _Asset()
+        asset.region = self._regiones.get(symbol, "USA")  # type: ignore[misc]
+        return asset
+
+
+def _activar_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, contenido: str = "marca") -> dec.TokenMirada:
+    marca = tmp_path / "mirada_1.t024.consumida"
+    marca.write_text(contenido, encoding="utf-8")
+    token = dec.TokenMirada(marca, hashlib.sha256(marca.read_bytes()).hexdigest(), "nonce")
+    monkeypatch.setattr(dec, "_TOKEN_ACTIVO", token)
+    return token
 
 
 def test_capturar_usa_vista_ciega_para_aperturas(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -305,6 +358,34 @@ def test_ejecutabilidad_motivos_equivalen_a_p6() -> None:
 
 
 @pytest.mark.parametrize(
+    ("bad", "motivo"),
+    [
+        (senal(entry_max=90), p6_sim.ABOVE_MAX_ENTRY),
+        (senal(stop=101), p6_sim.INVALID_STOP),
+        (senal(target=99), p6_sim.INVALID_TARGET),
+        (senal(stop=99, target=101, entry_max=200), p6_sim.RR_TOO_LOW),
+        (senal(sid="nan"), p6_sim.DATA_NOT_EXECUTABLE),
+    ],
+)
+def test_construir_ventanas_rechaza_senales_no_ejecutables(bad: SenalT024, motivo: str) -> None:
+    rows = bars(90)
+    if bad.signal_id == "nan":
+        rows[1] = replace(rows[1], open=math.nan)
+    result = dec.construir_ventanas([bad], {"AAA": rows}, c_e=date(2027, 8, 27))
+    assert result.ventanas == ()
+    assert result.rechazos_ejecutabilidad == {motivo: 1}
+
+
+def test_senal_no_ejecutable_no_bloquea_posterior_mismo_activo() -> None:
+    rows = bars(90)
+    bad = senal(sid="bad", entry_max=90, target=200)
+    good = senal(sid="good", s_index=2, target=200)
+    result = dec.construir_ventanas([bad, good], {"AAA": rows}, c_e=date(2027, 8, 27))
+    assert [v.senal.signal_id for v in result.ventanas] == ["good"]
+    assert result.rechazos_ejecutabilidad == {p6_sim.ABOVE_MAX_ENTRY: 1}
+
+
+@pytest.mark.parametrize(
     ("rows", "stop", "target", "expected_reason"),
     [
         ([(100, 101, 99, 100), (100, 101, 99, 100), (90, 91, 89, 90)], 95, 200, p6_sim.EXIT_STOP),
@@ -326,6 +407,24 @@ def test_salidas_equivalen_a_p6_sim(rows: list[tuple[int, int, int, int]], stop:
     assert reason == expected_reason == trade.exit_reason
     assert x - 1 == trade.bars_held
     assert price == pytest.approx(trade.exit_eff)
+
+
+def test_p6_sim_equivale_con_no_ejecutable_seguida_de_ejecutable() -> None:
+    from tests.test_p6 import EUR, asset, market, signal, spec
+
+    a = asset("AAA", [(100, 101, 99, 100)] * 50)
+    signals = [signal(a, 0, 95, 200, entry_max=90, sid="bad"), signal(a, 2, 95, 200, entry_max=200, sid="good")]
+    p6_result = p6_sim.simulate(market(a), signals, EUR, spec(max_hold_bars=40))
+    dec_rows = [dec.BarraDecision(d, 100, 101, 99, 100) for d in days(date(2026, 8, 28), 50)]
+    ours = dec.construir_ventanas(
+        [senal(asset="AAA", s_index=0, entry_max=90, sid="bad", target=200), senal(asset="AAA", s_index=2, entry_max=200, sid="good", target=200)],
+        {"AAA": dec_rows},
+        c_e=date(2027, 8, 27),
+    )
+    assert [trade.signal_id for trade in p6_result.trades] == ["good"]
+    assert [v.senal.signal_id for v in ours.ventanas] == ["good"]
+    assert ours.ventanas[0].x_index - ours.ventanas[0].e_index == p6_result.trades[0].bars_held
+    assert ours.ventanas[0].exit_price == pytest.approx(p6_result.trades[0].exit_eff)
 
 
 def test_bootstrap_10_semanas_determinista_con_vacias() -> None:
@@ -359,6 +458,70 @@ def _conteo(policy: str, cumple: bool) -> cap.ConteoCaptura:
 def test_verificar_identidad_falla_si_code_sha_none() -> None:
     with pytest.raises(dec.T024DecisionError):
         dec.verificar_identidad()
+
+
+def test_verificar_identidad_ramas_no_tautologicas(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(dec.comun, "T024_CODE_SHA", "c" * 40)
+    monkeypatch.setattr(dec, "executor_unchanged_since", lambda *_a, **_k: True)
+    monkeypatch.setattr(dec, "tree_dirty", lambda *_a, **_k: False)
+    monkeypatch.setattr(dec, "_git", lambda *_a, **_k: None)
+    with pytest.raises(dec.T024DecisionError, match="ancestro"):
+        dec.verificar_identidad()
+    monkeypatch.setattr(dec, "_git", lambda *_a, **_k: False)
+    with pytest.raises(dec.T024DecisionError, match="ancestro"):
+        dec.verificar_identidad()
+    monkeypatch.setattr(dec, "_git", lambda *_a, **_k: True)
+    monkeypatch.setattr(dec, "executor_unchanged_since", lambda *_a, **_k: False)
+    with pytest.raises(dec.T024DecisionError, match="ejecutor"):
+        dec.verificar_identidad()
+    monkeypatch.setattr(dec, "executor_unchanged_since", lambda *_a, **_k: True)
+    monkeypatch.setattr(dec, "tree_dirty", lambda *_a, **_k: True)
+    with pytest.raises(dec.T024DecisionError, match="limpio"):
+        dec.verificar_identidad()
+    monkeypatch.setattr(dec, "tree_dirty", lambda *_a, **_k: None)
+    with pytest.raises(dec.T024DecisionError, match="limpio"):
+        dec.verificar_identidad()
+    monkeypatch.setattr(dec, "tree_dirty", lambda *_a, **_k: False)
+    dec.verificar_identidad()
+
+
+def test_construir_resultado_y_barras_decision_exigen_token(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    vintage = _vintage_from_rows("AAA", [cap.BarraCiega(d, 100, 101, 99, 100) for d in days(date(2026, 8, 28), 80)])
+    with pytest.raises(dec.T024DecisionError, match="ausente"):
+        dec.construir_resultado(None, None, _Universe(), vintage, c_e=date(2027, 8, 27), policies=["B2"])  # type: ignore[arg-type]
+    with pytest.raises(dec.T024DecisionError, match="ausente"):
+        dec.barras_decision(None, vintage, _Universe(), "AAA")
+    marca = tmp_path / "m"
+    marca.write_text("x", encoding="utf-8")
+    inactive = dec.TokenMirada(marca, hashlib.sha256(marca.read_bytes()).hexdigest(), "n")
+    with pytest.raises(dec.T024DecisionError, match="no activo"):
+        dec.barras_decision(inactive, vintage, _Universe(), "AAA")
+    monkeypatch.setattr(dec, "_TOKEN_ACTIVO", inactive)
+    marca.write_text("y", encoding="utf-8")
+    with pytest.raises(dec.T024DecisionError, match="modificada"):
+        dec.barras_decision(inactive, vintage, _Universe(), "AAA")
+
+
+def test_token_se_desactiva_tras_excepcion_en_ejecutar_mirada(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    monkeypatch.setattr(dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", True), "S2": _conteo("S2", True)}, {}))
+
+    def boom(*_args: Any, **_kwargs: Any) -> dec.ResultadoDecision:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(dec, "construir_resultado", boom)
+    with pytest.raises(RuntimeError, match="boom"):
+        dec.ejecutar_mirada(
+            mirada="mirada_1",
+            c_e=date(2027, 1, 1),
+            config=None,  # type: ignore[arg-type]
+            universe=_Universe(),
+            cosecha_decisiva=_vintage_from_rows("AAA", []),
+            cosecha_decisiva_id="v1",
+            registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
+            evidence_dir=tmp_path,
+        )
+    assert dec._TOKEN_ACTIVO is None
 
 
 def test_mirada_reconfirmacion_fallida_no_consume_ni_abre(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -483,28 +646,50 @@ def test_maximo_dos_miradas_y_final_solo_pendientes(tmp_path: Path) -> None:
         dec.validar_mirada(mirada="mirada_final", c_e=date(2027, 8, 27), evidence_dir=tmp_path)
 
 
+def _imports_resueltos(source: str, module: str = "advisor.research.t024_captura") -> set[str]:
+    tree = ast.parse(source)
+    package = module.rsplit(".", 1)[0]
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                parts = package.split(".")
+                base = ".".join(parts[: len(parts) - node.level + 1])
+                mod = f"{base}.{node.module}" if node.module else base
+            else:
+                mod = node.module or ""
+            imported.add(mod)
+            imported.update(f"{mod}.{alias.name}" if mod else alias.name for alias in node.names)
+            imported.update(alias.name for alias in node.names)
+    return imported
+
+
 def test_imports_cerrados_de_captura_grafo_local() -> None:
     source = Path("advisor/research/t024_captura.py").read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    banned = {"advisor.research.p6_sim", "advisor.research.t024_decision", "simulate", "build_real_market", "build_real_signals", "salida_p6"}
-    imported = {
-        alias.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Import)
-        for alias in node.names
-    } | {
-        node.module or ""
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom)
-    } | {
-        alias.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom)
-        for alias in node.names
+    banned = {
+        "advisor.research.t024_decision",
+        "advisor.research.p6",
+        "advisor.research.p6_sim",
+        "simulate",
+        "simulate_benchmark",
+        "build_real_market",
+        "build_real_signals",
+        "salida_p6",
+        "construir_resultado",
+        "construir_ventanas",
+        "barras_decision",
+        "ejecutar_mirada",
     }
+    imported = _imports_resueltos(source)
     assert not (banned & imported)
-    assert "advisor.research.p6" not in imported
     assert "advisor.analysis.levels.rr_at_least" in cap.T024_CAPTURA_IMPORTED_CALLABLES
+
+
+def test_imports_cerrados_detecta_from_advisor_research_import_t024_decision() -> None:
+    imported = _imports_resueltos("def f():\n    from advisor.research import t024_decision\n")
+    assert "advisor.research.t024_decision" in imported
 
 
 def test_constantes_policy_config_y_asset_list_igualan_p6() -> None:
