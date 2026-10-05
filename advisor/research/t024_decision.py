@@ -50,6 +50,7 @@ NO_POSITIVO = "NO POSITIVO"
 NO_CONCLUYENTE = "NO CONCLUYENTE"
 NO_EVALUABLE = "NO EVALUABLE POR MUESTRA"
 REPROPONER = "REPROPONER"
+ORIGEN_SINTETICO = "sintetico"
 UTC = timezone.utc
 
 
@@ -65,6 +66,8 @@ class BarraDecision:
     low: float
     close: float
     dividend: float = 0.0
+    # «sintetico» para tests y desarrollo; «cosecha:<data_vintage_id>» solo lo pone `barras_decision`, tras el token.
+    origen: str = ORIGEN_SINTETICO
 
 
 @dataclass(frozen=True)
@@ -103,6 +106,7 @@ class VentanaT024:
     d2_coste_prorrateado: Optional[float]
     phi_a: float
     truncada_t1: bool = False
+    origen: str = ORIGEN_SINTETICO
 
 
 @dataclass(frozen=True)
@@ -185,6 +189,17 @@ def _exigir_token(token: TokenMirada | None) -> None:
         raise T024DecisionError("T-024: marca de mirada modificada")
 
 
+def _exigir_token_si_cosecha(origenes: Iterable[str]) -> None:
+    """Las funciones de desenlace son libres con datos sintéticos; con barras de una cosecha exigen el token.
+
+    Modelo de amenaza (T-024 §13): impide abrir desenlaces reales por accidente o fuera de `ejecutar_mirada`;
+    no pretende impedir que alguien reconstruya a mano barras «sintéticas» desde una cosecha para saltárselo.
+    """
+
+    if any(origen != ORIGEN_SINTETICO for origen in origenes):
+        _exigir_token(_TOKEN_ACTIVO)
+
+
 def d1_cerrada(open_entry: float, exit_price: float, dividend: float, *, fee: float = FEE, slip_bps: float = SLIP_BPS) -> float:
     sigma = slip_bps / 10_000.0
     return math.log((exit_price * (1.0 - sigma) * (1.0 - fee) + dividend) / (exit_price + dividend)) - math.log(
@@ -193,6 +208,7 @@ def d1_cerrada(open_entry: float, exit_price: float, dividend: float, *, fee: fl
 
 
 def salida_p6(senal: SenalT024, barras: Sequence[BarraDecision]) -> tuple[int, str, float, float, bool]:
+    _exigir_token_si_cosecha(row.origen for row in barras)
     e = senal.s_index + 1
     if e >= len(barras):
         raise ValueError(f"{senal.signal_id}: sin entrada")
@@ -235,6 +251,7 @@ def coste_roundtrip() -> float:
 
 
 def retornos_cierre(barras: Sequence[BarraDecision]) -> list[Optional[float]]:
+    _exigir_token_si_cosecha(row.origen for row in barras)
     out: list[Optional[float]] = [None]
     for prev, row in zip(barras, barras[1:]):
         out.append(math.log((row.close + row.dividend) / prev.close))
@@ -242,6 +259,7 @@ def retornos_cierre(barras: Sequence[BarraDecision]) -> list[Optional[float]]:
 
 
 def drift_noche_dia(barras: Sequence[BarraDecision]) -> tuple[float, float]:
+    _exigir_token_si_cosecha(row.origen for row in barras)
     noches: list[float] = []
     dias: list[float] = []
     for prev, row in zip(barras, barras[1:]):
@@ -280,6 +298,7 @@ def construir_ventanas(
     t1_por_activo: Optional[Mapping[str, date]] = None,
     no_solapar: bool = True,
 ) -> ResultadoVentanas:
+    _exigir_token_si_cosecha(row.origen for rows in barras_por_activo.values() for row in rows)
     abiertas_hasta: dict[tuple[str, str], int] = {}
     ignoradas = 0
     rechazos: Counter[str] = Counter()
@@ -327,6 +346,7 @@ def calcular_ventana(
     t1: date,
     truncada_t1: bool,
 ) -> VentanaT024:
+    _exigir_token_si_cosecha(row.origen for row in barras)
     e = senal.s_index + 1
     open_entry = barras[e].open
     l_i = retorno_log_operacion(open_entry, exit_price, dividend)
@@ -372,6 +392,7 @@ def calcular_ventana(
         d2_coste_prorrateado=d2_cost,
         phi_a=phi,
         truncada_t1=truncada_t1,
+        origen=barras[e].origen,
     )
 
 
@@ -383,6 +404,7 @@ def recalcular_por_politica_activo(
     ignoradas: int = 0,
     rechazos_ejecutabilidad: Optional[Mapping[str, int]] = None,
 ) -> ResultadoVentanas:
+    _exigir_token_si_cosecha([*(v.origen for v in ventanas), *(row.origen for rows in barras_por_activo.values() for row in rows)])
     grouped: dict[tuple[str, str], list[VentanaT024]] = {}
     for ventana in ventanas:
         grouped.setdefault((ventana.senal.policy, ventana.senal.asset), []).append(ventana)
@@ -431,6 +453,7 @@ def recalcular_por_politica_activo(
 
 
 def indice_equiponderado_region(series_por_activo: Mapping[str, Sequence[BarraDecision]]) -> dict[date, float]:
+    _exigir_token_si_cosecha(row.origen for rows in series_por_activo.values() for row in rows)
     by_date: dict[date, list[float]] = {}
     all_dates = sorted({row.session for rows in series_por_activo.values() for row in rows})
     for rows in series_por_activo.values():
@@ -449,10 +472,12 @@ def indice_equiponderado_region(series_por_activo: Mapping[str, Sequence[BarraDe
 
 
 def d3_region(ventana: VentanaT024, barras: Sequence[BarraDecision], indice: Mapping[date, float]) -> float:
+    _exigir_token_si_cosecha([ventana.origen, *(row.origen for row in barras)])
     return ventana.l_i - math.log(indice[barras[ventana.x_index].session] / indice[barras[ventana.e_index - 1].session])
 
 
 def d4_40_sesiones(ventana: VentanaT024, barras: Sequence[BarraDecision], *, t1: Optional[date] = None) -> tuple[float, bool]:
+    _exigir_token_si_cosecha([ventana.origen, *(row.origen for row in barras)])
     e = ventana.e_index
     usable = _truncate_barras(barras, t1) if t1 is not None else tuple(barras)
     j = min(e + MAX_HOLD, len(usable) - 1)
@@ -531,6 +556,7 @@ def decidir_politica(
         excl_w = 0
         excl_a = 0
         window_seq = tuple(ventanas)
+    _exigir_token_si_cosecha(v.origen for v in window_seq)
     valores = [(v.senal.e_session, v.d2) for v in window_seq if v.senal.policy == policy and v.d2 is not None]
     if not capacidad or len(valores) < N_MIN:
         return ResultadoPolitica(policy, NO_EVALUABLE, len(valores), None, None, ventanas_excluidas=excl_w, activos_excluidos=excl_a)
@@ -677,6 +703,7 @@ def barras_decision(token: TokenMirada | None, cosecha: VintageLoad, universe: U
                 low=float(row["Low"]),
                 close=float(row["Close"]),
                 dividend=float(dividend),
+                origen=f"cosecha:{cosecha.data_vintage_id}",
             )
         )
     return tuple(rows)

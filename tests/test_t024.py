@@ -7,7 +7,7 @@ import math
 from dataclasses import replace
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 import pandas as pd
 import pytest
@@ -695,6 +695,46 @@ def test_d3_indice_region_incluye_analizables_sin_senal(monkeypatch: pytest.Monk
     monkeypatch.setattr(dec, "indice_equiponderado_region", espia)
     dec.construir_resultado(token, None, universe, vintage, c_e=date(2027, 8, 27), policies=["B2"])  # type: ignore[arg-type]
     assert {"AAA", "BBB"} in vistos and {"CCC"} in vistos
+
+
+def test_ninguna_ruta_publica_abre_desenlaces_de_cosecha_sin_token(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Con barras de una cosecha, toda función de desenlace exige el token; con sintéticas, no."""
+
+    reales = tuple(replace(b, origen="cosecha:v1") for b in bars(70))
+    sint = tuple(bars(70))
+    s1 = senal(stop=90, target=200, entry_max=200)
+    ventana_sint = dec.construir_ventanas([s1], {"AAA": sint}, c_e=date(2027, 8, 27)).ventanas[0]
+    ventana_real = replace(ventana_sint, origen="cosecha:v1")
+    llamadas: list[Callable[[], object]] = [
+        lambda: dec.salida_p6(s1, reales),
+        lambda: dec.retornos_cierre(reales),
+        lambda: dec.drift_noche_dia(reales),
+        lambda: dec.construir_ventanas([s1], {"AAA": reales}, c_e=date(2027, 8, 27)),
+        lambda: dec.calcular_ventana(s1, reales, 5, dec.EXIT_FINAL, 100.0, 0.0, t0=reales[0].session, t1=reales[-1].session, truncada_t1=False),
+        lambda: dec.recalcular_por_politica_activo([ventana_real], {"AAA": sint}),
+        lambda: dec.indice_equiponderado_region({"AAA": reales}),
+        lambda: dec.d3_region(ventana_real, sint, {}),
+        lambda: dec.d4_40_sesiones(ventana_real, sint),
+        lambda: dec.decidir_politica("B2", [ventana_real]),
+    ]
+    for llamada in llamadas:
+        with pytest.raises(dec.T024DecisionError, match="token de mirada ausente"):
+            llamada()
+    # Con datos sintéticos siguen siendo utilizables sin token (tests y desarrollo).
+    assert dec.salida_p6(s1, sint)[1] == dec.EXIT_TIME
+    assert dec.decidir_politica("B2", [ventana_sint]).etiqueta == dec.NO_EVALUABLE
+    # Con el token de una mirada activo, las barras de cosecha se aceptan.
+    _activar_token(tmp_path, monkeypatch)
+    assert dec.salida_p6(s1, reales)[1] == dec.EXIT_TIME
+    assert dec.construir_ventanas([s1], {"AAA": reales}, c_e=date(2027, 8, 27)).ventanas[0].origen == "cosecha:v1"
+
+
+def test_barras_decision_marca_origen_de_cosecha(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    rows = [cap.BarraCiega(d, 100, 101, 99, 100) for d in days(date(2026, 8, 28), 5)]
+    vintage = replace(_vintage_from_rows("AAA", rows), data_vintage_id="v1")
+    token = _activar_token(tmp_path, monkeypatch)
+    barras = dec.barras_decision(token, vintage, _Universe(), "AAA")  # type: ignore[arg-type]
+    assert {b.origen for b in barras} == {"cosecha:v1"}
 
 
 def test_r6_eur_descriptivo_sin_fx_declara_motivo() -> None:
