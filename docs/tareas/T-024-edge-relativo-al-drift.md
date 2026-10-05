@@ -1,8 +1,10 @@
 # T-024 — Edge relativo al drift: ¿la señal elige ventanas mejores que mantener el activo? (D-71)
 
-Estado: **FICHA DE DISEÑO — OD abiertas. No hay pre-registro congelado.** No se ha calculado ninguna
-métrica de T-024, ni sobre la cosecha consumida ni sobre datos posteriores al 2026-08-27. No existe
-código de T-024.
+Estado: **PRE-REGISTRO — OD-T24-1 a OD-T24-12 CERRADAS en D-72 (2026-10-05).** Pendiente: la revisión
+adversarial final y la congelación de `T024_PREREG_SHA`. No se ha calculado ninguna métrica de T-024, ni
+sobre la cosecha consumida ni sobre datos posteriores al 2026-08-27. No existe código de T-024 (ni
+`t024.py` ni la captura). Las recomendaciones de la ficha son ahora **reglas vinculantes** con las
+modificaciones de D-72: bootstrap de 10 semanas y guarda de reconfirmación de capacidad.
 
 _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
 
@@ -13,7 +15,7 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 | | |
 |---|---|
 | Base | `main = d86a94e6fcbc86c7dfdb345eaf7959b9d83e91cc` (merge del PR #43, T-023) |
-| Decisión | D-71 (opción E de T-023) |
+| Decisiones | D-71 (opción E de T-023); D-72 (cierra las OD-T24) |
 | Hipótesis de origen | H23-04 (`evidence/2026-10-05-T-023-diagnostico-post-p6/hipotesis-candidatas.md`), post hoc |
 | P6 | Cerrado y vinculante: B2 `NO PASA`, S2 `NO PASA`, salida `[]` (D-70); P7 BLOQUEADO |
 | Cosecha consumida | `071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841` (hasta el 2026-08-27): solo desarrollo |
@@ -31,6 +33,16 @@ sin seleccionar ventana. D-71 pregunta, antes de tocar la cartera:
 > ¿Las ventanas que selecciona la señal aportan rendimiento adicional frente a mantener el mismo activo?
 
 T-024 es una **medición**. No cambia ninguna regla de señal, geometría ni cartera.
+
+**Qué mide exactamente (precisión de D-72).** La métrica primaria D2 **no** mide el «timing puro de la
+señal». Depende de la selección de la señal, la entrada, el stop, el objetivo, la salida temporal y la
+duración resultante. La afirmación permitida es:
+
+> D2 evalúa si las ventanas del contrato activo congelado de B2/S2 (selección, ejecución y salida)
+> obtienen un retorno neto superior al drift medio del mismo activo durante un número comparable de
+> sesiones.
+
+Ningún resultado se atribuye causalmente solo al score o a la señal.
 
 ## 2. Qué no hace
 
@@ -85,7 +97,7 @@ y por tanto:
 **D1:** `ℓ_i − π_i = ln( (Q_out·(1−σ)(1−f) + D_i) / (Q_out + D_i) ) − ln( (1+σ)(1+f) )`
 
 Las dos partes son ≤ 0, y la expresión vale 0 solo si `σ = f = 0`. **Para toda operación, D1 depende
-solo de los costes y del peso relativo del dividendo; no contiene información sobre el timing.**
+solo de los costes y del peso relativo del dividendo; no contiene información sobre las ventanas.**
 Ejemplo sin dividendo: D1 = ln((1−σ)(1−f)) − ln((1+σ)(1+f)) ≈ −0,0030, que es exactamente el coste de
 la ida y vuelta.
 
@@ -104,16 +116,16 @@ concretas y la elección es del propietario (OD-T24-1).
 `h_i` es la duración comparable de la ventana en sesiones; su convención está en §5.2 (OD-T24-3).
 `[T0, T1]` es la ventana de referencia del drift, fijada en §9.
 
-| Id | Exceso por ventana | Qué mide | Propuesta |
+| Id | Exceso por ventana | Qué mide | Papel (D-72) |
 |---|---|---|---|
-| **D1** | `ℓ_i − π_i` (§4) | Solo costes y dividendo | **Excluida** (se publica como comprobación de que la implementación cuadra) |
-| **D2** | `ℓ_i − h_i·μ_a`, con `μ_a` = media de `g_{a,t}` en todas las sesiones de `a` en `[T0, T1]` | **Timing** frente al drift medio del mismo activo (la referencia del buy-and-hold) | **Primaria (recomendada)** |
-| **D2o** | `ℓ_i − h_i·μ_a^{fuera}`, con `μ_a^{fuera}` = media de `g_{a,t}` en las sesiones de `[T0, T1]` que **no** cubre ninguna ventana de `(p, a)` | Timing frente a las sesiones no seleccionadas del mismo activo | Secundaria |
-| **D2c** | `ℓ_i − h_i·μ_a^{causal}`, con `μ_a^{causal}` = media de `g_{a,t}` en las 250 sesiones anteriores a `s_i` | Timing frente al drift reciente conocido al entrar | Descriptiva |
-| **D3** | `ℓ_i − ln(I_r(x_i)/I_r(e_i − 1))`, con `I_r` el índice equiponderado total return, cierre a cierre, de los activos analizables de la región de `a` | Selección más timing frente al universo de su región | Descriptiva |
-| **D4** | `ℓ_i − ln((C_{e_i+40} + D)/P_in)`: el mismo activo mantenido desde la misma entrada 40 sesiones | Si la salida corta la subida (H23-01), no el timing | Descriptiva, fuera del criterio |
+| **D1** | `ℓ_i − π_i` (§4) | Solo costes y dividendo | **Solo comprobación de la implementación** |
+| **D2** | `ℓ_i − h_i·μ_a`, con `μ_a` = media de `g_{a,t}` en todas las sesiones de `a` en `[T0, T1]` | Retorno neto de las ventanas del contrato (selección, ejecución y salida) frente al drift medio del mismo activo en un número comparable de sesiones (la referencia del buy-and-hold) | **Primaria** |
+| **D2o** | `ℓ_i − h_i·μ_a^{fuera}`, con `μ_a^{fuera}` = media de `g_{a,t}` en las sesiones de `[T0, T1]` que **no** cubre ninguna ventana de `(p, a)` | Lo mismo, frente a las sesiones del mismo activo no cubiertas por ventanas | **Secundaria** |
+| **D2c** | `ℓ_i − h_i·μ_a^{causal}`, con `μ_a^{causal}` = media de `g_{a,t}` en las 250 sesiones anteriores a `s_i` | Lo mismo, frente al drift reciente conocido al entrar | Descriptiva |
+| **D3** | `ℓ_i − ln(I_r(x_i)/I_r(e_i − 1))`, con `I_r` el índice equiponderado total return, cierre a cierre, de los activos analizables de la región de `a` | Ventanas del contrato frente al universo equiponderado de su región | Descriptiva |
+| **D4** | `ℓ_i − ln((C_{e_i+40} + D)/P_in)`: el mismo activo mantenido desde la misma entrada 40 sesiones | Si la salida corta la subida (H23-01) | Descriptiva, fuera del criterio |
 
-### 5.1 Por qué D2 es la propuesta, y su sesgo de atenuación
+### 5.1 Por qué D2 es la primaria (D-72), y su sesgo de atenuación
 
 - Es la única que mantiene el «mismo activo» de D-71 sin ser degenerada.
 - Responde al mecanismo de H23-04.
@@ -121,24 +133,26 @@ concretas y la elección es del propietario (OD-T24-1).
 
 Hay una identidad que la conecta con la cartera. `Σ_i ℓ_i` es lo que ganan las ventanas, y
 `Σ_i h_i·μ_a` es lo que el activo habría ganado de media en ese mismo número de sesiones. Si D2 ≤ 0, las
-ventanas no ganan más que el drift y ninguna asignación lo cambia. Si D2 > 0, la brecha de cartera
-tiene que venir de la participación o de la asignación (H23-02 y H23-03).
+ventanas del contrato no ganan más que el drift y ninguna asignación lo cambia. Si D2 > 0, la brecha de
+cartera es compatible con un problema de participación o de asignación (H23-02 y H23-03). Que D2 sea
+mayor o menor que 0 no aísla la contribución de la señal frente a la de la ejecución o la salida.
 
 **Atenuación.** `μ_a` incluye las sesiones de las propias ventanas. Si en `(p, a)` las ventanas cubren
 una fracción `φ_a` de las sesiones de `[T0, T1]`, la diferencia media entre sesiones dentro y fuera
 queda multiplicada por `(1 − φ_a)` en D2, salvo por costes y por la convención de §5.2. D2 está
 **sesgada hacia 0**: es más difícil obtener `POSITIVO` y también `NO POSITIVO`. Por eso se publica `φ_a`
-por política y la variante D2o, que no sufre esta atenuación pero tiene menos sesiones de referencia
-cuando `φ_a` es alto. La elección entre D2 y D2o como primaria es parte de OD-T24-1.
+por política y la variante D2o (secundaria, D-72), que no sufre esta atenuación pero tiene menos
+sesiones de referencia cuando `φ_a` es alto.
 
 **Limitación de D2 y D2o:** `μ_a` es ex post sobre `[T0, T1]`, igual que el benchmark. Es legítimo para
 evaluar porque no decide ninguna entrada, pero no es implementable en tiempo real. D2c sí es causal,
-aunque mide otra cosa: el timing frente al momentum reciente.
+aunque mide otra cosa: las ventanas frente al momentum reciente.
 
-### 5.2 Base temporal: `ℓ_i` intradía frente a `μ_a` cierre a cierre (OD-T24-3)
+### 5.2 Base temporal: `ℓ_i` intradía frente a `μ_a` cierre a cierre (OD-T24-3, cerrada en D-72)
 
 `ℓ_i` va de la **apertura** de `e_i` a la salida en `x_i`, que puede ser en la apertura, dentro de la
-sesión o al cierre. `g_{a,t}` va de cierre a cierre. Hay dos convenciones posibles, y se fija una:
+sesión o al cierre. `g_{a,t}` va de cierre a cierre. **D-72 fija la convención (a) como primaria**; la (b) se publica como
+descriptiva.
 
 - **(a) Sesiones completas, como penalización deliberada:** `h_i = x_i − e_i + 1`. El pasivo
   comparable equivale a cubrir de `C_{e_i−1}` a `C_{x_i}`, de modo que la noche anterior a la entrada y
@@ -173,16 +187,16 @@ calculados a mano:
 
 ## 6. Población y ventanas
 
-- **Políticas decisorias:** B2 y S2. **C0** se mide como control descriptivo (OD-T24-2).
+- **Políticas decisorias:** B2 y S2. **C0** se mide como control descriptivo (OD-T24-2, D-72).
 - **Señales:** población decisoria de P6, `OPERAR_score_v1_point_in_time`, con broker neutral (D-04),
   `setup_radar = OPERAR`, `setup_accion = COMPRAR` y contexto point-in-time. La generan
   `build_snapshot_series` y la configuración de cada política, sin ningún cambio.
 - **Sin capital finito:** no hay `INSUFFICIENT_CASH`. Cada señal ejecutable puede abrir su ventana.
-  Esto aísla el timing de la asignación.
+  Esto separa las ventanas de la asignación de capital.
 - **No solapamiento por activo (solo en la ejecución decisoria sellada):** mientras una ventana de
   `(p, a)` está abierta, otra señal de `(p, a)` no abre ventana. Es la regla `IGNORED_ALREADY_OPEN` de
   P6 aplicada por activo. **Depende de la fecha de salida, que es un desenlace**, así que solo se aplica
-  dentro de la ejecución decisoria (§6.3 y §12). Se publican el número de señales ejecutables, el de
+  dentro de la ejecución decisoria (§6.3 y §13). Se publican el número de señales ejecutables, el de
   ventanas abiertas y el de señales ignoradas.
 - **Elegibilidad temporal:** la sesión de análisis `s_i` es posterior a la última sesión de la cosecha
   consumida en la plaza de `a`, es decir, `s_i > 2026-08-27` en hora local de la plaza. Por tanto
@@ -205,7 +219,7 @@ Solo emite conteos que no dependen de ningún precio posterior a la apertura de 
 No emite `ℓ_i`, ningún exceso, ningún motivo ni fecha de salida, ni ningún recuento de ventanas
 «abiertas» o «cerradas». La apertura de `e_i` es el precio de entrada, no un desenlace. La guarda se
 implementa como en P6: el camino de captura no tiene acceso a barras posteriores a `e_i` para cada
-señal, y el camino decisorio se ejecuta una sola vez con marca exclusiva (§12).
+señal, y el camino decisorio se ejecuta una sola vez con marca exclusiva (§13).
 
 ## 7. Datos: separación entre desarrollo y decisión, y captura forward
 
@@ -214,7 +228,7 @@ señal, y el camino decisorio se ejecuta una sola vez con marca exclusiva (§12)
 | Desarrollo | Cosecha `071ddb2b…` (hasta el 2026-08-27) | Código, tests y comprobación de definiciones, con ejemplos rotulados «DESARROLLO — no decide» |
 | Decisión | Desenlaces, ventanas, retornos y drift decisorios: solo sesiones ≥ `T0(a)`. Barras anteriores: solo warm-up, indicadores, contexto point-in-time y `μ_a^{causal}` (D2c), sin aportar ningún retorno decisorio | El único cálculo decisorio, en la mirada fijada en §9 |
 
-**Mecanismo de captura (OD-T24-6):**
+**Mecanismo de captura (OD-T24-6, D-72):**
 - **Cosechas forward congeladas** con `freeze_vintage` (la misma función de la cosecha original), en un
   checkpoint fijo el **primer día hábil de cada mes**. Cada cosecha registra su petición exacta:
   símbolos, `start`, `end`, `interval = 1d`, `auto_adjust = False`, `actions = True` y la versión de
@@ -234,14 +248,14 @@ señal, y el camino decisorio se ejecuta una sola vez con marca exclusiva (§12)
 
 - **Costes:** los de P6 en ambas patas de la operación. El drift **no** lleva costes: el pasivo que gana
   el drift es el buy-and-hold, que paga una sola ida y vuelta en toda la ventana. Es conservador contra
-  la señal. La variante con el coste del pasivo prorrateado es descriptiva (OD-T24-4).
+  la señal. La variante con el coste del pasivo prorrateado es descriptiva (OD-T24-4, D-72).
 - **Dividendos:** en `ℓ_i` con la regla de derecho de P6 (§3), y en `g_{a,t}` por ex-date, con la misma
   fuente.
 - **FX:** la métrica primaria va en **divisa local**. Operación y drift son del mismo activo y la misma
   divisa, así que el FX no interviene. La versión en EUR, con el FX causal disponible en la entrada y en
-  la salida (sidecar congelado, como en P6), es descriptiva (OD-T24-5).
+  la salida (sidecar congelado, como en P6), es descriptiva (OD-T24-5, D-72).
 
-## 9. Ventana de referencia, capacidad y calendario de miradas (fijados antes de mirar)
+## 9. Ventana de referencia, capacidad y calendario de miradas (D-72; fijados antes de mirar)
 
 **Ritmo esperado (solo recuentos publicados de P6, sin desenlaces).** En
 `evidence/2026-10-05-T-023-diagnostico-post-p6/presion-capital.csv`, las señales que llegaron a la
@@ -259,94 +273,130 @@ y 17 al mes**. Son una aproximación:
 
 S2 es la política que más tarda en llegar a la capacidad.
 
-**Propuesta (OD-T24-8):**
-- **Medida de capacidad, sin desenlaces (§6.3):** `Q_p` = número de pares (activo, semana ISO de
-  `e_i`) distintos con al menos una señal ejecutable, y `W_p` = número de semanas ISO distintas con
-  alguna señal ejecutable.
-- **Umbral por política:** `Q_p ≥ 120` y `W_p ≥ 26`.
-- **Mirada 1:** el primer checkpoint mensual en que **B2 y S2** cumplan el umbral. Ese checkpoint fija
-  el corte de entradas `C_e`; las señales con `e_i > C_e` no entran.
-- **Mirada final** (solo para la política que en la mirada 1 dé `NO CONCLUYENTE`): corte de entradas
-  `C_e^{final} = 2027-08-27`. Si en esa fecha alguna política no cumple el umbral, esa política es
-  `NO EVALUABLE POR MUESTRA`.
-- **Cosecha decisiva y `T1`:** para cada mirada, la cosecha decisiva es la del **primer checkpoint
-  mensual posterior en al menos 75 días naturales a `C_e`**. Eso cubre 40 sesiones de cierre, los 5
-  días hábiles de retraso y los festivos. `T1(a)` = la última sesión de `a` incluida en esa cosecha. Las
-  ventanas que en `T1(a)` sigan abiertas se cierran con la regla final de P6 y se cuentan aparte. El
-  diseño hace que deban ser excepcionales.
-- **`[T0, T1]` es la referencia del drift en todas las definiciones.** En la mirada final se recalcula
-  con su propia cosecha decisiva: el drift de la mirada final incluye las sesiones de la mirada 1. Esto
-  se fija ahora y no se elige después.
-- **Mínimo en la decisión:** si, tras el no solapamiento, una política tiene menos de **100 ventanas**,
-  es `NO EVALUABLE POR MUESTRA` en esa mirada.
-- Ni el umbral, ni el corte, ni el límite cambian después de ver resultados. Ninguna mirada intermedia
-  emite desenlaces.
-- Con el ritmo aproximado de S2, es probable que la mirada 1 llegue entre 7 y 12 meses después de `T0`.
-  Si el ritmo real es menor, el límite del 2027-08-27 puede dejar a S2 `NO EVALUABLE POR MUESTRA`. Es un
-  riesgo aceptado ex ante, que el propietario puede cambiar ahora, no después (OD-T24-8).
+**Medida de capacidad, sin desenlaces (§6.3):**
+- `Q_p` = número de pares (activo, semana ISO de `e_i`) distintos con al menos una señal ejecutable y
+  `e_i ≤ C_e`;
+- `W_p` = número de semanas ISO distintas con alguna señal ejecutable y `e_i ≤ C_e`;
+- **umbral por política:** `Q_p ≥ 120` y `W_p ≥ 26`.
 
-## 10. Métrica primaria, unidad, bloques e intervalo
+**Calendario de miradas:**
+1. **Propuesta de mirada.** El primer checkpoint mensual en que, con su cosecha forward, **B2 y S2**
+   cumplen el umbral **propone** abrir la mirada 1 y fija el corte de entradas `C_e` en ese checkpoint.
+   El checkpoint no abre nada.
+2. **Cosecha decisiva.** La cosecha decisiva de una mirada es la del **primer checkpoint mensual
+   posterior en al menos 75 días naturales a `C_e`**. Eso cubre 40 sesiones de cierre, los 5 días
+   hábiles de retraso y los festivos. `T1(a)` = la última sesión de `a` incluida en esa cosecha.
+3. **Reconfirmación de capacidad, antes de leer ningún desenlace (guarda de D-72).** La ejecución
+   decisoria recalcula primero `Q_p` y `W_p` desde la cosecha decisiva, con `e_i ≤ C_e` y usando solo
+   la señal y la apertura de `e_i`:
+   - **Mirada 1:** si alguna de las dos políticas no cumple `Q ≥ 120` o `W ≥ 26`, **no se abre ningún
+     desenlace, no se crea ni se consume la marca de la mirada y se sigue acumulando**. El siguiente
+     checkpoint que vuelva a cumplir el umbral propone de nuevo la mirada 1, con un `C_e` nuevo y
+     posterior. Se publica el intento fallido: fecha, `C_e`, `Q_p` y `W_p`.
+   - **Mirada final:** una política que no cumpla la capacidad queda `NO EVALUABLE POR MUESTRA`.
+4. **Mirada final.** Solo para la política que en la mirada 1 dé `NO CONCLUYENTE`. Su corte de entradas
+   es `C_e^{final} = 2027-08-27`, con su propia cosecha decisiva (regla 2) y su propia reconfirmación
+   (regla 3).
+5. **Si la mirada 1 no llega a abrirse** antes de que el corte propuesto supere el 2027-08-27, la única
+   mirada es la del corte 2027-08-27, que cuenta como mirada final para las dos políticas. Se aplica la
+   regla 3 en su versión final. El nivel del intervalo no cambia (§11).
+6. **Mínimo en la decisión:** una vez reconfirmada la capacidad y aplicado el no solapamiento dentro de
+   la ejecución decisoria, una política con menos de **100 ventanas** queda `NO EVALUABLE POR MUESTRA`
+   en esa mirada.
+7. **`[T0, T1]` es la referencia del drift en todas las definiciones.** En la mirada final se recalcula
+   con su propia cosecha decisiva, de modo que el drift de la mirada final incluye las sesiones de la
+   mirada 1. Las ventanas que en `T1(a)` sigan abiertas se cierran con la regla final de P6 y se cuentan
+   aparte; el diseño hace que deban ser excepcionales.
+8. Ni el umbral, ni el corte, ni el límite cambian después de ver resultados. Ningún checkpoint emite
+   desenlaces.
 
-- **Métrica primaria (por política):** `M_p` = media de `D2_i` sobre las ventanas de la política en la
-  mirada (o D2o, según OD-T24-1).
+Con el ritmo aproximado de S2, es probable que la mirada 1 llegue entre 7 y 12 meses después de `T0`.
+Si el ritmo real es menor, el límite del 2027-08-27 puede dejar a S2 `NO EVALUABLE POR MUESTRA`. Es un
+riesgo aceptado ex ante (D-72).
+
+## 10. Métrica primaria, unidad, bloques e intervalo (D-72)
+
+- **Métrica primaria (por política y mirada):** `M_p = (Σ_i D2_i) / n_p`, la media de D2 sobre las
+  `n_p` ventanas de la política en la mirada.
 - **Unidad estadística:** la ventana (señal ejecutada).
-- **Excepción declarada a INV-14 (OD-T24-7).** INV-14 fija como primaria la media por bloque. Igual que
-  D-69 en P6, T-024 propone decidir con la **media por ventana**. El motivo es que la ventana forward da
-  unos 7–12 bloques mensuales, demasiado pocos para estimar con la media por bloque. La media por
-  bloque mensual de entrada (INV-14) se publica como **descriptiva**: no veta, no rescata y no puede
-  invocarse después. Si el propietario prefiere respetar INV-14, la alternativa es la media por bloque
-  semanal de entrada como primaria.
-- **Dependencia:** las señales se concentran en los mismos días, las ventanas de distintos activos se
-  solapan hasta 40 sesiones y los activos se repiten. El intervalo se obtiene con un **bootstrap por
-  bloques móviles de 4 semanas ISO de entrada consecutivas**: todas las ventanas de las semanas del
-  bloque se remuestrean juntas, con B = 10 000 y semilla fija `20261005`.
-- **Secundarias y descriptivas (sin veto):**
-  - D2o, D2c, D3 y D4;
+- **Excepción explícita a INV-14 (D-72).** INV-14 fija como primaria la media por bloque. Igual que
+  D-69 en P6, T-024 decide con la **media por ventana**. El motivo es que la ventana forward da unos
+  7–12 bloques mensuales, demasiado pocos para estimar con la media por bloque. La media por bloque
+  mensual de entrada (INV-14) se publica como **descriptiva**: no veta, no rescata y no puede invocarse
+  después.
+- **Intervalo: bootstrap de bloques móviles de 10 semanas ISO de entrada (D-72).**
+  - **Secuencia:** las semanas ISO consecutivas desde la de la primera `e_i` hasta la de la última
+    `e_i ≤ C_e`, ambas incluidas. Se incluyen también las semanas sin ninguna ventana. Sea `K` su
+    número.
+  - **Bloques:** los `K − 9` bloques de 10 semanas consecutivas, sin circularidad. Si `K < 10`, la
+    política no cumple `W ≥ 26`, así que el caso no se da.
+  - **Réplica:** se sortean con reemplazo `⌈K/10⌉` bloques, se concatenan y se trunca a las primeras `K`
+    semanas. Todas las ventanas cuyas semanas de entrada caen en las semanas seleccionadas entran juntas,
+    con sus repeticiones.
+  - **Estadístico de la réplica:** `M_p* = Σ D2_i / n*` sobre las ventanas de la réplica. Una réplica
+    sin ventanas se descarta y se sustituye, y se publica el número de sustituciones.
+  - `B = 10 000`, generador `numpy.random.default_rng(20261005)` y el mismo esquema para B2 y S2.
+  - **IC bilateral del 98,75 % por percentiles:** cuantiles 0,00625 y 0,99375 de las `M_p*`, con el
+    método `numpy.quantile(..., method="linear")`.
+- **Secundaria (D-72):** D2o, con el mismo intervalo. **Descriptivas y sin veto:**
+  - D2c, D3 y D4;
+  - la convención (b) de §5.2;
+  - el drift con el coste del pasivo prorrateado;
   - `φ_a` por política;
   - la media por bloque mensual;
   - el exceso por sesión, `Σ D2_i / Σ h_i`;
   - la versión en EUR;
   - la mediana;
   - el desglose por motivo de salida, región y mes;
+  - la comparación con el coste de ida y vuelta;
+  - la población de todas las barras (OD-T24-12);
   - D1, como comprobación de la implementación.
 
-## 11. Criterio de decisión (por política, B2 y S2 por separado)
+## 11. Criterio de decisión (D-72; por política, B2 y S2 por separado)
 
-Con el intervalo `IC` de `M_p` al nivel corregido (OD-T24-9; propuesta: Bonferroni por 2 políticas
-y 2 miradas posibles, lo que da un IC bilateral del 98,75 % en cada mirada):
+Con el IC bilateral del **98,75 %** de `M_p` (Bonferroni: 2 políticas × un máximo de 2 miradas; nivel
+fijo aunque solo haya una mirada) y **`δ = 0`**:
 
 | Etiqueta | Regla |
 |---|---|
-| `POSITIVO` | cota inferior del IC > `δ` |
-| `NO POSITIVO` | cota superior del IC ≤ `δ` |
-| `NO CONCLUYENTE` | el IC contiene `δ` |
-| `NO EVALUABLE POR MUESTRA` | no se cumple la capacidad (§9) o hay menos de 100 ventanas tras el no solapamiento |
+| `POSITIVO` | cota inferior del IC > 0 |
+| `NO POSITIVO` | cota superior del IC ≤ 0 |
+| `NO CONCLUYENTE` | el IC contiene el 0 (cota inferior ≤ 0 < cota superior) |
+| `NO EVALUABLE POR MUESTRA` | no se cumple la capacidad en la mirada final (§9, regla 3) o hay menos de 100 ventanas tras el no solapamiento (§9, regla 6) |
 
-- Propuesta: `δ = 0` (OD-T24-10).
+- El retorno de la operación ya incorpora sus costes y el drift primario no. No se exige ningún otro
+  margen. La lectura frente al coste de ida y vuelta es descriptiva.
 - En la mirada final, `NO CONCLUYENTE` es definitivo: no hay más miradas.
 - C0 se etiqueta de forma descriptiva y no entra en la corrección ni en la interpretación.
+- D2o y las descriptivas no cambian la etiqueta.
 
-## 12. Interpretación (fijada en D-71)
+## 12. Interpretación (D-71 con la precisión de D-72)
 
-- **`POSITIVO`**: el timing de la señal aporta valor frente al drift del mismo activo. Queda
-  justificado estudiar después la arquitectura de cartera, empezando por H23-02 y H23-03, con ficha y
-  pre-registro propios.
-- **`NO POSITIVO`**: no se optimiza la asignación para rescatarlo. La investigación vuelve a la señal,
-  la salida o la arquitectura.
-- **`NO CONCLUYENTE`**: se sigue acumulando hasta el límite pre-registrado, sin cambiar las reglas.
+- **`POSITIVO`**: las ventanas activas bajo el contrato congelado (selección, ejecución y salida)
+  muestran edge frente al drift. Esto justifica investigar después la capa de cartera, empezando por
+  H23-02 y H23-03, con ficha y pre-registro propios.
+- **`NO POSITIVO`**: el conjunto de señal más ejecución y salida no demuestra edge frente al drift. No
+  se optimiza la asignación de cartera para rescatarlo; la investigación vuelve a la señal, la salida o
+  la arquitectura.
+- **`NO CONCLUYENTE`**: se aplica únicamente el calendario de miradas ya fijado (§9).
+- **`NO EVALUABLE POR MUESTRA`**: capacidad insuficiente.
+- Ningún resultado positivo o negativo se atribuye causalmente solo al score o a la señal.
 - Si B2 y S2 obtienen etiquetas distintas, cada una se interpreta por separado. T-024 no ordena una
   sobre la otra.
 - Ningún resultado de T-024 cambia D-70 ni desbloquea P7 por sí mismo.
 
-## 13. Implementación (con autorización aparte, después del pre-registro)
+## 13. Implementación (con autorización aparte, después de la congelación)
 
 - Un módulo nuevo de investigación, `advisor/research/t024.py`, que no se integra en producción.
   Reutiliza en modo lectura `build_snapshot_series`, la configuración de las políticas y las reglas de
   ejecución y salida de P6. No cambia el código de P6.
-- Dos caminos:
+- Tres caminos:
   - **captura**: conteos de §6.3. Solo recibe, por señal, las barras hasta la apertura de `e_i`, sin
     salidas ni no solapamiento;
-  - **decisión**: única, con marca exclusiva `O_CREAT|O_EXCL`, identidad congelada (`T024_PREREG_SHA`,
+  - **reconfirmación de capacidad** (§9, regla 3): igual de ciega que la captura, sobre la cosecha
+    decisiva. Si falla en la mirada 1, termina sin crear ninguna marca;
+  - **decisión**: solo si la reconfirmación pasa. Es única por mirada, con marca exclusiva
+    `O_CREAT|O_EXCL` escrita antes de abrir desenlaces, identidad congelada (`T024_PREREG_SHA`,
     `T024_CODE_SHA`, los `data_vintage_id` forward y el de la cosecha decisiva) y salida en
     `evidence/…/run/`.
 - **Tests obligatorios, con datos sintéticos:**
@@ -357,10 +407,14 @@ y 2 miradas posibles, lo que da un IC bilateral del 98,75 % en cada mirada):
   - la atenuación `(1 − φ)` en un caso construido;
   - no solapamiento por activo;
   - elegibilidad temporal por plaza y zona horaria;
-  - el camino de captura no recibe barras posteriores a `e_i` y no emite nada derivado de salidas;
+  - el camino de captura y el de reconfirmación no reciben barras posteriores a `e_i` y no emiten nada
+    derivado de salidas;
+  - una reconfirmación fallida en la mirada 1 no crea marca, no abre desenlaces y deja proponer de
+    nuevo; en la mirada final da `NO EVALUABLE POR MUESTRA`;
   - las exclusiones de §5.3;
-  - el bootstrap es determinista;
-  - el criterio aplica bien el IC y `δ`;
+  - el bootstrap de 10 semanas: secuencia con semanas vacías, `K − 9` bloques, truncado a `K`,
+    sustitución de réplicas vacías y determinismo con la semilla;
+  - el criterio aplica bien el IC del 98,75 % y `δ = 0`;
   - la mirada única y la marca exclusiva funcionan.
 - **Revisión de look-ahead independiente** antes de la decisión.
 
@@ -368,41 +422,46 @@ y 2 miradas posibles, lo que da un IC bilateral del 98,75 % en cada mirada):
 
 - **Ventana corta:** unos 12 meses de un solo régimen. Un resultado `POSITIVO` o `NO POSITIVO` habla de
   ese periodo y no generaliza sin más.
+- **Pocos bloques:** con `W` entre 26 y 52 semanas, los bloques de 10 semanas dan de 3 a 5 bloques por
+  réplica. El intervalo es más ancho y su cobertura, menos precisa, de modo que sube la probabilidad
+  de `NO CONCLUYENTE`. Es el coste aceptado de respetar la dependencia de las ventanas de hasta 40
+  sesiones (D-72).
 - **Sesgo de universo:** el universo se seleccionó en 2026. D2 **lo mitiga**, porque compara cada
   activo consigo mismo, pero no lo elimina en D3.
 - **Atenuación de D2** cuando `φ_a` es alto (§5.1).
 - **Datos:** el proveedor es `yfinance`, con revisiones y retraso europeo; las revisiones se publican y
   no se corrigen a mano.
-- **Presupuesto de datos (OD-T24-11):** T-024 consume la ventana `[T0, T1]` de la mirada en que
-  decide. Cualquier holdout futuro de GATE P7 para candidatas nuevas tiene que empezar después, o
-  declararse ahora como compartido. Hay que decidirlo antes de congelar.
+- **Presupuesto de datos (OD-T24-11, D-72):** T-024 consume `[T0, T1]`. Cualquier holdout futuro de
+  GATE P7 debe empezar **después del `T1` de la última mirada que use T-024**.
 - **Visibilidad previa:** producción emitió señales C0 después del 2026-08-27 y el propietario las ha
   visto en Telegram, pero nadie ha calculado ninguna métrica de T-024 sobre ellas. Se declara.
 
-## 15. OWNER_DECISION_REQUIRED
+## 15. Decisiones (OD-T24-1 a OD-T24-12 CERRADAS en D-72)
 
-| OD | Decisión | Opciones | Propuesta |
-|---|---|---|---|
-| OD-T24-1 | Definición primaria del exceso | D2 (drift medio de `[T0, T1]`, atenuado por `1 − φ`); D2o (drift de las sesiones fuera de ventana); D2c (drift causal de 250 sesiones) | **D2**; D2o, D2c y D3 como descriptivas |
-| OD-T24-2 | Políticas | B2 y S2 decisorias, C0 descriptiva; o las tres decisorias | **B2 y S2 decisorias; C0 descriptiva** |
-| OD-T24-3 | Base temporal de `h_i` (§5.2) | (a) sesiones completas `x_i − e_i + 1`, penalización deliberada; (b) descomposición noche y día | **(a)**, por simple y conservadora contra la señal; (b) descriptiva |
-| OD-T24-4 | Costes del pasivo | Sin costes (conservador); ida y vuelta prorrateada | **Sin costes** en la primaria; la prorrateada, descriptiva |
-| OD-T24-5 | Divisa | Local (primaria) con EUR descriptiva; o EUR primaria | **Local** |
-| OD-T24-6 | Captura forward | Cosechas mensuales congeladas; la caché de la Pi como fuente | **Cosechas mensuales**; la Pi, solo como contraste |
-| OD-T24-7 | Estimador e intervalo | Media por ventana con excepción declarada a INV-14 y bootstrap de bloques de 4 semanas; o media por bloque semanal (respeta INV-14) | **Media por ventana**, con la excepción declarada y la media por bloque mensual como descriptiva |
-| OD-T24-8 | Capacidad y límite | `Q_p ≥ 120`, `W_p ≥ 26`, mínimo de 100 ventanas en la decisión, corte final el 2027-08-27; o un límite de 18 meses (2028-02-28) | **Corte final el 2027-08-27** |
-| OD-T24-9 | Multiplicidad | Bonferroni (2 políticas × 2 miradas → IC del 98,75 %); IC del 95 % por política sin corregir | **Bonferroni** |
-| OD-T24-10 | Margen de relevancia | `δ = 0`; `δ` = coste de ida y vuelta (≈ 0,003) | **`δ = 0`**, con el exceso frente al coste como descriptivo |
-| OD-T24-11 | Presupuesto de datos frente a P7 | T-024 consume `[T0, T1]` y P7 empieza después; o se declara compartido | **Consumido por T-024**: cualquier holdout de P7 empieza después de `T1` de la última mirada |
-| OD-T24-12 | Población de todas las barras | Excluida; descriptiva | **Descriptiva** (puente, como en P6) |
+| OD | Decisión |
+|---|---|
+| OD-T24-1 | D2 primaria; D2o secundaria; D2c, D3 y D4 descriptivas; D1 solo como comprobación de la implementación |
+| OD-T24-2 | B2 y S2 decisorias; C0 descriptiva |
+| OD-T24-3 | Convención (a), sesiones completas, primaria; (b) noche y día, descriptiva |
+| OD-T24-4 | Drift primario sin costes; coste del pasivo prorrateado, descriptivo |
+| OD-T24-5 | Divisa local primaria; EUR descriptivo |
+| OD-T24-6 | Cosechas forward mensuales congeladas; la Pi, solo como contraste de integridad |
+| OD-T24-7 | Media por ventana, con excepción explícita a INV-14; bootstrap de **bloques móviles de 10 semanas ISO de entrada**, `B = 10 000`, semilla `20261005`; media por bloque mensual descriptiva |
+| OD-T24-8 | `Q_p ≥ 120`, `W_p ≥ 26`, mínimo de 100 ventanas tras el no solapamiento, corte final el 2027-08-27, y **reconfirmación de la capacidad en la cosecha decisiva antes de leer desenlaces** (§9) |
+| OD-T24-9 | Bonferroni: IC bilateral del 98,75 % por política y mirada |
+| OD-T24-10 | `δ = 0`; la comparación con el coste de ida y vuelta es descriptiva |
+| OD-T24-11 | T-024 consume `[T0, T1]`; cualquier holdout de P7 empieza después del `T1` de la última mirada |
+| OD-T24-12 | Población de todas las barras solo descriptiva |
 
 ## 16. Plan
 
-1. El propietario cierra las OD-T24 en una D-nn.
-2. Revisión final del pre-registro, con 0 BLOCKER y 0 IMPORTANTE → `T024_PREREG_SHA`.
-3. Con autorización: código de captura y tests, sobre desarrollo, y una revisión de look-ahead.
+1. ~~El propietario cierra las OD-T24~~ → D-72.
+2. Revisión adversarial final del pre-registro completo, con 0 BLOCKER y 0 IMPORTANTE → congelación
+   en un commit documental nuevo, cuyo HEAD es `T024_PREREG_SHA`.
+3. Con autorización aparte: el código de captura y de reconfirmación, y los tests, sobre desarrollo,
+   más una revisión de look-ahead → `T024_CODE_SHA`.
 4. Acumulación forward con checkpoints mensuales de solo conteos.
-5. Con autorización: la ejecución decisoria única en la mirada 1 y, si toca, la mirada final.
+5. Con autorización aparte: la ejecución decisoria única de la mirada 1 y, si toca, la mirada final.
 
 ## Revisión adversarial del diseño
 
