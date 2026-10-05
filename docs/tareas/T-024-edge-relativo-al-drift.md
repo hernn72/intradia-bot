@@ -1,7 +1,9 @@
 # T-024 — Edge relativo al drift: ¿la señal elige ventanas mejores que mantener el activo? (D-71)
 
-Estado: **PRE-REGISTRO — OD-T24-1 a OD-T24-12 CERRADAS en D-72 (2026-10-05).** Pendiente: la revisión
-adversarial final y la congelación de `T024_PREREG_SHA`. No se ha calculado ninguna métrica de T-024, ni
+Estado: **PRE-REGISTRO CONGELADO (2026-10-05).** OD-T24-1 a OD-T24-12 CERRADAS en D-72; revisión
+adversarial final con 0 BLOCKER y 0 IMPORTANTE. **`T024_PREREG_SHA` = HEAD del commit de congelación**
+que añade `evidence/2026-10-05-T-024-prereg-final/` (se identifica en el PR #44; el commit no puede
+contener su propio SHA). No se ha calculado ninguna métrica de T-024, ni
 sobre la cosecha consumida ni sobre datos posteriores al 2026-08-27. No existe código de T-024 (ni
 `t024.py` ni la captura). Las recomendaciones de la ficha son ahora **reglas vinculantes** con las
 modificaciones de D-72: bootstrap de 10 semanas y guarda de reconfirmación de capacidad.
@@ -324,7 +326,10 @@ riesgo aceptado ex ante (D-72).
   7–12 bloques mensuales, demasiado pocos para estimar con la media por bloque. La media por bloque
   mensual de entrada (INV-14) se publica como **descriptiva**: no veta, no rescata y no puede invocarse
   después.
-- **Intervalo: bootstrap de bloques móviles de 10 semanas ISO de entrada (D-72).**
+- **Intervalo: bootstrap de bloques móviles de 10 semanas ISO de entrada (D-72).** El bloque de 10
+  semanas, `B`, la semilla y el esquema común son decisión del propietario (D-72). El resto de esta
+  viñeta (secuencia, bloques, truncado, réplicas vacías, estadístico y cuantiles) es **precisión técnica
+  del pre-registro, no una OD nueva**.
   - **Secuencia:** las semanas ISO consecutivas desde la de la primera `e_i` hasta la de la última
     `e_i ≤ C_e`, ambas incluidas. Se incluyen también las semanas sin ninguna ventana. Sea `K` su
     número.
@@ -456,8 +461,7 @@ fijo aunque solo haya una mirada) y **`δ = 0`**:
 ## 16. Plan
 
 1. ~~El propietario cierra las OD-T24~~ → D-72.
-2. Revisión adversarial final del pre-registro completo, con 0 BLOCKER y 0 IMPORTANTE → congelación
-   en un commit documental nuevo, cuyo HEAD es `T024_PREREG_SHA`.
+2. ~~Revisión adversarial final y congelación~~ → `T024_PREREG_SHA` (commit de congelación).
 3. Con autorización aparte: el código de captura y de reconfirmación, y los tests, sobre desarrollo,
    más una revisión de look-ahead → `T024_CODE_SHA`.
 4. Acumulación forward con checkpoints mensuales de solo conteos.
@@ -494,3 +498,13 @@ resueltos. Las cifras de §1 y los ritmos de §9 se comprobaron contra los artef
 - El tratamiento de `φ_a` y de D2o es suficiente para decidir OD-T24-1.
 - MENOR corregido: D-71 remitía al §3 de la ficha para la degeneración, que está en el §4.
 - **Veredicto: apto para que el propietario cierre las OD y se congele el pre-registro.**
+
+**Revisión final del pre-registro completo (Codex, 2026-10-05, tras D-72): 0 BLOCKER, 0 IMPORTANTE,
+1 MENOR y 2 OBSERVACIONES.** Detalle en `evidence/2026-10-05-T-024-prereg-final/revision-final.md`.
+- **MENOR, corregido:** D-71 conservaba la lectura «el timing de la señal aporta valor»; se añade la
+  nota de que la sustituye la precisión de D-72.
+- **OBSERVACIÓN, aplicada:** los detalles del bootstrap se rotulan como precisión técnica, no como OD
+  nuevas (§10).
+- **OBSERVACIÓN, sin acción:** no hay huecos en las re-propuestas de la mirada; al no abrir
+  desenlaces, no añaden miradas para Bonferroni.
+- **Veredicto: congelable.**

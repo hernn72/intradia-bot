@@ -1903,7 +1903,8 @@ propone definiciones alternativas para que las decida el propietario.
 **Lo que T-024 no hace:** no simula otra vez P6, no cambia B2 ni S2, no elige otra geometría, no prueba
 la prioridad de señales ni el cash ocioso, no inicia P7 y no activa nada en producción.
 
-**Interpretación futura, fijada ahora:**
+**Interpretación futura, fijada ahora** _(sustituida por la precisión obligatoria de D-72: D2 no mide el
+timing puro de la señal, sino las ventanas del contrato congelado; se conserva el texto original)_:
 - edge relativo **claramente positivo** en datos nuevos → el timing de la señal aporta valor y queda
   justificado estudiar después la arquitectura de cartera, empezando por H23-02 y H23-03;
 - edge **≤ 0** → no se optimiza la asignación para rescatarlo; la investigación vuelve a la señal, la
@@ -1987,6 +1988,12 @@ Ningún resultado positivo o negativo se atribuye causalmente solo al score o a 
 **Siguiente:** actualizar la ficha T-024 con estas decisiones, someter el pre-registro completo a una
 revisión adversarial nueva con 0 BLOCKER y 0 IMPORTANTE, y congelar `T024_PREREG_SHA` en un commit
 documental nuevo.
+
+**Congelación (2026-10-05).** Revisión adversarial final del pre-registro completo (Codex): 0 BLOCKER,
+0 IMPORTANTE, 1 MENOR corregido (la nota en la interpretación de D-71) y 2 OBSERVACIONES. El
+pre-registro queda congelado en el commit que añade `evidence/2026-10-05-T-024-prereg-final/`; su HEAD
+es **`T024_PREREG_SHA`**. El commit no puede contener su propio SHA: se identifica en el PR #44. T-024
+no está implementado y no se ha calculado ningún desenlace.
 
 ## OWNER_DECISION_REQUIRED
 
