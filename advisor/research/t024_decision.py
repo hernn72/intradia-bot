@@ -567,6 +567,9 @@ def decidir_politica(
 
 
 _SHA_GIT = re.compile(r"[0-9a-f]{40}\n?")
+# Raíz del repositorio desde el que se importó este módulo: la identidad se valida sobre el código que de verdad
+# se ejecuta, nunca sobre un repositorio elegido por el llamante.
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def cargar_t024_code_sha(repo: str | Path = ".") -> str:
@@ -601,8 +604,14 @@ def cargar_t024_code_sha(repo: str | Path = ".") -> str:
     return texto.rstrip("\n")
 
 
-def verificar_identidad(repo: str | Path = ".") -> str:
-    """Identidad congelada antes de abrir desenlaces; devuelve el `T024_CODE_SHA` validado."""
+def verificar_identidad() -> str:
+    """Identidad congelada del código importado (`REPO_ROOT`); devuelve el `T024_CODE_SHA` validado."""
+
+    return _verificar_identidad_en(REPO_ROOT)
+
+
+def _verificar_identidad_en(repo: Path) -> str:
+    """Comprobaciones de identidad sobre `repo`. Privada: la ruta pública solo la usa con `REPO_ROOT`."""
 
     code_sha = cargar_t024_code_sha(repo)
     if _git(["merge-base", "--is-ancestor", comun.T024_PREREG_SHA, "HEAD"], repo) is not True:
@@ -914,9 +923,8 @@ def ejecutar_mirada(
     cosecha_decisiva_id: str,
     registro_forward_path: Path,
     evidence_dir: Path,
-    repo: str | Path = ".",
 ) -> ResultadoDecision | Mapping[str, ResultadoPolitica] | str:
-    code_sha = verificar_identidad(repo)
+    code_sha = verificar_identidad()
     policies = politicas_para_mirada(mirada=mirada, c_e=c_e, evidence_dir=evidence_dir)
     registro_forward = cargar_registro_forward(registro_forward_path, cosecha_decisiva_id)
     if cosecha_decisiva.data_vintage_id != cosecha_decisiva_id:

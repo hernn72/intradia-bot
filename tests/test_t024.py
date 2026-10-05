@@ -530,18 +530,18 @@ def test_lock_real_sidecar_correcto_y_ejecutor_sin_cambios_pasa(tmp_path: Path, 
     repo, _p, sha_a = _repo_t024(tmp_path, monkeypatch)
     _commit_lock(repo, sha_a + "\n")
     assert dec.cargar_t024_code_sha(repo) == sha_a
-    assert dec.verificar_identidad(repo) == sha_a
+    assert dec._verificar_identidad_en(repo) == sha_a
 
 
 def test_lock_real_ejecutor_cambiado_despues_del_sha_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, _p, sha_a = _repo_t024(tmp_path, monkeypatch)
     _commit_lock(repo, sha_a + "\n")
-    assert dec.verificar_identidad(repo) == sha_a
+    assert dec._verificar_identidad_en(repo) == sha_a
     (repo / "advisor" / "research" / "ejecutor.py").write_text("X = 2\n", encoding="utf-8")
     _git_tmp(repo, "add", "-A")
     _git_tmp(repo, "commit", "-q", "-m", "C")
     with pytest.raises(dec.T024DecisionError, match="ejecutor cambiado"):
-        dec.verificar_identidad(repo)
+        dec._verificar_identidad_en(repo)
 
 
 def test_lock_real_reproduce_la_circularidad_de_fijar_el_sha_en_advisor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -555,13 +555,13 @@ def test_lock_real_reproduce_la_circularidad_de_fijar_el_sha_en_advisor(tmp_path
     _git_tmp(repo, "add", "-A")
     _git_tmp(repo, "commit", "-q", "-m", "SHA dentro de advisor")
     with pytest.raises(dec.T024DecisionError, match="ejecutor cambiado"):
-        dec.verificar_identidad(repo)
+        dec._verificar_identidad_en(repo)
 
 
 def test_lock_real_sidecar_ausente_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, _p, _a = _repo_t024(tmp_path, monkeypatch)
     with pytest.raises(dec.T024DecisionError, match="ausente o no versionado"):
-        dec.verificar_identidad(repo)
+        dec._verificar_identidad_en(repo)
 
 
 def test_lock_real_sidecar_sin_commitear_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -570,7 +570,7 @@ def test_lock_real_sidecar_sin_commitear_deniega(tmp_path: Path, monkeypatch: py
     lock.parent.mkdir(parents=True, exist_ok=True)
     lock.write_text(sha_a + "\n", encoding="utf-8")
     with pytest.raises(dec.T024DecisionError, match="ausente o no versionado"):
-        dec.verificar_identidad(repo)
+        dec._verificar_identidad_en(repo)
 
 
 def test_lock_real_sidecar_modificado_en_copia_de_trabajo_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -578,7 +578,7 @@ def test_lock_real_sidecar_modificado_en_copia_de_trabajo_deniega(tmp_path: Path
     _commit_lock(repo, sha_a + "\n")
     (repo / dec.comun.T024_CODE_LOCK).write_text(sha_p + "\n", encoding="utf-8")
     with pytest.raises(dec.T024DecisionError, match="no coincide con HEAD"):
-        dec.verificar_identidad(repo)
+        dec._verificar_identidad_en(repo)
 
 
 @pytest.mark.parametrize(
@@ -589,7 +589,7 @@ def test_lock_real_sidecar_invalido_deniega(tmp_path: Path, monkeypatch: pytest.
     repo, _p, _a = _repo_t024(tmp_path, monkeypatch)
     _commit_lock(repo, contenido)
     with pytest.raises(dec.T024DecisionError, match="formato inválido"):
-        dec.verificar_identidad(repo)
+        dec._verificar_identidad_en(repo)
 
 
 def test_lock_real_sha_no_ancestro_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -602,20 +602,45 @@ def test_lock_real_sha_no_ancestro_deniega(tmp_path: Path, monkeypatch: pytest.M
     _git_tmp(repo, "checkout", "-q", "main")
     _commit_lock(repo, sha_lateral + "\n")
     with pytest.raises(dec.T024DecisionError, match="CODE_SHA no es ancestro"):
-        dec.verificar_identidad(repo)
+        dec._verificar_identidad_en(repo)
     # Un SHA bien formado que no existe en el repositorio tampoco pasa.
     _commit_lock(repo, "0123456789abcdef0123456789abcdef01234567\n")
     with pytest.raises(dec.T024DecisionError, match="CODE_SHA no es ancestro"):
-        dec.verificar_identidad(repo)
+        dec._verificar_identidad_en(repo)
 
 
 def test_cargar_lock_no_admite_otra_ruta_ni_override() -> None:
     import inspect
 
     assert list(inspect.signature(dec.cargar_t024_code_sha).parameters) == ["repo"]
-    assert list(inspect.signature(dec.verificar_identidad).parameters) == ["repo"]
+    # La ruta pública valida siempre el repositorio del código importado: sin `repo` ni `code_sha`.
+    assert list(inspect.signature(dec.verificar_identidad).parameters) == []
+    assert "repo" not in inspect.signature(dec.ejecutar_mirada).parameters
     assert "code_sha" not in inspect.signature(dec.ejecutar_mirada).parameters
     assert not hasattr(dec.comun, "T024_CODE_SHA")
+
+
+def test_repo_root_es_la_raiz_git_del_modulo_importado() -> None:
+    import subprocess
+
+    raiz = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=Path(dec.__file__).parent, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    assert Path(raiz).resolve() == dec.REPO_ROOT
+    assert (dec.REPO_ROOT / "advisor" / "research" / "t024_decision.py").resolve() == Path(dec.__file__).resolve()
+
+
+def test_verificar_identidad_publica_usa_repo_root_no_el_cwd(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    vistos: list[Path] = []
+
+    def espia(repo: Path) -> str:
+        vistos.append(repo)
+        return "b" * 40
+
+    monkeypatch.setattr(dec, "_verificar_identidad_en", espia)
+    monkeypatch.chdir(tmp_path)
+    assert dec.verificar_identidad() == "b" * 40
+    assert vistos == [dec.REPO_ROOT]
 
 
 def test_construir_resultado_y_barras_decision_exigen_token(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -636,7 +661,7 @@ def test_construir_resultado_y_barras_decision_exigen_token(monkeypatch: pytest.
 
 
 def test_token_se_desactiva_tras_excepcion_en_ejecutar_mirada(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda: "a" * 40)
     monkeypatch.setattr(dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", True), "S2": _conteo("S2", True)}, {}))
 
     def boom(*_args: Any, **_kwargs: Any) -> dec.ResultadoDecision:
@@ -658,7 +683,7 @@ def test_token_se_desactiva_tras_excepcion_en_ejecutar_mirada(monkeypatch: pytes
 
 
 def test_mirada_reconfirmacion_fallida_no_consume_ni_abre(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda: "a" * 40)
     monkeypatch.setattr(dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", False), "S2": _conteo("S2", True)}, {}))
     called = False
 
@@ -684,7 +709,7 @@ def test_mirada_reconfirmacion_fallida_no_consume_ni_abre(monkeypatch: pytest.Mo
 
 
 def test_marca_exclusiva_y_registro_de_cosechas(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda: "a" * 40)
     monkeypatch.setattr(dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", True), "S2": _conteo("S2", True)}, {}))
     result = dec.ResultadoDecision(
         {"B2": dec.ResultadoPolitica("B2", dec.NO_CONCLUYENTE, 100, 0.0, (-1, 1)), "S2": dec.ResultadoPolitica("S2", dec.NO_POSITIVO, 100, -1.0, (-2, 0))},
@@ -775,7 +800,7 @@ def _mirada_kwargs(tmp_path: Path, mirada: str, c_e: date, vintage_id: str) -> d
 
 
 def test_cosecha_recibida_distinta_de_la_declarada_se_deniega_sin_marca(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda: "a" * 40)
     capturas: list[Any] = []
     monkeypatch.setattr(dec, "capturar", lambda *a, **_k: capturas.append(a) or cap.ResultadoCaptura({}, {}))
     with pytest.raises(dec.T024DecisionError, match="no es la cosecha decisiva declarada"):
@@ -785,7 +810,7 @@ def test_cosecha_recibida_distinta_de_la_declarada_se_deniega_sin_marca(monkeypa
 
 
 def test_mirada_final_capacidad_por_politica(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda: "a" * 40)
     monkeypatch.setattr(
         dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", False), "S2": _conteo("S2", True)}, {})
     )
