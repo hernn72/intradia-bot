@@ -825,6 +825,9 @@ def _dev_context(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, Any, VintageLoad
     from advisor.research.vintage import load_vintage
     from advisor.universe.loader import load_universe
 
+    # En CI el manifiesto está versionado pero los CSV no (como en tests/test_p6.py): solo en local.
+    if not (Path("data/vintages") / cap.DEV_VINTAGE_ID / "AAPL.csv").is_file():
+        pytest.skip("data/vintages no está disponible")
     config = load_config("config.yaml")
     universe = load_universe(config.universe_path)
     vintage = load_vintage(cap.DEV_VINTAGE_ID)

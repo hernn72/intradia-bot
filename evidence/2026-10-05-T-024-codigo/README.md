@@ -25,7 +25,7 @@ Commits de código, todos nuevos y sin amend: `3da05e7` → `e19e398` → `12420
   - φ por política y activo, y las exclusiones de §5.3;
   - el bootstrap de 10 semanas y el criterio;
   - registro forward, calendario de miradas, marca exclusiva y `TokenMirada`.
-- `tests/test_t024.py`: 70 tests (`tests-t024.md`).
+- `tests/test_t024.py`: 70 tests (`tests-t024.md`). En CI, sin los CSV de `data/vintages` (están en `.gitignore`), los dos de desarrollo se omiten como en `tests/test_p6.py`: 68 passed y 2 skipped.
 
 No modifica P6, B2, S2, C0, el score, `config.yaml`, `universe.yaml`, producción ni la Pi.
 
