@@ -1,0 +1,26 @@
+## Antes (sobre main 26dea36, sin T-023)
+# antes: HEAD 26dea364f32866d135f938f128aba541d20b6469
+$ .venv/bin/ruff check .
+All checks passed!
+$ .venv/bin/mypy advisor
+Success: no issues found in 75 source files
+$ .venv/bin/python -m pytest -q
+1103 passed, 3 warnings in 453.28s (0:07:33)
+
+## Después (26dea36 + este directorio, sin commitear)
+# después: HEAD 26dea364f32866d135f938f128aba541d20b6469 + evidence/2026-10-05-T-023-diagnostico-post-p6/ sin commitear
+$ .venv/bin/ruff check .
+All checks passed!
+$ .venv/bin/mypy advisor
+Success: no issues found in 75 source files
+$ .venv/bin/python -m pytest -q
+1103 passed, 3 warnings in 446.27s (0:07:26)
+
+## Script de diagnóstico
+$ .venv/bin/ruff check evidence/2026-10-05-T-023-diagnostico-post-p6/diagnostico_p6.py
+All checks passed!
+$ .venv/bin/mypy evidence/2026-10-05-T-023-diagnostico-post-p6/diagnostico_p6.py
+Success: no issues found in 1 source file
+$ determinismo: dos ejecuciones, sha256 del conjunto de CSV
+a58baa51fbaed915f81f83deae6dc35e838e7550f10dd9dd000e1cbf8b9038bd  -
+a58baa51fbaed915f81f83deae6dc35e838e7550f10dd9dd000e1cbf8b9038bd  -
