@@ -516,7 +516,7 @@ def test_token_se_desactiva_tras_excepcion_en_ejecutar_mirada(monkeypatch: pytes
             c_e=date(2027, 1, 1),
             config=None,  # type: ignore[arg-type]
             universe=_Universe(),
-            cosecha_decisiva=_vintage_from_rows("AAA", []),
+            cosecha_decisiva=replace(_vintage_from_rows("AAA", []), data_vintage_id="v1"),
             cosecha_decisiva_id="v1",
             registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
             evidence_dir=tmp_path,
@@ -540,7 +540,7 @@ def test_mirada_reconfirmacion_fallida_no_consume_ni_abre(monkeypatch: pytest.Mo
         c_e=date(2027, 1, 1),
         config=None,  # type: ignore[arg-type]
         universe=_Universe(),
-        cosecha_decisiva=_vintage_from_rows("AAA", []),
+        cosecha_decisiva=replace(_vintage_from_rows("AAA", []), data_vintage_id="v1"),
         cosecha_decisiva_id="v1",
         registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
         evidence_dir=tmp_path,
@@ -567,7 +567,7 @@ def test_marca_exclusiva_y_registro_de_cosechas(monkeypatch: pytest.MonkeyPatch,
         c_e=date(2027, 1, 1),
         config=None,  # type: ignore[arg-type]
         universe=_Universe(),
-        cosecha_decisiva=_vintage_from_rows("AAA", []),
+        cosecha_decisiva=replace(_vintage_from_rows("AAA", []), data_vintage_id="v1"),
         cosecha_decisiva_id="v1",
         registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
         evidence_dir=tmp_path,
@@ -626,6 +626,75 @@ def test_cosecha_decisiva_es_la_primera_a_75_dias(tmp_path: Path) -> None:
         dec.exigir_calendario_registro(registro, date(2027, 1, 1), "v4")
     with pytest.raises(dec.T024DecisionError, match="primer checkpoint"):
         dec.exigir_calendario_registro(registro, date(2027, 1, 1), "v2")
+
+
+def _mirada_kwargs(tmp_path: Path, mirada: str, c_e: date, vintage_id: str) -> dict[str, Any]:
+    return dict(
+        mirada=mirada,
+        c_e=c_e,
+        config=None,
+        universe=_Universe(),
+        cosecha_decisiva=replace(_vintage_from_rows("AAA", []), data_vintage_id=vintage_id),
+        cosecha_decisiva_id="v1",
+        registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
+        evidence_dir=tmp_path,
+    )
+
+
+def test_cosecha_recibida_distinta_de_la_declarada_se_deniega_sin_marca(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    capturas: list[Any] = []
+    monkeypatch.setattr(dec, "capturar", lambda *a, **_k: capturas.append(a) or cap.ResultadoCaptura({}, {}))
+    with pytest.raises(dec.T024DecisionError, match="no es la cosecha decisiva declarada"):
+        dec.ejecutar_mirada(**_mirada_kwargs(tmp_path, "mirada_1", date(2027, 1, 1), "otra"))
+    assert capturas == []
+    assert not (tmp_path / "mirada_1.t024.consumida").exists()
+
+
+def test_mirada_final_capacidad_por_politica(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    monkeypatch.setattr(
+        dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", False), "S2": _conteo("S2", True)}, {})
+    )
+    pedidas: list[tuple[str, ...]] = []
+
+    def construir(_token: Any, *_a: Any, policies: Sequence[str], **_k: Any) -> dec.ResultadoDecision:
+        pedidas.append(tuple(policies))
+        return dec.ResultadoDecision({"S2": dec.ResultadoPolitica("S2", dec.NO_POSITIVO, 120, -0.01, (-0.02, -0.001))}, {}, {}, 0, 0, None)
+
+    monkeypatch.setattr(dec, "construir_resultado", construir)
+    kwargs = _mirada_kwargs(tmp_path, "mirada_final", dec.C_E_FINAL, "v1")
+    kwargs["registro_forward_path"] = _registro_forward(tmp_path, ["v0", "v1"], [dec.C_E_FINAL - timedelta(days=30), dec.C_E_FINAL + timedelta(days=80)])
+    out = dec.ejecutar_mirada(**kwargs)
+    assert pedidas == [("S2",)]
+    assert isinstance(out, dec.ResultadoDecision)
+    assert out.politicas["B2"].etiqueta == dec.NO_EVALUABLE
+    assert out.politicas["S2"].etiqueta == dec.NO_POSITIVO
+
+
+def test_d3_indice_region_incluye_analizables_sin_senal(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    rows = {s: [cap.BarraCiega(d, 100, 101, 99, 100) for d in days(date(2026, 8, 28), 90)] for s in ("AAA", "BBB", "CCC")}
+    vintage = _vintage_multi(rows)
+    universe = _RegionalUniverse({"AAA": "USA", "BBB": "USA", "CCC": "EUROPA"})
+    token = _activar_token(tmp_path, monkeypatch)
+    monkeypatch.setattr(cap, "asset_list", lambda: ["AAA", "BBB", "CCC"])
+    monkeypatch.setattr(
+        cap,
+        "generar_senales_operar",
+        lambda **kw: ([senal(policy="B2", asset="AAA", s_index=1, stop=90, target=200, entry_max=200, sid="b2")], {})
+        if kw["policy"] == "B2"
+        else ([], {}),
+    )
+    vistos: list[set[str]] = []
+    original = dec.indice_equiponderado_region
+
+    def espia(series: Mapping[str, Sequence[dec.BarraDecision]]) -> dict[date, float]:
+        vistos.append(set(series))
+        return original(series)
+
+    monkeypatch.setattr(dec, "indice_equiponderado_region", espia)
+    dec.construir_resultado(token, None, universe, vintage, c_e=date(2027, 8, 27), policies=["B2"])  # type: ignore[arg-type]
+    assert {"AAA", "BBB"} in vistos and {"CCC"} in vistos
 
 
 def test_r6_eur_descriptivo_sin_fx_declara_motivo() -> None:

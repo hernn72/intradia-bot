@@ -773,12 +773,20 @@ def construir_resultado(
     barras_por_activo = {symbol: barras_decision(token, cosecha_decisiva, universe, symbol) for symbol in symbols}
     t1_por_activo = {symbol: rows[-1].session for symbol, rows in barras_por_activo.items() if rows}
     ventanas = construir_ventanas(signals, barras_por_activo, c_e=c_e, t1_por_activo=t1_por_activo)
+    # T-024 §5 (D3): el índice de región usa todos los activos analizables con barras en la cosecha decisiva,
+    # no solo los que tuvieron señal.
+    region_symbols = sorted(set(symbols) | {s for s in captura.asset_list() if s in cosecha_decisiva.by_symbol})
+    barras_region = {
+        symbol: barras_por_activo.get(symbol) or barras_decision(token, cosecha_decisiva, universe, symbol)
+        for symbol in region_symbols
+    }
+    t1_region = {symbol: rows[-1].session for symbol, rows in barras_region.items() if rows}
     politicas = {policy: decidir_politica(policy, ventanas) for policy in policies}
     phi_medio = {
         policy: float(media(v.phi_a for v in ventanas.ventanas if v.senal.policy == policy) or 0.0)
         for policy in tuple(policies) + comun.POLITICAS_DESCRIPTIVAS
     }
-    d3_d4 = _descriptivos_d3_d4(ventanas.ventanas, barras_por_activo, universe, t1_por_activo)
+    d3_d4 = _descriptivos_d3_d4(ventanas.ventanas, barras_region, universe, t1_region)
     descriptivas: dict[str, object] = {
         "C0": decidir_politica("C0", ventanas, capacidad=True),
         "d2_media_por_politica": {
@@ -843,13 +851,15 @@ def ejecutar_mirada(
     verificar_identidad(repo)
     policies = politicas_para_mirada(mirada=mirada, c_e=c_e, evidence_dir=evidence_dir)
     registro_forward = cargar_registro_forward(registro_forward_path, cosecha_decisiva_id)
+    if cosecha_decisiva.data_vintage_id != cosecha_decisiva_id:
+        raise T024DecisionError("la cosecha recibida no es la cosecha decisiva declarada")
     checkpoint = checkpoint_de(registro_forward, cosecha_decisiva_id)
     exigir_regla_75_dias(c_e, checkpoint)
     exigir_calendario_registro(registro_forward, c_e, cosecha_decisiva_id)
     captura = capturar(config, universe, cosecha_decisiva, c_e=c_e, desarrollo=False)
     conteos: Mapping[str, ConteoCaptura] = captura.conteos
-    capacidad = all(conteos.get(p) is not None and conteos[p].cumple for p in policies)
-    if not capacidad and mirada == "mirada_1":
+    evaluables = tuple(p for p in policies if conteos.get(p) is not None and conteos[p].cumple)
+    if mirada == "mirada_1" and evaluables != tuple(policies):
         return REPROPONER
     marca = evidence_dir / f"{mirada}.t024.consumida"
     payload = json.dumps(
@@ -866,17 +876,20 @@ def ejecutar_mirada(
         indent=2,
     )
     crear_marca_exclusiva(marca, payload)
-    if not capacidad and mirada == "mirada_final":
-        resultado: Mapping[str, ResultadoPolitica] = {p: ResultadoPolitica(p, NO_EVALUABLE, 0, None, None) for p in policies}
-        _registrar_consumo(evidence_dir, mirada, c_e, policies, resultado)
-        return resultado
+    # T-024 §9 regla 3: en la mirada final, la política sin capacidad queda NO EVALUABLE y las demás se evalúan.
+    sin_capacidad = {p: ResultadoPolitica(p, NO_EVALUABLE, 0, None, None) for p in policies if p not in evaluables}
+    if not evaluables:
+        _registrar_consumo(evidence_dir, mirada, c_e, policies, sin_capacidad)
+        return sin_capacidad
     token = _crear_token_mirada(marca)
     global _TOKEN_ACTIVO
     _TOKEN_ACTIVO = token
     try:
-        resultado_decision = construir_resultado(token, config, universe, cosecha_decisiva, c_e=c_e, policies=policies)
+        resultado_decision = construir_resultado(token, config, universe, cosecha_decisiva, c_e=c_e, policies=evaluables)
     finally:
         _TOKEN_ACTIVO = None
+    if sin_capacidad:
+        resultado_decision = replace(resultado_decision, politicas={**resultado_decision.politicas, **sin_capacidad})
     _registrar_consumo(evidence_dir, mirada, c_e, policies, resultado_decision)
     return resultado_decision
 
