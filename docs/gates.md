@@ -267,6 +267,31 @@ Desbloquea: P6.
 
 ## GATE P6 — Sistema completo
 
+**GATE P6 CRUZADO el 2026-10-05 (D-70), con la salida `[]`.** Los requisitos se cumplen. T-022 (A-06)
+ejecutó P6 una sola vez:
+- `P6_PREREG_SHA = 03f04a42ea9d2be893e7c4cc09de76bd1c55778b`;
+- `P6_CODE_SHA = bc0636d4320b38ef5a620fa9ae94cee35df47580`;
+- `P6_RUN_HEAD_SHA = 353876d39d03f6849847743b9f4e7f791abbed30`;
+- evidencia en `0771989af851748463aa0e79d4a7dc327066ca5f`.
+
+D-70 registra el resultado:
+- **B2 `NO PASA`** y **S2 `NO PASA`**;
+- **supervivientes `[]`**;
+- las dos cumplen N ≥ 100, PF local > 1, R medio local > 0 y DD ≥ −25 %, y fallan **solo** el exceso
+  de CAGR sobre el buy-and-hold del universo (B2 −15,7671 pp; S2 −18,7228 pp).
+
+**Este gate no exige un resultado favorable: exige la medición completa y reproducible.** Esa medición
+está hecha y publicada, y por eso el gate se cruza aunque ninguna política sobreviva. C0, la
+sensibilidad de 10 pb y el puente de todas las barras son descriptivos y no cambian la salida. La
+revisión final independiente no deja ningún BLOCKER ni ningún IMPORTANTE. Producción no cambia.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Evidencia:
+- `evidence/2026-10-03-T-022-p6-diseno/` (censo estructural del diseño);
+- `evidence/2026-10-03-T-022-p6-datos/` (sidecar FX y mapa de sector congelados, `P6_DATA_ID`);
+- `evidence/2026-10-03-T-022-p6/preflight/` y `…/run/` (preflight definitivo y ejecución única);
+- `evidence/2026-10-05-T-022-p6-cierre/` (resultado, revisión final y `gate-p6-final.md`).
+
 Requisitos: simulador de cartera con capital, posiciones simultáneas,
 ocupación, exposición por región/divisa/sector, costes, slippage, dividendos y
 orden cronológico real. Métricas publicadas por política candidata: CAGR,
@@ -277,9 +302,16 @@ universo, ver roadmap).
 
 Desbloquea: P7.
 
+(Nota de D-70: con la salida `[]`, P7 no recibe ninguna política y sigue BLOQUEADO; cruzar este
+gate no lo inicia ni lo desbloquea operativamente.)
+
 ---
 
 ## GATE P7 — La ventaja sobrevive fuera de muestra (en el tiempo)
+
+**BLOQUEADO: P6 no produjo ninguna política superviviente** (D-70, salida `[]`). P7 no se ha iniciado
+y no tiene ninguna candidata que validar. Reabrirlo exige investigación nueva, con ficha y
+pre-registro propios, que no cambia la etiqueta de P6.
 
 Requisitos:
 

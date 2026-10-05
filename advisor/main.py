@@ -792,6 +792,34 @@ def cmd_p5(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) 
     return code
 
 
+def cmd_p6(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    """Ejecutor único de P6 (T-022 / A-06). La fase es lo único que se elige."""
+
+    from advisor.research import p6
+
+    ident = p6.current_identity(config)
+    if args.fase == "preflight":
+        development = p6.development_mode()
+        if not development and ident.git_dirty is not False:
+            raise ValueError(
+                f"el preflight definitivo exige el árbol limpio (git_dirty={ident.git_dirty}); "
+                f"para iterar sin escribir evidencia: {p6.DEVELOPMENT_ENV}=1"
+            )
+        ok, report = p6.run_preflight(
+            config, universe, p6.load_structure(), ident, development=development,
+            determinism=p6.synthetic_determinism(),
+        )
+        print(p6.format_preflight(report), end="")
+        return 0 if ok else 2
+    try:
+        code, text = p6.run_confirmatory(config, universe, ident, p6.RUN_DIR)
+    except (p6.P6PreflightError, p6.P6AlreadyExecutedError) as exc:
+        print(f"STOP: {exc}", file=sys.stderr)
+        return 2
+    print(text, end="")
+    return code
+
+
 def cmd_ablacion_score(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     universe = resolve_research_population(universe, args.poblacion)
     result = run_event_study(
@@ -1212,6 +1240,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p5_parser.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
     p5_parser.set_defaults(func=cmd_p5)
+
+    p6_parser = sub.add_parser(
+        "p6",
+        help="P6 (T-022): simulador de cartera de B2 y S2; preflight sin desenlaces o la única ejecución confirmatoria",
+    )
+    p6_parser.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
+    p6_parser.set_defaults(func=cmd_p6)
 
     comparacion = sub.add_parser("comparacion-pareada", help="mide P2.6 con bootstrap por bloques pareados")
     comparacion.add_argument("data_vintage_id", help="identificador de la cosecha congelada")

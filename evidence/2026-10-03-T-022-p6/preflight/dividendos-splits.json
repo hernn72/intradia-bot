@@ -1,0 +1,121 @@
+{
+  "tolerancia": 1e-05,
+  "identidad": "r(d-1)/r(d) = 1 - D(d)/Close(d-1), r = Adj Close / Close",
+  "nota": "solo las fechas ex previas al último split de cada activo discriminan un dividendo sin ajustar; los activos sin ninguna no aportan comprobación. Close/Adj Close de esas filas no se verifican contra series_hash (Adj Close no está en ningún hash); load_vintage los verifica en la confirmatoria.",
+  "activos_con_split": {
+    "6501.T": {
+      "splits": 1,
+      "fechas_ex": 10,
+      "fechas_ex_previas_a_split": 6,
+      "residuo_max": 1.946e-07
+    },
+    "6758.T": {
+      "splits": 1,
+      "fechas_ex": 10,
+      "fechas_ex_previas_a_split": 6,
+      "residuo_max": 1.264e-07
+    },
+    "6857.T": {
+      "splits": 1,
+      "fechas_ex": 10,
+      "fechas_ex_previas_a_split": 4,
+      "residuo_max": 2.427e-07
+    },
+    "7011.T": {
+      "splits": 1,
+      "fechas_ex": 10,
+      "fechas_ex_previas_a_split": 5,
+      "residuo_max": 1.171e-07
+    },
+    "7203.T": {
+      "splits": 1,
+      "fechas_ex": 10,
+      "fechas_ex_previas_a_split": 0,
+      "residuo_max": 1.484e-07
+    },
+    "8035.T": {
+      "splits": 1,
+      "fechas_ex": 10,
+      "fechas_ex_previas_a_split": 3,
+      "residuo_max": 1.43e-07
+    },
+    "AMZN": {
+      "splits": 1,
+      "fechas_ex": 0,
+      "fechas_ex_previas_a_split": 0,
+      "residuo_max": null
+    },
+    "AVGO": {
+      "splits": 1,
+      "fechas_ex": 20,
+      "fechas_ex_previas_a_split": 12,
+      "residuo_max": 2.581e-07
+    },
+    "AZN": {
+      "splits": 1,
+      "fechas_ex": 9,
+      "fechas_ex_previas_a_split": 8,
+      "residuo_max": 9.914e-08
+    },
+    "CRWD": {
+      "splits": 1,
+      "fechas_ex": 0,
+      "fechas_ex_previas_a_split": 0,
+      "residuo_max": null
+    },
+    "GOOGL": {
+      "splits": 1,
+      "fechas_ex": 9,
+      "fechas_ex_previas_a_split": 0,
+      "residuo_max": 1.348e-07
+    },
+    "NFLX": {
+      "splits": 1,
+      "fechas_ex": 0,
+      "fechas_ex_previas_a_split": 0,
+      "residuo_max": null
+    },
+    "NOW": {
+      "splits": 1,
+      "fechas_ex": 0,
+      "fechas_ex_previas_a_split": 0,
+      "residuo_max": null
+    },
+    "NVDA": {
+      "splits": 1,
+      "fechas_ex": 20,
+      "fechas_ex_previas_a_split": 11,
+      "residuo_max": 2.56e-07
+    },
+    "PANW": {
+      "splits": 2,
+      "fechas_ex": 0,
+      "fechas_ex_previas_a_split": 0,
+      "residuo_max": null
+    },
+    "TSLA": {
+      "splits": 1,
+      "fechas_ex": 0,
+      "fechas_ex_previas_a_split": 0,
+      "residuo_max": null
+    }
+  },
+  "fuera_de_tolerancia": [],
+  "xetra_importe_no_redondo": [
+    "BSP.DE",
+    "EQQQ.DE",
+    "EXH1.DE",
+    "EXSA.DE",
+    "EXV1.DE",
+    "IQQK.DE",
+    "IQQT.DE",
+    "R6C0.DE",
+    "RRU.DE"
+  ],
+  "xetra_nota": "superconjunto: activos .DE con algún dividendo no redondo a 4 decimales, compatible con un importe convertido de otra divisa con un único tipo; incluye ETF que reparten en EUR con 6 decimales. No se corrige el dato (T-022 §10.1).",
+  "xetra_control": {
+    "simbolo": "R6C0.DE",
+    "tipo": 1.1587,
+    "ok": true
+  }
+}

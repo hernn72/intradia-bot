@@ -1,0 +1,30 @@
+{
+  "inicio_utc": "2026-10-05T10:11:49.275220+00:00",
+  "p6_prereg_sha": "03f04a42ea9d2be893e7c4cc09de76bd1c55778b",
+  "p6_code_sha_preflight": "bc0636d4320b38ef5a620fa9ae94cee35df47580",
+  "head_sha": "353876d39d03f6849847743b9f4e7f791abbed30",
+  "p6_data_id": "572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383",
+  "ventana": {
+    "inicio": "2022-06-14",
+    "fin": "2026-08-27",
+    "ultimo_calentamiento_de_los_iniciales": "2022-02-25",
+    "sesion_que_completa_la_sma200": "2022-06-13",
+    "sesiones_sin_barra_en_ventana": 27,
+    "instantaneas": 1095,
+    "periodos_por_año": 260.5529315960912
+  },
+  "system_hashes": {
+    "B2_primaria_5pb": "010977688a180cc63d22111f2dcb520c937ba39bb63fbb88082c30a061724026",
+    "B2_sensibilidad_10pb": "cf74b45dafb7916a7e9bf2110c70f3856c59d86c0cf7d3a43214e1e47ab6cd67",
+    "B2_todas_las_barras_5pb": "b651b3cc016a01f72dfdb776aaa45156c4969abf1e1583ca17d7b02a415242fa",
+    "S2_primaria_5pb": "824a1dff2d1bf1e6d89b842b9606887cec5eed28f3b76448f947dfbb28d39a69",
+    "S2_sensibilidad_10pb": "5ee33df3e8431e5937db1d73ff2cec09acdae7952867ba01fd30b4111c004751",
+    "S2_todas_las_barras_5pb": "30e374a61ece0f5179c5185b5e6659a2ea2889fada39e38831b806805092d196",
+    "C0_primaria_5pb": "18956fb61823c4cfbf625b1581ef15f6048a1096134d50c00404f76b12fd99e8"
+  },
+  "benchmark_hashes": {
+    "benchmark_5pb": "30ffe0fa733c104a08525a3d8ae1bf13c3838864ba1ac15ce6aa0056d6575399",
+    "benchmark_10pb": "a4e552abf5c8981083928ed50ab84f51a59a4ce01e43b13aa4e701a4c45ce332"
+  },
+  "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)"
+}

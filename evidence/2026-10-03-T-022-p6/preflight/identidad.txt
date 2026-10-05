@@ -1,0 +1,11 @@
+HEAD (P6_CODE_CANDIDATE_SHA) = bc0636d4320b38ef5a620fa9ae94cee35df47580
+P6_PREREG_SHA = 03f04a42ea9d2be893e7c4cc09de76bd1c55778b (en la historia: True)
+P6_DATA_ID = 572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383
+data_vintage_id = 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+universe_vintage_id = 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
+fx_vintage_id = 10e832ef38daa5d7e81a444bcd3bc99a5e783a382a14a4a14c68e6736dfeac0b
+sector_map = 24f45421a582cc79ee16f8436e3e008d252ccafc06f34503961d5dfccea662cd
+árbol limpio (git_dirty): False
+marca P6 existe: False
+run/ P6 existe: False
+P6_RUN_HEAD_SHA: no existe (fase de ejecución no iniciada)

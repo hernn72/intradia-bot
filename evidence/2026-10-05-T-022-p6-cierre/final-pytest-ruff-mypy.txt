@@ -1,0 +1,14 @@
+# sobre a11f5e582ad757f8c68af39f7ee16b002f117826 + corrección post-run de tests/test_p6.py sin commitear (sin cambios en advisor/ ni configuración; P6_CODE_SHA bc0636d intacto)
+$ .venv/bin/ruff check .
+All checks passed!
+$ .venv/bin/mypy advisor
+Success: no issues found in 75 source files
+$ .venv/bin/python -m pytest -q
+1103 passed, 3 warnings in 454.01s (0:07:34)
+#
+# La primera pasada del cierre (sobre a11f5e5) dio 1101 passed y 1 failed:
+# test_preflight_real_sin_cargar_precios leía el RUN_DIR real y su control «marca confirmatoria
+# ausente» veía la marca de la ejecución única. Era una dependencia accidental del estado global.
+# Corrección autorizada por el propietario: ese test usa ahora un RUN_DIR temporal vacío y sigue
+# prohibiendo load_vintage y build_views sobre la cosecha real; test_marca_en_run_dir_consume_p6
+# cubre por separado que una marca en RUN_DIR da P6 por consumido y bloquea otra ejecución.
