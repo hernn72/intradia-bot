@@ -1,0 +1,19 @@
+# sobre 0771989af851748463aa0e79d4a7dc327066ca5f + documentación y evidencia de cierre sin commitear (sin cambios en advisor/, tests/ ni configuración)
+$ .venv/bin/ruff check .
+All checks passed!
+$ .venv/bin/mypy advisor
+Success: no issues found in 75 source files
+$ .venv/bin/python -m pytest -q
+=========================== short test summary info ============================
+FAILED tests/test_p6.py::test_preflight_real_sin_cargar_precios - AssertionEr...
+1 failed, 1101 passed, 3 warnings in 455.44s (0:07:35)
+#
+# El único fallo es esperado tras la ejecución única y no es un defecto: el control
+# «marca confirmatoria ausente» del preflight observa True porque
+# evidence/2026-10-03-T-022-p6/run/EJECUCION_CONFIRMATORIA_P6_INICIADA existe desde el 2026-10-05.
+# Es la guarda funcionando: P6 está consumido. El test fue escrito para el estado previo a la
+# ejecución y solo corre en local (en CI se omite porque los CSV de data/vintages no están).
+# Detalle del fallo:
+#   AssertionError: [{'control': 'marca confirmatoria ausente', 'observado': True, 'esperado': False, 'ok': False}]
+#   tests/test_p6.py:826
+# Ningún otro control del preflight falla. tests/ no se modifica en este cierre.

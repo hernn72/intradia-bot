@@ -1,5 +1,23 @@
 # T-022 — P6 Sistema completo de cartera: B2 y S2 como sistemas, con pre-registro (A-06)
 
+Estado: **ACEPTADA — GATE P6 CRUZADO el 2026-10-05 (D-70), con la salida `[]`.** P6 se ejecutó
+**una sola vez** el 2026-10-05.
+
+**Identidad.**
+- `P6_PREREG_SHA = 03f04a42ea9d2be893e7c4cc09de76bd1c55778b`
+- `P6_CODE_SHA = bc0636d4320b38ef5a620fa9ae94cee35df47580`
+- `P6_RUN_HEAD_SHA = 353876d39d03f6849847743b9f4e7f791abbed30`
+- `P6_RUN_EVIDENCE_SHA = 0771989af851748463aa0e79d4a7dc327066ca5f`
+
+**Resultado (D-70):** **B2 `NO PASA`** y **S2 `NO PASA`**, con supervivientes **`[]`**. Las dos cumplen
+las condiciones 1 a 4 de la sección 16 y fallan solo la 5, `excess_CAGR_pp > 0` (B2 −15,7671 pp;
+S2 −18,7228 pp).
+
+Cierre y handoff en la sección «Cierre (2026-10-05)», al final. Lo que sigue a continuación es el
+pre-registro tal como quedó fijado; no se reescribe.
+
+---
+
 Estado: **PRE-REGISTRO CONGELADO (2026-10-03).** OD-P6-1 a OD-P6-43 CERRADAS en D-69; revisión
 final con 0 BLOCKER y 0 IMPORTANTE en las dos revisiones independientes; precisiones de D-69
 ratificadas por el propietario. **`P6_PREREG_SHA` = HEAD del commit de congelación** que añade
@@ -1997,3 +2015,24 @@ Corregido:
 El propietario ratificó expresamente las cinco «Precisiones de la revisión final» de D-69 el
 2026-10-03. Con eso y las dos revisiones en 0 BLOCKER y 0 IMPORTANTE, el pre-registro queda congelado
 en el commit que añade `evidence/2026-10-03-T-022-p6-prereg-final/`, cuyo HEAD es `P6_PREREG_SHA`.
+
+
+## Cierre (2026-10-05)
+
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+- **Ejecución única:** marca a las 10:11:49 UTC, que hashea `apertura-payload.json`
+  (`7823fe8d…8a7e`). No hay `p6-parada.json` y la consola archiva `código de salida: 0`. P6 no se
+  repite.
+- **Resultado:** `evidence/2026-10-05-T-022-p6-cierre/resultado-p6.md` (transcripción de `run/`, sin
+  recalcular) y D-70. B2 `NO PASA` y S2 `NO PASA`, con salida `[]`. La causa formal es exclusivamente
+  `excess_CAGR_pp <= 0`.
+- **Descriptivo, sin efecto en la salida:** C0, la sensibilidad de 10 pb, el puente de todas las
+  barras, la exposición, el cash y los subperiodos.
+- **Revisión final independiente** sin ningún BLOCKER ni ningún IMPORTANTE (`revision-final.md`).
+  GATE P6 cruzado (D-70, `gate-p6-final.md`).
+- **Handoff a P7: ninguno.** P7 no recibe ninguna política y A-07 sigue **BLOQUEADO**. Cualquier
+  corrección de la selección de señales, la prioridad, el sizing, el uso del cash, la geometría o el
+  benchmark es investigación nueva, con ficha y pre-registro propios, y no cambia la etiqueta de P6.
+- **Producción no cambia:** `config.yaml` sigue en `"1.0"` con C0, Score v2 sigue inactivo y la Pi en
+  `v0.4.1`.

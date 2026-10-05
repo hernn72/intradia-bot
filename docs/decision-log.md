@@ -1796,6 +1796,72 @@ que permitirían reinterpretar después:
 - **Correcciones posteriores de métricas:** solo de errores de implementación; un cambio de
   definición exige una D-nn y nunca cambia la salida.
 
+### D-70 — 2026-10-05 — Resultado de P6 y GATE P6 cruzado: salida `[]`
+Decisión del propietario. Registra el resultado de la **ejecución confirmatoria única** de P6 (T-022,
+A-06), que acepta como válida y consumida, y cierra GATE P6. Se transcribe la salida de
+`evidence/2026-10-03-T-022-p6/run/` sin recalcular nada; el detalle está en
+`evidence/2026-10-05-T-022-p6-cierre/resultado-p6.md`.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Identidad.**
+- `P6_PREREG_SHA = 03f04a42ea9d2be893e7c4cc09de76bd1c55778b`
+- `P6_CODE_SHA = bc0636d4320b38ef5a620fa9ae94cee35df47580`
+- `P6_RUN_HEAD_SHA = 353876d39d03f6849847743b9f4e7f791abbed30`: archiva el preflight definitivo sobre
+  `bc0636d`; respecto a `bc0636d` solo añade evidencia.
+- `P6_RUN_EVIDENCE_SHA = 0771989af851748463aa0e79d4a7dc327066ca5f`
+- `P6_DATA_ID = 572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383`
+- Marca creada el 2026-10-05 a las 10:11:49 UTC, antes de abrir ningún desenlace. Hashea
+  `apertura-payload.json` (`7823fe8dc2634a0f4d6271399511d5d0d62b3a5da49c61106be6210a12dc8a7e`), y su
+  sha256 (`7a05c3b80d42765bf8d7e272a7afa4419ab15aaf8611e3e15e2e9d3182a07463`) es el `token_sha256` del
+  resultado.
+- Completó por la ruta normal: `p6-resultado.json` y `p6-resumen.md` íntegros, ningún `p6-parada.json`
+  y `código de salida: 0` en la consola.
+
+**Decisiones.**
+1. **P6 se ejecutó exactamente una vez** y no se repite.
+2. **B2 recibe `NO PASA`** y **S2 recibe `NO PASA`**.
+3. **Salida de P6 = `[]`.**
+4. **La causa formal es exclusivamente `excess_CAGR_pp <= 0`.** Las dos cumplen `N_closed >= 100`,
+   `profit_factor_local > 1`, `mean_R_local > 0` y `max_drawdown >= -25 %`; solo falla la quinta
+   condición de T-022 §16.
+5. **No se reinterpretan** la sensibilidad de 10 pb, el puente de todas las barras, C0, la
+   exposición, el cash, los subperiodos ni ningún diagnóstico de ocupación. Son descriptivos (T-022
+   §16) y no pueden rescatar ni cambiar la salida.
+6. **No se retoca ninguna candidata** usando estos resultados.
+7. **Producción continúa exactamente igual:** `config.yaml` en `"1.0"` con C0, Score v1 70/60, Score v2
+   inactivo y la Pi en `v0.4.1`. No hay release ni despliegue.
+8. **GATE P6 se cruza** porque todos sus requisitos metodológicos y de evidencia están cumplidos
+   (`evidence/2026-10-05-T-022-p6-cierre/gate-p6-final.md`). El gate exige la medición completa y
+   reproducible, no un resultado favorable.
+9. **P7 queda sin candidata admisible**, y por tanto **A-07 permanece BLOQUEADO**.
+10. **Cualquier intento futuro** de corregir la selección de señales, la prioridad, el sizing, la
+    utilización del cash, la geometría o el benchmark constituye **investigación nueva**, con ficha y
+    pre-registro nuevos, y **no cambia la etiqueta original de P6**.
+
+**Valores vinculantes (corridas primarias a 5 pb).**
+
+| | N_closed | PF local | mean_R_local | Max DD | CAGR | excess_CAGR_pp | Etiqueta |
+|---|---|---|---|---|---|---|---|
+| B2 | 673 | 1,3995145381 | 0,2477734148 | −16,5959 % | 18,0349 % | −15,7671 | **NO PASA** |
+| S2 | 528 | 1,4043635462 | 0,2383023780 | −11,2259 % | 15,0793 % | −18,7228 | **NO PASA** |
+
+Benchmark de comprar y mantener del propio universo, a pesos iguales y 5 pb: CAGR 33,8021 %, max DD
+−26,2249 %.
+
+**Descriptivo, sin efecto en la salida:**
+- C0: N 623, PF 1,2468, mean_R 0,1637, max DD −11,1428 %, CAGR 9,8883 %, exceso −23,9138 pp;
+- sensibilidad de 10 pb: B2 −15,3041 pp y S2 −20,0919 pp de exceso;
+- puente de todas las barras: B2 −9,5165 pp y S2 −5,5714 pp de exceso.
+
+**Conciliación contable:** cuadra en las 9 corridas (efectivo encadenado fila a fila y
+V_T − V_0 = Σ pnl_neto_EUR = Σ bruto + dividendos − comisiones).
+
+**Revisión final independiente:** 0 BLOCKER, 0 IMPORTANTE y 0 MENOR (`evidence/2026-10-05-T-022-p6-cierre/revision-final.md`).
+
+**A-06 / T-022 queda ACEPTADA — GATE P6 CRUZADO.** El resultado es de desarrollo sobre una cosecha ya
+consumida (INV-15); el buy-and-hold del mismo universo mitiga la interpretación, pero no corrige el sesgo
+de universo.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
