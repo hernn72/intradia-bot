@@ -1862,6 +1862,58 @@ V_T − V_0 = Σ pnl_neto_EUR = Σ bruto + dividendos − comisiones).
 consumida (INV-15); el buy-and-hold del mismo universo mitiga la interpretación, pero no corrige el sesgo
 de universo.
 
+### D-71 — 2026-10-05 — Antes de modificar la cartera, medir si existe edge relativo al drift
+Decisión del propietario, tomada sobre el diagnóstico post hoc de T-023
+(`evidence/2026-10-05-T-023-diagnostico-post-p6/`, PR #43, merge `d86a94e`). Elige la **opción E de
+T-023**.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**P6 sigue siendo vinculante:** B2 `NO PASA`, S2 `NO PASA`, salida `[]` y P7 BLOQUEADO (D-70).
+
+**Motivo.** T-023 muestra problemas de participación y de asignación, sobre todo la saturación de
+cash de B2. También muestra que B2 y S2, con la población de todas las barras y una exposición de
+≈ 95 %, siguen por debajo del buy-and-hold. Por eso, antes de cambiar la prioridad de señales, el
+sizing, el cash, los límites de cartera, la entrada máxima, los objetivos, los stops o el horizonte,
+se responde una pregunta anterior:
+
+> ¿Las ventanas que selecciona la señal aportan rendimiento adicional frente a mantener el mismo
+> activo?
+
+La medición es una tarea nueva, **T-024 — Edge relativo al drift**, basada en H23-04
+(`docs/tareas/T-024-edge-relativo-al-drift.md`).
+
+**Regla metodológica.**
+- La cosecha hasta el 2026-08-27 está consumida y **no puede dar confirmación**. Solo puede usarse
+  para diseñar código, tests, comprobar definiciones y ejemplos rotulados como desarrollo.
+- El resultado decisorio de T-024 usa **exclusivamente** observaciones posteriores al 2026-08-27 que
+  no hayan intervenido en la formulación de H23-04.
+- T-024 separa: (1) el pre-registro y el mecanismo de captura; (2) la acumulación forward; (3) la
+  ejecución decisoria, solo al alcanzar la capacidad fijada antes de mirar.
+- No se amplía la ventana ni se cambia el umbral de capacidad después de ver resultados.
+
+**T-024 fija antes de medir**, para cada operación o señal elegible: el instante exacto de entrada y
+el de salida o de holding comparable; el retorno neto de la operación; el retorno pasivo de referencia
+del mismo activo; costes comparables; el FX causal cuando corresponda; la métrica primaria de exceso;
+la unidad estadística; los bloques temporales; el intervalo; el criterio de capacidad; y el criterio
+`POSITIVO / NO CONCLUYENTE / NO POSITIVO`. La comparación principal es **pareada por
+operación/ventana**. La definición exacta se revisa antes de congelarla y no se improvisa; la ficha de
+diseño (§4) explica por qué la lectura literal «mismo activo en el mismo intervalo» es degenerada y
+propone definiciones alternativas para que las decida el propietario.
+
+**Lo que T-024 no hace:** no simula otra vez P6, no cambia B2 ni S2, no elige otra geometría, no prueba
+la prioridad de señales ni el cash ocioso, no inicia P7 y no activa nada en producción.
+
+**Interpretación futura, fijada ahora:**
+- edge relativo **claramente positivo** en datos nuevos → el timing de la señal aporta valor y queda
+  justificado estudiar después la arquitectura de cartera, empezando por H23-02 y H23-03;
+- edge **≤ 0** → no se optimiza la asignación para rescatarlo; la investigación vuelve a la señal, la
+  salida o la arquitectura;
+- **NO CONCLUYENTE** → se sigue acumulando forward hasta el límite pre-registrado, sin cambiar las
+  reglas.
+
+**Estado:** ficha de diseño T-024 creada, con sus OD abiertas. **No hay pre-registro congelado** y no
+se ha calculado ningún resultado posterior al 2026-08-27. Producción no cambia.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
