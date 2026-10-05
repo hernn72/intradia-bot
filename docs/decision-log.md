@@ -1862,6 +1862,139 @@ V_T − V_0 = Σ pnl_neto_EUR = Σ bruto + dividendos − comisiones).
 consumida (INV-15); el buy-and-hold del mismo universo mitiga la interpretación, pero no corrige el sesgo
 de universo.
 
+### D-71 — 2026-10-05 — Antes de modificar la cartera, medir si existe edge relativo al drift
+Decisión del propietario, tomada sobre el diagnóstico post hoc de T-023
+(`evidence/2026-10-05-T-023-diagnostico-post-p6/`, PR #43, merge `d86a94e`). Elige la **opción E de
+T-023**.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**P6 sigue siendo vinculante:** B2 `NO PASA`, S2 `NO PASA`, salida `[]` y P7 BLOQUEADO (D-70).
+
+**Motivo.** T-023 muestra problemas de participación y de asignación, sobre todo la saturación de
+cash de B2. También muestra que B2 y S2, con la población de todas las barras y una exposición de
+≈ 95 %, siguen por debajo del buy-and-hold. Por eso, antes de cambiar la prioridad de señales, el
+sizing, el cash, los límites de cartera, la entrada máxima, los objetivos, los stops o el horizonte,
+se responde una pregunta anterior:
+
+> ¿Las ventanas que selecciona la señal aportan rendimiento adicional frente a mantener el mismo
+> activo?
+
+La medición es una tarea nueva, **T-024 — Edge relativo al drift**, basada en H23-04
+(`docs/tareas/T-024-edge-relativo-al-drift.md`).
+
+**Regla metodológica.**
+- La cosecha hasta el 2026-08-27 está consumida y **no puede dar confirmación**. Solo puede usarse
+  para diseñar código, tests, comprobar definiciones y ejemplos rotulados como desarrollo.
+- El resultado decisorio de T-024 usa **exclusivamente** observaciones posteriores al 2026-08-27 que
+  no hayan intervenido en la formulación de H23-04.
+- T-024 separa: (1) el pre-registro y el mecanismo de captura; (2) la acumulación forward; (3) la
+  ejecución decisoria, solo al alcanzar la capacidad fijada antes de mirar.
+- No se amplía la ventana ni se cambia el umbral de capacidad después de ver resultados.
+
+**T-024 fija antes de medir**, para cada operación o señal elegible: el instante exacto de entrada y
+el de salida o de holding comparable; el retorno neto de la operación; el retorno pasivo de referencia
+del mismo activo; costes comparables; el FX causal cuando corresponda; la métrica primaria de exceso;
+la unidad estadística; los bloques temporales; el intervalo; el criterio de capacidad; y el criterio
+`POSITIVO / NO CONCLUYENTE / NO POSITIVO`. La comparación principal es **pareada por
+operación/ventana**. La definición exacta se revisa antes de congelarla y no se improvisa; la ficha de
+diseño (§4) explica por qué la lectura literal «mismo activo en el mismo intervalo» es degenerada y
+propone definiciones alternativas para que las decida el propietario.
+
+**Lo que T-024 no hace:** no simula otra vez P6, no cambia B2 ni S2, no elige otra geometría, no prueba
+la prioridad de señales ni el cash ocioso, no inicia P7 y no activa nada en producción.
+
+**Interpretación futura, fijada ahora** _(sustituida por la precisión obligatoria de D-72: D2 no mide el
+timing puro de la señal, sino las ventanas del contrato congelado; se conserva el texto original)_:
+- edge relativo **claramente positivo** en datos nuevos → el timing de la señal aporta valor y queda
+  justificado estudiar después la arquitectura de cartera, empezando por H23-02 y H23-03;
+- edge **≤ 0** → no se optimiza la asignación para rescatarlo; la investigación vuelve a la señal, la
+  salida o la arquitectura;
+- **NO CONCLUYENTE** → se sigue acumulando forward hasta el límite pre-registrado, sin cambiar las
+  reglas.
+
+**Estado:** ficha de diseño T-024 creada, con sus OD abiertas. **No hay pre-registro congelado** y no
+se ha calculado ningún resultado posterior al 2026-08-27. Producción no cambia.
+
+### D-72 — 2026-10-05 — Decisiones de T-024 Edge relativo al drift
+Decisión del propietario. Cierra **OD-T24-1 a OD-T24-12** de la ficha
+`docs/tareas/T-024-edge-relativo-al-drift.md` (D-71). Se toma **antes de implementar T-024 y sin
+ningún desenlace**: no se ha calculado nada de T-024, ni sobre la cosecha consumida ni sobre datos
+posteriores al 2026-08-27.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Decisiones:**
+1. **OD-T24-1:** D2 es la primaria. D2o es secundaria. D2c, D3 y D4 son descriptivas. D1 sirve
+   exclusivamente para comprobar la implementación.
+2. **OD-T24-2:** B2 y S2 son decisorias; C0 es descriptiva.
+3. **OD-T24-3:** la convención (a), sesiones completas, es la primaria. La descomposición noche y día
+   (b) se publica como descriptiva.
+4. **OD-T24-4:** el drift primario va sin costes. La variante con el coste del pasivo prorrateado es
+   descriptiva.
+5. **OD-T24-5:** divisa local como primaria; EUR descriptivo.
+6. **OD-T24-6:** cosechas forward mensuales congeladas. La caché de la Pi solo sirve como contraste
+   descriptivo de integridad.
+7. **OD-T24-7:** la media por ventana es el estimador primario, con **excepción explícita a INV-14**.
+   La media por bloque mensual sigue siendo descriptiva. **Modificación respecto de la propuesta:** el
+   bootstrap decisorio usa **bloques móviles de 10 semanas ISO de entrada**, no de 4. El motivo es que
+   las ventanas pueden durar hasta 40 sesiones, y un bloque de 4 semanas no conserva bien la
+   dependencia que crean las trayectorias solapadas en el tiempo. Contrato:
+   - todas las ventanas cuyas semanas de entrada pertenecen al bloque se remuestrean juntas;
+   - `B = 10.000`;
+   - semilla fija `20261005`;
+   - el mismo esquema para B2 y S2.
+8. **OD-T24-8:** capacidad `Q_p ≥ 120` y `W_p ≥ 26`; mínimo de 100 ventanas después del no
+   solapamiento; corte final de entradas el 2027-08-27. **Guarda añadida:**
+   - El checkpoint mensual solo **propone** abrir la mirada. Cuando está disponible la cosecha decisiva,
+     75 días o más después, y **antes de leer ningún desenlace**, se recalculan `Q_p` y `W_p` desde esa
+     cosecha, usando solo la señal y la apertura.
+   - Si en la mirada 1 alguna política deja de cumplir `Q ≥ 120` o `W ≥ 26`, **no se abre ningún
+     desenlace, no se crea ni se consume la marca de la mirada y se sigue acumulando**.
+   - En la mirada final, una política que no cumpla la capacidad queda `NO EVALUABLE POR MUESTRA`.
+   - El mínimo de 100 ventanas se comprueba tras aplicar el no solapamiento dentro de la ejecución
+     decisoria.
+9. **OD-T24-9:** Bonferroni. Dos políticas por un máximo de dos miradas → IC bilateral del 98,75 % por
+   política y mirada.
+10. **OD-T24-10:** `δ = 0`. El retorno de la operación ya incorpora sus costes y el drift primario no.
+    No se exige ningún otro margen en la decisión. La lectura frente al coste de ida y vuelta es
+    descriptiva.
+11. **OD-T24-11:** T-024 consume `[T0, T1]`. Cualquier holdout futuro de P7 debe empezar después del
+    `T1` de la última mirada que use T-024.
+12. **OD-T24-12:** la población de todas las barras es solo descriptiva.
+
+**Precisión obligatoria de interpretación.** D2 **no** es una medida de «timing puro de la señal».
+Depende de la selección de la señal, la entrada, el stop, el objetivo, la salida temporal y la
+duración resultante. La afirmación permitida es:
+
+> D2 evalúa si las ventanas del contrato activo congelado de B2/S2 (selección, ejecución y salida)
+> obtienen un retorno neto superior al drift medio del mismo activo durante un número comparable de
+> sesiones.
+
+Interpretación de los resultados:
+- **`POSITIVO`**: las ventanas activas bajo el contrato congelado muestran edge frente al drift. Esto
+  justifica investigar después la capa de cartera.
+- **`NO POSITIVO`**: el conjunto de señal más ejecución y salida no demuestra edge frente al drift. No
+  se optimiza la asignación de cartera para rescatarlo.
+- **`NO CONCLUYENTE`**: se aplica únicamente el calendario de miradas ya fijado.
+- **`NO EVALUABLE POR MUESTRA`**: capacidad insuficiente.
+
+Ningún resultado positivo o negativo se atribuye causalmente solo al score o a la señal.
+
+**Lo que no cambia.**
+- P6: B2 `NO PASA`, S2 `NO PASA`, salida `[]` y P7 BLOQUEADO.
+- No se calcula ningún resultado de T-024, no se descargan ni se miran desenlaces posteriores al
+  2026-08-27 y no se implementa `t024.py` ni la captura.
+- Producción no cambia.
+
+**Siguiente:** actualizar la ficha T-024 con estas decisiones, someter el pre-registro completo a una
+revisión adversarial nueva con 0 BLOCKER y 0 IMPORTANTE, y congelar `T024_PREREG_SHA` en un commit
+documental nuevo.
+
+**Congelación (2026-10-05).** Revisión adversarial final del pre-registro completo (Codex): 0 BLOCKER,
+0 IMPORTANTE, 1 MENOR corregido (la nota en la interpretación de D-71) y 2 OBSERVACIONES. El
+pre-registro queda congelado en el commit que añade `evidence/2026-10-05-T-024-prereg-final/`; su HEAD
+es **`T024_PREREG_SHA`**. El commit no puede contener su propio SHA: se identifica en el PR #44. T-024
+no está implementado y no se ha calculado ningún desenlace.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
