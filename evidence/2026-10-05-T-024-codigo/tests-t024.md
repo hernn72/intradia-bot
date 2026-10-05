@@ -1,0 +1,92 @@
+# Tests de T-024 (tests/test_t024.py, 88)
+
+Todos sintéticos o sobre repositorios git temporales, salvo los dos de desarrollo marcados (DEV), que sobre la cosecha consumida `071ddb2b…` solo generan señales y conteos, sin salidas ni métricas.
+
+- `test_d1_sin_dividendo_formula_manual`
+- `test_d1_con_dividendo_formula_manual`
+- `test_d1_slippage_separado`
+- `test_d1_comision_separada`
+- `test_d2_cero_si_ventana_rinde_el_drift_con_costes_incluidos`
+- `test_convencion_b_noche_dia_manual`
+- `test_salida_por_gap_en_apertura[rows0-stop-90]`
+- `test_salida_por_gap_en_apertura[rows1-objetivo-112]`
+- `test_salida_stop_intradia`
+- `test_salida_objetivo_intradia`
+- `test_salida_por_tiempo`
+- `test_salida_final_truncada`
+- `test_dividendo_en_exdate_con_salida_en_apertura`
+- `test_split_vista_de_ejecucion_equivalente_en_escala_ajustada`
+- `test_phi_y_d2o_son_por_politica_activo_con_dos_ventanas`
+- `test_atenuacion_uno_menos_phi_en_caso_construido`
+- `test_exclusiones_por_sesiones_insuficientes_se_cuentan`
+- `test_no_solapamiento_por_activo`
+- `test_elegibilidad_temporal_y_frontera_t1`
+- `test_d3_indice_por_fecha_con_calendarios_distintos`
+- `test_d4_trunca_en_t1`
+- `test_construir_resultado_end_to_end_sintetico_con_d3_d4`
+- `test_coste_prorrateado_exacto`
+- `test_captura_vista_ciega_bloquea_high_low_close_de_ei_y_futuro`
+- `test_captura_invariante_al_prefijo_adversarial`
+- `test_capturar_usa_vista_ciega_para_aperturas`
+- `test_k1_desarrollo_rotulo_y_cutoff_ficticio`
+- `test_k1_no_desarrollo_rechaza_cutoff_ficticio_y_cosecha_consumida`
+- `test_reconfirmacion_ciega_llama_capturar`
+- `test_ejecutabilidad_motivos_equivalen_a_p6`
+- `test_construir_ventanas_rechaza_senales_no_ejecutables[bad0-ABOVE_MAX_ENTRY]`
+- `test_construir_ventanas_rechaza_senales_no_ejecutables[bad1-INVALID_STOP]`
+- `test_construir_ventanas_rechaza_senales_no_ejecutables[bad2-INVALID_TARGET]`
+- `test_construir_ventanas_rechaza_senales_no_ejecutables[bad3-RR_TOO_LOW]`
+- `test_construir_ventanas_rechaza_senales_no_ejecutables[bad4-DATA_NOT_EXECUTABLE]`
+- `test_senal_no_ejecutable_no_bloquea_posterior_mismo_activo`
+- `test_salidas_equivalen_a_p6_sim[rows0-95-200-stop]`
+- `test_salidas_equivalen_a_p6_sim[rows1-95-110-objetivo]`
+- `test_salidas_equivalen_a_p6_sim[rows2-95-200-stop]`
+- `test_salidas_equivalen_a_p6_sim[rows3-95-110-objetivo]`
+- `test_salidas_equivalen_a_p6_sim[rows4-95-200-tiempo]`
+- `test_salidas_equivalen_a_p6_sim[rows5-95-200-final]`
+- `test_p6_sim_equivale_con_no_ejecutable_seguida_de_ejecutable`
+- `test_bootstrap_10_semanas_determinista_con_vacias`
+- `test_ic_bonferroni_delta_cuatro_estados`
+- `test_verificar_identidad_ramas_no_tautologicas`
+- `test_lock_real_sidecar_correcto_y_ejecutor_sin_cambios_pasa`
+- `test_lock_real_ejecutor_cambiado_despues_del_sha_deniega`
+- `test_lock_real_reproduce_la_circularidad_de_fijar_el_sha_en_advisor`
+- `test_lock_real_sidecar_ausente_deniega`
+- `test_lock_real_sidecar_sin_commitear_deniega`
+- `test_lock_real_sidecar_modificado_en_copia_de_trabajo_deniega`
+- `test_lock_real_sidecar_invalido_deniega[]`
+- `test_lock_real_sidecar_invalido_deniega[n]`
+- `test_lock_real_sidecar_invalido_deniega[abcn]`
+- `test_lock_real_sidecar_invalido_deniega[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAn]`
+- `test_lock_real_sidecar_invalido_deniega[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaan]`
+- `test_lock_real_sidecar_invalido_deniega[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaan]`
+- `test_lock_real_sidecar_invalido_deniega[ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaan]`
+- `test_lock_real_sidecar_invalido_deniega[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaann]`
+- `test_lock_real_sidecar_invalido_deniega[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa n]`
+- `test_lock_real_sha_no_ancestro_deniega`
+- `test_cargar_lock_no_admite_otra_ruta_ni_override`
+- `test_repo_root_es_la_raiz_git_del_modulo_importado`
+- `test_verificar_identidad_publica_usa_repo_root_no_el_cwd`
+- `test_construir_resultado_y_barras_decision_exigen_token`
+- `test_token_se_desactiva_tras_excepcion_en_ejecutar_mirada`
+- `test_mirada_reconfirmacion_fallida_no_consume_ni_abre`
+- `test_marca_exclusiva_y_registro_de_cosechas`
+- `test_r2_calendario_estricto_mirada_1_y_final`
+- `test_r3_registro_forward_con_checkpoint_y_75_dias`
+- `test_r5_marca_existente_deniega_aunque_no_haya_registro`
+- `test_final_denegada_si_mirada_1_tiene_marca_sin_estados`
+- `test_c_e_debe_ser_checkpoint_del_registro`
+- `test_cosecha_decisiva_es_la_primera_a_75_dias`
+- `test_cosecha_recibida_distinta_de_la_declarada_se_deniega_sin_marca`
+- `test_mirada_final_capacidad_por_politica`
+- `test_d3_indice_region_incluye_analizables_sin_senal`
+- `test_ninguna_ruta_publica_abre_desenlaces_de_cosecha_sin_token`
+- `test_barras_decision_marca_origen_de_cosecha`
+- `test_truncada_t1_solo_para_regla_final`
+- `test_r6_eur_descriptivo_sin_fx_declara_motivo`
+- `test_maximo_dos_miradas_y_final_solo_pendientes`
+- `test_imports_cerrados_de_captura_grafo_local`
+- `test_imports_cerrados_detecta_from_advisor_research_import_t024_decision`
+- `test_constantes_policy_config_y_asset_list_igualan_p6`
+- `test_smoke_desarrollo_capturar_consumida_solo_conteos` (DEV)
+- `test_generacion_t024_igual_a_p6_en_subventana_desarrollo` (DEV)
