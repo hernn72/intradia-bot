@@ -220,16 +220,17 @@ def salida_p6(senal: SenalT024, barras: Sequence[BarraDecision]) -> tuple[int, s
             dividend += row.dividend
         if i > e:
             if row.open <= senal.stop:
-                return i, EXIT_STOP, row.open, dividend, i == last
+                return i, EXIT_STOP, row.open, dividend, False
             if row.open >= senal.target2 and row.low > senal.stop:
-                return i, EXIT_TARGET, row.open, dividend, i == last
+                return i, EXIT_TARGET, row.open, dividend, False
         if row.low <= senal.stop:
-            return i, EXIT_STOP, senal.stop, dividend, i == last
+            return i, EXIT_STOP, senal.stop, dividend, False
         if row.high >= senal.target2:
-            return i, EXIT_TARGET, senal.target2, dividend, i == last
+            return i, EXIT_TARGET, senal.target2, dividend, False
         if i - e >= MAX_HOLD:
-            return i, EXIT_TIME, row.close, dividend, i == last
+            return i, EXIT_TIME, row.close, dividend, False
         if i == last:
+            # T-024 §9 regla 7: solo la ventana aún abierta en T1, cerrada por la regla final, cuenta como truncada.
             return i, EXIT_FINAL, row.close, dividend, True
     raise AssertionError("salida inalcanzable")
 

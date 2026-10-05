@@ -737,6 +737,17 @@ def test_barras_decision_marca_origen_de_cosecha(monkeypatch: pytest.MonkeyPatch
     assert {b.origen for b in barras} == {"cosecha:v1"}
 
 
+def test_truncada_t1_solo_para_regla_final() -> None:
+    s1 = senal(s_index=0, stop=95, target=200, entry_max=200)
+    rows = bars(3)
+    stop_en_ultima = list(rows)
+    stop_en_ultima[2] = dec.BarraDecision(rows[2].session, 90, 90, 90, 90)
+    x, motivo, _precio, _div, truncada = dec.salida_p6(s1, stop_en_ultima)
+    assert (x, motivo, truncada) == (2, dec.EXIT_STOP, False)
+    x, motivo, _precio, _div, truncada = dec.salida_p6(s1, rows)
+    assert (x, motivo, truncada) == (2, dec.EXIT_FINAL, True)
+
+
 def test_r6_eur_descriptivo_sin_fx_declara_motivo() -> None:
     assert dec._fx_eur_descriptivo([], {}, None) == {"motivo": "FX forward no congelado"}
 
