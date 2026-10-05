@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import secrets
 import subprocess
 from collections import Counter, defaultdict
@@ -565,16 +566,55 @@ def decidir_politica(
     return ResultadoPolitica(policy, etiquetar(boot.ci_low, boot.ci_high, n=len(valores), capacidad=capacidad), len(valores), boot.mean, (boot.ci_low, boot.ci_high), boot.substitutions, excl_w, excl_a)
 
 
-def verificar_identidad(repo: str | Path = ".") -> None:
-    if comun.T024_CODE_SHA is None:
-        raise T024DecisionError("T024_CODE_SHA es None: decisión denegada")
+_SHA_GIT = re.compile(r"[0-9a-f]{40}\n?")
+
+
+def cargar_t024_code_sha(repo: str | Path = ".") -> str:
+    """`T024_CODE_SHA` desde el sidecar canónico versionado en HEAD; sin override ni otra ruta.
+
+    Se lee con `git show HEAD:<sidecar>`: un fichero sin commitear no cuenta. La copia de trabajo tiene que
+    coincidir byte a byte con la de HEAD. El contenido es exactamente un SHA de 40 caracteres hexadecimales en
+    minúscula, con un único salto de línea final opcional.
+    """
+
+    try:
+        shown = subprocess.run(
+            ["git", "show", f"HEAD:{comun.T024_CODE_LOCK}"], cwd=repo, check=False, capture_output=True, timeout=5.0
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise T024DecisionError(f"no se pudo leer el sidecar de T024_CODE_SHA: {exc}") from exc
+    if shown.returncode != 0:
+        raise T024DecisionError(f"sidecar de T024_CODE_SHA ausente o no versionado en HEAD ({comun.T024_CODE_LOCK})")
+    contenido = shown.stdout
+    try:
+        trabajo = (Path(repo) / comun.T024_CODE_LOCK).read_bytes()
+    except OSError as exc:
+        raise T024DecisionError("sidecar de T024_CODE_SHA ausente en la copia de trabajo") from exc
+    if trabajo != contenido:
+        raise T024DecisionError("el sidecar de T024_CODE_SHA de la copia de trabajo no coincide con HEAD")
+    try:
+        texto = contenido.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise T024DecisionError("sidecar de T024_CODE_SHA con formato inválido") from exc
+    if not _SHA_GIT.fullmatch(texto):
+        raise T024DecisionError("sidecar de T024_CODE_SHA con formato inválido (40 hex en minúscula)")
+    return texto.rstrip("\n")
+
+
+def verificar_identidad(repo: str | Path = ".") -> str:
+    """Identidad congelada antes de abrir desenlaces; devuelve el `T024_CODE_SHA` validado."""
+
+    code_sha = cargar_t024_code_sha(repo)
     if _git(["merge-base", "--is-ancestor", comun.T024_PREREG_SHA, "HEAD"], repo) is not True:
         raise T024DecisionError("T024_PREREG_SHA no es ancestro de HEAD")
-    if not executor_unchanged_since(comun.T024_CODE_SHA, repo):
+    if _git(["merge-base", "--is-ancestor", code_sha, "HEAD"], repo) is not True:
+        raise T024DecisionError("T024_CODE_SHA no es ancestro de HEAD")
+    if not executor_unchanged_since(code_sha, repo):
         raise T024DecisionError("ejecutor cambiado desde T024_CODE_SHA")
     dirty = tree_dirty(repo)
     if dirty is not False:
         raise T024DecisionError("árbol de ejecutor no limpio")
+    return code_sha
 
 
 def _git(args: Sequence[str], repo: str | Path) -> Optional[bool]:
@@ -876,7 +916,7 @@ def ejecutar_mirada(
     evidence_dir: Path,
     repo: str | Path = ".",
 ) -> ResultadoDecision | Mapping[str, ResultadoPolitica] | str:
-    verificar_identidad(repo)
+    code_sha = verificar_identidad(repo)
     policies = politicas_para_mirada(mirada=mirada, c_e=c_e, evidence_dir=evidence_dir)
     registro_forward = cargar_registro_forward(registro_forward_path, cosecha_decisiva_id)
     if cosecha_decisiva.data_vintage_id != cosecha_decisiva_id:
@@ -893,7 +933,7 @@ def ejecutar_mirada(
     payload = json.dumps(
         {
             "T024_PREREG_SHA": comun.T024_PREREG_SHA,
-            "T024_CODE_SHA": comun.T024_CODE_SHA,
+            "T024_CODE_SHA": code_sha,
             "registro_forward_sha256": registro_forward.sha256,
             "mirada": mirada,
             "c_e": c_e.isoformat(),

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any, Mapping, Tuple
 from zoneinfo import ZoneInfo
 
 T024_PREREG_SHA = "dfcca0ef3428df916089480a0ca574f47e550c24"
-T024_CODE_SHA: Optional[str] = None
+# `T024_CODE_SHA` no vive en `advisor/`: escribirlo aquí cambiaría el propio ejecutor después de ese SHA y
+# `executor_unchanged_since` fallaría siempre. Se lee de un sidecar versionado fuera de los EXECUTOR_PATHS.
+T024_CODE_LOCK = "evidence/2026-10-05-T-024-code-lock/T024_CODE_SHA.txt"
 DEV_VINTAGE_ID = "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841"
 
 CUTOFF_CONSUMIDA = date(2026, 8, 27)

@@ -455,20 +455,15 @@ def _conteo(policy: str, cumple: bool) -> cap.ConteoCaptura:
     return cap.ConteoCaptura(policy, 130, 130, {}, 130, 30, cumple=cumple)
 
 
-def test_verificar_identidad_falla_si_code_sha_none() -> None:
-    with pytest.raises(dec.T024DecisionError):
-        dec.verificar_identidad()
-
-
 def test_verificar_identidad_ramas_no_tautologicas(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(dec.comun, "T024_CODE_SHA", "c" * 40)
+    monkeypatch.setattr(dec, "cargar_t024_code_sha", lambda _repo=".": "c" * 40)
     monkeypatch.setattr(dec, "executor_unchanged_since", lambda *_a, **_k: True)
     monkeypatch.setattr(dec, "tree_dirty", lambda *_a, **_k: False)
     monkeypatch.setattr(dec, "_git", lambda *_a, **_k: None)
-    with pytest.raises(dec.T024DecisionError, match="ancestro"):
+    with pytest.raises(dec.T024DecisionError, match=r"PREREG.*ancestro"):
         dec.verificar_identidad()
-    monkeypatch.setattr(dec, "_git", lambda *_a, **_k: False)
-    with pytest.raises(dec.T024DecisionError, match="ancestro"):
+    monkeypatch.setattr(dec, "_git", lambda args, _repo: args[2] == dec.comun.T024_PREREG_SHA)
+    with pytest.raises(dec.T024DecisionError, match="CODE_SHA no es ancestro"):
         dec.verificar_identidad()
     monkeypatch.setattr(dec, "_git", lambda *_a, **_k: True)
     monkeypatch.setattr(dec, "executor_unchanged_since", lambda *_a, **_k: False)
@@ -482,7 +477,145 @@ def test_verificar_identidad_ramas_no_tautologicas(monkeypatch: pytest.MonkeyPat
     with pytest.raises(dec.T024DecisionError, match="limpio"):
         dec.verificar_identidad()
     monkeypatch.setattr(dec, "tree_dirty", lambda *_a, **_k: False)
-    dec.verificar_identidad()
+    assert dec.verificar_identidad() == "c" * 40
+
+
+# --- Mecanismo real del lock de T024_CODE_SHA, en un repositorio git temporal (sin monkeypatch del SHA) ---
+
+
+def _git_tmp(repo: Path, *args: str) -> str:
+    import subprocess
+
+    out = subprocess.run(
+        ["git", "-c", "user.name=t024", "-c", "user.email=t024@example.invalid", "-c", "commit.gpgsign=false", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return out.stdout.strip()
+
+
+def _repo_t024(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str, str]:
+    """Repo con P (pre-registro) y A (ejecutor). Devuelve (repo, sha_P, sha_A)."""
+
+    repo = tmp_path / "repo"
+    (repo / "advisor" / "research").mkdir(parents=True)
+    _git_tmp(repo, "init", "-q", "-b", "main")
+    (repo / "docs").mkdir()
+    (repo / "docs" / "prereg.md").write_text("pre-registro\n", encoding="utf-8")
+    _git_tmp(repo, "add", "-A")
+    _git_tmp(repo, "commit", "-q", "-m", "P")
+    sha_p = _git_tmp(repo, "rev-parse", "HEAD")
+    (repo / "advisor" / "research" / "ejecutor.py").write_text("X = 1\n", encoding="utf-8")
+    (repo / "config.yaml").write_text("a: 1\n", encoding="utf-8")
+    _git_tmp(repo, "add", "-A")
+    _git_tmp(repo, "commit", "-q", "-m", "A")
+    sha_a = _git_tmp(repo, "rev-parse", "HEAD")
+    # Solo el pre-registro del repo temporal sustituye al real; T024_CODE_SHA no se toca en ningún test.
+    monkeypatch.setattr(dec.comun, "T024_PREREG_SHA", sha_p)
+    return repo, sha_p, sha_a
+
+
+def _commit_lock(repo: Path, contenido: str) -> str:
+    lock = repo / dec.comun.T024_CODE_LOCK
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_text(contenido, encoding="utf-8")
+    _git_tmp(repo, "add", "-A")
+    _git_tmp(repo, "commit", "-q", "-m", "lock")
+    return _git_tmp(repo, "rev-parse", "HEAD")
+
+
+def test_lock_real_sidecar_correcto_y_ejecutor_sin_cambios_pasa(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, _p, sha_a = _repo_t024(tmp_path, monkeypatch)
+    _commit_lock(repo, sha_a + "\n")
+    assert dec.cargar_t024_code_sha(repo) == sha_a
+    assert dec.verificar_identidad(repo) == sha_a
+
+
+def test_lock_real_ejecutor_cambiado_despues_del_sha_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, _p, sha_a = _repo_t024(tmp_path, monkeypatch)
+    _commit_lock(repo, sha_a + "\n")
+    assert dec.verificar_identidad(repo) == sha_a
+    (repo / "advisor" / "research" / "ejecutor.py").write_text("X = 2\n", encoding="utf-8")
+    _git_tmp(repo, "add", "-A")
+    _git_tmp(repo, "commit", "-q", "-m", "C")
+    with pytest.raises(dec.T024DecisionError, match="ejecutor cambiado"):
+        dec.verificar_identidad(repo)
+
+
+def test_lock_real_reproduce_la_circularidad_de_fijar_el_sha_en_advisor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Escribir el SHA dentro de advisor/ cambia el ejecutor tras ese SHA: la identidad nunca pasaría."""
+
+    repo, _p, sha_a = _repo_t024(tmp_path, monkeypatch)
+    (repo / "advisor" / "research" / "lock.py").write_text(f'T024_CODE_SHA = "{sha_a}"\n', encoding="utf-8")
+    lock = repo / dec.comun.T024_CODE_LOCK
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_text(sha_a + "\n", encoding="utf-8")
+    _git_tmp(repo, "add", "-A")
+    _git_tmp(repo, "commit", "-q", "-m", "SHA dentro de advisor")
+    with pytest.raises(dec.T024DecisionError, match="ejecutor cambiado"):
+        dec.verificar_identidad(repo)
+
+
+def test_lock_real_sidecar_ausente_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, _p, _a = _repo_t024(tmp_path, monkeypatch)
+    with pytest.raises(dec.T024DecisionError, match="ausente o no versionado"):
+        dec.verificar_identidad(repo)
+
+
+def test_lock_real_sidecar_sin_commitear_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, _p, sha_a = _repo_t024(tmp_path, monkeypatch)
+    lock = repo / dec.comun.T024_CODE_LOCK
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_text(sha_a + "\n", encoding="utf-8")
+    with pytest.raises(dec.T024DecisionError, match="ausente o no versionado"):
+        dec.verificar_identidad(repo)
+
+
+def test_lock_real_sidecar_modificado_en_copia_de_trabajo_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, sha_p, sha_a = _repo_t024(tmp_path, monkeypatch)
+    _commit_lock(repo, sha_a + "\n")
+    (repo / dec.comun.T024_CODE_LOCK).write_text(sha_p + "\n", encoding="utf-8")
+    with pytest.raises(dec.T024DecisionError, match="no coincide con HEAD"):
+        dec.verificar_identidad(repo)
+
+
+@pytest.mark.parametrize(
+    "contenido",
+    ["", "\n", "abc\n", "A" * 40 + "\n", "a" * 39 + "\n", "a" * 41 + "\n", " " + "a" * 40 + "\n", "a" * 40 + "\n\n", "a" * 40 + " \n"],
+)
+def test_lock_real_sidecar_invalido_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, contenido: str) -> None:
+    repo, _p, _a = _repo_t024(tmp_path, monkeypatch)
+    _commit_lock(repo, contenido)
+    with pytest.raises(dec.T024DecisionError, match="formato inválido"):
+        dec.verificar_identidad(repo)
+
+
+def test_lock_real_sha_no_ancestro_deniega(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, _p, _a = _repo_t024(tmp_path, monkeypatch)
+    _git_tmp(repo, "checkout", "-q", "-b", "lateral")
+    (repo / "docs" / "lateral.md").write_text("x\n", encoding="utf-8")
+    _git_tmp(repo, "add", "-A")
+    _git_tmp(repo, "commit", "-q", "-m", "lateral")
+    sha_lateral = _git_tmp(repo, "rev-parse", "HEAD")
+    _git_tmp(repo, "checkout", "-q", "main")
+    _commit_lock(repo, sha_lateral + "\n")
+    with pytest.raises(dec.T024DecisionError, match="CODE_SHA no es ancestro"):
+        dec.verificar_identidad(repo)
+    # Un SHA bien formado que no existe en el repositorio tampoco pasa.
+    _commit_lock(repo, "0123456789abcdef0123456789abcdef01234567\n")
+    with pytest.raises(dec.T024DecisionError, match="CODE_SHA no es ancestro"):
+        dec.verificar_identidad(repo)
+
+
+def test_cargar_lock_no_admite_otra_ruta_ni_override() -> None:
+    import inspect
+
+    assert list(inspect.signature(dec.cargar_t024_code_sha).parameters) == ["repo"]
+    assert list(inspect.signature(dec.verificar_identidad).parameters) == ["repo"]
+    assert "code_sha" not in inspect.signature(dec.ejecutar_mirada).parameters
+    assert not hasattr(dec.comun, "T024_CODE_SHA")
 
 
 def test_construir_resultado_y_barras_decision_exigen_token(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -503,7 +636,7 @@ def test_construir_resultado_y_barras_decision_exigen_token(monkeypatch: pytest.
 
 
 def test_token_se_desactiva_tras_excepcion_en_ejecutar_mirada(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
     monkeypatch.setattr(dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", True), "S2": _conteo("S2", True)}, {}))
 
     def boom(*_args: Any, **_kwargs: Any) -> dec.ResultadoDecision:
@@ -525,7 +658,7 @@ def test_token_se_desactiva_tras_excepcion_en_ejecutar_mirada(monkeypatch: pytes
 
 
 def test_mirada_reconfirmacion_fallida_no_consume_ni_abre(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
     monkeypatch.setattr(dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", False), "S2": _conteo("S2", True)}, {}))
     called = False
 
@@ -551,7 +684,7 @@ def test_mirada_reconfirmacion_fallida_no_consume_ni_abre(monkeypatch: pytest.Mo
 
 
 def test_marca_exclusiva_y_registro_de_cosechas(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
     monkeypatch.setattr(dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", True), "S2": _conteo("S2", True)}, {}))
     result = dec.ResultadoDecision(
         {"B2": dec.ResultadoPolitica("B2", dec.NO_CONCLUYENTE, 100, 0.0, (-1, 1)), "S2": dec.ResultadoPolitica("S2", dec.NO_POSITIVO, 100, -1.0, (-2, 0))},
@@ -642,7 +775,7 @@ def _mirada_kwargs(tmp_path: Path, mirada: str, c_e: date, vintage_id: str) -> d
 
 
 def test_cosecha_recibida_distinta_de_la_declarada_se_deniega_sin_marca(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
     capturas: list[Any] = []
     monkeypatch.setattr(dec, "capturar", lambda *a, **_k: capturas.append(a) or cap.ResultadoCaptura({}, {}))
     with pytest.raises(dec.T024DecisionError, match="no es la cosecha decisiva declarada"):
@@ -652,7 +785,7 @@ def test_cosecha_recibida_distinta_de_la_declarada_se_deniega_sin_marca(monkeypa
 
 
 def test_mirada_final_capacidad_por_politica(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": "a" * 40)
     monkeypatch.setattr(
         dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", False), "S2": _conteo("S2", True)}, {})
     )
