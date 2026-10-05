@@ -1,0 +1,564 @@
+from __future__ import annotations
+
+import ast
+import hashlib
+import json
+import math
+from dataclasses import replace
+from datetime import date, datetime, time, timedelta, timezone
+from pathlib import Path
+from typing import Any, Optional, Sequence
+
+import pandas as pd
+import pytest
+
+import advisor.research.p6_sim as p6_sim
+from advisor.research import t024_captura as cap
+from advisor.research import t024_decision as dec
+from advisor.research.t024_comun import CUTOFF_CONSUMIDA, SenalT024
+from advisor.research.vintage import VintageLoad, VintageViews
+
+UTC = timezone.utc
+
+
+def days(start: date, n: int) -> list[date]:
+    out: list[date] = []
+    current = start
+    while len(out) < n:
+        if current.weekday() < 5:
+            out.append(current)
+        current += timedelta(days=1)
+    return out
+
+
+def bars(n: int, price: float = 100.0, *, start: date = date(2026, 8, 28)) -> list[dec.BarraDecision]:
+    return [dec.BarraDecision(d, price, price, price, price) for d in days(start, n)]
+
+
+def senal(
+    *,
+    policy: str = "B2",
+    asset: str = "AAA",
+    s_index: int = 0,
+    stop: float = 95.0,
+    target: float = 110.0,
+    entry_max: float = 200.0,
+    start: date = date(2026, 8, 28),
+    sid: str = "s1",
+) -> SenalT024:
+    ds = days(start, s_index + 2)
+    return SenalT024(
+        sid,
+        policy,
+        asset,
+        s_index,
+        ds[s_index],
+        ds[s_index + 1],
+        datetime.combine(ds[s_index], time(17, 0), UTC),
+        stop,
+        target,
+        entry_max,
+    )
+
+
+def test_d1_sin_dividendo_formula_manual() -> None:
+    sigma, fee = 0.0005, 0.001
+    expected = math.log((1 - sigma) * (1 - fee)) - math.log((1 + sigma) * (1 + fee))
+    assert dec.d1_cerrada(100, 110, 0) == pytest.approx(expected)
+
+
+def test_d1_con_dividendo_formula_manual() -> None:
+    sigma, fee = 0.0005, 0.001
+    expected = math.log((110 * (1 - sigma) * (1 - fee) + 2) / 112) - math.log((1 + sigma) * (1 + fee))
+    assert dec.d1_cerrada(100, 110, 2) == pytest.approx(expected)
+
+
+def test_d1_slippage_separado() -> None:
+    assert dec.d1_cerrada(100, 110, 0, fee=0, slip_bps=5) == pytest.approx(math.log(0.9995) - math.log(1.0005))
+
+
+def test_d1_comision_separada() -> None:
+    assert dec.d1_cerrada(100, 110, 0, fee=0.001, slip_bps=0) == pytest.approx(math.log(0.999) - math.log(1.001))
+
+
+def test_d2_cero_si_ventana_rinde_el_drift_con_costes_incluidos() -> None:
+    rows = bars(80)
+    mu = math.log(1.002)
+    e, x, h = 1, 5, 5
+    sigma, fee = 0.0005, 0.001
+    exit_price = math.exp(h * mu) * rows[e].open * (1 + sigma) * (1 + fee) / ((1 - sigma) * (1 - fee))
+    rows = [replace(row, close=100 * (1.002**i)) for i, row in enumerate(rows)]
+    v = dec.calcular_ventana(senal(target=10_000), rows, x, dec.EXIT_FINAL, exit_price, 0, t0=rows[1].session, t1=rows[-1].session, truncada_t1=False)
+    assert v.d2 == pytest.approx(0.0, abs=1e-12)
+
+
+def test_convencion_b_noche_dia_manual() -> None:
+    rows: list[dec.BarraDecision] = []
+    price = 100.0
+    for d in days(date(2026, 8, 28), 80):
+        rows.append(dec.BarraDecision(d, price * 1.001, price * 1.003, price, price * 1.003))
+        price *= 1.003
+    s = senal(target=10_000, stop=1)
+    v = dec.calcular_ventana(s, rows, 4, dec.EXIT_FINAL, rows[4].close, 0, t0=rows[1].session, t1=rows[-1].session, truncada_t1=False)
+    mu_noche, mu_dia = dec.drift_noche_dia(rows[1:])
+    expected = v.l_i - ((v.x_index - v.e_index) * mu_noche + (v.x_index - v.e_index + 1) * mu_dia)
+    assert v.d2_b == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(("rows", "reason", "price"), [([100, 100, 90], dec.EXIT_STOP, 90), ([100, 100, 112], dec.EXIT_TARGET, 112)])
+def test_salida_por_gap_en_apertura(rows: list[int], reason: str, price: float) -> None:
+    ds = days(date(2026, 8, 28), 3)
+    data = [dec.BarraDecision(d, o, max(o, 100), min(o, 100), o) for d, o in zip(ds, rows)]
+    assert dec.salida_p6(senal(), data)[:3] == (2, reason, price)
+
+
+def test_salida_stop_intradia() -> None:
+    rows = [dec.BarraDecision(d, 100, 101, 94 if i == 1 else 99, 100) for i, d in enumerate(days(date(2026, 8, 28), 3))]
+    assert dec.salida_p6(senal(), rows)[:3] == (1, dec.EXIT_STOP, 95)
+
+
+def test_salida_objetivo_intradia() -> None:
+    rows = [dec.BarraDecision(d, 100, 111 if i == 1 else 101, 99, 100) for i, d in enumerate(days(date(2026, 8, 28), 3))]
+    assert dec.salida_p6(senal(), rows)[:3] == (1, dec.EXIT_TARGET, 110)
+
+
+def test_salida_por_tiempo() -> None:
+    assert dec.salida_p6(senal(target=200), bars(45))[:3] == (41, dec.EXIT_TIME, 100)
+
+
+def test_salida_final_truncada() -> None:
+    assert dec.salida_p6(senal(target=200), bars(4))[:3] == (3, dec.EXIT_FINAL, 100)
+
+
+def test_dividendo_en_exdate_con_salida_en_apertura() -> None:
+    rows = bars(4)
+    rows[2] = replace(rows[2], open=90, high=91, low=89, close=90, dividend=2)
+    assert dec.salida_p6(senal(), rows)[:4] == (2, dec.EXIT_STOP, 90, 2)
+
+
+def test_split_vista_de_ejecucion_equivalente_en_escala_ajustada() -> None:
+    rows = bars(5, 50)
+    assert dec.salida_p6(senal(stop=45, target=55, entry_max=80), rows)[:3] == (4, dec.EXIT_FINAL, 50)
+
+
+def test_phi_y_d2o_son_por_politica_activo_con_dos_ventanas() -> None:
+    rows = bars(90)
+    first = dec.calcular_ventana(senal(sid="a", target=200), rows, 3, dec.EXIT_FINAL, 100, 0, t0=rows[1].session, t1=rows[-1].session, truncada_t1=False)
+    second = dec.calcular_ventana(senal(sid="b", s_index=45, target=200), rows, 48, dec.EXIT_FINAL, 100, 0, t0=rows[1].session, t1=rows[-1].session, truncada_t1=False)
+    result = dec.recalcular_por_politica_activo([first, second], {"AAA": rows})
+    assert result.ventanas[0].phi_a == pytest.approx(6 / 90)
+    assert result.ventanas[0].d2o is not None and result.ventanas[1].d2o is not None
+
+
+def test_atenuacion_uno_menos_phi_en_caso_construido() -> None:
+    rows = bars(80)
+    v = dec.calcular_ventana(senal(target=200), rows, 10, dec.EXIT_FINAL, 100, 0, t0=rows[1].session, t1=rows[-1].session, truncada_t1=False)
+    result = dec.recalcular_por_politica_activo([v], {"AAA": rows})
+    assert result.ventanas[0].phi_a == pytest.approx(10 / 80)
+
+
+def test_exclusiones_por_sesiones_insuficientes_se_cuentan() -> None:
+    rows = bars(10)
+    v = dec.calcular_ventana(senal(target=200), rows, 3, dec.EXIT_FINAL, 100, 0, t0=rows[1].session, t1=rows[-1].session, truncada_t1=True)
+    result = dec.recalcular_por_politica_activo([v], {"AAA": rows})
+    assert result.ventanas_excluidas_d2 == 1
+    assert result.activos_excluidos_d2 == 1
+
+
+def test_no_solapamiento_por_activo() -> None:
+    rows = bars(90)
+    result = dec.construir_ventanas([senal(sid="a", target=200), senal(sid="b", s_index=2, target=200)], {"AAA": rows}, c_e=date(2027, 8, 27))
+    assert len(result.ventanas) == 1
+    assert result.ignoradas_no_solapamiento == 1
+
+
+def test_elegibilidad_temporal_y_frontera_t1() -> None:
+    rows = bars(90)
+    old = SenalT024("old", "B2", "AAA", 0, CUTOFF_CONSUMIDA, date(2026, 8, 28), datetime(2026, 8, 27, tzinfo=UTC), 95, 200, 300)
+    ok = senal(sid="ok", target=200)
+    result = dec.construir_ventanas([old, ok], {"AAA": rows}, c_e=rows[1].session, t1_por_activo={"AAA": rows[3].session})
+    assert [v.senal.signal_id for v in result.ventanas] == ["ok"]
+    assert result.ventanas[0].x_index == 3
+    assert result.ventanas[0].exit_reason == dec.EXIT_FINAL
+
+
+def test_d3_indice_por_fecha_con_calendarios_distintos() -> None:
+    a = [dec.BarraDecision(d, 100, 100, 100, 100 + i) for i, d in enumerate(days(date(2026, 8, 28), 5))]
+    b = [dec.BarraDecision(d, 200, 200, 200, 200 + 2 * i) for i, d in enumerate(days(date(2026, 8, 31), 4))]
+    idx = dec.indice_equiponderado_region({"A": a, "B": b})
+    v = dec.calcular_ventana(senal(asset="A", target=200), a, 3, dec.EXIT_FINAL, 103, 0, t0=a[1].session, t1=a[-1].session, truncada_t1=False)
+    expected = v.l_i - math.log(idx[a[3].session] / idx[a[0].session])
+    assert dec.d3_region(v, a, idx) == pytest.approx(expected)
+
+
+def test_d4_trunca_en_t1() -> None:
+    rows = bars(80)
+    v = dec.calcular_ventana(senal(target=200), rows, 3, dec.EXIT_FINAL, 100, 0, t0=rows[1].session, t1=rows[-1].session, truncada_t1=False)
+    assert dec.d4_40_sesiones(v, rows, t1=rows[10].session)[1] is True
+
+
+def test_coste_prorrateado_exacto() -> None:
+    assert dec.coste_roundtrip() == pytest.approx(math.log(1.0005 * 1.001) - math.log(0.9995 * 0.999))
+
+
+def test_captura_vista_ciega_bloquea_high_low_close_de_ei_y_futuro() -> None:
+    s = senal()
+    rows = [cap.BarraCiega(d, 100, 500, 1, 200) for d in days(date(2026, 8, 28), 5)]
+    view = cap.VistaCiega(rows, s)
+    assert view.open_e() == 100
+    with pytest.raises(cap.T024LookaheadError):
+        view.get(1, "high")
+    with pytest.raises(cap.T024LookaheadError):
+        view.get(2, "open")
+
+
+def test_captura_invariante_al_prefijo_adversarial() -> None:
+    s = senal()
+    rows = [cap.BarraCiega(d, 100, 101, 99, 100) for d in days(date(2026, 8, 28), 6)]
+
+    def poison(seq: Sequence[cap.BarraCiega]) -> Sequence[cap.BarraCiega]:
+        out = list(seq)
+        out[2:] = [cap.BarraCiega(r.session, math.nan, -1e9, 1e9, math.nan) for r in out[2:]]
+        return out
+
+    assert cap.verificar_invariante_prefijo(s, rows, poison)
+
+
+def _vintage_from_rows(symbol: str, rows: Sequence[cap.BarraCiega]) -> VintageLoad:
+    idx = pd.DatetimeIndex([pd.Timestamp(r.session, tz="UTC") for r in rows])
+    frame = pd.DataFrame(
+        {
+            "Open": [r.open for r in rows],
+            "High": [r.high for r in rows],
+            "Low": [r.low for r in rows],
+            "Close": [r.close for r in rows],
+            "Volume": [r.volume for r in rows],
+            "Dividends": [0.0 for _ in rows],
+            "Stock Splits": [0.0 for _ in rows],
+        },
+        index=idx,
+    )
+    views = VintageViews(raw=frame, execution_prices=frame, signal_prices=frame, gap_for_catalyst=frame)
+    return VintageLoad("dev", {}, {symbol: views})
+
+
+class _Asset:
+    timezone = "UTC"
+
+
+class _Universe:
+    def get(self, _symbol: str) -> _Asset:
+        return _Asset()
+
+
+def test_capturar_usa_vista_ciega_para_aperturas(monkeypatch: pytest.MonkeyPatch) -> None:
+    rows = [cap.BarraCiega(d, 100, 999, 1, 999) for d in days(date(2026, 8, 28), 4)]
+    s = senal(asset="AAA")
+    monkeypatch.setattr(cap, "asset_list", lambda: ["AAA"])
+    monkeypatch.setattr(cap, "generar_senales_operar", lambda **_kw: ([s], {"senales": 1}))
+    result = cap.capturar(None, _Universe(), _vintage_from_rows("AAA", rows), c_e=date(2026, 12, 31))  # type: ignore[arg-type]
+    assert result.conteos["B2"].ejecutables == 3
+
+
+def test_k1_desarrollo_rotulo_y_cutoff_ficticio(monkeypatch: pytest.MonkeyPatch) -> None:
+    rows = [cap.BarraCiega(d, 100, 101, 99, 100) for d in days(date(2026, 1, 1), 4)]
+    vintage = _vintage_from_rows("AAA", rows)
+    monkeypatch.setattr(cap, "asset_list", lambda: ["AAA"])
+    monkeypatch.setattr(cap, "generar_senales_operar", lambda **_kw: ([], {}))
+    result = cap.capturar(None, _Universe(), vintage, c_e=date(2026, 6, 30), cutoff=date(2026, 3, 31), desarrollo=True)  # type: ignore[arg-type]
+    assert result.rotulo == "DESARROLLO — no decide"
+
+
+def test_k1_no_desarrollo_rechaza_cutoff_ficticio_y_cosecha_consumida(monkeypatch: pytest.MonkeyPatch) -> None:
+    vintage = replace(_vintage_from_rows("AAA", []), data_vintage_id=cap.DEV_VINTAGE_ID)
+    monkeypatch.setattr(cap, "asset_list", lambda: ["AAA"])
+    with pytest.raises(ValueError):
+        cap.capturar(None, _Universe(), vintage, c_e=date(2026, 6, 30), cutoff=date(2026, 3, 31), desarrollo=False)  # type: ignore[arg-type]
+    with pytest.raises(ValueError):
+        cap.capturar(None, _Universe(), vintage, c_e=date(2026, 6, 30), desarrollo=False)  # type: ignore[arg-type]
+
+
+def test_reconfirmacion_ciega_llama_capturar(monkeypatch: pytest.MonkeyPatch) -> None:
+    called = False
+
+    def fake(*_args: Any, **_kwargs: Any) -> cap.ResultadoCaptura:
+        nonlocal called
+        called = True
+        return cap.ResultadoCaptura({"B2": cap.ConteoCaptura("B2", 0, 0, {}, 0, 0)}, {})
+
+    monkeypatch.setattr(cap, "capturar", fake)
+    cap.reconfirmar_capacidad(None, _Universe(), _vintage_from_rows("AAA", []), c_e=date(2026, 12, 31))  # type: ignore[arg-type]
+    assert called
+
+
+def test_ejecutabilidad_motivos_equivalen_a_p6() -> None:
+    cases = [
+        (math.nan, p6_sim.DATA_NOT_EXECUTABLE, senal()),
+        (100, p6_sim.INVALID_STOP, senal(stop=101)),
+        (100, p6_sim.INVALID_TARGET, senal(target=99)),
+        (100, p6_sim.ABOVE_MAX_ENTRY, senal(entry_max=99)),
+        (100, p6_sim.RR_TOO_LOW, senal(stop=99, target=101, entry_max=200)),
+        (100, p6_sim.ENTRY_OK, senal()),
+    ]
+    for apertura, reason, s in cases:
+        assert cap.evaluar_ejecutabilidad(s, apertura).reason == reason
+
+
+@pytest.mark.parametrize(
+    ("rows", "stop", "target", "expected_reason"),
+    [
+        ([(100, 101, 99, 100), (100, 101, 99, 100), (90, 91, 89, 90)], 95, 200, p6_sim.EXIT_STOP),
+        ([(100, 101, 99, 100), (100, 101, 99, 100), (120, 121, 119, 120)], 95, 110, p6_sim.EXIT_TARGET),
+        ([(100, 101, 99, 100), (100, 101, 99, 100), (100, 101, 94, 100)], 95, 200, p6_sim.EXIT_STOP),
+        ([(100, 101, 99, 100), (100, 101, 99, 100), (100, 111, 99, 100)], 95, 110, p6_sim.EXIT_TARGET),
+        ([(100, 101, 99, 100)] * 45, 95, 200, p6_sim.EXIT_TIME),
+        ([(100, 101, 99, 100)] * 4, 95, 200, p6_sim.EXIT_FINAL),
+    ],
+)
+def test_salidas_equivalen_a_p6_sim(rows: list[tuple[int, int, int, int]], stop: float, target: float, expected_reason: str) -> None:
+    from tests.test_p6 import EUR, asset, market, signal, spec
+
+    a = asset("AAA", rows)
+    p6_result = p6_sim.simulate(market(a), [signal(a, 0, stop, target)], EUR, spec())
+    dec_rows = [dec.BarraDecision(d, o, h, lo, c, div) for d, o, h, lo, c, div in zip(a.session_dates, a.open, a.high, a.low, a.close, a.dividends)]
+    x, reason, price, _div, _trunc = dec.salida_p6(senal(asset="AAA", stop=stop, target=target), dec_rows)
+    trade = p6_result.trades[0]
+    assert reason == expected_reason == trade.exit_reason
+    assert x - 1 == trade.bars_held
+    assert price == pytest.approx(trade.exit_eff)
+
+
+def test_bootstrap_10_semanas_determinista_con_vacias() -> None:
+    vals = [(date.fromisocalendar(2027, 1, 1), 1.0), (date.fromisocalendar(2027, 12, 1), 3.0)]
+    a = dec.bootstrap_semanal(vals, b=50, seed=123)
+    b = dec.bootstrap_semanal(vals, b=50, seed=123)
+    assert a.draws == b.draws
+    assert len(dec.semanas_consecutivas((2027, 1), (2027, 12))) == 12
+
+
+def test_ic_bonferroni_delta_cuatro_estados() -> None:
+    assert dec.etiquetar(0.1, 0.2, n=100) == dec.POSITIVO
+    assert dec.etiquetar(-0.2, 0.0, n=100) == dec.NO_POSITIVO
+    assert dec.etiquetar(-0.1, 0.1, n=100) == dec.NO_CONCLUYENTE
+    assert dec.etiquetar(0.1, 0.2, n=99) == dec.NO_EVALUABLE
+
+
+def _registro_forward(tmp_path: Path, ids: list[str], checkpoints: Optional[list[date]] = None) -> Path:
+    fechas = checkpoints or [date(2027, 4, 1) + timedelta(days=i) for i in range(len(ids))]
+    entries = [{"data_vintage_id": item, "checkpoint": fecha.isoformat()} for item, fecha in zip(ids, fechas)]
+    digest = hashlib.sha256(json.dumps({"cosechas": entries}, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    path = tmp_path / "forward.json"
+    path.write_text(json.dumps({"cosechas": entries, "sha256": digest}), encoding="utf-8")
+    return path
+
+
+def _conteo(policy: str, cumple: bool) -> cap.ConteoCaptura:
+    return cap.ConteoCaptura(policy, 130, 130, {}, 130, 30, cumple=cumple)
+
+
+def test_verificar_identidad_falla_si_code_sha_none() -> None:
+    with pytest.raises(dec.T024DecisionError):
+        dec.verificar_identidad()
+
+
+def test_mirada_reconfirmacion_fallida_no_consume_ni_abre(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    monkeypatch.setattr(dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", False), "S2": _conteo("S2", True)}, {}))
+    called = False
+
+    def construir(*_args: Any, **_kwargs: Any) -> dec.ResultadoDecision:
+        nonlocal called
+        called = True
+        return dec.ResultadoDecision({}, {}, {}, 0, 0, None)
+
+    monkeypatch.setattr(dec, "construir_resultado", construir)
+    out = dec.ejecutar_mirada(
+        mirada="mirada_1",
+        c_e=date(2027, 1, 1),
+        config=None,  # type: ignore[arg-type]
+        universe=_Universe(),
+        cosecha_decisiva=_vintage_from_rows("AAA", []),
+        cosecha_decisiva_id="v1",
+        registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
+        evidence_dir=tmp_path,
+    )
+    assert out == dec.REPROPONER
+    assert not called
+    assert not (tmp_path / "mirada_1.t024.consumida").exists()
+
+
+def test_marca_exclusiva_y_registro_de_cosechas(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(dec, "verificar_identidad", lambda _repo=".": None)
+    monkeypatch.setattr(dec, "capturar", lambda *_a, **_k: cap.ResultadoCaptura({"B2": _conteo("B2", True), "S2": _conteo("S2", True)}, {}))
+    result = dec.ResultadoDecision(
+        {"B2": dec.ResultadoPolitica("B2", dec.NO_CONCLUYENTE, 100, 0.0, (-1, 1)), "S2": dec.ResultadoPolitica("S2", dec.NO_POSITIVO, 100, -1.0, (-2, 0))},
+        {},
+        {},
+        0,
+        0,
+        None,
+    )
+    monkeypatch.setattr(dec, "construir_resultado", lambda *_a, **_k: result)
+    out = dec.ejecutar_mirada(
+        mirada="mirada_1",
+        c_e=date(2027, 1, 1),
+        config=None,  # type: ignore[arg-type]
+        universe=_Universe(),
+        cosecha_decisiva=_vintage_from_rows("AAA", []),
+        cosecha_decisiva_id="v1",
+        registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
+        evidence_dir=tmp_path,
+    )
+    assert out == result
+    mark = tmp_path / "mirada_1.t024.consumida"
+    assert json.loads(mark.read_text())["cosecha_decisiva"] == "v1"
+    with pytest.raises(FileExistsError):
+        dec.crear_marca_exclusiva(mark, "")
+
+
+def test_r2_calendario_estricto_mirada_1_y_final(tmp_path: Path) -> None:
+    with pytest.raises(dec.T024DecisionError):
+        dec.validar_mirada(mirada="mirada_1", c_e=dec.C_E_FINAL, evidence_dir=tmp_path)
+    assert dec.politicas_para_mirada(mirada="mirada_final", c_e=dec.C_E_FINAL, evidence_dir=tmp_path) == ("B2", "S2")
+    with pytest.raises(dec.T024DecisionError):
+        dec.validar_mirada(mirada="mirada_final", c_e=date(2027, 1, 1), evidence_dir=tmp_path)
+
+
+def test_r3_registro_forward_con_checkpoint_y_75_dias(tmp_path: Path) -> None:
+    path = _registro_forward(tmp_path, ["v1"])
+    registro = dec.cargar_registro_forward(path, "v1")
+    assert dec.checkpoint_de(registro, "v1") == date(2027, 4, 1)
+    dec.exigir_regla_75_dias(date(2027, 1, 1), date(2027, 3, 17))
+    with pytest.raises(dec.T024DecisionError):
+        dec.exigir_regla_75_dias(date(2027, 1, 1), date(2027, 3, 16))
+
+
+def test_r5_marca_existente_deniega_aunque_no_haya_registro(tmp_path: Path) -> None:
+    (tmp_path / "mirada_1.t024.consumida").write_text("x", encoding="utf-8")
+    with pytest.raises(dec.T024DecisionError):
+        dec.validar_mirada(mirada="mirada_1", c_e=date(2027, 1, 1), evidence_dir=tmp_path)
+
+
+def test_final_denegada_si_mirada_1_tiene_marca_sin_estados(tmp_path: Path) -> None:
+    (tmp_path / "mirada_1.t024.consumida").write_text("x", encoding="utf-8")
+    with pytest.raises(dec.T024DecisionError, match="sin estados"):
+        dec.politicas_para_mirada(mirada="mirada_final", c_e=dec.C_E_FINAL, evidence_dir=tmp_path)
+
+
+def test_c_e_debe_ser_checkpoint_del_registro(tmp_path: Path) -> None:
+    path = _registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)])
+    registro = dec.cargar_registro_forward(path, "v1")
+    dec.exigir_calendario_registro(registro, date(2027, 1, 1), "v1")
+    with pytest.raises(dec.T024DecisionError, match="no es un checkpoint"):
+        dec.exigir_calendario_registro(registro, date(2027, 1, 2), "v1")
+
+
+def test_cosecha_decisiva_es_la_primera_a_75_dias(tmp_path: Path) -> None:
+    fechas = [date(2027, 1, 1), date(2027, 2, 1), date(2027, 3, 1), date(2027, 4, 1), date(2027, 5, 3)]
+    path = _registro_forward(tmp_path, ["v0", "v1", "v2", "v3", "v4"], fechas)
+    registro = dec.cargar_registro_forward(path, "v3")
+    # c_e = 2027-01-01 → límite 2027-03-17: la primera a 75 días o más es v3 (2027-04-01), no v4.
+    dec.exigir_calendario_registro(registro, date(2027, 1, 1), "v3")
+    with pytest.raises(dec.T024DecisionError, match="primer checkpoint"):
+        dec.exigir_calendario_registro(registro, date(2027, 1, 1), "v4")
+    with pytest.raises(dec.T024DecisionError, match="primer checkpoint"):
+        dec.exigir_calendario_registro(registro, date(2027, 1, 1), "v2")
+
+
+def test_r6_eur_descriptivo_sin_fx_declara_motivo() -> None:
+    assert dec._fx_eur_descriptivo([], {}, None) == {"motivo": "FX forward no congelado"}
+
+
+def test_maximo_dos_miradas_y_final_solo_pendientes(tmp_path: Path) -> None:
+    data = {
+        "consumidas": {"mirada_1": {"c_e": "2027-01-01", "policies": ["B2", "S2"]}},
+        "mirada_1_estados": {"B2": dec.NO_CONCLUYENTE, "S2": dec.NO_POSITIVO},
+    }
+    (tmp_path / "miradas-t024.json").write_text(json.dumps(data), encoding="utf-8")
+    assert dec.politicas_para_mirada(mirada="mirada_final", c_e=date(2027, 8, 27), evidence_dir=tmp_path) == ("B2",)
+    with pytest.raises(dec.T024DecisionError):
+        dec.validar_mirada(mirada="mirada_2", c_e=date(2027, 8, 27), evidence_dir=tmp_path)
+    (tmp_path / "miradas-t024.json").write_text(json.dumps({"consumidas": {"mirada_1": {}}, "mirada_1_estados": {"B2": dec.NO_POSITIVO, "S2": dec.NO_POSITIVO}}), encoding="utf-8")
+    with pytest.raises(dec.T024DecisionError):
+        dec.validar_mirada(mirada="mirada_final", c_e=date(2027, 8, 27), evidence_dir=tmp_path)
+
+
+def test_imports_cerrados_de_captura_grafo_local() -> None:
+    source = Path("advisor/research/t024_captura.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    banned = {"advisor.research.p6_sim", "advisor.research.t024_decision", "simulate", "build_real_market", "build_real_signals", "salida_p6"}
+    imported = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    } | {
+        node.module or ""
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+    } | {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    assert not (banned & imported)
+    assert "advisor.research.p6" not in imported
+    assert "advisor.analysis.levels.rr_at_least" in cap.T024_CAPTURA_IMPORTED_CALLABLES
+
+
+def test_constantes_policy_config_y_asset_list_igualan_p6() -> None:
+    import advisor.research.p6 as p6
+
+    assert cap.HORIZONTE == p6.HORIZONTE
+    assert cap.WARMUP_BARS == p6.WARMUP_BARS
+    assert cap.asset_list() == p6.asset_list()
+
+
+def _dev_context(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, Any, VintageLoad, list[str]]:
+    from advisor.config import load_config
+    from advisor.research.vintage import load_vintage
+    from advisor.universe.loader import load_universe
+
+    config = load_config("config.yaml")
+    universe = load_universe(config.universe_path)
+    vintage = load_vintage(cap.DEV_VINTAGE_ID)
+    symbols = cap.asset_list()[:20]
+    monkeypatch.setattr(cap, "asset_list", lambda: symbols)
+    return config, universe, vintage, symbols
+
+
+def test_smoke_desarrollo_capturar_consumida_solo_conteos(monkeypatch: pytest.MonkeyPatch) -> None:
+    config, universe, vintage, _symbols = _dev_context(monkeypatch)
+    result = cap.capturar(
+        config,
+        universe,
+        vintage,
+        c_e=date(2026, 6, 30),
+        cutoff=date(2026, 3, 31),
+        desarrollo=True,
+    )
+    assert result.rotulo == "DESARROLLO — no decide"
+    for conteo in result.conteos.values():
+        assert conteo.senales_operar >= 0
+        assert conteo.ejecutables <= conteo.senales_operar
+        assert conteo.q_p <= conteo.ejecutables
+        assert conteo.w_p <= conteo.q_p
+
+
+def test_generacion_t024_igual_a_p6_en_subventana_desarrollo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import advisor.research.p6 as p6
+
+    config, universe, vintage, symbols = _dev_context(monkeypatch)
+    monkeypatch.setattr(p6, "asset_list", lambda: symbols)
+    monkeypatch.setattr(p6, "RUN_DIR", tmp_path)
+    marker = tmp_path / p6.RUN_MARKER
+    marker.write_text("{}\n", encoding="utf-8")
+    token = p6.ConfirmatoryToken(marker, hashlib.sha256(marker.read_bytes()).hexdigest())
+    monkeypatch.setattr(p6, "_ACTIVE_TOKEN", token)
+    window = p6.Window(date(2026, 4, 1), date(2026, 6, 30), date(2026, 3, 31), date(2026, 3, 31), 0, 60, 252.0)
+    p6_signals, _ = p6.build_real_signals(token, config, universe, vintage, "B2", p6.POPULATION_OPERAR, window)
+    t024_signals, _ = cap.generar_senales_operar(config=config, universe=universe, vintage=vintage, policy="B2", c_e=date(2026, 6, 30), cutoff_desarrollo=date(2026, 3, 31))
+    left = [(s.signal_id, s.asset, s.bar_index, s.stop, s.target2, s.entry_max) for s in p6_signals]
+    right = [(s.signal_id, s.asset, s.s_index, s.stop, s.target2, s.entry_max) for s in t024_signals]
+    assert right == left
