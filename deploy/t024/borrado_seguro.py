@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import uuid
 from pathlib import Path
 
 PREFIJO_STAGING = ".t024-staging-"
@@ -73,9 +74,42 @@ def validar_staging(ruta: str | os.PathLike[str], *, base: str | os.PathLike[str
 
 
 def borrar_staging(ruta: str | os.PathLike[str], *, base: str | os.PathLike[str]) -> None:
-    """Borra un staging T-024 validado. Cualquier duda: `BorradoDenegado` y no se toca nada."""
+    """Borra un staging T-024 validado. Cualquier duda: `BorradoDenegado` y no se toca nada.
 
-    shutil.rmtree(validar_staging(ruta, base=base))
+    Para estrechar la ventana entre validar y borrar, el staging se renombra antes a una lápida
+    `.t024-staging-borrando-*` en la misma base (renombrado atómico a un nombre nuevo), se revalida la
+    lápida y solo entonces se borra, y solo con un `rmtree` resistente a enlaces simbólicos.
+    """
+
+    if not getattr(shutil.rmtree, "avoids_symlink_attacks", False):
+        raise BorradoDenegado("shutil.rmtree no es resistente a enlaces simbólicos en esta plataforma")
+    origen = validar_staging(ruta, base=base)
+    lapida = origen.parent / nombre_staging(f"borrando-{uuid.uuid4().hex}")
+    os.rename(origen, lapida)
+    shutil.rmtree(validar_staging(lapida, base=base))
+
+
+def promover_sin_pisar(staging: str | os.PathLike[str], destino: str | os.PathLike[str]) -> None:
+    """Materializa el contenido de `staging` en `destino` sin sobrescribir nunca nada.
+
+    `destino` se crea con `mkdir` exclusivo (falla si ya existe, aunque esté vacío) y cada fichero se enlaza
+    con `os.link`, que también falla si el nombre existe. Exige ficheros regulares, sin enlaces simbólicos, en
+    el mismo sistema de ficheros. El staging sigue existiendo: lo borra después quien lo creó, vía la guarda.
+    """
+
+    origen = Path(staging)
+    final = Path(destino)
+    relativos: list[Path] = []
+    for raiz, dirs, ficheros in os.walk(origen, followlinks=False):
+        for nombre in [*dirs, *ficheros]:
+            ruta = Path(raiz) / nombre
+            if ruta.is_symlink():
+                raise BorradoDenegado(f"{ruta} es un enlace simbólico: no se promueve")
+        relativos.extend((Path(raiz) / f).relative_to(origen) for f in ficheros)
+    os.mkdir(final)
+    for rel in sorted(relativos):
+        (final / rel).parent.mkdir(parents=True, exist_ok=True)
+        os.link(origen / rel, final / rel)
 
 
 def nombre_staging(etiqueta: str) -> str:

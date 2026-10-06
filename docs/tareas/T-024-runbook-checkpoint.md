@@ -132,10 +132,10 @@ La fecha en que se ejecute esta fase no cambia el checkpoint: manda la cosecha c
    ```
 
    `copiar` usa `rsync -a` sin borrar destino, exige `APTA` y verifica hashes, manifiesto, petición,
-   contexto y sidecar de identidad en staging. Solo después promueve artefactos y vintage con `os.replace`.
-   Si un destino ya existe, exige igualdad byte a byte del árbol completo y no lo toca. Los staging viven
-   junto a los destinos finales y se borran ante cualquier fallo, dejando intactos artefactos y vintage
-   finales.
+   contexto y sidecar de identidad en staging. Solo después promueve artefactos y vintage sin pisar nada:
+   `mkdir` exclusivo y `os.link` fichero a fichero. Si un destino ya existe, exige igualdad byte a byte
+   del árbol completo y no lo toca. Los staging viven junto a los destinos finales y solo se borran por
+   `borrado_seguro`; ante cualquier fallo, artefactos y vintage finales quedan intactos.
 
 2. **Registro.**
 

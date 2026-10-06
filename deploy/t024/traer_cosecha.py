@@ -274,13 +274,16 @@ def copiar(args: argparse.Namespace, runner: Runner = _run_subprocess) -> int:
         promoted_final = False
         try:
             if not final.exists():
-                os.replace(staging, final)
+                borrado_seguro.promover_sin_pisar(staging, final)
                 promoted_final = True
             if not destino.exists():
-                os.replace(staging_artefactos, destino)
+                borrado_seguro.promover_sin_pisar(staging_artefactos, destino)
         except Exception:
             if promoted_final:
-                os.replace(final, staging)
+                # Recién creado en esta ejecución: vuelve a un staging nuevo y se borra por la guarda.
+                retirada = args.data_dir / borrado_seguro.nombre_staging(f"retirada-{vintage_id}-{os.getpid()}")
+                os.rename(final, retirada)
+                borrado_seguro.borrar_staging(retirada, base=args.data_dir)
             raise
         return 0
     finally:

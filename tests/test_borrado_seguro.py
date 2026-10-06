@@ -36,7 +36,13 @@ bs = _load("t024_borrado_seguro_test", "deploy/t024/borrado_seguro.py")
 @pytest.fixture
 def registrador(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
     llamadas: list[Path] = []
-    monkeypatch.setattr(bs, "shutil", SimpleNamespace(rmtree=lambda ruta: llamadas.append(Path(ruta))))
+
+    def rmtree(ruta: Any) -> None:
+        llamadas.append(Path(ruta))
+
+    # Con el atributo: la denegación tiene que venir de la validación de la ruta, no de esta comprobación.
+    rmtree.avoids_symlink_attacks = True  # type: ignore[attr-defined]
+    monkeypatch.setattr(bs, "shutil", SimpleNamespace(rmtree=rmtree))
     return llamadas
 
 
@@ -131,7 +137,8 @@ def test_deploy_t024_solo_borra_a_traves_de_la_guarda() -> None:
         if fichero.name == "borrado_seguro.py":
             continue
         texto = fichero.read_text(encoding="utf-8")
-        assert re.search(r"\brmtree\b|os\.remove|os\.rmdir|\.unlink\(|os\.unlink", texto) is None, fichero.name
+        patron = r"\brmtree\b|os\.remove|os\.rmdir|removedirs|\.unlink\(|os\.unlink|\.rmdir\(|shutil\.move|[\"']rm[\"']|rm -"
+        assert re.search(patron, texto) is None, fichero.name
     for fichero in sorted((ROOT / "deploy" / "t024").glob("*.sh")):
         texto = fichero.read_text(encoding="utf-8")
         assert [linea for linea in texto.splitlines() if "rm -" in linea] == ["trap 'rm -rf \"${tmpdir}\"' EXIT"]
@@ -185,3 +192,116 @@ def test_red_de_tests_esta_activa_en_la_sesion() -> None:
 
     for funcion in (shutil.rmtree, os.remove, os.unlink, os.rmdir):
         assert funcion.__name__ == "guardada"
+
+
+
+# ---------------------------------------------------------------------------
+# Revisión Codex (borrado): la lógica de rutas protegidas actúa por sí misma, no solo el prefijo
+# ---------------------------------------------------------------------------
+
+
+def test_protegidas_actuan_aunque_el_nombre_sea_de_staging(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, registrador: list[Path]) -> None:
+    staging = _staging(tmp_path, "repo-falso")
+    monkeypatch.setattr(bs, "REPO", staging)
+    with pytest.raises(bs.BorradoDenegado, match="protegida"):
+        bs.borrar_staging(staging, base=tmp_path)
+    monkeypatch.setattr(bs, "REPO", staging / "dentro" / "repo")
+    with pytest.raises(bs.BorradoDenegado, match="protegida"):
+        bs.borrar_staging(staging, base=tmp_path)
+    monkeypatch.setattr(bs, "REPO", ROOT)
+    monkeypatch.setattr(bs.Path, "home", classmethod(lambda cls: staging))
+    with pytest.raises(bs.BorradoDenegado, match="protegida"):
+        bs.borrar_staging(staging, base=tmp_path)
+    assert registrador == []
+
+
+def test_borrado_exige_rmtree_resistente_a_enlaces(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    staging = _staging(tmp_path, "sin-proteccion")
+    monkeypatch.setattr(bs, "shutil", SimpleNamespace(rmtree=lambda ruta: None))
+    with pytest.raises(bs.BorradoDenegado, match="enlaces"):
+        bs.borrar_staging(staging, base=tmp_path)
+    assert staging.exists()
+
+
+def test_borrado_no_deja_lapidas(tmp_path: Path) -> None:
+    staging = _staging(tmp_path, "lapida")
+    bs.borrar_staging(staging, base=tmp_path)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_promover_sin_pisar_no_sobrescribe_ni_un_directorio_vacio(tmp_path: Path) -> None:
+    staging = _staging(tmp_path, "promo")
+    destino = tmp_path / "destino"
+    destino.mkdir()
+    with pytest.raises(FileExistsError):
+        bs.promover_sin_pisar(staging, destino)
+    assert list(destino.iterdir()) == [] and (staging / "dato.csv").exists()
+    nuevo = tmp_path / "nuevo"
+    bs.promover_sin_pisar(staging, nuevo)
+    assert (nuevo / "dato.csv").read_text(encoding="utf-8") == "1\n"
+
+
+def test_promover_sin_pisar_rechaza_enlaces(tmp_path: Path) -> None:
+    staging = _staging(tmp_path, "enlaces")
+    (staging / "enlace.csv").symlink_to(staging / "dato.csv")
+    with pytest.raises(bs.BorradoDenegado):
+        bs.promover_sin_pisar(staging, tmp_path / "destino")
+    assert not (tmp_path / "destino").exists()
+
+
+# ---------------------------------------------------------------------------
+# Red de conftest: rutas protegidas INEXISTENTES (si la red fallara, no habría nada que borrar)
+# ---------------------------------------------------------------------------
+
+NO_EXISTE = "t024-no-existe-nunca-7f3a"
+
+
+def test_red_cubre_path_unlink_rmdir_removedirs_rename_y_replace(tmp_path: Path) -> None:
+    fichero_evidence = ROOT / "evidence" / f"{NO_EXISTE}.txt"
+    dir_data = ROOT / "data" / NO_EXISTE
+    assert not fichero_evidence.exists() and not dir_data.exists()
+    with pytest.raises(BorradoProhibidoEnTests):
+        fichero_evidence.unlink()
+    with pytest.raises(BorradoProhibidoEnTests):
+        dir_data.rmdir()
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.removedirs(dir_data)
+    origen = tmp_path / "x.txt"
+    origen.write_text("x", encoding="utf-8")
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.rename(origen, fichero_evidence)
+    with pytest.raises(BorradoProhibidoEnTests):
+        origen.replace(ROOT / ".git" / NO_EXISTE)
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.replace(ROOT / "evidence" / NO_EXISTE, tmp_path / "y")
+    assert origen.exists() and not fichero_evidence.exists()
+
+
+@pytest.mark.parametrize(
+    "orden,shell",
+    [
+        (["rm", "-rf", "objetivo"], False),
+        (["/bin/rm", "objetivo"], False),
+        (["rmdir", "objetivo"], False),
+        (["git", "clean", "-fdx"], False),
+        (["find", ".", "-name", "objetivo", "-delete"], False),
+        (["bash", "-c", "rm -rf objetivo"], False),
+        ("rm -rf objetivo", True),
+        ("true && rm objetivo", True),
+    ],
+)
+def test_red_cubre_borrados_por_subprocess(orden: Any, shell: bool, tmp_path: Path) -> None:
+    import subprocess
+
+    objetivo = tmp_path / "objetivo"
+    objetivo.mkdir()
+    with pytest.raises(BorradoProhibidoEnTests):
+        subprocess.run(orden, shell=shell, cwd=tmp_path, check=False)
+    assert objetivo.exists()
+
+
+def test_red_no_bloquea_subprocess_normales(tmp_path: Path) -> None:
+    import subprocess
+
+    assert subprocess.run(["git", "--version"], capture_output=True, check=False).returncode == 0
+    assert subprocess.run("echo hola", shell=True, capture_output=True, text=True, check=False).stdout == "hola\n"

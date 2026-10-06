@@ -88,7 +88,9 @@ Códigos de salida:
 
 - Cada cosecha que congela el wrapper, apta o no, se copia a `--copia-dir`, por defecto
   `<artefactos>/copias/vintages/`. Esa ruta queda fuera del checkout del bot y del `--data-dir`.
-- La copia pasa por un staging, se verifica por SHA256 fichero a fichero y solo entonces se promueve.
+- La copia pasa por un staging, se verifica por SHA256 fichero a fichero y solo entonces se promueve sin
+  pisar nada. La ruta se comprueba ya resuelta (enlaces incluidos) antes y después de crearla. No acepta
+  enlaces simbólicos, y la copia tiene que tener inodos propios: un enlace duro al original no cuenta.
 - Una copia previa distinta no se toca: el estado pasa a `ERROR_COPIA` (salida 10).
 - Ningún script de `deploy/t024/` borra directamente: solo
   `borrado_seguro.borrar_staging(ruta, base=...)`. Esa función solo acepta directorios
@@ -115,6 +117,12 @@ python deploy/t024/traer_cosecha.py copiar \
 
 `copiar` usa `rsync -a` sin `--delete`, exige estado `APTA`, verifica `SHA256SUMS`, manifiesto, petición,
 contexto y sidecar de identidad en staging, y solo promueve artefactos y vintage cuando todo cuadra. Si el
-destino ya existe, exige igualdad byte a byte del árbol completo y no lo toca. Los staging se crean junto a
-los destinos finales para que la promoción con `os.replace` sea atómica dentro del mismo sistema de
-ficheros; si algo falla, se borran y el destino final queda intacto.
+destino ya existe, exige igualdad byte a byte del árbol completo y no lo toca.
+
+La promoción no pisa nada (`borrado_seguro.promover_sin_pisar`):
+- el destino se crea con `mkdir` exclusivo;
+- cada fichero se enlaza con `os.link`, que falla si el nombre existe.
+
+Los staging viven junto a los destinos finales, en el mismo sistema de ficheros, y solo se borran por la
+guarda (renombrado a una lápida `.t024-staging-borrando-*` y `rmtree` resistente a enlaces). Si algo
+falla, el destino final queda intacto.

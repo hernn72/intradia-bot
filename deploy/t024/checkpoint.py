@@ -316,43 +316,68 @@ def _dentro(hijo: Path, padre: Path) -> bool:
     return hijo == padre or padre in hijo.parents
 
 
-def segunda_copia(data_dir: Path, copia_dir: Path, vintage_id: str, *, repo: Path) -> dict[str, Any]:
-    """Copia el vintage fuera del checkout, verificada byte a byte por SHA256, vía staging guardado.
+def _sin_enlaces(raiz: Path) -> None:
+    if raiz.is_symlink():
+        raise ValueError(f"{raiz} es un enlace simbólico")
+    for base, dirs, ficheros in os.walk(raiz, followlinks=False):
+        for nombre in [*dirs, *ficheros]:
+            if (Path(base) / nombre).is_symlink():
+                raise ValueError(f"{Path(base) / nombre} es un enlace simbólico")
 
-    Si la copia ya existe tiene que ser idéntica; nunca se sobrescribe ni se borra un destino.
+
+def _fuera_de(ruta: Path, prohibidos: Iterable[Path]) -> Path:
+    """Ruta real (resolviendo los enlaces de los antecesores que ya existan) fuera de los prohibidos."""
+
+    real = ruta.resolve()
+    for prohibido in prohibidos:
+        if _dentro(real, prohibido) or _dentro(prohibido, real):
+            raise ValueError(f"la segunda copia ({real}) no puede estar dentro de {prohibido} ni contenerlo")
+    return real
+
+
+def segunda_copia(data_dir: Path, copia_dir: Path, vintage_id: str, *, repo: Path) -> dict[str, Any]:
+    """Copia el vintage fuera del checkout, verificada por SHA256 e independiente (otros inodos).
+
+    La ruta se comprueba resuelta antes y después de crearla. La promoción no pisa nada
+    (`borrado_seguro.promover_sin_pisar`); una copia previa solo se acepta si es idéntica, sin enlaces y
+    con inodos propios. Nunca se sobrescribe ni se borra un destino.
     """
 
-    origen = (data_dir / vintage_id).resolve(strict=True)
-    copia_abs = copia_dir.resolve() if copia_dir.exists() else copia_dir.absolute()
-    for prohibido in (repo.resolve(), data_dir.resolve()):
-        if _dentro(copia_abs, prohibido) or _dentro(prohibido, copia_abs):
-            raise ValueError(f"la segunda copia ({copia_abs}) no puede estar dentro de {prohibido} ni contenerlo")
+    origen_sin_resolver = data_dir / vintage_id
+    _sin_enlaces(origen_sin_resolver)
+    origen = origen_sin_resolver.resolve(strict=True)
+    prohibidos = (repo.resolve(), data_dir.resolve())
+    _fuera_de(copia_dir, prohibidos)
     esperado = _ficheros(origen)
     if not esperado:
         raise ValueError(f"vintage vacío: {origen}")
     copia_dir.mkdir(parents=True, exist_ok=True)
-    destino = copia_dir / vintage_id
-    if destino.exists():
+    copia_real = _fuera_de(copia_dir, prohibidos)
+    destino = copia_real / vintage_id
+
+    def _verificar_destino() -> dict[str, Any]:
+        _sin_enlaces(destino)
         if _ficheros(destino) != esperado:
-            raise ValueError(f"ya existe {destino} y no es idéntica al vintage")
+            raise ValueError(f"{destino} no es idéntica al vintage")
+        for rel in esperado:
+            if os.stat(destino / rel).st_ino == os.stat(origen / rel).st_ino:
+                raise ValueError(f"{destino / rel} comparte inodo con el original: no es una copia independiente")
         return {"ruta": str(destino), "verificada": True, "ficheros": len(esperado)}
-    staging = copia_dir / borrado_seguro.nombre_staging(f"{vintage_id}-{os.getpid()}")
-    if staging.exists():
-        borrado_seguro.borrar_staging(staging, base=copia_dir)
+
+    if destino.exists() or destino.is_symlink():
+        return _verificar_destino()
+    staging = copia_real / borrado_seguro.nombre_staging(f"{vintage_id}-{os.getpid()}")
     staging.mkdir()
     try:
         import shutil
 
-        shutil.copytree(origen, staging / vintage_id)
+        shutil.copytree(origen, staging / vintage_id, symlinks=True)
         if _ficheros(staging / vintage_id) != esperado:
             raise ValueError("la copia en staging no es idéntica al vintage")
-        os.replace(staging / vintage_id, destino)
+        borrado_seguro.promover_sin_pisar(staging / vintage_id, destino)
     finally:
-        if staging.exists():
-            borrado_seguro.borrar_staging(staging, base=copia_dir)
-    if _ficheros(destino) != esperado:
-        raise ValueError(f"la copia promovida {destino} no es idéntica al vintage")
-    return {"ruta": str(destino), "verificada": True, "ficheros": len(esperado)}
+        borrado_seguro.borrar_staging(staging, base=copia_real)
+    return _verificar_destino()
 
 
 def _rc_final(base: int, aviso_horizonte: bool, perdido_nuevo: bool) -> int:

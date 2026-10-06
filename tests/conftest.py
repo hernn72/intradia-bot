@@ -7,7 +7,9 @@ que un fallo sea siempre reproducible.
 from __future__ import annotations
 
 import os
+import re
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, Callable, Iterator, List, Optional
 
@@ -230,6 +232,54 @@ def envolver_borrado(original: Callable[..., Any], nombre: str, *, repo: Path = 
     return guardada
 
 
+def envolver_renombrado(original: Callable[..., Any], nombre: str, *, repo: Path = REPO_TESTS) -> Callable[..., Any]:
+    """`os.rename`/`os.replace`: mover algo protegido equivale a borrarlo; pisarlo, también."""
+
+    def guardada(origen: Any, destino: Any, *args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("src_dir_fd") is None and kwargs.get("dst_dir_fd") is None:
+            for ruta in (origen, destino):
+                motivo = ruta_prohibida(ruta, repo=repo)
+                if motivo is not None:
+                    raise BorradoProhibidoEnTests(f"{nombre} denegado en tests: {motivo}")
+        return original(origen, destino, *args, **kwargs)
+
+    return guardada
+
+
+ORDENES_BORRADO = {"rm", "rmdir", "unlink", "shred", "srm"}
+
+
+def orden_de_borrado(args: Any, *, shell: bool = False) -> Optional[str]:
+    """Motivo si `args` (lo que recibe `subprocess.Popen`) es una orden de borrado; None si no."""
+
+    if isinstance(args, (str, bytes)) and (shell or " " in os.fsdecode(args)):
+        texto = os.fsdecode(args)
+        if re.search(r"(^|[;&|(`\s])(rm|rmdir|unlink|shred|srm)(\s|$)", texto) or "git clean" in texto or "-delete" in texto:
+            return f"orden de shell con borrado: {texto!r}"
+        return None
+    argv = [os.fsdecode(a) for a in ([args] if isinstance(args, (str, bytes, os.PathLike)) else list(args))]
+    if not argv:
+        return None
+    primero = os.path.basename(argv[0])
+    if primero in ORDENES_BORRADO:
+        return f"orden de borrado: {argv!r}"
+    if primero == "git" and "clean" in argv[1:]:
+        return f"git clean: {argv!r}"
+    if primero == "find" and "-delete" in argv:
+        return f"find -delete: {argv!r}"
+    if primero in {"sh", "bash", "zsh"} and "-c" in argv:
+        return orden_de_borrado(argv[argv.index("-c") + 1], shell=True) if argv.index("-c") + 1 < len(argv) else None
+    return None
+
+
+class _PopenGuardado(subprocess.Popen):  # type: ignore[type-arg]
+    def __init__(self, args: Any, *posicionales: Any, **kwargs: Any) -> None:
+        motivo = orden_de_borrado(args, shell=bool(kwargs.get("shell")))
+        if motivo is not None:
+            raise BorradoProhibidoEnTests(f"subprocess denegado en tests: {motivo}")
+        super().__init__(args, *posicionales, **kwargs)
+
+
 @pytest.fixture(autouse=True, scope="session")
 def _red_de_seguridad_de_borrado() -> Iterator[None]:
     with pytest.MonkeyPatch.context() as mp:
@@ -237,4 +287,8 @@ def _red_de_seguridad_de_borrado() -> Iterator[None]:
         mp.setattr(os, "remove", envolver_borrado(os.remove, "os.remove"))
         mp.setattr(os, "unlink", envolver_borrado(os.unlink, "os.unlink"))
         mp.setattr(os, "rmdir", envolver_borrado(os.rmdir, "os.rmdir"))
+        mp.setattr(os, "removedirs", envolver_borrado(os.removedirs, "os.removedirs"))
+        mp.setattr(os, "rename", envolver_renombrado(os.rename, "os.rename"))
+        mp.setattr(os, "replace", envolver_renombrado(os.replace, "os.replace"))
+        mp.setattr(subprocess, "Popen", _PopenGuardado)
         yield

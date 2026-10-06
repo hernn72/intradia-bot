@@ -541,3 +541,50 @@ def test_no_apta_tambien_deja_segunda_copia(tmp_path: Path) -> None:
     estado = json.loads((cfg.artefactos / "checkpoints" / CP / "estado.json").read_text())
     assert estado["estado"] == "NO_APTA" and estado["segunda_copia"]["verificada"] is True
     assert (cfg.copia() / vid / "AAPL.csv").read_text() == "x\n"
+
+
+
+def _origen_minimo(tmp_path: Path) -> tuple[Path, str]:
+    vid = "b" * 64
+    origen = tmp_path / "data" / vid
+    origen.mkdir(parents=True)
+    (origen / "manifest.json").write_text("{}\n", encoding="utf-8")
+    (origen / "AAPL.csv").write_text("1\n", encoding="utf-8")
+    return tmp_path / "data", vid
+
+
+def test_segunda_copia_por_enlace_hacia_el_repo_se_niega_sin_crear_nada(tmp_path: Path) -> None:
+    data_dir, vid = _origen_minimo(tmp_path)
+    repo_falso = tmp_path / "repo"
+    repo_falso.mkdir()
+    enlace = tmp_path / "enlace-al-repo"
+    enlace.symlink_to(repo_falso)
+    with pytest.raises(ValueError):
+        checkpoint.segunda_copia(data_dir, enlace / "copias" / "vintages", vid, repo=repo_falso)
+    assert list(repo_falso.iterdir()) == []
+
+
+def test_segunda_copia_previa_como_enlace_o_mismo_inodo_no_cuenta(tmp_path: Path) -> None:
+    data_dir, vid = _origen_minimo(tmp_path)
+    copias = tmp_path / "copias"
+    copias.mkdir()
+    (copias / vid).symlink_to(data_dir / vid)
+    with pytest.raises(ValueError):
+        checkpoint.segunda_copia(data_dir, copias, vid, repo=ROOT)
+    copias2 = tmp_path / "copias2"
+    (copias2 / vid).mkdir(parents=True)
+    for fichero in (data_dir / vid).iterdir():
+        os.link(fichero, copias2 / vid / fichero.name)
+    with pytest.raises(ValueError, match="inodo"):
+        checkpoint.segunda_copia(data_dir, copias2, vid, repo=ROOT)
+
+
+def test_segunda_copia_nueva_tiene_inodos_propios(tmp_path: Path) -> None:
+    data_dir, vid = _origen_minimo(tmp_path)
+    resultado = checkpoint.segunda_copia(data_dir, tmp_path / "copias", vid, repo=ROOT)
+    assert resultado["verificada"] is True and resultado["ficheros"] == 2
+    for fichero in (data_dir / vid).iterdir():
+        copia = tmp_path / "copias" / vid / fichero.name
+        assert copia.read_bytes() == fichero.read_bytes()
+        assert os.stat(copia).st_ino != os.stat(fichero).st_ino
+    assert sorted(p.name for p in (tmp_path / "copias").iterdir()) == [vid]
