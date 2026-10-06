@@ -8,12 +8,32 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 SHA64 = re.compile(r"[0-9a-f]{64}")
+
+
+def _cargar_hermano(nombre: str) -> Any:
+    """Carga un módulo de deploy/t024 por ruta: funciona como script y desde los tests."""
+
+    import importlib.util
+    import sys
+
+    ruta = Path(__file__).resolve().with_name(f"{nombre}.py")
+    clave = f"_t024_deploy_{nombre}"
+    if clave in sys.modules:
+        return sys.modules[clave]
+    spec = importlib.util.spec_from_file_location(clave, ruta)
+    assert spec is not None and spec.loader is not None
+    modulo = importlib.util.module_from_spec(spec)
+    sys.modules[clave] = modulo
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+borrado_seguro = _cargar_hermano("borrado_seguro")
 CODE_SHA_SIDECAR = Path("evidence/2026-10-05-T-024-code-lock/T024_CODE_SHA.txt")
 Runner = Callable[[list[str]], None]
 
@@ -212,12 +232,21 @@ def _dirs_byte_iguales(left: Path, right: Path) -> bool:
 
 
 def copiar(args: argparse.Namespace, runner: Runner = _run_subprocess) -> int:
+    """Trae artefactos y vintage de la Pi a staging, verifica y solo entonces promueve.
+
+    Todo borrado pasa por `borrado_seguro.borrar_staging`. Una promoción que haya que deshacer vuelve a su
+    staging con `os.replace`; nunca se borra un destino final.
+    """
+
     destino = args.destino_artefactos
     destino.parent.mkdir(parents=True, exist_ok=True)
-    staging_artefactos: Path | None = destino.parent / f".t024-staging-artefactos-{args.checkpoint}-{os.getpid()}"
+    base_artefactos = destino.parent
+    staging_artefactos = base_artefactos / borrado_seguro.nombre_staging(f"artefactos-{args.checkpoint}-{os.getpid()}")
     if staging_artefactos.exists():
-        shutil.rmtree(staging_artefactos)
-    staging_artefactos.mkdir(parents=True)
+        borrado_seguro.borrar_staging(staging_artefactos, base=base_artefactos)
+    staging_artefactos.mkdir()
+    base_vintage = args.data_dir.parent
+    staging_parent: Path | None = None
     remote_cp = f"{args.pi}:{args.pi_artefactos}/checkpoints/{args.checkpoint}/"
     try:
         runner([*_rsync_args(args.ssh_key), remote_cp, str(staging_artefactos) + "/"])
@@ -225,10 +254,10 @@ def copiar(args: argparse.Namespace, runner: Runner = _run_subprocess) -> int:
         if estado.get("estado") != "APTA" or not SHA64.fullmatch(str(estado.get("data_vintage_id", ""))):
             raise SystemExit("estado remoto no es APTA")
         vintage_id = str(estado["data_vintage_id"])
-        args.data_dir.parent.mkdir(parents=True, exist_ok=True)
-        staging_parent = args.data_dir.parent / f".t024-staging-{vintage_id}-{os.getpid()}"
+        base_vintage.mkdir(parents=True, exist_ok=True)
+        staging_parent = base_vintage / borrado_seguro.nombre_staging(f"{vintage_id}-{os.getpid()}")
         if staging_parent.exists():
-            shutil.rmtree(staging_parent)
+            borrado_seguro.borrar_staging(staging_parent, base=base_vintage)
         staging = staging_parent / vintage_id
         staging.mkdir(parents=True)
         runner([*_rsync_args(args.ssh_key), f"{args.pi}:{args.pi_data_dir}/{vintage_id}/", str(staging) + "/"])
@@ -237,35 +266,28 @@ def copiar(args: argparse.Namespace, runner: Runner = _run_subprocess) -> int:
         if not ok:
             return 1
         final = args.data_dir / vintage_id
-        if final.exists():
-            if not _dirs_byte_iguales(staging, final):
-                raise SystemExit(f"ya existe {final}, pero no es byte a byte igual")
-        else:
-            final.parent.mkdir(parents=True, exist_ok=True)
+        if final.exists() and not _dirs_byte_iguales(staging, final):
+            raise SystemExit(f"ya existe {final}, pero no es byte a byte igual")
         if destino.exists() and not _dirs_byte_iguales(staging_artefactos, destino):
             raise SystemExit(f"ya existe {destino}, pero no es byte a byte igual")
+        args.data_dir.mkdir(parents=True, exist_ok=True)
         promoted_final = False
-        promoted_destino = False
         try:
             if not final.exists():
                 os.replace(staging, final)
                 promoted_final = True
             if not destino.exists():
                 os.replace(staging_artefactos, destino)
-                promoted_destino = True
-                staging_artefactos = None
         except Exception:
-            if promoted_destino and destino.exists():
-                shutil.rmtree(destino)
-            if promoted_final and final.exists():
-                shutil.rmtree(final)
+            if promoted_final:
+                os.replace(final, staging)
             raise
         return 0
     finally:
-        if staging_artefactos is not None and staging_artefactos.exists():
-            shutil.rmtree(staging_artefactos)
-        if "staging_parent" in locals() and staging_parent.exists():
-            shutil.rmtree(staging_parent)
+        if staging_artefactos.exists():
+            borrado_seguro.borrar_staging(staging_artefactos, base=base_artefactos)
+        if staging_parent is not None and staging_parent.exists():
+            borrado_seguro.borrar_staging(staging_parent, base=base_vintage)
 
 
 def verificar_cmd(args: argparse.Namespace) -> int:

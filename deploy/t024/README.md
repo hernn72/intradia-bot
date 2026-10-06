@@ -84,6 +84,17 @@ Códigos de salida:
 | 9 | Error inesperado de congelación |
 | 75 | Lock ocupado |
 
+## Segunda copia y borrado seguro
+
+- Cada cosecha que congela el wrapper, apta o no, se copia a `--copia-dir`, por defecto
+  `<artefactos>/copias/vintages/`. Esa ruta queda fuera del checkout del bot y del `--data-dir`.
+- La copia pasa por un staging, se verifica por SHA256 fichero a fichero y solo entonces se promueve.
+- Una copia previa distinta no se toca: el estado pasa a `ERROR_COPIA` (salida 10).
+- Ningún script de `deploy/t024/` borra directamente: solo
+  `borrado_seguro.borrar_staging(ruta, base=...)`. Esa función solo acepta directorios
+  `.t024-staging-*`, hijos directos de `base`, sin `.git` ni SQLite. Rechaza `/`, `$HOME`, la raíz del
+  repositorio, el directorio actual y sus antecesores.
+
 ## Calendario
 
 El calendario es operativo y versionado, separado del ejecutor. Para ampliarlo, usa solo una fuente

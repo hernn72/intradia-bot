@@ -86,8 +86,24 @@ El wrapper:
 4. Si hoy no es un checkpoint declarado, no ejecuta ningún comando del módulo forward.
 5. Si hoy es checkpoint, crea `intento.json`, verifica preflight e identidad, escribe `peticion.json`,
    comprueba que la petición coincide con el calendario y ejecuta `congelar` una sola vez.
-6. Escribe `congelacion.json`, `congelar.stderr.log`, `estado.json` y después `SHA256SUMS`, que cubre
-   también `estado.json`.
+6. Hace la **segunda copia** de la cosecha (apta o no), verificada byte a byte por SHA256, fuera del
+   checkout del bot: `--copia-dir`, por defecto `<artefactos>/copias/vintages/<data_vintage_id>/`, es decir
+   `/home/fer/t024-forward/copias/vintages/`. Se niega si ese directorio cae dentro del repositorio o
+   del `--data-dir`. Si falla, el estado es `ERROR_COPIA` (salida 10).
+7. Escribe `congelacion.json`, `congelar.stderr.log`, `estado.json` (con `segunda_copia`) y después
+   `SHA256SUMS`, que cubre también `estado.json`.
+
+Desde su creación, toda cosecha forward tiene:
+- su copia primaria en `/home/fer/intradia-bot/data/vintages/`;
+- una segunda copia verificada en `/home/fer/t024-forward/copias/vintages/`, fuera del checkout;
+- el manifiesto y los hashes verificados.
+
+Dos copias dentro del mismo árbol no cuentan como backup. **Limitación:** las dos están en la tarjeta SD
+de la Pi. La tercera copia, en otro dispositivo, es la que trae la fase B al PC.
+
+Todo borrado de las herramientas de `deploy/t024/` pasa por `deploy/t024/borrado_seguro.py`, que solo
+borra directorios `.t024-staging-*` hijos directos de su base. Detalle en
+`evidence/2026-10-06-incidente-perdida-vintage/`.
 
 La fase A **no registra, no captura conteos, no decide y no reintenta automáticamente**. `NO_APTA`,
 `ERROR_*`, `INTERRUMPIDO` y `PERDIDO` quedan visibles para el propietario.
@@ -96,7 +112,7 @@ Política de fallos:
 
 - `APTA`: queda lista para copiar y revisar en PC.
 - `NO_APTA`: la unidad systemd falla; la cosecha parcial no cuenta como checkpoint.
-- `ERROR_*`: se conserva el intento y se requiere intervención.
+- `ERROR_*` (incluido `ERROR_COPIA`): se conserva el intento y se requiere intervención.
 - `INTERRUMPIDO`: existe `intento.json` sin cierre; no se descarga otra vez.
 - `PERDIDO`: se detectó tarde un checkpoint pasado sin artefactos; no se descarga retrospectivamente.
 

@@ -487,3 +487,57 @@ def test_systemd_templates_render_installer_y_sin_palabras_prohibidas(tmp_path: 
     assert "git -C \"${T024_REPO_DIR}\" diff --quiet \"${T024_CODE_SHA}\" HEAD" in instalar
     result = subprocess.run(["bash", "-n", str(ROOT / "deploy/t024/instalar.sh")], capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
+
+
+# ---------------------------------------------------------------------------
+# Segunda copia de cada cosecha, fuera del checkout (regla posterior al incidente 2026-10-06)
+# ---------------------------------------------------------------------------
+
+
+def test_apta_deja_segunda_copia_identica_fuera_del_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(vintage_mod, "_provider_version", lambda: "0.0-test")
+    cfg, vid = _run_realistic_checkpoint(tmp_path, code_sha=CODE_SHA)
+    estado = json.loads((cfg.artefactos / "checkpoints" / CP / "estado.json").read_text())
+    copia = cfg.artefactos / "copias" / "vintages" / vid
+    assert estado["estado"] == "APTA"
+    assert estado["segunda_copia"] == {"ruta": str(copia), "verificada": True, "ficheros": 127}
+    original = tmp_path / "data" / vid
+    assert sorted(p.name for p in copia.iterdir()) == sorted(p.name for p in original.iterdir())
+    for fichero in original.iterdir():
+        assert (copia / fichero.name).read_bytes() == fichero.read_bytes()
+    assert not [p for p in copia.parent.iterdir() if p.name.startswith(".t024-staging-")]
+
+
+def test_segunda_copia_dentro_del_repo_o_del_data_dir_se_niega(tmp_path: Path) -> None:
+    origen = tmp_path / "data" / ("a" * 64)
+    origen.mkdir(parents=True)
+    (origen / "manifest.json").write_text("{}\n", encoding="utf-8")
+    prohibida_repo = ROOT / "data" / "no-se-crea-nunca"
+    for copia_dir in (prohibida_repo, tmp_path / "data" / "copias", tmp_path):
+        with pytest.raises(ValueError):
+            checkpoint.segunda_copia(tmp_path / "data", copia_dir, "a" * 64, repo=ROOT)
+    assert not prohibida_repo.exists()
+
+
+def test_segunda_copia_existente_distinta_da_error_copia_sin_tocarla(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner, _calls, vid = _fake_runner(tmp_path)
+    cfg = _cfg(tmp_path)
+    previa = cfg.copia() / vid
+    previa.mkdir(parents=True)
+    (previa / "manifest.json").write_text("otra cosa\n", encoding="utf-8")
+    assert checkpoint.ejecutar(cfg, date(2026, 11, 3), runner) == checkpoint.RC_COPIA
+    estado = json.loads((cfg.artefactos / "checkpoints" / CP / "estado.json").read_text())
+    assert estado["estado"] == "ERROR_COPIA" and estado["segunda_copia"]["verificada"] is False
+    assert (previa / "manifest.json").read_text(encoding="utf-8") == "otra cosa\n"
+    calls: list[list[str]] = []
+    assert checkpoint.ejecutar(cfg, date(2026, 11, 3), lambda c, w: calls.append(c) or (0, "", "")) == checkpoint.RC_INTERRUMPIDO
+    assert calls == []
+
+
+def test_no_apta_tambien_deja_segunda_copia(tmp_path: Path) -> None:
+    runner, _calls, vid = _fake_runner(tmp_path, apta=False)
+    cfg = _cfg(tmp_path)
+    assert checkpoint.ejecutar(cfg, date(2026, 11, 3), runner) == 2
+    estado = json.loads((cfg.artefactos / "checkpoints" / CP / "estado.json").read_text())
+    assert estado["estado"] == "NO_APTA" and estado["segunda_copia"]["verificada"] is True
+    assert (cfg.copia() / vid / "AAPL.csv").read_text() == "x\n"

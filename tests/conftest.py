@@ -6,7 +6,10 @@ que un fallo sea siempre reproducible.
 
 from __future__ import annotations
 
-from typing import List, Optional
+import os
+import shutil
+from pathlib import Path
+from typing import Any, Callable, Iterator, List, Optional
 
 import pandas as pd
 import pytest
@@ -172,3 +175,66 @@ def hostile_context() -> MarketContext:
         label="RISK_OFF",
         reason="VIX 32,0 ≥ 25,0 y tendencia no alcista",
     )
+
+
+# ---------------------------------------------------------------------------
+# Red de seguridad de borrado (incidente 2026-10-06: evidence/2026-10-06-incidente-perdida-vintage/).
+# Ningún test puede borrar `/`, `$HOME`, la raíz del repo ni sus antecesores, ni nada en `data/`,
+# `evidence/` o `.git/` del repo, ni una base SQLite del repo. Los temporales de pytest quedan fuera.
+# ---------------------------------------------------------------------------
+
+REPO_TESTS = Path(__file__).resolve().parents[1]
+SUBDIRS_PROTEGIDOS = ("data", "evidence", ".git")
+SUFIJOS_SQLITE = (".db", ".sqlite", ".sqlite3")
+
+
+class BorradoProhibidoEnTests(RuntimeError):
+    """Un test intentó borrar datos protegidos del repositorio o del sistema."""
+
+
+def ruta_prohibida(objetivo: Any, *, repo: Path = REPO_TESTS, home: Optional[Path] = None) -> Optional[str]:
+    """Motivo por el que `objetivo` no se puede borrar en tests, o None si se puede."""
+
+    try:
+        real = Path(os.path.realpath(os.fspath(objetivo)))
+    except TypeError:
+        return None
+    repo = repo.resolve()
+    for protegida in (Path("/"), (home or Path.home()).resolve(), repo):
+        if real == protegida or real in protegida.parents:
+            return f"{real} es o contiene {protegida}"
+    for sub in SUBDIRS_PROTEGIDOS:
+        base = repo / sub
+        if real == base or base in real.parents:
+            return f"{real} está en {base}"
+    nombre = real.name.lower()
+    if repo in real.parents and any(nombre.endswith(s) or f"{s}." in nombre or f"{s}-" in nombre for s in SUFIJOS_SQLITE):
+        return f"{real} es una base SQLite del repo"
+    return None
+
+
+def envolver_borrado(original: Callable[..., Any], nombre: str, *, repo: Path = REPO_TESTS) -> Callable[..., Any]:
+    """Envuelve una función de borrado: comprueba la ruta antes de llamar a la original."""
+
+    def guardada(ruta: Any, *args: Any, **kwargs: Any) -> Any:
+        # Con dir_fd la ruta es relativa a un descriptor (uso interno de shutil.rmtree, ya comprobado arriba).
+        if kwargs.get("dir_fd") is None:
+            motivo = ruta_prohibida(ruta, repo=repo)
+            if motivo is not None:
+                raise BorradoProhibidoEnTests(f"{nombre} denegado en tests: {motivo}")
+        return original(ruta, *args, **kwargs)
+
+    for atributo in ("avoids_symlink_attacks",):
+        if hasattr(original, atributo):
+            setattr(guardada, atributo, getattr(original, atributo))
+    return guardada
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _red_de_seguridad_de_borrado() -> Iterator[None]:
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(shutil, "rmtree", envolver_borrado(shutil.rmtree, "shutil.rmtree"))
+        mp.setattr(os, "remove", envolver_borrado(os.remove, "os.remove"))
+        mp.setattr(os, "unlink", envolver_borrado(os.unlink, "os.unlink"))
+        mp.setattr(os, "rmdir", envolver_borrado(os.rmdir, "os.rmdir"))
+        yield

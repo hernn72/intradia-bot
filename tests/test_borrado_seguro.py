@@ -1,0 +1,187 @@
+"""Guarda de borrado de deploy/t024 y red de seguridad de los tests (incidente 2026-10-06).
+
+En los casos de denegación, el `shutil` del módulo se sustituye por un registrador: si la guarda fallara,
+el test no podría borrar nada real.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import os
+import re
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
+from tests.conftest import BorradoProhibidoEnTests, envolver_borrado, ruta_prohibida
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load(name: str, rel: str) -> Any:
+    spec = importlib.util.spec_from_file_location(name, ROOT / rel)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+bs = _load("t024_borrado_seguro_test", "deploy/t024/borrado_seguro.py")
+
+
+@pytest.fixture
+def registrador(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    llamadas: list[Path] = []
+    monkeypatch.setattr(bs, "shutil", SimpleNamespace(rmtree=lambda ruta: llamadas.append(Path(ruta))))
+    return llamadas
+
+
+def _staging(base: Path, etiqueta: str = "x") -> Path:
+    ruta = base / bs.nombre_staging(etiqueta)
+    ruta.mkdir(parents=True)
+    (ruta / "dato.csv").write_text("1\n", encoding="utf-8")
+    return ruta
+
+
+@pytest.mark.parametrize("ruta", [Path(), ".", "..", "", Path("."), Path("..")])
+def test_rechaza_directorio_actual_y_padre(ruta: Any, tmp_path: Path, registrador: list[Path]) -> None:
+    with pytest.raises(bs.BorradoDenegado):
+        bs.borrar_staging(ruta, base=tmp_path)
+    assert registrador == []
+
+
+def test_rechaza_raiz_del_repo_home_tmp_y_raiz(tmp_path: Path, registrador: list[Path]) -> None:
+    for ruta in (ROOT, Path.home(), Path("/tmp"), Path("/"), ROOT / "data", ROOT / "evidence", ROOT / ".git"):
+        with pytest.raises(bs.BorradoDenegado):
+            bs.borrar_staging(ruta, base=ruta.parent if ruta != Path("/") else ruta)
+    assert registrador == []
+
+
+def test_rechaza_padre_del_staging_y_staging_bajo_otra_base(tmp_path: Path, registrador: list[Path]) -> None:
+    base = tmp_path / "base"
+    staging = _staging(base)
+    with pytest.raises(bs.BorradoDenegado):
+        bs.borrar_staging(base, base=tmp_path)
+    with pytest.raises(bs.BorradoDenegado):
+        bs.borrar_staging(staging, base=tmp_path)
+    anidado = _staging(staging, "anidado")
+    with pytest.raises(bs.BorradoDenegado):
+        bs.borrar_staging(anidado, base=base)
+    assert registrador == []
+
+
+def test_rechaza_prefijo_incorrecto_inexistente_enlace_y_fichero(tmp_path: Path, registrador: list[Path]) -> None:
+    otro = tmp_path / "t024-staging-sin-punto"
+    otro.mkdir()
+    solo_prefijo = tmp_path / bs.PREFIJO_STAGING
+    solo_prefijo.mkdir()
+    enlace = tmp_path / bs.nombre_staging("enlace")
+    enlace.symlink_to(_staging(tmp_path / "real"))
+    fichero = tmp_path / bs.nombre_staging("fichero")
+    fichero.write_text("x", encoding="utf-8")
+    for ruta in (otro, solo_prefijo, tmp_path / bs.nombre_staging("no-existe"), enlace, fichero):
+        with pytest.raises(bs.BorradoDenegado):
+            bs.borrar_staging(ruta, base=tmp_path)
+    assert registrador == []
+
+
+def test_rechaza_staging_con_git_o_sqlite(tmp_path: Path, registrador: list[Path]) -> None:
+    con_git = _staging(tmp_path, "git")
+    (con_git / ".git").mkdir()
+    con_db = _staging(tmp_path, "db")
+    (con_db / "sub").mkdir()
+    (con_db / "sub" / "intradia.db.bak-1").write_text("x", encoding="utf-8")
+    for ruta in (con_git, con_db):
+        with pytest.raises(bs.BorradoDenegado):
+            bs.borrar_staging(ruta, base=tmp_path)
+    assert registrador == []
+
+
+def test_rechaza_staging_que_contiene_el_directorio_actual(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, registrador: list[Path]) -> None:
+    staging = _staging(tmp_path, "cwd")
+    dentro = staging / "trabajo"
+    dentro.mkdir()
+    monkeypatch.chdir(dentro)
+    with pytest.raises(bs.BorradoDenegado):
+        bs.borrar_staging(staging, base=tmp_path)
+    assert registrador == []
+
+
+def test_staging_correcto_se_borra_y_solo_el(tmp_path: Path) -> None:
+    vecino = tmp_path / "vecino.csv"
+    vecino.write_text("conservar\n", encoding="utf-8")
+    staging = _staging(tmp_path, "ok")
+    bs.borrar_staging(staging, base=tmp_path)
+    assert not staging.exists()
+    assert vecino.read_text(encoding="utf-8") == "conservar\n"
+
+
+def test_nombre_staging_no_admite_separadores() -> None:
+    for etiqueta in ("", ".", "..", "a/b", f"a{os.sep}b"):
+        with pytest.raises(bs.BorradoDenegado):
+            bs.nombre_staging(etiqueta)
+
+
+def test_deploy_t024_solo_borra_a_traves_de_la_guarda() -> None:
+    for fichero in sorted((ROOT / "deploy" / "t024").glob("*.py")):
+        if fichero.name == "borrado_seguro.py":
+            continue
+        texto = fichero.read_text(encoding="utf-8")
+        assert re.search(r"\brmtree\b|os\.remove|os\.rmdir|\.unlink\(|os\.unlink", texto) is None, fichero.name
+    for fichero in sorted((ROOT / "deploy" / "t024").glob("*.sh")):
+        texto = fichero.read_text(encoding="utf-8")
+        assert [linea for linea in texto.splitlines() if "rm -" in linea] == ["trap 'rm -rf \"${tmpdir}\"' EXIT"]
+
+
+# ---------------------------------------------------------------------------
+# Red de seguridad de conftest: se prueba con una función original falsa, nunca con rutas reales.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "objetivo",
+    [
+        ROOT,
+        ROOT.parent,
+        Path.home(),
+        Path("/"),
+        ROOT / "data",
+        ROOT / "data" / "vintages" / "x" / "AAPL.csv",
+        ROOT / "evidence",
+        ROOT / "evidence" / "algo" / "README.md",
+        ROOT / ".git",
+        ROOT / ".git" / "index",
+        ROOT / "intradia.db",
+        ROOT / "intradia.db.bak-20260902",
+        ROOT / "intradia.db-wal",
+        Path(),
+        ".",
+    ],
+)
+def test_red_de_tests_niega_rutas_protegidas(objetivo: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(ROOT)
+    llamadas: list[Any] = []
+    guardada = envolver_borrado(lambda ruta, *a, **k: llamadas.append(ruta), "prueba")
+    assert ruta_prohibida(objetivo) is not None
+    with pytest.raises(BorradoProhibidoEnTests):
+        guardada(objetivo)
+    assert llamadas == []
+
+
+def test_red_de_tests_permite_temporales(tmp_path: Path) -> None:
+    llamadas: list[Any] = []
+    guardada = envolver_borrado(lambda ruta, *a, **k: llamadas.append(ruta), "prueba")
+    guardada(tmp_path / "x")
+    guardada("relativo", dir_fd=3)
+    assert llamadas == [tmp_path / "x", "relativo"]
+
+
+def test_red_de_tests_esta_activa_en_la_sesion() -> None:
+    import shutil
+
+    for funcion in (shutil.rmtree, os.remove, os.unlink, os.rmdir):
+        assert funcion.__name__ == "guardada"

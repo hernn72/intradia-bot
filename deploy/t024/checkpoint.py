@@ -16,6 +16,26 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 from zoneinfo import ZoneInfo
 
+
+def _cargar_hermano(nombre: str) -> Any:
+    """Carga un módulo de deploy/t024 por ruta: funciona como script y desde los tests."""
+
+    import importlib.util
+
+    ruta = Path(__file__).resolve().with_name(f"{nombre}.py")
+    clave = f"_t024_deploy_{nombre}"
+    if clave in sys.modules:
+        return sys.modules[clave]
+    spec = importlib.util.spec_from_file_location(clave, ruta)
+    assert spec is not None and spec.loader is not None
+    modulo = importlib.util.module_from_spec(spec)
+    sys.modules[clave] = modulo
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+borrado_seguro = _cargar_hermano("borrado_seguro")
+
 ZONA = "Atlantic/Canary"
 SCHEMA = "t024-calendario-checkpoints"
 SCHEMA_VERSION = 1
@@ -36,6 +56,7 @@ RC_PREFLIGHT = 6
 RC_CALENDARIO = 7
 RC_CALENDARIO_INVALIDO = 8
 RC_CONGELACION = 9
+RC_COPIA = 10
 RC_LOCK = 75
 
 SNIPPET_PREFLIGHT = "import advisor; print(advisor.__file__)"
@@ -70,6 +91,12 @@ class Cfg:
     data_dir: Path | None
     artefactos: Path
     calendario: Path
+    copia_dir: Path | None = None
+
+    def copia(self) -> Path:
+        """Segunda copia de cada cosecha, fuera del checkout del bot (por defecto bajo los artefactos)."""
+
+        return self.copia_dir if self.copia_dir is not None else self.artefactos / "copias" / "vintages"
 
 
 Runner = Callable[[list[str], Path], tuple[int, str, str]]
@@ -281,6 +308,53 @@ def escribir_sha256s(dir_cp: Path, data_dir: Path, congelacion: Mapping[str, Any
     _atomic_text(dir_cp / "SHA256SUMS", "\n".join(sorted(lines)) + "\n")
 
 
+def _ficheros(raiz: Path) -> dict[str, str]:
+    return {p.relative_to(raiz).as_posix(): sha256_path(p) for p in sorted(raiz.rglob("*")) if p.is_file()}
+
+
+def _dentro(hijo: Path, padre: Path) -> bool:
+    return hijo == padre or padre in hijo.parents
+
+
+def segunda_copia(data_dir: Path, copia_dir: Path, vintage_id: str, *, repo: Path) -> dict[str, Any]:
+    """Copia el vintage fuera del checkout, verificada byte a byte por SHA256, vía staging guardado.
+
+    Si la copia ya existe tiene que ser idéntica; nunca se sobrescribe ni se borra un destino.
+    """
+
+    origen = (data_dir / vintage_id).resolve(strict=True)
+    copia_abs = copia_dir.resolve() if copia_dir.exists() else copia_dir.absolute()
+    for prohibido in (repo.resolve(), data_dir.resolve()):
+        if _dentro(copia_abs, prohibido) or _dentro(prohibido, copia_abs):
+            raise ValueError(f"la segunda copia ({copia_abs}) no puede estar dentro de {prohibido} ni contenerlo")
+    esperado = _ficheros(origen)
+    if not esperado:
+        raise ValueError(f"vintage vacío: {origen}")
+    copia_dir.mkdir(parents=True, exist_ok=True)
+    destino = copia_dir / vintage_id
+    if destino.exists():
+        if _ficheros(destino) != esperado:
+            raise ValueError(f"ya existe {destino} y no es idéntica al vintage")
+        return {"ruta": str(destino), "verificada": True, "ficheros": len(esperado)}
+    staging = copia_dir / borrado_seguro.nombre_staging(f"{vintage_id}-{os.getpid()}")
+    if staging.exists():
+        borrado_seguro.borrar_staging(staging, base=copia_dir)
+    staging.mkdir()
+    try:
+        import shutil
+
+        shutil.copytree(origen, staging / vintage_id)
+        if _ficheros(staging / vintage_id) != esperado:
+            raise ValueError("la copia en staging no es idéntica al vintage")
+        os.replace(staging / vintage_id, destino)
+    finally:
+        if staging.exists():
+            borrado_seguro.borrar_staging(staging, base=copia_dir)
+    if _ficheros(destino) != esperado:
+        raise ValueError(f"la copia promovida {destino} no es idéntica al vintage")
+    return {"ruta": str(destino), "verificada": True, "ficheros": len(esperado)}
+
+
 def _rc_final(base: int, aviso_horizonte: bool, perdido_nuevo: bool) -> int:
     if base not in {RC_OK, RC_CALENDARIO_AGOTADO, RC_PERDIDO}:
         return base
@@ -429,6 +503,15 @@ def _ejecutar_checkpoint(cfg: Cfg, calendario: Calendario, cp: Checkpoint, hoy: 
         _estado(dir_cp, cp.checkpoint, "ERROR_CONGELACION", rc_congelar=rc)
         escribir_sha256s(dir_cp, cfg.data_dir, congelacion)
         return RC_CONGELACION
+    vintage_id = congelacion.get("data_vintage_id")
+    segunda: dict[str, Any] = {"ruta": None, "verificada": False, "ficheros": 0}
+    if isinstance(vintage_id, str) and SHA64.fullmatch(vintage_id) and (cfg.data_dir / vintage_id).is_dir():
+        try:
+            segunda = segunda_copia(cfg.data_dir, cfg.copia(), vintage_id, repo=cfg.repo)
+        except (OSError, ValueError, borrado_seguro.BorradoDenegado) as exc:
+            log(cfg.artefactos, f"{cp.checkpoint.isoformat()} ERROR_COPIA: {exc}")
+            estado, salida = "ERROR_COPIA", RC_COPIA
+            segunda = {"ruta": str(cfg.copia() / vintage_id), "verificada": False, "error": str(exc)}
     _estado(
         dir_cp,
         cp.checkpoint,
@@ -437,6 +520,7 @@ def _ejecutar_checkpoint(cfg: Cfg, calendario: Calendario, cp: Checkpoint, hoy: 
         apta=bool(apta),
         rc_congelar=rc,
         motivos=congelacion.get("motivos", []),
+        segunda_copia=segunda,
         finalizado_utc=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
     )
     escribir_sha256s(dir_cp, cfg.data_dir, congelacion)
@@ -478,6 +562,7 @@ def build_parser() -> argparse.ArgumentParser:
         cmd.add_argument("--calendario", type=Path)
     sub.choices["estado"].add_argument("--hoy")
     sub.choices["ejecutar"].add_argument("--data-dir", type=Path, required=True)
+    sub.choices["ejecutar"].add_argument("--copia-dir", type=Path, help="segunda copia de cada cosecha (fuera del checkout)")
     return parser
 
 
@@ -485,7 +570,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     repo = args.repo.resolve()
     calendario = args.calendario or (repo / "deploy" / "t024" / "calendario-checkpoints.json")
-    cfg = Cfg(repo=repo, python=args.python, data_dir=getattr(args, "data_dir", None), artefactos=args.artefactos, calendario=calendario)
+    cfg = Cfg(repo=repo, python=args.python, data_dir=getattr(args, "data_dir", None), artefactos=args.artefactos, calendario=calendario, copia_dir=getattr(args, "copia_dir", None))
     try:
         if args.cmd == "estado":
             dia = _parse_hoy(args.hoy)
