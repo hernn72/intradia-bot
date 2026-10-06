@@ -11,7 +11,7 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import pytest
 
@@ -53,7 +53,7 @@ def _fake_runner(
     *,
     apta: bool = True,
     bad_identity: bool = False,
-    bad_peticion_end: bool = False,
+    peticion_edit: Callable[[dict[str, object]], None] | None = None,
     bad_preflight: bool = False,
     congelar_rc: int | None = None,
 ):
@@ -74,35 +74,14 @@ def _fake_runner(
         if cmd[1:] == ["-c", checkpoint.SNIPPET_IDENTIDAD]:
             return (1, "no\n", "boom") if bad_identity else (0, CODE_SHA + "\n", "")
         if cmd[3] == "peticion":
-            payload = {
-                "checkpoint": CP,
-                "start": "2021-08-30",
-                "end": "2026-10-27" if bad_peticion_end else "2026-10-26",
-                "end_exclusive": True,
-                "interval": "1d",
-                "auto_adjust": False,
-                "actions": True,
-                "symbols": ["A"] * 126,
-                "symbols_sha256": "s",
-                "n_symbols": 126,
-                "festivos": FESTIVOS,
-            }
+            payload = fwd.peticion_checkpoint(date.fromisoformat(CP), tuple(date.fromisoformat(f) for f in FESTIVOS)).serializable()
+            if peticion_edit is not None:
+                peticion_edit(payload)
             return 0, json.dumps(payload), ""
         if cmd[3] == "congelar":
+            peticion = fwd.peticion_checkpoint(date.fromisoformat(CP), tuple(date.fromisoformat(f) for f in FESTIVOS))
             payload = {
-                "peticion": {
-                    "checkpoint": CP,
-                    "start": "2021-08-30",
-                    "end": "2026-10-26",
-                    "end_exclusive": True,
-                    "interval": "1d",
-                    "auto_adjust": False,
-                    "actions": True,
-                    "symbols": ["A"] * 126,
-                    "symbols_sha256": "s",
-                    "n_symbols": 126,
-                    "festivos": FESTIVOS,
-                },
+                "peticion": peticion.serializable(),
                 "data_vintage_id": vintage_id,
                 "apta": apta,
                 "motivos": [] if apta else ["parcial"],
@@ -121,6 +100,10 @@ def test_calendario_versionado_valida_y_coincide_con_forward() -> None:
     assert cal.checkpoints[0].festivos == (date(2026, 11, 2),)
     assert cal.checkpoints[0].requested_end == date(2026, 10, 26)
     assert fwd.end_exclusivo(cal.checkpoints[0].checkpoint, cal.checkpoints[0].festivos) == cal.checkpoints[0].requested_end
+
+
+def test_wrapper_constante_simbolos_coincide_con_forward() -> None:
+    assert checkpoint.SIMBOLOS_FORWARD_SHA256 == fwd.SIMBOLOS_FORWARD_SHA256
 
 
 @pytest.mark.parametrize(
@@ -174,6 +157,7 @@ def test_wrapper_checkpoint_apta_y_segunda_ejecucion_no_repite(tmp_path: Path) -
     sums = (cfg.artefactos / "checkpoints" / CP / "SHA256SUMS").read_text()
     assert f"vintage/{vid}/manifest.json" in sums and f"vintage/{vid}/AAPL.csv" in sums
     assert "congelar.stderr.log" in sums
+    assert "estado.json" in sums
     calls.clear()
     assert checkpoint.ejecutar(cfg, date(2026, 11, 3), runner) == 0
     assert calls == []
@@ -193,11 +177,34 @@ def test_wrapper_fallos_cortan_antes_de_congelar(tmp_path: Path) -> None:
     runner, calls, _vid = _fake_runner(tmp_path, bad_identity=True)
     assert checkpoint.ejecutar(_cfg(tmp_path), date(2026, 11, 3), runner) == 6
     assert not any(cmd[3:4] == ["peticion"] or cmd[3:4] == ["congelar"] for cmd in calls)
-    runner, calls, _vid = _fake_runner(tmp_path / "b", bad_peticion_end=True)
+    runner, calls, _vid = _fake_runner(tmp_path / "b", peticion_edit=lambda data: data.update({"end": "2026-10-27"}))
     assert checkpoint.ejecutar(_cfg(tmp_path / "b"), date(2026, 11, 3), runner) == 7
     assert not any(cmd[3:4] == ["congelar"] for cmd in calls)
     runner, calls, _vid = _fake_runner(tmp_path / "c", bad_preflight=True)
     assert checkpoint.ejecutar(_cfg(tmp_path / "c"), date(2026, 11, 3), runner) == 6
+    assert not any(cmd[3:4] == ["congelar"] for cmd in calls)
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        lambda data: data.update({"interval": "1wk"}),
+        lambda data: data.update({"auto_adjust": True}),
+        lambda data: data.update({"actions": False}),
+        lambda data: data.update({"end_exclusive": False}),
+        lambda data: data["symbols"].__setitem__(0, "ZZZZ"),
+        lambda data: data.update({"symbols_sha256": "0" * 64}),
+        lambda data: data.update({"n_symbols": 125}),
+        lambda data: data.update({"start": "2021-08-31"}),
+        lambda data: data.update({"end": "2026-10-27"}),
+        lambda data: data.update({"festivos": []}),
+    ],
+)
+def test_wrapper_peticion_alterada_da_error_calendario_sin_congelar(
+    tmp_path: Path, edit: Callable[[dict[str, object]], None]
+) -> None:
+    runner, calls, _vid = _fake_runner(tmp_path, peticion_edit=edit)
+    assert checkpoint.ejecutar(_cfg(tmp_path), date(2026, 11, 3), runner) == 7
     assert not any(cmd[3:4] == ["congelar"] for cmd in calls)
 
 
@@ -259,6 +266,7 @@ def test_error_congelacion_escribe_hashes_y_no_reintenta(tmp_path: Path) -> None
     assert estado["estado"] == "ERROR_CONGELACION"
     sums = (cp_dir / "SHA256SUMS").read_text()
     assert "congelar.stderr.log" in sums
+    assert "estado.json" in sums
     assert f"vintage/{vid}/manifest.json" in sums
     calls.clear()
     assert checkpoint.ejecutar(cfg, date(2026, 11, 3), runner) == 5
@@ -288,6 +296,17 @@ def test_runner_realista_y_verificador_detecta_tampering(tmp_path: Path, monkeyp
     ok, _informe = traer.verificar(checkpoint=CP, artefactos=artefactos, vintage_dir=tmp_path / "data" / vid, code_sha_esperado=CODE_SHA)
     assert not ok
     extra.unlink()
+    artefacto_extra = artefactos / "extra.txt"
+    artefacto_extra.write_text("extra\n", encoding="utf-8")
+    ok, _informe = traer.verificar(checkpoint=CP, artefactos=artefactos, vintage_dir=tmp_path / "data" / vid, code_sha_esperado=CODE_SHA)
+    assert not ok
+    artefacto_extra.unlink()
+    estado = artefactos / "estado.json"
+    estado_original = estado.read_text(encoding="utf-8")
+    estado.write_text(estado_original.replace('"APTA"', '"NO_APTA"', 1), encoding="utf-8")
+    ok, _informe = traer.verificar(checkpoint=CP, artefactos=artefactos, vintage_dir=tmp_path / "data" / vid, code_sha_esperado=CODE_SHA)
+    assert not ok
+    estado.write_text(estado_original, encoding="utf-8")
     identidad = artefactos / "identidad.txt"
     original_identidad = identidad.read_text(encoding="utf-8")
     identidad.write_text("c" * 40 + "\n", encoding="utf-8")
@@ -411,6 +430,18 @@ def test_copiar_destino_existente_distinto_falla_aunque_mismo_tamano_y_mtime(tmp
         traer.copiar(args, runner=_local_rsync_runner(calls))
 
 
+def test_copiar_verificacion_fallida_no_crea_destinos_ni_deja_staging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    args, vid, calls = _preparar_pi_desde_captura(tmp_path, monkeypatch)
+    (Path(args.pi_artefactos) / "checkpoints" / CP / "extra.txt").write_text("extra\n", encoding="utf-8")
+    assert traer.copiar(args, runner=_local_rsync_runner(calls)) == 1
+    assert not args.destino_artefactos.exists()
+    assert not (args.data_dir / vid).exists()
+    assert not list(args.destino_artefactos.parent.glob(".t024-staging-*"))
+    assert not list(args.data_dir.parent.glob(".t024-staging-*"))
+
+
 def test_copiar_estado_no_apta_no_copia_vintage(tmp_path: Path) -> None:
     args = _copiar_args(tmp_path, data_dir=tmp_path / "pc" / "data" / "vintages")
     pi_cp = Path(args.pi_artefactos) / "checkpoints" / CP
@@ -450,5 +481,9 @@ def test_systemd_templates_render_installer_y_sin_palabras_prohibidas(tmp_path: 
         render_mod.render("@T024_USER@ @T024_MISSING@", {"T024_USER": "fer"})
     for text in (service_t, timer_t, (ROOT / "deploy/t024/instalar.sh").read_text()):
         assert "registrar" not in text and "capturar" not in text
+    instalar = (ROOT / "deploy/t024/instalar.sh").read_text()
+    assert 'id -gn "${T024_USER}"' in instalar
+    assert "deploy/t024/checkpoint.py" in instalar
+    assert "git -C \"${T024_REPO_DIR}\" diff --quiet \"${T024_CODE_SHA}\" HEAD" in instalar
     result = subprocess.run(["bash", "-n", str(ROOT / "deploy/t024/instalar.sh")], capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr

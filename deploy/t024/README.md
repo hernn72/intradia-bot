@@ -10,15 +10,22 @@ registro y los conteos del runbook de investigación.
 ## Worktree dedicado
 
 Producción sigue en `/home/fer/intradia-bot` con el tag operativo. La captura forward usa un worktree
-separado en `/home/fer/intradia-t024` porque `verificar_identidad()` exige el ejecutor de
-`T024_CODE_SHA = 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0`; el release de producción no coincide y no
-se toca para esta tarea.
+separado en `/home/fer/intradia-t024`. Ese worktree no puede crearse directamente en
+`T024_CODE_SHA = 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0`, porque ese commit no contiene `deploy/t024`;
+debe apuntar al commit de `main` posterior a fusionar el PR #46, o a un descendiente.
 
 Ejemplo de preparación en la Pi:
 
 ```bash
-git -C /home/fer/intradia-bot worktree add --detach /home/fer/intradia-t024 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0
+git -C /home/fer/intradia-bot fetch origin
+git -C /home/fer/intradia-bot worktree add --detach /home/fer/intradia-t024 <SHA de main tras fusionar #46>
+git -C /home/fer/intradia-t024 diff --quiet 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0 HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt
+test -f /home/fer/intradia-t024/deploy/t024/checkpoint.py
 ```
+
+La comprobación de `diff --quiet` debe salir 0: permite añadir el despliegue T-024 sin cambiar el código
+metodológico congelado. Después, `verificar_identidad()` debe devolver exactamente
+`1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0`.
 
 El intérprete puede ser el venv del bot:
 
@@ -48,8 +55,9 @@ sudo /home/fer/intradia-t024/deploy/t024/instalar.sh
 ```
 
 El instalador debe correr como root para escribir en systemd, pero las comprobaciones sobre el worktree
-se ejecutan como `T024_USER`: limpieza de git, import de `advisor` desde `T024_REPO_DIR/advisor`,
-`verificar_identidad()` y render de plantillas con `PYTHONDONTWRITEBYTECODE=1`.
+se ejecutan como `T024_USER`: limpieza de git, existencia de `deploy/t024/checkpoint.py`, diff nulo contra
+`T024_CODE_SHA` en las rutas protegidas, import de `advisor` desde `T024_REPO_DIR/advisor`,
+`verificar_identidad()` exacto y render de plantillas con `PYTHONDONTWRITEBYTECODE=1`.
 
 ## Operación
 
@@ -95,6 +103,7 @@ python deploy/t024/traer_cosecha.py copiar \
 ```
 
 `copiar` usa `rsync -a` sin `--delete`, exige estado `APTA`, verifica `SHA256SUMS`, manifiesto, petición,
-contexto y sidecar de identidad, y solo instala el vintage local si no existe. Si ya existe, exige igualdad
-byte a byte. El staging se crea junto a `--data-dir` para que el movimiento final sea atómico dentro del
-mismo sistema de ficheros.
+contexto y sidecar de identidad en staging, y solo promueve artefactos y vintage cuando todo cuadra. Si el
+destino ya existe, exige igualdad byte a byte del árbol completo y no lo toca. Los staging se crean junto a
+los destinos finales para que la promoción con `os.replace` sea atómica dentro del mismo sistema de
+ficheros; si algo falla, se borran y el destino final queda intacto.

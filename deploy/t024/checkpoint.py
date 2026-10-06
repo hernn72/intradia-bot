@@ -21,6 +21,7 @@ SCHEMA = "t024-calendario-checkpoints"
 SCHEMA_VERSION = 1
 START_ESPERADO = "2021-08-30"
 N_SIMBOLOS_ESPERADO = 126
+SIMBOLOS_FORWARD_SHA256 = "c7a896ab921a27dce3e6ea268187ff03ce77954dd67298ac2b62d7c4017b50b5"
 SHA40 = re.compile(r"[0-9a-f]{40}")
 SHA64 = re.compile(r"[0-9a-f]{64}")
 ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -238,11 +239,24 @@ def _preflight_ok(repo: Path, stdout: str) -> bool:
 
 
 def _validar_peticion(data: Mapping[str, Any], cp: Checkpoint) -> bool:
+    symbols = data.get("symbols")
+    if not isinstance(symbols, list) or not all(isinstance(item, str) for item in symbols):
+        return False
+    symbols_hash = hashlib.sha256("\n".join(symbols).encode("utf-8")).hexdigest()
     return (
         data.get("checkpoint") == cp.checkpoint.isoformat()
         and data.get("start") == START_ESPERADO
         and data.get("end") == cp.requested_end.isoformat()
+        and data.get("end_exclusive") is True
+        and data.get("interval") == "1d"
+        and data.get("auto_adjust") is False
+        and data.get("actions") is True
         and data.get("n_symbols") == N_SIMBOLOS_ESPERADO
+        and len(symbols) == N_SIMBOLOS_ESPERADO
+        and symbols == sorted(symbols)
+        and len(set(symbols)) == N_SIMBOLOS_ESPERADO
+        and data.get("symbols_sha256") == SIMBOLOS_FORWARD_SHA256
+        and symbols_hash == SIMBOLOS_FORWARD_SHA256
         and data.get("festivos") == [dia.isoformat() for dia in cp.festivos]
     )
 
@@ -253,7 +267,7 @@ def _sha_line(path: Path, name: str) -> str:
 
 def escribir_sha256s(dir_cp: Path, data_dir: Path, congelacion: Mapping[str, Any]) -> None:
     lines = []
-    for name in ("intento.json", "identidad.txt", "peticion.json", "congelacion.json", "congelar.stderr.log"):
+    for name in ("intento.json", "identidad.txt", "peticion.json", "congelacion.json", "congelar.stderr.log", "estado.json"):
         path = dir_cp / name
         if path.is_file():
             lines.append(_sha_line(path, name))
@@ -415,7 +429,6 @@ def _ejecutar_checkpoint(cfg: Cfg, calendario: Calendario, cp: Checkpoint, hoy: 
         _estado(dir_cp, cp.checkpoint, "ERROR_CONGELACION", rc_congelar=rc)
         escribir_sha256s(dir_cp, cfg.data_dir, congelacion)
         return RC_CONGELACION
-    escribir_sha256s(dir_cp, cfg.data_dir, congelacion)
     _estado(
         dir_cp,
         cp.checkpoint,
@@ -426,6 +439,7 @@ def _ejecutar_checkpoint(cfg: Cfg, calendario: Calendario, cp: Checkpoint, hoy: 
         motivos=congelacion.get("motivos", []),
         finalizado_utc=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
     )
+    escribir_sha256s(dir_cp, cfg.data_dir, congelacion)
     log(cfg.artefactos, f"{cp.checkpoint.isoformat()} finalizado con estado {estado}")
     return salida
 

@@ -7,6 +7,7 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 ENV_FILE=/etc/intradia-bot/t024.env
+T024_CODE_SHA=1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0
 if [[ ! -r "${ENV_FILE}" ]]; then
   echo "no se puede leer ${ENV_FILE}" >&2
   exit 1
@@ -37,6 +38,14 @@ if [[ -n "$(run_as_user git -C "${T024_REPO_DIR}" status --porcelain)" ]]; then
   echo "T024_REPO_DIR debe ser un worktree git limpio: ${T024_REPO_DIR}" >&2
   exit 1
 fi
+if [[ ! -f "${T024_REPO_DIR}/deploy/t024/checkpoint.py" ]]; then
+  echo "T024_REPO_DIR no contiene deploy/t024/checkpoint.py: ${T024_REPO_DIR}" >&2
+  exit 1
+fi
+if ! run_as_user git -C "${T024_REPO_DIR}" diff --quiet "${T024_CODE_SHA}" HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt; then
+  echo "el contrato de código T-024 difiere de ${T024_CODE_SHA} en rutas protegidas" >&2
+  exit 1
+fi
 
 advisor_file="$(run_in_repo env PYTHONDONTWRITEBYTECODE=1 "${T024_PYTHON}" -c "import advisor; print(advisor.__file__)" 2>/dev/null)"
 case "${advisor_file}" in
@@ -47,12 +56,18 @@ case "${advisor_file}" in
     ;;
 esac
 
-run_in_repo env PYTHONDONTWRITEBYTECODE=1 "${T024_PYTHON}" -c "from advisor.research.t024_decision import verificar_identidad; print(verificar_identidad())" >/dev/null
+identidad="$(run_in_repo env PYTHONDONTWRITEBYTECODE=1 "${T024_PYTHON}" -c "from advisor.research.t024_decision import verificar_identidad; print(verificar_identidad())")"
+if [[ "${identidad}" != "${T024_CODE_SHA}" ]]; then
+  echo "verificar_identidad() devolvió ${identidad}, esperado ${T024_CODE_SHA}" >&2
+  exit 1
+fi
 
-install -d -m 0755 -o "${T024_USER}" -g "${T024_USER}" "${T024_ARTEFACTOS_DIR}"
+t024_group="$(id -gn "${T024_USER}")"
+
+install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "${T024_ARTEFACTOS_DIR}"
 # El wrapper corre como T024_USER y escribe sus propios logs: ningún directorio suyo puede ser de root.
-install -d -m 0755 -o "${T024_USER}" -g "${T024_USER}" "${T024_ARTEFACTOS_DIR}/logs"
-install -d -m 0755 -o "${T024_USER}" -g "${T024_USER}" "$(dirname "${T024_LOG}")"
+install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "${T024_ARTEFACTOS_DIR}/logs"
+install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "$(dirname "${T024_LOG}")"
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT

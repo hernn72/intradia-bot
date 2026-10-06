@@ -70,6 +70,7 @@ def _verificar_sha256s(artefactos: Path, vintage_dir: Path) -> list[str]:
     if not sums.is_file():
         return ["falta SHA256SUMS"]
     listados_vintage: set[str] = set()
+    listados_artefactos: set[str] = set()
     for line in sums.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
@@ -80,11 +81,22 @@ def _verificar_sha256s(artefactos: Path, vintage_dir: Path) -> list[str]:
         rel_vintage = _vintage_rel_from_sum(rel)
         if rel_vintage is not None:
             listados_vintage.add(rel_vintage)
+        else:
+            listados_artefactos.add(rel)
         path = _paths_for_sum(artefactos, vintage_dir, rel)
         if not path.is_file():
             errores.append(f"falta fichero listado: {rel}")
         elif _sha256(path) != digest:
             errores.append(f"hash distinto: {rel}")
+    existentes_artefactos = _rel_files(artefactos) if artefactos.is_dir() else set()
+    esperados_artefactos = {"SHA256SUMS", *listados_artefactos}
+    if existentes_artefactos != esperados_artefactos:
+        faltan = sorted(esperados_artefactos - existentes_artefactos)
+        sobran = sorted(existentes_artefactos - esperados_artefactos)
+        if faltan:
+            errores.append(f"ficheros de artefactos ausentes: {faltan}")
+        if sobran:
+            errores.append(f"ficheros de artefactos sin listar: {sobran}")
     existentes_vintage = _rel_files(vintage_dir) if vintage_dir.is_dir() else set()
     if listados_vintage != existentes_vintage:
         faltan = sorted(existentes_vintage - listados_vintage)
@@ -201,22 +213,26 @@ def _dirs_byte_iguales(left: Path, right: Path) -> bool:
 
 def copiar(args: argparse.Namespace, runner: Runner = _run_subprocess) -> int:
     destino = args.destino_artefactos
-    destino.mkdir(parents=True, exist_ok=True)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    staging_artefactos: Path | None = destino.parent / f".t024-staging-artefactos-{args.checkpoint}-{os.getpid()}"
+    if staging_artefactos.exists():
+        shutil.rmtree(staging_artefactos)
+    staging_artefactos.mkdir(parents=True)
     remote_cp = f"{args.pi}:{args.pi_artefactos}/checkpoints/{args.checkpoint}/"
-    runner([*_rsync_args(args.ssh_key), remote_cp, str(destino) + "/"])
-    estado = _load_json(destino / "estado.json")
-    if estado.get("estado") != "APTA" or not SHA64.fullmatch(str(estado.get("data_vintage_id", ""))):
-        raise SystemExit("estado remoto no es APTA")
-    vintage_id = str(estado["data_vintage_id"])
-    args.data_dir.parent.mkdir(parents=True, exist_ok=True)
-    staging_parent = args.data_dir.parent / f".t024-staging-{vintage_id}-{os.getpid()}"
-    if staging_parent.exists():
-        shutil.rmtree(staging_parent)
-    staging = staging_parent / vintage_id
-    staging.mkdir(parents=True)
     try:
+        runner([*_rsync_args(args.ssh_key), remote_cp, str(staging_artefactos) + "/"])
+        estado = _load_json(staging_artefactos / "estado.json")
+        if estado.get("estado") != "APTA" or not SHA64.fullmatch(str(estado.get("data_vintage_id", ""))):
+            raise SystemExit("estado remoto no es APTA")
+        vintage_id = str(estado["data_vintage_id"])
+        args.data_dir.parent.mkdir(parents=True, exist_ok=True)
+        staging_parent = args.data_dir.parent / f".t024-staging-{vintage_id}-{os.getpid()}"
+        if staging_parent.exists():
+            shutil.rmtree(staging_parent)
+        staging = staging_parent / vintage_id
+        staging.mkdir(parents=True)
         runner([*_rsync_args(args.ssh_key), f"{args.pi}:{args.pi_data_dir}/{vintage_id}/", str(staging) + "/"])
-        ok, informe = verificar(checkpoint=args.checkpoint, artefactos=destino, vintage_dir=staging)
+        ok, informe = verificar(checkpoint=args.checkpoint, artefactos=staging_artefactos, vintage_dir=staging)
         print(json.dumps(informe, sort_keys=True, indent=2, ensure_ascii=False))
         if not ok:
             return 1
@@ -226,11 +242,29 @@ def copiar(args: argparse.Namespace, runner: Runner = _run_subprocess) -> int:
                 raise SystemExit(f"ya existe {final}, pero no es byte a byte igual")
         else:
             final.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(staging, final)
-            staging = Path()
+        if destino.exists() and not _dirs_byte_iguales(staging_artefactos, destino):
+            raise SystemExit(f"ya existe {destino}, pero no es byte a byte igual")
+        promoted_final = False
+        promoted_destino = False
+        try:
+            if not final.exists():
+                os.replace(staging, final)
+                promoted_final = True
+            if not destino.exists():
+                os.replace(staging_artefactos, destino)
+                promoted_destino = True
+                staging_artefactos = None
+        except Exception:
+            if promoted_destino and destino.exists():
+                shutil.rmtree(destino)
+            if promoted_final and final.exists():
+                shutil.rmtree(final)
+            raise
         return 0
     finally:
-        if staging_parent.exists():
+        if staging_artefactos is not None and staging_artefactos.exists():
+            shutil.rmtree(staging_artefactos)
+        if "staging_parent" in locals() and staging_parent.exists():
             shutil.rmtree(staging_parent)
 
 

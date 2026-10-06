@@ -56,10 +56,21 @@ Ese comando solo calcula la petición; no descarga nada.
 ## Fase A automática en la Pi
 
 Producción permanece en `/home/fer/intradia-bot`. La captura forward corre en el worktree dedicado
-`/home/fer/intradia-t024`, creado desde el commit de identidad de T-024, con el intérprete del venv del
-bot. Esto evita tocar el release productivo y permite que `verificar_identidad()` valide el ejecutor.
-La unidad systemd no fuerza `TZ`; el wrapper calcula explícitamente la fecha en Canarias y la congelación
-ve el mismo entorno que una ejecución manual con el venv.
+`/home/fer/intradia-t024`, con el intérprete del venv del bot. Ese worktree se crea desde el commit de
+`main` posterior a fusionar el PR #46, o un descendiente, porque `T024_CODE_SHA =
+1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0` no contiene `deploy/t024`. Antes de instalar se comprueba que
+`deploy/t024/checkpoint.py` existe, que las rutas protegidas no difieren contra `T024_CODE_SHA` y que
+`verificar_identidad()` devuelve exactamente ese SHA. Esto evita tocar el release productivo y permite
+desplegar el wrapper sin cambiar el ejecutor metodológico. La unidad systemd no fuerza `TZ`; el wrapper
+calcula explícitamente la fecha en Canarias y la congelación ve el mismo entorno que una ejecución manual
+con el venv.
+
+```sh
+git -C /home/fer/intradia-bot fetch origin
+git -C /home/fer/intradia-bot worktree add --detach /home/fer/intradia-t024 <SHA de main tras fusionar #46>
+git -C /home/fer/intradia-t024 diff --quiet 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0 HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt
+test -f /home/fer/intradia-t024/deploy/t024/checkpoint.py
+```
 
 El timer diario de `deploy/t024/systemd/` llama a:
 
@@ -75,7 +86,8 @@ El wrapper:
 4. Si hoy no es un checkpoint declarado, no ejecuta ningún comando del módulo forward.
 5. Si hoy es checkpoint, crea `intento.json`, verifica preflight e identidad, escribe `peticion.json`,
    comprueba que la petición coincide con el calendario y ejecuta `congelar` una sola vez.
-6. Escribe `congelacion.json`, `congelar.stderr.log`, `estado.json` y `SHA256SUMS`.
+6. Escribe `congelacion.json`, `congelar.stderr.log`, `estado.json` y después `SHA256SUMS`, que cubre
+   también `estado.json`.
 
 La fase A **no registra, no captura conteos, no decide y no reintenta automáticamente**. `NO_APTA`,
 `ERROR_*`, `INTERRUMPIDO` y `PERDIDO` quedan visibles para el propietario.
@@ -103,9 +115,11 @@ La fecha en que se ejecute esta fase no cambia el checkpoint: manda la cosecha c
      --pi-data-dir /home/fer/intradia-bot/data/vintages
    ```
 
-   `copiar` usa `rsync -a` sin borrar destino, exige `APTA`, verifica hashes, manifiesto, petición,
-   contexto y sidecar de identidad, y solo instala el vintage local si no existe. Si existe, exige igualdad
-   byte a byte; el staging vive junto a `--data-dir` para poder mover dentro del mismo sistema de ficheros.
+   `copiar` usa `rsync -a` sin borrar destino, exige `APTA` y verifica hashes, manifiesto, petición,
+   contexto y sidecar de identidad en staging. Solo después promueve artefactos y vintage con `os.replace`.
+   Si un destino ya existe, exige igualdad byte a byte del árbol completo y no lo toca. Los staging viven
+   junto a los destinos finales y se borran ante cualquier fallo, dejando intactos artefactos y vintage
+   finales.
 
 2. **Registro.**
 
