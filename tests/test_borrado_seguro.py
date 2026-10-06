@@ -476,3 +476,54 @@ def test_red_protege_data_aunque_sea_un_enlace(tmp_path: Path) -> None:
     with pytest.raises(BorradoProhibidoEnTests):
         guardada(repo / "data" / "vintages")
     assert llamadas == [] and (externo / "vintages").is_dir()
+
+
+
+# ---------------------------------------------------------------------------
+# Revisión final de Codex (sobre 10f2702): hijos Python por cualquier vía de lanzamiento
+# ---------------------------------------------------------------------------
+
+
+def test_python_con_flags_dentro_de_una_orden_de_shell_se_niega(tmp_path: Path) -> None:
+    import subprocess
+
+    with pytest.raises(BorradoProhibidoEnTests):
+        subprocess.run(f"{sys.executable} -S -c pass", shell=True, cwd=tmp_path, check=False)
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.system(f"cd {tmp_path} && {sys.executable} -I -c pass")
+
+
+def test_spawnve_y_posix_spawn_con_python_sin_red_se_niegan(tmp_path: Path) -> None:
+    entorno_limpio = {"PATH": os.environ.get("PATH", "")}
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.spawnve(os.P_WAIT, sys.executable, [sys.executable, "-E", "-c", "pass"], entorno_limpio)
+    if hasattr(os, "posix_spawn"):
+        with pytest.raises(BorradoProhibidoEnTests):
+            os.posix_spawn(sys.executable, [sys.executable, "-S", "-c", "pass"], entorno_limpio)
+
+
+def test_spawnve_con_entorno_limpio_recibe_la_red(tmp_path: Path) -> None:
+    protegido = ROOT / "evidence" / NO_EXISTE
+    salida = tmp_path / "salida.txt"
+    codigo = (
+        "import shutil, sys\n"
+        f"try:\n    shutil.rmtree({str(protegido)!r})\n"
+        f"except Exception as exc:\n    open({str(salida)!r}, 'w').write(type(exc).__name__)\n"
+    )
+    entorno_limpio = {"PATH": os.environ.get("PATH", "")}
+    os.spawnve(os.P_WAIT, sys.executable, [sys.executable, "-c", codigo], entorno_limpio)
+    assert salida.read_text(encoding="utf-8") == "BorradoProhibidoEnTests"
+
+
+@pytest.mark.parametrize("programa", ["pypy3", "pythonw", "python3.13", "/usr/local/bin/python3"])
+def test_es_python_reconoce_otros_interpretes(programa: str) -> None:
+    from tests.red_borrado import es_python
+
+    assert es_python(programa)
+
+
+def test_executable_python_con_argv0_ajeno_se_trata_como_python(tmp_path: Path) -> None:
+    import subprocess
+
+    with pytest.raises(BorradoProhibidoEnTests):
+        subprocess.run(["no-python", "-I", "-c", "pass"], executable=sys.executable, cwd=tmp_path, check=False)

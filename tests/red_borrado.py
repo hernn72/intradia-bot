@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -141,8 +142,15 @@ VARIABLES_RED = ("PYTHONPATH", "INTRADIA_RED_BORRADO_REPO")
 
 
 def es_python(programa: str) -> bool:
-    nombre = os.path.basename(programa)
-    return re.fullmatch(r"python(\d+(\.\d+)*)?", nombre) is not None or os.path.realpath(programa) == os.path.realpath(sys.executable)
+    """¿Es un intérprete Python? Por nombre (python, python3.12, pythonw, pypy3…) o por ser el de la sesión."""
+
+    nombre = os.path.basename(programa).lower()
+    if re.fullmatch(r"(python|pythonw|pypy)(\d+(\.\d+)*)?(\.exe)?", nombre):
+        return True
+    try:
+        return os.path.realpath(programa) == os.path.realpath(sys.executable)
+    except (TypeError, ValueError):
+        return False
 
 
 def flags_que_anulan_la_red(argv: list[str]) -> list[str]:
@@ -159,36 +167,87 @@ def flags_que_anulan_la_red(argv: list[str]) -> list[str]:
     return malas
 
 
+def _tokens(args: Any, *, shell: bool) -> list[str]:
+    if isinstance(args, (str, bytes, os.PathLike)):
+        texto = os.fsdecode(args)
+        if not shell:
+            return [texto]
+        try:
+            return shlex.split(texto, posix=True)
+        except ValueError:
+            return texto.split()
+    return [os.fsdecode(a) for a in args]
+
+
+def asegurar_hijo(args: Any, *, shell: bool = False, executable: Any = None, env: Any = None) -> Any:
+    """Única regla para todo lanzamiento de procesos desde los tests.
+
+    1. Niega órdenes de borrado reconocibles.
+    2. Si en la orden aparece un intérprete Python (como programa, en `executable=` o dentro de una orden de
+       shell), niega -I/-E/-S, que le harían ignorar la red.
+    3. Devuelve el entorno a usar: si `env` es explícito, con las variables de la red añadidas, porque un
+       entorno explícito no las hereda; si es None, el heredado ya las lleva.
+    """
+
+    motivo = orden_de_borrado(args, shell=shell)
+    if motivo is not None:
+        raise BorradoProhibidoEnTests(f"lanzamiento denegado en tests: {motivo}")
+    tokens = _tokens(args, shell=shell)
+    candidatos = [i for i, t in enumerate(tokens) if es_python(t)]
+    if executable is not None and es_python(os.fsdecode(executable)) and 0 not in candidatos:
+        candidatos.insert(0, 0)
+    for indice in candidatos:
+        malas = flags_que_anulan_la_red(tokens[indice:])
+        if malas:
+            raise BorradoProhibidoEnTests(f"intérprete Python hijo con {malas}: ignoraría la red de borrado")
+    if env is None:
+        return None
+    return {**env, **{v: os.environ[v] for v in VARIABLES_RED if v in os.environ}}
+
+
 class PopenGuardado(subprocess.Popen):  # type: ignore[type-arg]
-    """`subprocess.Popen` que niega órdenes de borrado y garantiza la red en los intérpretes Python hijos."""
+    """`subprocess.Popen` que aplica `asegurar_hijo` a todo lanzamiento."""
 
     def __init__(self, args: Any, *posicionales: Any, **kwargs: Any) -> None:
-        motivo = orden_de_borrado(args, shell=bool(kwargs.get("shell")))
-        if motivo is not None:
-            raise BorradoProhibidoEnTests(f"subprocess denegado en tests: {motivo}")
-        argv = [os.fsdecode(args)] if isinstance(args, (str, bytes, os.PathLike)) else [os.fsdecode(a) for a in args]
-        if argv and not kwargs.get("shell") and es_python(argv[0]):
-            malas = flags_que_anulan_la_red(argv)
-            if malas:
-                raise BorradoProhibidoEnTests(f"intérprete hijo con {malas}: ignoraría la red de borrado")
-            entorno = kwargs.get("env")
-            if entorno is not None:
-                # Un entorno explícito no hereda la red: se le añaden sus variables.
-                kwargs["env"] = {**entorno, **{v: os.environ[v] for v in VARIABLES_RED if v in os.environ}}
+        entorno = asegurar_hijo(
+            args, shell=bool(kwargs.get("shell")), executable=kwargs.get("executable"), env=kwargs.get("env")
+        )
+        if entorno is not None:
+            kwargs["env"] = entorno
         super().__init__(args, *posicionales, **kwargs)
 
 
-def envolver_proceso(original: Callable[..., Any], nombre: str, *, indice_args: int) -> Callable[..., Any]:
-    """`os.system`, `os.spawn*`, `os.posix_spawn*` y `os.exec*`: la misma inspección que `subprocess`."""
+# Posición de (programa, argv, env) en cada función de os; None si no tiene ese argumento.
+_FIRMAS_OS: dict[str, tuple[int, int, Optional[int]]] = {
+    "spawnv": (1, 2, None),
+    "spawnve": (1, 2, 3),
+    "spawnvp": (1, 2, None),
+    "spawnvpe": (1, 2, 3),
+    "posix_spawn": (0, 1, 2),
+    "posix_spawnp": (0, 1, 2),
+    "execv": (0, 1, None),
+    "execve": (0, 1, 2),
+    "execvp": (0, 1, None),
+    "execvpe": (0, 1, 2),
+}
+
+
+def envolver_proceso(original: Callable[..., Any], nombre: str) -> Callable[..., Any]:
+    """`os.system`, `os.spawn*`, `os.posix_spawn*` y `os.exec*`: la misma regla que `subprocess`."""
+
+    corto = nombre.removeprefix("os.")
 
     def guardada(*args: Any, **kwargs: Any) -> Any:
-        if nombre == "os.system":
-            motivo = orden_de_borrado(args[0], shell=True)
-        else:
-            orden = args[indice_args] if len(args) > indice_args else []
-            motivo = orden_de_borrado([args[indice_args - 1], *orden] if indice_args else orden)
-        if motivo is not None:
-            raise BorradoProhibidoEnTests(f"{nombre} denegado en tests: {motivo}")
+        if corto == "system":
+            asegurar_hijo(args[0], shell=True)
+            return original(*args, **kwargs)
+        i_prog, i_argv, i_env = _FIRMAS_OS[corto]
+        argv = list(args[i_argv]) if len(args) > i_argv else []
+        programa = args[i_prog] if len(args) > i_prog else None
+        orden = [os.fsdecode(programa), *argv[1:]] if programa is not None else argv
+        entorno = asegurar_hijo(orden, executable=programa, env=args[i_env] if i_env is not None and len(args) > i_env else None)
+        if entorno is not None and i_env is not None:
+            args = (*args[:i_env], entorno, *args[i_env + 1 :])
         return original(*args, **kwargs)
 
     return guardada
@@ -207,10 +266,7 @@ def instalar(setattr_: Callable[[Any, str, Any], None]) -> None:
     setattr_(os, "rename", envolver_renombrado(os.rename, "os.rename"))
     setattr_(os, "replace", envolver_renombrado(os.replace, "os.replace"))
     setattr_(subprocess, "Popen", PopenGuardado)
-    setattr_(os, "system", envolver_proceso(os.system, "os.system", indice_args=0))
-    for nombre in ("spawnv", "spawnve", "spawnvp", "spawnvpe", "posix_spawn", "posix_spawnp"):
+    setattr_(os, "system", envolver_proceso(os.system, "os.system"))
+    for nombre in _FIRMAS_OS:
         if hasattr(os, nombre):
-            indice = 2 if nombre.startswith("spawn") else 1
-            setattr_(os, nombre, envolver_proceso(getattr(os, nombre), f"os.{nombre}", indice_args=indice))
-    for nombre in ("execv", "execve", "execvp", "execvpe"):
-        setattr_(os, nombre, envolver_proceso(getattr(os, nombre), f"os.{nombre}", indice_args=1))
+            setattr_(os, nombre, envolver_proceso(getattr(os, nombre), f"os.{nombre}"))
