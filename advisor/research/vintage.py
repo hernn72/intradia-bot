@@ -405,17 +405,19 @@ def hash_symbol_list(symbols: Iterable[str]) -> str:
 
 
 def _require_inside_range(history: pd.DataFrame, start: str, end: str) -> None:
-    """Rechaza una respuesta con barras fuera de ``[start, end)``.
+    """Rechaza una respuesta con barras en ``end`` o después (``end`` es exclusivo).
 
     La fecha de cada barra es la de su propia marca temporal, en la zona en que la sirve el proveedor (la
     de la plaza), antes de normalizar a UTC: una sesión asiática a medianoche local cae el día anterior
-    en UTC. No se recorta nada: una barra fuera de la petición invalida el símbolo.
+    en UTC. No se recorta nada: una barra en o tras ``end`` invalida el símbolo. ``start`` lo aplica el
+    proveedor y no se revalida: una barra anterior es historia de más, no información posterior, y un
+    desfase de zona en la primera barra no puede dejar inservible una cosecha entera.
     """
 
     if history is None or history.empty:
         return
-    first, last = date.fromisoformat(start), date.fromisoformat(end)
-    outside = sorted({pd.Timestamp(ts).date() for ts in history.index if not first <= pd.Timestamp(ts).date() < last})
+    last = date.fromisoformat(end)
+    outside = sorted({pd.Timestamp(ts).date() for ts in history.index if pd.Timestamp(ts).date() >= last})
     if outside:
         raise ValueError(f"barras fuera de la petición [{start}, {end}): {[d.isoformat() for d in outside[:3]]}")
 

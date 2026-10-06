@@ -442,20 +442,61 @@ def test_ic_bonferroni_delta_cuatro_estados() -> None:
     assert dec.etiquetar(0.1, 0.2, n=99) == dec.NO_EVALUABLE
 
 
-def _entrada_sintetica(vintage_id: str, checkpoint: date) -> dict[str, object]:
-    """Entrada canónica de `t024_forward` para un checkpoint laborable cualquiera.
+def _festivos_hasta(checkpoint: date) -> list[date]:
+    """Festivos que hacen de `checkpoint` (laborable) el primer día hábil de su mes."""
 
-    Declara festivos los laborables del mes anteriores a `checkpoint` para que sea el primer día hábil.
-    """
+    return [checkpoint.replace(day=d) for d in range(1, checkpoint.day) if checkpoint.replace(day=d).weekday() < 5]
 
+
+def _manifiesto_sintetico(vintage_id: str, checkpoint: date) -> dict[str, Any]:
     from advisor.research import t024_forward as fwd
 
-    festivos = [checkpoint.replace(day=d) for d in range(1, checkpoint.day) if checkpoint.replace(day=d).weekday() < 5]
+    festivos = _festivos_hasta(checkpoint)
+    simbolos = list(fwd.simbolos_forward())
+    contexto = {
+        "estudio": "T-024",
+        "checkpoint": checkpoint.isoformat(),
+        "festivos": [d.isoformat() for d in festivos],
+        "T024_PREREG_SHA": dec.comun.T024_PREREG_SHA,
+        "T024_CODE_SHA": "a" * 40,
+    }
+    return {
+        "schema_version": 2,
+        "assets": [{"symbol": symbol} for symbol in simbolos],
+        "failed": [],
+        "universe_vintage_id": fwd.UNIVERSE_VINTAGE_ID,
+        "manifest_hash": vintage_id,
+        "data_vintage_id": vintage_id,
+        "request": {
+            "symbols": simbolos,
+            "symbols_sha256": fwd.SIMBOLOS_FORWARD_SHA256,
+            "start": fwd.FORWARD_START.isoformat(),
+            "end": fwd.end_exclusivo(checkpoint, festivos).isoformat(),
+            "end_exclusive": True,
+            "interval": "1d",
+            "auto_adjust": False,
+            "actions": True,
+            "provider": "yfinance",
+            "provider_version": "0.0-test",
+            "context": contexto,
+        },
+    }
+
+
+def _entrada_sintetica(vintage_id: str, checkpoint: date) -> dict[str, object]:
+    """Entrada canónica de `t024_forward` para un checkpoint laborable cualquiera, coherente con
+    `_manifiesto_sintetico`."""
+
+    from advisor.research import t024_forward as fwd
+    from advisor.research.vintage import _canonical_json
+
+    festivos = _festivos_hasta(checkpoint)
+    manifest = _manifiesto_sintetico(vintage_id, checkpoint)
     return {
         "checkpoint": checkpoint.isoformat(),
         "data_vintage_id": vintage_id,
         "manifest_hash": vintage_id,
-        "manifest_file_sha256": "0" * 64,
+        "manifest_file_sha256": hashlib.sha256((_canonical_json(manifest) + "\n").encode()).hexdigest(),
         "requested_start": fwd.FORWARD_START.isoformat(),
         "requested_end": fwd.end_exclusivo(checkpoint, festivos).isoformat(),
         "end_exclusive": True,
@@ -488,8 +529,9 @@ def _decisiva(registro: Path, entrada_id: str, vintage_id: Optional[str] = None)
     from advisor.research import t024_forward as fwd
 
     entrada = next(item for item in json.loads(registro.read_text())["cosechas"] if item["data_vintage_id"] == entrada_id)
-    request = {"start": entrada["requested_start"], "end": entrada["requested_end"], "context": fwd.contexto_de_entrada(entrada)}
-    return VintageLoad(vintage_id or entrada_id, {"manifest_hash": entrada_id, "request": request}, {})
+    manifest = _manifiesto_sintetico(entrada_id, date.fromisoformat(entrada["checkpoint"]))
+    vacia = _vintage_from_rows("X", []).by_symbol["X"]
+    return VintageLoad(vintage_id or entrada_id, manifest, dict.fromkeys(fwd.simbolos_forward(), vacia))
 
 
 def _conteo(policy: str, cumple: bool) -> cap.ConteoCaptura:

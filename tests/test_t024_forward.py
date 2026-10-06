@@ -270,9 +270,10 @@ def test_freeze_exacto_start_inclusivo_end_exclusivo(tmp_path: Path) -> None:
             return _frame(sorted(sessions + extra))
 
     result = freeze_vintage(["A", "B", "C"], Extra(), interval="1d", start="2026-10-19", end="2026-10-26", root_dir=tmp_path)
-    assert result.succeeded == ["A"]
-    assert "2026-10-26" in result.failed["B"] and "2026-10-16" in result.failed["C"]
-    assert all("barras fuera de la petición" in error for error in result.failed.values())
+    # `end` es estricto; una barra anterior a `start` es historia de más y no invalida el símbolo.
+    assert result.succeeded == ["A", "C"]
+    assert set(result.failed) == {"B"} and "2026-10-26" in result.failed["B"]
+    assert "barras fuera de la petición" in result.failed["B"]
 
 
 def test_freeze_exacto_fecha_de_barra_en_la_zona_de_la_plaza(tmp_path: Path) -> None:
@@ -1016,3 +1017,61 @@ def test_registro_valida_el_contenido_de_cada_campo(tmp_path: Path, campo: str, 
     entrada = fwd.entrada_registro(cosecha.data_vintage_id, cosecha.peticion, t024_code_sha=CODE_SHA, root_dir=tmp_path)
     with pytest.raises(fwd.T024ForwardError):
         fwd.validar_registro(fwd._registro([{**entrada, campo: valor}]))
+
+
+
+# ---------------------------------------------------------------------------
+# Revisión Codex r3: la mirada revalida la cosecha completa contra su entrada
+# ---------------------------------------------------------------------------
+
+
+def test_primera_barra_de_fx_en_londres_no_invalida_la_cosecha(tmp_path: Path) -> None:
+    """`EURUSD=X` llega a medianoche de Londres: 2021-08-30 local es 2021-08-29T23:00Z."""
+
+    class Fx:
+        def get_raw_history(self, symbol: str, **kwargs: Any) -> pd.DataFrame:
+            return _frame([date(2021, 8, 30), date(2021, 8, 31)], tz="Europe/London")
+
+    result = freeze_vintage(["EURUSD=X"], Fx(), interval="1d", start="2021-08-30", end="2026-10-26", root_dir=tmp_path)
+    assert result.succeeded == ["EURUSD=X"]
+    raw = load_vintage(result.data_vintage_id, root_dir=tmp_path).by_symbol["EURUSD=X"].raw
+    assert raw.index[0] == "2021-08-29T23:00:00Z"
+
+
+def test_mirada_niega_cosecha_parcial_con_registro_canonico_forjado(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    ejecutar_mirada = dec.ejecutar_mirada
+    _blindar_decision(monkeypatch)
+    monkeypatch.setattr(dec, "ejecutar_mirada", ejecutar_mirada)
+    monkeypatch.setattr(dec, "capturar", _Prohibido("capturar"))
+    monkeypatch.setattr(dec, "verificar_identidad", lambda: CODE_SHA)
+    c1 = _congelar(tmp_path)
+    parcial = _congelar(tmp_path, date(2027, 2, 1), (), fail=frozenset({"EURUSD=X"}))
+    assert c1.data_vintage_id and parcial.data_vintage_id and not parcial.apta
+    e1 = fwd.entrada_registro(c1.data_vintage_id, c1.peticion, t024_code_sha=CODE_SHA, root_dir=tmp_path)
+    vdir = tmp_path / parcial.data_vintage_id
+    forjada = {
+        **e1,
+        "checkpoint": "2027-02-01",
+        "requested_end": "2027-01-25",
+        "festivos": [],
+        "data_vintage_id": parcial.data_vintage_id,
+        "manifest_hash": parcial.data_vintage_id,
+        "manifest_file_sha256": hashlib.sha256((vdir / "manifest.json").read_bytes()).hexdigest(),
+    }
+    registro = _escribir_json(tmp_path / "r.json", fwd._registro([e1, forjada]))
+    decisiva = load_vintage(parcial.data_vintage_id, root_dir=tmp_path)
+    with pytest.raises(dec.T024DecisionError, match="procedencia"):
+        dec.ejecutar_mirada(**_mirada(tmp_path, decisiva, registro, parcial.data_vintage_id))
+    assert not (tmp_path / "ev").exists()
+
+
+@pytest.mark.parametrize("campo,valor", [("manifest_file_sha256", "f" * 64), ("provider_version", "9.9")])
+def test_procedencia_cruza_campos_bien_formados_pero_falsos(tmp_path: Path, campo: str, valor: str) -> None:
+    cosecha = _congelar(tmp_path)
+    assert cosecha.data_vintage_id
+    entrada = fwd.entrada_registro(cosecha.data_vintage_id, cosecha.peticion, t024_code_sha=CODE_SHA, root_dir=tmp_path)
+    vintage = load_vintage(cosecha.data_vintage_id, root_dir=tmp_path)
+    fwd.exigir_procedencia(entrada, vintage, _Universe(), CODE_SHA)
+    fwd.validar_registro(fwd._registro([{**entrada, campo: valor}]))  # bien formado: el registro lo admite…
+    with pytest.raises(fwd.T024ForwardError):
+        fwd.exigir_procedencia({**entrada, campo: valor}, vintage, _Universe(), CODE_SHA)  # …la procedencia no

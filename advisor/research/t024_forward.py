@@ -29,6 +29,7 @@ from advisor.research.t024_comun import DEV_VINTAGE_ID, POLITICAS_DECISORIAS, PO
 from advisor.research.vintage import (
     PROVIDER,
     VintageLoad,
+    _canonical_json,
     _verified_manifest,
     freeze_vintage,
     hash_symbol_list,
@@ -89,6 +90,7 @@ T024_FORWARD_IMPORTED_CALLABLES = (
     "advisor.research.t024_captura.capturar",
     "advisor.research.t024_decision.cargar_registro_forward",
     "advisor.research.t024_decision.verificar_identidad",
+    "advisor.research.vintage._canonical_json",
     "advisor.research.vintage._verified_manifest",
     "advisor.research.vintage.freeze_vintage",
     "advisor.research.vintage.hash_symbol_list",
@@ -555,11 +557,35 @@ def exigir_procedencia(entrada: Mapping[str, object], vintage: VintageLoad, univ
         raise T024ForwardError("la cosecha se registró con otro T024_CODE_SHA")
     if not (vintage.data_vintage_id == entrada["data_vintage_id"] == vintage.manifest.get("manifest_hash")):
         raise T024ForwardError("la cosecha cargada no es la de la entrada del registro")
-    request = vintage.manifest.get("request")
+    manifest = vintage.manifest
+    request = manifest.get("request")
     if not isinstance(request, dict) or request.get("context") != contexto_de_entrada(entrada):
         raise T024ForwardError("el contexto del manifiesto no es el de la entrada del registro")
-    if request.get("end") != entrada["requested_end"] or request.get("start") != entrada["requested_start"]:
+    simbolos = list(simbolos_forward())
+    esperado = {
+        "symbols": simbolos,
+        "symbols_sha256": entrada["symbols_sha256"],
+        "start": entrada["requested_start"],
+        "end": entrada["requested_end"],
+        "end_exclusive": True,
+        "interval": entrada["interval"],
+        "auto_adjust": False,
+        "actions": True,
+        "provider": entrada["provider"],
+        "provider_version": entrada["provider_version"],
+    }
+    if any(request.get(key) != value for key, value in esperado.items()):
         raise T024ForwardError("la petición del manifiesto no es la de la entrada del registro")
+    if manifest.get("schema_version") != 2 or manifest.get("failed"):
+        raise T024ForwardError("la cosecha cargada no es una cosecha exacta completa")
+    if manifest.get("universe_vintage_id") != entrada["universe_vintage_id"]:
+        raise T024ForwardError("universo del manifiesto distinto del de la entrada")
+    congelados = sorted(str(asset.get("symbol")) for asset in manifest.get("assets", []))
+    if congelados != simbolos or sorted(vintage.by_symbol) != simbolos:
+        raise T024ForwardError("la cosecha cargada no tiene exactamente los símbolos congelados")
+    fichero = hashlib.sha256((_canonical_json(manifest) + "\n").encode("utf-8")).hexdigest()
+    if fichero != entrada["manifest_file_sha256"]:
+        raise T024ForwardError("manifest_file_sha256 de la entrada distinto del manifiesto cargado")
     verificar_rango_cargado(vintage, universe, date.fromisoformat(str(entrada["requested_end"])))
 
 
