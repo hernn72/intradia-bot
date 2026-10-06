@@ -320,8 +320,9 @@ pre-registro propios, que no cambia la etiqueta de P6.
 - **T-024 y T-025 no son P7 ni lo sustituyen.** Ninguno de los dos aporta candidatas ni datos de
   holdout.
 - **Frontera temporal:** P7 empieza después de la congelación de la candidata **y** del `T1` de la
-  última mirada de T-024 (OD-T24-11). Solo usa sesiones sin desenlace consultado en T-025 y que no
-  hayan intervenido en T-024 ni en P6-bis. Para que esa ventana exista mientras T-025 corre, se propone
+  última mirada de T-024 (OD-T24-11). Solo usa sesiones sin desenlace consultado en T-025 (la unidad de consumo
+  la fija OD-T25-9; mientras tanto rige la lectura más estricta, por sesión) y que no hayan intervenido
+  en T-024 ni en P6-bis. Para que esa ventana exista mientras T-025 corre, se propone
   sellarla en T-025 para todas las cohortes hasta la consulta única de P7 (OD-T25-9).
 - Toda observación cuyo desenlace se consulte durante T-025 queda consumida y no puede ser holdout
   virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10).

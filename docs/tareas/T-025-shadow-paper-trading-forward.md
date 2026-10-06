@@ -122,6 +122,20 @@ Hay dos caminos de precios, y **tienen bases de ajuste distintas**:
 - Señales, niveles, entradas, salidas y valoración usan **la misma base que P6**: OHLC de
   `get_raw_history` (`auto_adjust=False`, `actions=True`), con `Dividends` y `Stock Splits`.
 - T-025 lo guarda en su propio almacén (§5) con la primera observación como vigente.
+- **Vista de señal ajustada por splits (ronda 2).** `yfinance` reajusta hacia atrás la serie cruda
+  cuando hay un split (`market_data.py:109-110`), mientras que las barras guardadas no se reescriben.
+  Si se usaran tal cual, la serie mezclaría dos escalas: SMA200 partida, ATR disparado y niveles
+  falsos. Por eso la serie que recibe `build_snapshot_series` es una **vista derivada**, sin reescribir
+  ninguna fila: cada barra vigente se divide por el producto de los ratios de los `SPLIT` observados
+  con fecha ex posterior a su sesión. Es la misma vista ajustada por todos los splits conocidos con la
+  que P6 calculaba (`signal_prices`, T-022 §10.5). Las fills y salidas usan las barras de la escala
+  vigente en su sesión, coherentes con las unidades tras `SPLIT_ADJUST` (§8.6).
+- **Contexto point-in-time en la misma base.** El contexto (VIX, `^STOXX50E` y Asia) se calcula con
+  `PointInTimeContextResolver` sobre cierres de `get_raw_history` guardados en
+  `paper_context_observation`, como P6 (`p4.py:536-542`). **Nunca** con
+  `fetch_point_in_time_market_context`, que descarga con `get_history`, ajustado por dividendos
+  (`advisor/context/point_in_time.py:171-189`): la variación asiática cambiaría en las fechas ex, y con
+  ella el score.
 - La caché `validated_bar` de `intradia.db` **no** se usa como fuente. Mezclarla contaría el dividendo
   dos veces (dentro de la serie ajustada y como abono) y convertiría cada reanclaje por dividendo en un
   falso split.
@@ -250,8 +264,8 @@ Reglas generales:
 | `paper_corporate_action` | dividendo o split observado | `data_symbol`, `kind` (`DIVIDEND`/`SPLIT`), `ex_date`, `amount` (dividendo por acción, en la divisa de cotización y en la base de la serie) o `ratio` (split), `currency`, `observed_at`, `provider` | `(data_symbol, kind, ex_date)`; manda la primera observación, y una distinta posterior se registra en `paper_corporate_action_revision` sin cambiar nada |
 | `paper_bar_rescale` | cambio de escala detectado en la serie | `data_symbol`, `factor`, `effective_session`, `explained_by` (`SPLIT` con su id, o `UNEXPLAINED`), `detected_at` | `(data_symbol, effective_session)` |
 | `paper_fx_quote` | barra FX usada | `fx_pair`, `bar_timestamp`, `timestamp_available` (= marca + 24 h), `rate`, `provider`, `observed_at` | `(fx_pair, bar_timestamp)`; manda la primera observada |
-| `paper_context_observation` | dato de contexto usado | serie (`^VIX`, `^STOXX50E`, Asia), marca, valor, `observed_at`, `source = point_in_time` | `(serie, marca)` |
-| `paper_signal_evaluation` | (cohorte, activo, sesión `t`, pasada) | `signal_id` (`stable_signal_id`), `instrument_id`, `symbol`, `data_symbol`, `market`, `signal_session_date`, `pass_scheduled_ts`, `analysis_timestamp`, `bar_t_observation_id`, `reference_price` (cierre de `t`), `entry_max`, `stop`, `target1`, `target2`, `target3`, `rr_at_reference`, `risk_fraction`, `score`, `score_model_version`, `setup_radar`, `setup_accion`, `operar` (sí/no), `context_snapshot_json`, `data_quality` y frescura, `reasons`, `input_observation_ids`, `max_input_observed_at` (< apertura, O-5), `source_recommendation_id` (solo enlace) | `(cohort_id, signal_id, pass_scheduled_ts)` y `(cohort_id, instrument_id, signal_session_date, pass_scheduled_ts)` |
+| `paper_context_observation` | cierre de contexto usado | serie (`^VIX`, `^STOXX50E`, Asia), marca, cierre de `get_raw_history` (`auto_adjust=False`), `observed_at`, `provider` | `(serie, marca)`; manda la primera observada |
+| `paper_signal_evaluation` | (cohorte, activo, sesión `t`, pasada) | `signal_id` (`stable_signal_id`), `instrument_id`, `symbol`, `data_symbol`, `market`, `signal_session_date`, `pass_scheduled_ts`, `analysis_timestamp`, `bar_t_observation_id`, `reference_price` (cierre de `t`), `entry_max`, `stop`, `target1`, `target2`, `target3`, `rr_at_reference`, `risk_fraction`, `score`, `score_model_version`, `setup_radar`, `setup_accion`, `operar` (sí/no), `context_snapshot_json`, `data_quality` y frescura, `reasons`, `input_observation_ids`, `max_input_observed_at` (< apertura, O-5; y ≤ fin de la ejecución original de su pasada, de modo que repetirla no use observaciones de pasadas posteriores), `source_recommendation_id` (solo enlace) | `(cohort_id, signal_id, pass_scheduled_ts)` y `(cohort_id, instrument_id, signal_session_date, pass_scheduled_ts)` |
 | `paper_open_check` | señal vinculante OPERAR, **por política y sin depender del libro** | `policy_id`, `signal_id`, `instrument_id`, `signal_session_date`, `entry_session`, `bar_observation_id`, `open_market`, `entry_effective`, `check` (`PASS` o `DATA_NOT_EXECUTABLE`/`INVALID_STOP`/`INVALID_TARGET`/`ABOVE_MAX_ENTRY`/`RR_TOO_LOW`) | `(policy_id, signal_id)`. Se calcula para toda señal vinculante OPERAR, haya o no posición, como los «ejecutables» de T-024 §6.3. Es la **única** fuente visible de una cohorte sellada sobre la apertura |
 | `paper_signal_disposition` | señal vinculante OPERAR en un libro, en la fase `SIGNAL` (cierre de `t`, P6 §7.6) | `cohort_id`, `signal_id`, `event_ts_utc` (= `analysis_timestamp`), `disposition` (`ORDER` o `IGNORED_ALREADY_OPEN`), `open_position_id` si se ignora | `(cohort_id, signal_id)` |
 | `paper_order` | disposición `ORDER` | `order_id`, `cohort_id`, `signal_id`, `binding_evaluation_id`, `target_session` (primera sesión de calendario > `t`), `order_type = OPEN_NEXT_BAR_WITH_MAX` | `(cohort_id, signal_id)`. Como en P6, no hay orden para una señal ignorada |
@@ -262,7 +276,7 @@ Reglas generales:
 | `paper_equity_snapshot` | (cohorte, día) a las 23:59:59 UTC (P6 §13) | `equity_eur`, `cash_eur`, `long_value_eur`, `n_positions`, exposición por región, divisa y sector, `fx_set_hash` | `(cohort_id, snapshot_day)` |
 | `paper_trade_outcome` | posición cerrada | `exit_ts_utc`, `exit_reason`, `exit_market`, `exit_effective`, `pnl_gross_local`, `pnl_gross_eur`, `pnl_net_local`, `pnl_net_eur`, `fees_eur`, `slippage_eur`, `dividends_eur`, `fx_pnl_eur`, `risk_initial_local`, `risk_initial_eur`, `net_R_local`, `net_R_eur`, `mae_R`, `mfe_R`, `duration_bars`, `duration_sessions`, `duration_days`, `exposure_eur_days`, `benchmark_return` (cohorte BH, §11) | `position_id` |
 | `paper_seal_commitment` | (cohorte sellada, ejecución) | `cohort_id`, `paper_run_id`, `sealed_rows_sha256` (sin `max_seq` ni recuentos: delatarían cuántos eventos hubo) | `(cohort_id, paper_run_id)` |
-| `paper_outcome_access` | lectura de desenlaces | `cohort_id`, `accessed_at`, `who`, `purpose`, `query`, `rows_sha256` | append-only; es el registro de consumo (§10) |
+| `paper_outcome_access` | lectura de desenlaces | `cohort_id`, `accessed_at`, `who`, `purpose`, `query`, `rows_sha256` y **las sesiones consultadas** (`sessions_json`: lista de fechas de sesión por plaza, o `(política, sesión)` si OD-T25-9 elige la opción B) | append-only; es el registro de consumo (§10), y de él sale mecánicamente qué sesiones quedan consumidas |
 
 **Relación con `recommendation`:** `paper_signal_evaluation.source_recommendation_id` es la fila de
 C0 del informe con el mismo `run_id` y activo, si existe. Es descriptiva, porque el contexto y el
@@ -323,7 +337,10 @@ entera: se declara como cota.
 - **Señal vinculante (D-50):** la evaluación de la **última pasada programada cuya hora es anterior a
   la apertura de la sesión de entrada** y que tenía observada la barra `t`. La elección es determinista
   y solo usa marcas anteriores a la apertura. **Todas sus entradas** (barras, acciones corporativas,
-  contexto) tienen `observed_at` anterior a esa apertura (`max_input_observed_at`). No basta con la
+  contexto) tienen `observed_at` anterior a esa apertura (`max_input_observed_at`). Además, las
+  entradas de la evaluación de una pasada son solo las observaciones con `observed_at` ≤ el fin de la
+  ejecución original de esa pasada. Repetirla más tarde no puede incorporar barras guardadas por una
+  pasada posterior. No basta con la
   hora de escritura de la fila.
 - Si la vinculante dice OPERAR:
   1. se escribe `paper_open_check` para cada política, sin mirar ningún libro (§10);
@@ -402,6 +419,9 @@ se comprueba entrada a entrada en ese orden.
    - **En vivo (propuesta para OD-T25-6):** un dividendo que se conoce más tarde se abona al cierre de
      la primera sesión que se procesa después de conocerlo, marcado `late`. **Nunca se reescribe** el
      cash anterior, porque ya decidió tamaños.
+   - **Misma base:** el derecho se calcula con las unidades vigentes en la víspera de la fecha ex, y el
+     importe se expresa en esa misma base. Si entre la fecha ex y el abono hay un `SPLIT_ADJUST`, el
+     importe por acción se convierte con su ratio, para que el abono total no cambie.
 6. **Splits:** P6 operaba sobre una cosecha cerrada, ya ajustada por los splits de toda la ventana. En
    vivo, `yfinance` reajusta hacia atrás la serie cuando ocurre un split, a mitad de una posición.
    - **Solo un `SPLIT` observado** (`Stock Splits` en `paper_corporate_action`) con ratio `r` reescala
@@ -458,26 +478,32 @@ política por separado. Medido sobre los ledgers publicados de P6
 Desellar B2 cuando S2 sigue abierta (por ejemplo, B2 resuelta en la mirada 1 y S2 pendiente de la
 final) mostraría las mismas entradas que S2.
 
-**Lista cerrada de lo visible de una cohorte sellada.** Todo lo demás está sellado, también los
-metadatos:
-1. de `paper_signal_evaluation`: `signal_id`, activo, sesión `t`, pasada, `operar`, `reference_price`,
-   `entry_max`, stop, objetivos, RR, `risk_fraction`, score, contexto y calidad del dato;
-2. de `paper_open_check`: la comprobación de apertura **por política**, calculada para **toda** señal
-   vinculante OPERAR, haya o no posición en el libro (como los «ejecutables» de T-024 §6.3). Así una
-   señal sin comprobación visible no puede delatar un `IGNORED_ALREADY_OPEN`;
-3. de `paper_seal_commitment`: solo `sealed_rows_sha256`.
+**Lista cerrada de lo visible de una cohorte sellada.** La define OD-T25-4. **Mientras no se decida,
+rige la opción más estricta (E), que es la del pre-registro por defecto:**
+
+- **(E, por defecto) Solo conteos agregados por política**, exactamente los de T-024 §6.3 y los del
+  formato de salida del runbook de T-024: señales OPERAR, ejecutables a la apertura, rechazos previos a
+  la entrada (por motivo), pares (activo, semana ISO) y semanas ISO distintos. Ninguna fila por señal,
+  ningún activo, ningún nivel.
+- **(D, solo si el propietario la elige)** Además, por señal:
+  1. de `paper_signal_evaluation`: `signal_id`, activo, sesión `t`, pasada, `operar`,
+     `reference_price`, `entry_max`, stop, objetivos, RR, `risk_fraction`, score, contexto y calidad
+     del dato;
+  2. de `paper_open_check`: la comprobación de apertura por política.
+
+  **D va más allá de T-024 §6.3**, que solo publica conteos. Con los niveles y los precios públicos
+  cualquiera puede deducir a mano una salida, y la comprobación por activo revela qué entradas pasaron.
+  Si se elige D, antes de desplegar una D-nn lo registra como visibilidad previa de T-024, sin tocar su
+  pre-registro congelado.
+
+En las dos opciones, `paper_open_check` se calcula para **toda** señal vinculante OPERAR, haya o no
+posición en el libro (como los «ejecutables» de T-024 §6.3). Así ni una fila ausente ni un conteo pueden
+delatar un `IGNORED_ALREADY_OPEN`. De `paper_seal_commitment` solo es visible `sealed_rows_sha256`.
 
 Nada de `paper_signal_disposition`, `paper_order`, `paper_entry_decision`, `paper_position`,
 `paper_position_event`, `paper_ledger`, `paper_equity_snapshot`, `paper_trade_outcome` ni
 `paper_cohort_progress`. Ni sus recuentos, ni la frontera, ni los bloqueos por datos ausentes, ni los
 `late`/`DATA_GAP`/`SCALE_MISMATCH`/`EXIT_DATA_LOSS`: cada uno delata una posición.
-
-**Esto es más de lo que T-024 §6.3 publica**, que son solo conteos (señales OPERAR, ejecutables, pares
-activo-semana y semanas). Los niveles de una señal no son un desenlace, y T-024 no los prohíbe: el
-propietario ya ve las señales de C0 por Telegram (T-024 §14). Pero con los niveles y los precios
-públicos cualquiera puede deducir a mano una salida. **Se declara como límite del ciego. Antes de desplegar,
-una D-nn lo registra como visibilidad previa de T-024, sin tocar su pre-registro congelado.** La alternativa es mostrar de B2 y S2 solo los
-conteos de T-024 §6.3 y queda dentro de OD-T25-4.
 
 **Qué queda sellado**, entre otras cosas: `FILLED`, `POSITION_TOO_SMALL`, `INSUFFICIENT_CASH`,
 `IGNORED_ALREADY_OPEN`, unidades e importes, posiciones, salidas, P&L, R, MAE, MFE, duraciones,
@@ -599,14 +625,16 @@ cohorte. Se publican:
 - MAE, MFE y duraciones;
 - `late`, `DATA_GAP`, `SCALE_MISMATCH` y `EXIT_DATA_LOSS`.
 
-En una cohorte sellada, hasta desellar, solo la lista cerrada de §10 (señales, OPERAR, vinculantes y comprobaciones de apertura por política); ningún otro recuento. **Ninguna de estas métricas se usa
+En una cohorte sellada, hasta desellar, solo la lista cerrada de §10 (por defecto, los conteos agregados de T-024 §6.3); ningún otro recuento. **Ninguna de estas métricas se usa
 para tocar B2, S2, C0 ni el motor durante la captura.** Las métricas no tienen intervalo ni veredicto:
 son descriptivas (INV-20).
 
 **Campos para el dashboard (S-02, S-03):**
 - capital inicial, equity, cash, posiciones abiertas y cerradas;
 - rentabilidad, drawdown, benchmark y exceso;
-- recomendaciones de hoy por política y rechazos con su motivo;
+- recomendaciones de hoy por política, con su `execution_state` y los rechazos con su motivo;
+- por operación cerrada: `net_R` (local y EUR), MAE, MFE, duración, costes, dividendos, FX y
+  `benchmark_return`;
 - etiqueta y cohorte.
 
 Salen de §5; en las cohortes selladas, solo su parte visible. Frente al registro por señal de GATE
@@ -644,6 +672,14 @@ Nada de esto se hace en esta entrega.
    - una pasada repetida no duplica; una divergencia aborta;
    - dos ejecuciones concurrentes: la segunda sale sin escribir;
    - `IGNORED_ALREADY_OPEN` decidido en la fase `SIGNAL`, sin orden;
+   - un split 2:1 con ~200 barras previas: la vista de señal no mezcla escalas (SMA200 y ATR
+     continuos);
+   - un dividendo observado antes de un split y abonado tarde después de `SPLIT_ADJUST` se abona con
+     las unidades y el importe en la misma base (no `r` veces de más);
+   - el contexto sale de `PointInTimeContextResolver` sobre cierres guardados sin ajuste por
+     dividendos;
+   - repetir la ejecución de una pasada después de otra posterior da las mismas entradas (acotadas a
+     `observed_at` ≤ fin de la ejecución original);
    - `paper_open_check` se escribe para toda señal vinculante OPERAR, haya o no posición;
    - una orden pendiente sobre una barra aún no observada detiene la frontera;
    - un lote cortado a mitad se reanuda con el mismo sizing que una pasada limpia;
@@ -709,15 +745,21 @@ congelar.
   T-024 una pérdida parcial de ceguera; (C) C0 visible solo de forma agregada y mensual.
 - **Consecuencia:** A protege el único resultado forward limpio (T-024), pero deja el dashboard sin
   P&L de ninguna política durante 7 a 13 meses (la mirada 1 o el corte final de T-024). B da
-  visibilidad inmediata, pero el resultado de T-024 para B2 queda con la ceguera rota. C sigue
+  visibilidad inmediata, pero el resultado de T-024 queda con la ceguera rota para B2 y, **sobre todo,
+  para S2**: en P6, C0 cubre el 99 % de las señales de S2 y el 23 % de las de B2. C sigue
   revelando la tendencia.
 - **Subpregunta, nivel de detalle de B2 y S2 mientras están sellados:**
-  - (D) la señal con sus niveles (`entry_max`, stop, objetivos), que es la propuesta de §10;
-  - (E) solo los conteos que publica T-024 §6.3.
+  - (D) la señal con sus niveles (`entry_max`, stop, objetivos) y su comprobación de apertura;
+  - (E) solo los conteos agregados que publica T-024 §6.3. Es lo que rige por defecto (§10).
 
   D sirve para ver qué compraría el bot, pero permite deducir a mano las salidas con precios públicos,
   y habría que registrarlo en una D-nn como visibilidad previa de T-024, sin tocar su pre-registro. E es el ciego más fuerte.
-- **Recomendación técnica:** A + D, con esa D-nn registrada antes de desplegar.
+- **Si T-024 no llega a resolverse** (por ejemplo, porque su identidad se rompe sin OD-12, o porque se
+  abandona), B2 y S2 quedarían sellados indefinidamente. Su desellado exigiría entonces una D-nn del
+  propietario que declare T-024 terminado sin resultado.
+- **Recomendación técnica:** A + E, que protege la ceguera de T-024 igual que su propio runbook. D solo
+  si el propietario prefiere ver qué compraría el bot cada día y acepta, por escrito, que la ceguera de
+  T-024 pasa a ser parcial.
 
 ### OD-T25-5 — Barra de entrada ausente
 - **Alternativas:** (A) esperar hasta el cierre de la 5.ª sesión hábil y después aplicar el salto de
@@ -753,7 +795,8 @@ congelar.
   durante T-025 queda consumida y no puede ser holdout virgen de P7. Como T-025 corre indefinidamente,
   hay que precisar dos cosas.
 - **Pregunta 1:** ¿cuál es la unidad que se consume?
-  - (A) la **sesión**, para todas las políticas;
+  - (A) la **sesión**, para todas las políticas, incluida la consulta de la cohorte BH (aunque BH no
+    lleve información de señales, la regla no distingue);
   - (B) el par **(política, sesión)**.
 - **Pregunta 2:** ¿cómo se garantiza que P7 tenga ventana?
   - (C) sellar en T-025 todas las cohortes para las sesiones de la ventana de P7, desde que su
@@ -765,7 +808,8 @@ congelar.
     (B) deja pasar esa fuga.
   - (C) deja el dashboard sin P&L durante la ventana de P7. (D) deja a P7 sin holdout mientras haya
     cohortes visibles.
-- **Recomendación técnica:** A + C.
+- **Recomendación técnica:** A + C. Hasta que se decida, los textos de frontera (D-73, `gates.md` P7 y
+  el roadmap) aplican la lectura más estricta, la A.
 - **Bloquea:** la congelación del pre-registro de T-025, no la del pre-registro de P7.
 
 ## 18. Riesgos y limitaciones
@@ -773,8 +817,9 @@ congelar.
 - **Ciego procedimental** (§10): no es criptográfico.
 - **Meses sin P&L visible** si se aprueba OD-T25-4 A: el bot «funciona», pero el propietario no ve
   cómo le va hasta que T-024 se resuelve.
-- **Datos de `yfinance`:** retraso europeo, revisiones y reajustes. Se mitigan con la caché, la
-  primera observación vinculante y los eventos explícitos de §8, pero no desaparecen.
+- **Datos de `yfinance`:** retraso europeo, revisiones y reajustes. Se mitigan con el almacén propio,
+  la primera observación vigente, la vista de señal ajustada por splits y los eventos explícitos de §8,
+  pero no desaparecen.
 - **Fraccionales y liquidación inmediata:** las mismas simplificaciones que en P6.
 - **La Pi** es un único dispositivo, en desarrollo/integración, y una caída hace perder señales
   (`SIGNAL_NOT_EVALUATED`). C-06 (backups) es prioridad alta antes de acumular meses de registro.
@@ -883,6 +928,26 @@ se verificó contra el repositorio antes de corregirlo.
 | `IGNORED_ALREADY_OPEN` en dos instantes distintos | MENOR | Fase `SIGNAL`, sin orden (§7.1, §8.4) |
 | `start_ts_utc` ambiguo con 9 plazas | MENOR | Fecha `d` y primera apertura de cada activo (§6) |
 | Plantilla del método incompleta | MENOR | Estado de la lista cerrada; secciones de verificación e impacto «No aplica» con motivo |
-| La evidencia de la entrega estaba vacía; el tag saca la Pi de `v0.4.1`; podían salir dos `signal_id` para una sesión; `observed_at < τ` | OBSERVACIÓN | Evidencia añadida; §16.5 y §18; unicidad `(cohort, instrument, session)`; `max_input_observed_at` |
+| La evidencia de la entrega estaba vacía; el tag saca la Pi de `v0.4.1`; podían salir dos `signal_id` para una sesión; `observed_at < τ` | OBSERVACIÓN | Evidencia de la revisión añadida en la ronda 1 y la de verificación en la ronda 2; §16.5 y §18; unicidad `(cohort, instrument, session)`; `max_input_observed_at` |
 
-**Ronda 2:** pendiente, sobre las correcciones.
+**Ronda 2 (2026-10-06, sobre `4eeb9a1`).** Los mismos dos revisores. Detalle en
+`evidence/2026-10-06-T-025-diseno/revision-ronda2.md`. **Los dos confirman resueltos el BLOCKER y
+los IMPORTANTES de la ronda 1, sin BLOCKER nuevo.** Hallazgos nuevos, verificados y corregidos:
+
+| Hallazgo | Clase | Corrección |
+|---|---|---|
+| A-07 del roadmap conservaba la versión débil de «consumido» | IMPORTANTE (Codex) | Regla literal y ventana sellada (OD-T25-9) |
+| La visibilidad por señal de B2 y S2 (niveles y comprobación de apertura) excede T-024 §6.3 y el runbook | IMPORTANTE (Codex) | **La opción por defecto pasa a ser E** (solo conteos agregados de T-024); D queda como elección del propietario en OD-T25-4 (§10) |
+| Tras un split, la serie de señal mezcla dos escalas; un dividendo tardío tras un split se abonaba `r` veces | IMPORTANTE (revisor) | Vista de señal derivada, ajustada por los splits observados, sin reescribir filas (§3.3); derecho e importe en la misma base (§8.5); tests |
+| El contexto point-in-time por la función pública usaría cierres ajustados por dividendos | MENOR (revisor) | `PointInTimeContextResolver` sobre cierres crudos guardados, como P6 (§3.3, §5) |
+| `paper_outcome_access` sin las sesiones consultadas | MENOR (revisor) | `sessions_json` (§5) |
+| OD-T25-4 infravaloraba la fuga hacia S2 | MENOR (revisor) | Cifras del 99 % y el 23 % |
+| §18 citaba la caché como mitigación | MENOR (revisor) | Retirado |
+| Faltaba la salida de pytest, ruff y mypy en la evidencia | MENOR (revisor) | `evidence/2026-10-06-T-025-diseno/verificacion.txt` |
+| Repetir una pasada podía usar observaciones de pasadas posteriores | MENOR (revisor) | Entradas acotadas al fin de la ejecución original (§5, §7.1) |
+| La lista del dashboard estaba incompleta | MENOR (Codex) | Completada (§14) |
+| Unidad de consumo pendiente; BH; T-024 que no se resuelva | OBSERVACIÓN (revisor) | Declarados en OD-T25-9, `gates.md` y OD-T25-4 |
+
+Las correcciones de la ronda 2 pasan una ronda 3 (abajo). Lo que queda abierto son decisiones del
+propietario (OD-T25-1..9, OD-12). Una revisión final del pre-registro completo, tras esas decisiones, es
+condición para congelar.
