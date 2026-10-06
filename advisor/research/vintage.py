@@ -12,7 +12,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from importlib import metadata
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
@@ -20,7 +20,7 @@ from urllib.parse import quote
 
 import pandas as pd
 
-from advisor.data.market_data import MarketDataProvider
+from advisor.data.market_data import MarketDataProvider, validate_exact_range
 from advisor.universe.models import Asset, Universe
 
 RAW_COLUMNS = ("Open", "High", "Low", "Close", "Adj Close", "Volume", "Dividends", "Stock Splits")
@@ -76,8 +76,10 @@ def freeze_vintage(
     symbols: Iterable[str],
     provider: MarketDataProvider,
     *,
-    period: str,
+    period: Optional[str] = None,
     interval: str,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
     root_dir: str | Path = "data/vintages",
     downloaded_at: Optional[datetime] = None,
     universe_vintage: Optional[str] = None,
@@ -88,16 +90,41 @@ def freeze_vintage(
     con qué universo se congeló. Sin él, la guarda de INV-08 ampliada que
     compara universos en `replay_managed_population` no se dispara nunca,
     porque el campo que consulta no lo escribía nadie.
+
+    La petición es por ``period`` (la de siempre, manifiesto ``schema_version``
+    1 sin cambios) o exacta por ``start``/``end`` (``start`` inclusivo, ``end``
+    exclusivo, como en yfinance), nunca las dos. La exacta escribe
+    ``schema_version`` 2 con la petición completa en ``request`` y rechaza el
+    símbolo cuya respuesta traiga alguna barra fuera de ``[start, end)``.
     """
 
+    exact = validate_exact_range(start, end)
+    if exact == (period is not None):
+        raise ValueError("freeze_vintage: o period, o start y end; exactamente una de las dos peticiones")
     timestamp = _downloaded_at(downloaded_at)
     root = Path(root_dir)
+    requested = _unique_symbols(symbols)
     prepared: List[tuple[str, str, pd.DataFrame, Dict]] = []
     failed: Dict[str, str] = {}
 
-    for symbol in _unique_symbols(symbols):
+    for symbol in requested:
         try:
-            raw = normalize_raw_history(provider.get_raw_history(symbol, period=period, interval=interval))
+            if exact:
+                assert start is not None and end is not None
+                history = provider.get_raw_history(symbol, interval=interval, start=start, end=end)
+                _require_inside_range(history, start, end)
+                request_fields: Dict = {
+                    "requested_start": start,
+                    "requested_end": end,
+                    "end_exclusive": True,
+                    "auto_adjust": False,
+                    "actions": True,
+                }
+            else:
+                assert period is not None
+                history = provider.get_raw_history(symbol, period=period, interval=interval)
+                request_fields = {"requested_range": period}
+            raw = normalize_raw_history(history)
             series_hash = hash_series(raw)
             actions_hash = hash_actions(raw)
             filename = _filename_for_symbol(symbol)
@@ -110,7 +137,7 @@ def freeze_vintage(
                         "symbol": symbol,
                         "filename": filename,
                         "interval": interval,
-                        "requested_range": period,
+                        **request_fields,
                         "series_hash": series_hash,
                         "corporate_actions_hash": actions_hash,
                         "provider": PROVIDER,
@@ -126,12 +153,25 @@ def freeze_vintage(
     if not prepared:
         raise ValueError("No se pudo congelar ningún símbolo")
 
-    manifest_body = {
-        "schema_version": 1,
+    manifest_body: Dict = {
+        "schema_version": 2 if exact else 1,
         "created_at": timestamp,
         "assets": [entry for _, _, _, entry in prepared],
         "failed": [{"symbol": symbol, "error": failed[symbol]} for symbol in sorted(failed)],
     }
+    if exact:
+        manifest_body["request"] = {
+            "symbols": requested,
+            "symbols_sha256": hash_symbol_list(requested),
+            "start": start,
+            "end": end,
+            "end_exclusive": True,
+            "interval": interval,
+            "auto_adjust": False,
+            "actions": True,
+            "provider": PROVIDER,
+            "provider_version": _provider_version(),
+        }
     # Va dentro del cuerpo que se hashea a propósito: el universo forma parte
     # de la identidad de la cosecha, no es un adorno. Consecuencia asumida: las
     # cosechas congeladas a partir de aquí tienen un `data_vintage_id` distinto
@@ -349,6 +389,28 @@ def hash_actions(raw: pd.DataFrame) -> str:
 def _hash_action_rows(normalized: pd.DataFrame) -> str:
     rows = _canonical_rows(normalized, CANONICAL_ACTION_COLUMNS)
     return _sha256(_canonical_json({"columns": CANONICAL_ACTION_COLUMNS, "rows": rows}))
+
+
+def hash_symbol_list(symbols: Iterable[str]) -> str:
+    """Hash de una lista de símbolos en su orden: SHA-256 de los símbolos unidos por saltos de línea."""
+
+    return _sha256("\n".join(symbols))
+
+
+def _require_inside_range(history: pd.DataFrame, start: str, end: str) -> None:
+    """Rechaza una respuesta con barras fuera de ``[start, end)``.
+
+    La fecha de cada barra es la de su propia marca temporal, en la zona en que la sirve el proveedor (la
+    de la plaza), antes de normalizar a UTC: una sesión asiática a medianoche local cae el día anterior
+    en UTC. No se recorta nada: una barra fuera de la petición invalida el símbolo.
+    """
+
+    if history is None or history.empty:
+        return
+    first, last = date.fromisoformat(start), date.fromisoformat(end)
+    outside = sorted({pd.Timestamp(ts).date() for ts in history.index if not first <= pd.Timestamp(ts).date() < last})
+    if outside:
+        raise ValueError(f"barras fuera de la petición [{start}, {end}): {[d.isoformat() for d in outside[:3]]}")
 
 
 def hash_manifest(manifest_body: Dict) -> str:

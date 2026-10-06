@@ -1,0 +1,93 @@
+# T-024 — Runbook del checkpoint mensual (solo conteos)
+
+Contrato operativo de la captura forward de T-024 (§6.3 y §7 de la ficha, D-72). Implementado en
+`advisor/research/t024_forward.py`. **No cambia ninguna regla metodológica**: concreta la petición exacta
+que la ficha ya exigía (`start`, `end`, `interval = 1d`, `auto_adjust = False`, `actions = True`).
+
+## Contrato de la petición
+
+| Campo | Valor |
+|---|---|
+| `start` | `2021-08-30`, fijo e inclusivo (coherente con el comienzo estructural del histórico de P6) |
+| `end` | exclusivo, como en yfinance: el **quinto día hábil anterior al checkpoint** |
+| `interval` | `1d` |
+| `auto_adjust` / `actions` | `False` / `True` |
+| Símbolos | los 126 del manifiesto de la cosecha consumida `071ddb2b…`, ordenados; `SIMBOLOS_FORWARD_SHA256 = c7a896ab921a27dce3e6ea268187ff03ce77954dd67298ac2b62d7c4017b50b5`. Cubren activos, benchmarks y contexto. No se añade ni se quita ninguno por disponibilidad del día |
+| Universo | `universe_vintage_id = 237b0056…` (el congelado de P6) |
+
+- **Día hábil:** de lunes a viernes, menos los festivos laborales (Canarias) que se declaran para ese
+  checkpoint con `--festivo`. Los festivos declarados viajan en la petición y en la entrada del registro,
+  y el registro rechaza una entrada cuyo `end` no salga de esa regla.
+- **Checkpoint:** el primer día hábil del mes. El código niega un checkpoint que no lo sea con los festivos
+  declarados y niega congelar antes de la fecha del checkpoint (hora de Canarias).
+- **Modo `period` histórico:** sin cambios. Las cosechas antiguas (`schema_version` 1) se cargan y
+  verifican igual; la cosecha consumida conserva su `data_vintage_id`. Las forward son `schema_version` 2,
+  con la petición completa en `request`. Una respuesta del proveedor con alguna barra fuera de
+  `[start, end)` (fecha de la barra en la zona de su plaza) invalida ese símbolo; no se recorta nada.
+
+## Primer checkpoint: 2026-11-03
+
+El 2026-11-02 es festivo laboral en Canarias, así que el primer día hábil de noviembre es el martes 3.
+Quedan fuera los cinco días hábiles anteriores: 26, 27, 28, 29 y 30 de octubre. Por tanto
+**`end = 2026-10-26`** (exclusivo). La primera cosecha **no tiene previa**: `barras_nuevas` y
+`barras_revisadas` salen `null`.
+
+```sh
+python -m advisor.research.t024_forward peticion --checkpoint 2026-11-03 --festivo 2026-11-02
+```
+
+Ese comando solo calcula la petición; no descarga nada.
+
+## Pasos el día del checkpoint
+
+Desde el repositorio en `main`, con el árbol limpio y el sidecar de `T024_CODE_SHA` vigente:
+
+1. **Identidad.**
+   `python -c "from advisor.research.t024_decision import verificar_identidad; print(verificar_identidad())"`
+   tiene que imprimir el `T024_CODE_SHA` del sidecar. Si falla, STOP.
+2. **Petición.** `peticion` (arriba) a `evidence/T-024-forward/<checkpoint>/peticion.json`.
+3. **Congelación.**
+   `python -m advisor.research.t024_forward congelar --checkpoint 2026-11-03 --festivo 2026-11-02 > evidence/T-024-forward/2026-11-03/congelacion.json`
+   - Salida `0` y `"apta": true`: sigue.
+   - Salida `2` (`"apta": false`): **STOP**. La cosecha parcial no cuenta como checkpoint, no se registra y
+     no se ejecuta `capturar`. El JSON y el manifiesto quedan como evidencia del intento. No se sustituyen
+     símbolos, no se usa otra fuente y no se rellenan barras. Repetir la misma petición lo decide el
+     propietario y se documenta.
+4. **Registro.**
+   `python -m advisor.research.t024_forward registrar --data-vintage-id <id> --checkpoint 2026-11-03 --festivo 2026-11-02 --registro evidence/T-024-forward/registro-forward.json`
+   Vuelve a verificar la cosecha completa y la identidad, y añade la entrada. Niega una cosecha no apta,
+   un checkpoint no creciente o un `data_vintage_id` repetido.
+5. **Captura (solo conteos).**
+   `python -m advisor.research.t024_forward capturar --data-vintage-id <id> --registro evidence/T-024-forward/registro-forward.json > evidence/T-024-forward/2026-11-03/conteos.json`
+   Usa `c_e` = checkpoint. Desde el segundo checkpoint, la cosecha inmediatamente anterior del registro
+   se usa **solo** para `barras_nuevas` y `barras_revisadas`.
+6. Commit **solo de evidencia** (`evidence/T-024-forward/` y el `manifest.json` de la cosecha, que
+   `.gitignore` deja versionar; los CSV se quedan en el portátil).
+
+## Formatos
+
+**Entrada del registro** (lista cerrada de claves; cualquier otra invalida el registro): `checkpoint`,
+`data_vintage_id`, `manifest_hash`, `manifest_file_sha256`, `requested_start`, `requested_end`,
+`end_exclusive`, `interval`, `auto_adjust`, `actions`, `symbols_sha256`, `n_symbols`, `festivos`,
+`universe_vintage_id`, `provider`, `provider_version`, `T024_PREREG_SHA`, `T024_CODE_SHA`.
+
+El registro es `{schema, schema_version, cosechas, sha256, entradas_sha256}`:
+- `sha256` es el hash que recalcula `cargar_registro_forward` (solo `data_vintage_id` y `checkpoint`);
+- `entradas_sha256` cubre las entradas completas.
+
+Se serializa de forma canónica (claves ordenadas, sangría 2).
+
+**Salida de captura:** `checkpoint`, `c_e`, `data_vintage_id`, `previa_data_vintage_id`,
+`barras_nuevas`, `barras_revisadas` y, para B2, S2 y C0:
+- `senales_operar`, `ejecutables`, `rechazos` (motivos previos a la entrada), `q_p`, `w_p`;
+- `exclusiones`.
+
+Nada más. En particular no emite salidas, `R`, D1–D4, P&L, ventanas ni el «cumple»; el umbral
+(`Q_p ≥ 120` y `W_p ≥ 26`) se lee de los conteos. Barra revisada = barra ya vista en la previa cuyo OHLCV
+cambia o que desaparece.
+
+## Prohibido en un checkpoint
+
+`ejecutar_mirada`, D1, D2, D2o, D2c, D3, D4, no solapamiento, salidas y cualquier marca de mirada. El
+módulo forward no importa ninguna de esas funciones (test de imports cerrado), y la salida y el registro
+se validan contra listas cerradas de claves.

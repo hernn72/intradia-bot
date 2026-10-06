@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from datetime import date
 from typing import Optional, Tuple
 
 import pandas as pd
@@ -39,6 +40,25 @@ class RateLimiter:
                 if remaining > 0:
                     time.sleep(remaining)
             self._last_call = time.monotonic()
+
+
+def validate_exact_range(start: Optional[str], end: Optional[str]) -> bool:
+    """¿Petición exacta ``start``/``end``? Exige los dos, en ISO ``YYYY-MM-DD`` y con ``start < end``."""
+
+    if start is None and end is None:
+        return False
+    if start is None or end is None:
+        raise ValueError("start y end van juntos: una petición exacta necesita los dos")
+    try:
+        parsed_start = date.fromisoformat(start)
+        parsed_end = date.fromisoformat(end)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"start/end deben ser fechas YYYY-MM-DD: {start!r}, {end!r}") from exc
+    if parsed_start.isoformat() != start or parsed_end.isoformat() != end:
+        raise ValueError(f"start/end deben ser fechas YYYY-MM-DD: {start!r}, {end!r}")
+    if parsed_start >= parsed_end:
+        raise ValueError(f"start ({start}) debe ser anterior a end ({end}), que es exclusivo")
+    return True
 
 
 class MarketDataProvider:
@@ -81,22 +101,33 @@ class MarketDataProvider:
         interval: str = "1d",
         *,
         drop_na: bool = True,
+        start: Optional[str] = None,
+        end: Optional[str] = None,
     ) -> pd.DataFrame:
         """Descarga OHLCV y acciones corporativas sin ajuste por dividendos.
 
         yfinance devuelve el OHLC ya ajustado por splits cuando se pide
         ``auto_adjust=False``. Esta ruta conserva ``Adj Close``, dividendos y
         splits para que investigación pueda congelar la cosecha original.
+
+        Con ``start`` y ``end`` (fechas ``YYYY-MM-DD``, siempre los dos) la
+        petición es exacta y ``period`` no se envía: ``start`` es inclusivo y
+        ``end`` exclusivo, como en yfinance. Sin ellos, la petición por
+        ``period`` es la de siempre.
         """
 
         if not isinstance(symbol, str) or not symbol.strip():
             raise ValueError("symbol debe ser una cadena no vacía")
+        exact = validate_exact_range(start, end)
 
         self._rate_limiter.wait()
 
         try:
             ticker = yf.Ticker(symbol)
-            history = ticker.history(period=period, interval=interval, auto_adjust=False, actions=True)
+            if exact:
+                history = ticker.history(start=start, end=end, interval=interval, auto_adjust=False, actions=True)
+            else:
+                history = ticker.history(period=period, interval=interval, auto_adjust=False, actions=True)
         except Exception as exc:  # pragma: no cover - depende de red externa
             logger.error("Error al obtener datos brutos de %s: %s", symbol, exc)
             raise
