@@ -35,7 +35,7 @@ significa «la configuración desplegada en la Pi».
 | Tests / lint / tipos | 1430 pasan y 20 se saltan: 19 necesitan los CSV de `071ddb2b…`, perdidos el 2026-10-06, y 1 requiere `realpath -m` de GNU y corre en CI. `ruff check .` y `mypy advisor` limpios (79 ficheros). Python 3.12.13 |
 | Universo | 126 instrumentos, **93 analizables** |
 | Laboratorio | GATE P2–P6 cruzados. **P6 cerrado: B2 y S2 `NO PASA`, salida `[]` (D-70); P7 BLOQUEADO.** T-023 (diagnóstico post-P6) **cerrado**. **T-024** (edge relativo al drift, D-71/D-72) **preparado y automático**, en acumulación forward: `T024_PREREG_SHA` `dfcca0ef…`, `T024_CODE_SHA` `1a697c3…`. Los `EXECUTOR_PATHS` de `main` son idénticos a `1a697c3` (OD-12) |
-| Siguiente fase operativa | **T-025 Shadow/Paper Trading Forward** (S-01): diseño y pre-registro propuesto el 2026-10-06 (D-74), **sin congelar**, a la espera de OD-T25-1..8 y OD-12. Sin código ni datos forward. **PAPER-001** (P-01) en paralelo: ficha y plan |
+| Siguiente fase operativa | **T-025 Shadow/Paper Trading Forward** (S-01): diseño y pre-registro propuesto el 2026-10-06 (D-74), **sin congelar**, a la espera de OD-T25-1..9 y OD-12. Sin código ni datos forward. **PAPER-001** (P-01) en paralelo: ficha y plan |
 | Pi (desarrollo/integración) | Sin cambios: tag **`v0.4.1` = `8b2dddb`**, esquema v7, Score v1 con 70/60 y política C0. Timers `intradia-bot` e `intradia-bot-event` activos. `intradia.db` y sus 21 copias pasan `quick_check` |
 | Captura forward T-024 (Pi) | Worktree dedicado `/home/fer/intradia-t024` en `4170bb4`, separado del checkout habitual de la Pi. `/etc/intradia-bot/t024.env`. Timer **`intradia-t024-checkpoint.timer`** habilitado (diario a las 12:00 Atlantic/Canary). **Primera congelación real automática: 2026-11-03.** Probado sin red: la unidad sale con 0 y «sin checkpoint hoy». Runbook: `docs/tareas/T-024-runbook-checkpoint.md` y `deploy/t024/README.md` |
 | Cosecha de desarrollo | `071ddb2b…`: **manifiesto versionado intacto; sus 126 CSV se perdieron en el portátil el 2026-10-06** y no se recrearán (`evidence/2026-10-06-incidente-perdida-vintage/`). P6/T-023 conservan su evidencia, pero ya no son reproducibles desde los datos originales |
@@ -69,8 +69,8 @@ capital real»**.
 |---|---|---|
 | Sesiones hasta el 2026-08-27 | P2–P6 y T-023 (consumidas) | Solo sirven para desarrollo: código, P6-bis y su filtro de cartera |
 | Sesiones desde el 2026-08-28 hasta el `T1` de T-024 | T-024 (decisorio) y T-025 | Los desenlaces de B2 y S2 quedan **sellados** en T-025 hasta que T-024 se resuelva; P6-bis no las usa |
-| Desenlaces que observe T-025 | T-025 | Consumidos: no pueden servir para diseñar o elegir una candidata y luego hacer de holdout de esa misma candidata. P6-bis no los usa |
-| Después de la congelación de la candidata **y** del `T1` de la última mirada de T-024 | P7 | Solo sesiones cuyos desenlaces no hayan intervenido en el diseño ni en la selección de la candidata, ni por T-024, ni por T-025, ni por P6-bis |
+| Desenlaces que se consulten en T-025 | T-025 | **Consumidos**: no pueden ser holdout virgen de P7 (D-74 §3). Quedan registrados en `paper_outcome_access`. P6-bis no los usa |
+| Después de la congelación de la candidata **y** del `T1` de la última mirada de T-024 | P7 | Solo sesiones sin desenlace consultado en T-025 y que no hayan intervenido en T-024 ni en P6-bis. Como T-025 corre indefinidamente, la ventana de P7 se sella en T-025 para todas las cohortes hasta su consulta única (propuesta OD-T25-9) |
 
 ## Estado verificado — 2026-09-16 (histórico)
 
@@ -296,7 +296,7 @@ investigación, no validada para capital real»**.
 
 | ID | Qué | Estado | Depende de | Ficha |
 |---|---|---|---|---|
-| S-01 | **T-025 Shadow/Paper Trading Forward diario.** `análisis → recomendación → orden simulada → ejecución simulada → cartera paper → seguimiento → cierre → resultado`, con reglas congeladas antes de cualquier desenlace. B2 y S2 tal como están en `politicas-finales.json`, sobre el contrato de sistema de P6 (100.000 EUR, 0,5 % de riesgo, 10 % máximo, 0,10 % + 5 pb, rechazo sin cash); C0 solo como control descriptivo y BH como benchmark. **Base `paper.db` aparte y código fuera de `advisor/`** (propuesta para OD-T25-1): ninguna posición paper puede confundirse con una manual. **Desenlaces de B2 y S2 sellados** hasta que T-024 se resuelva (D-73 §2); C0, en OD-T25-4. Toda observación con desenlace consultado queda consumida y no puede ser holdout de P7. **No desbloquea P7, no es P10 y no valida B2 ni S2.** Es la capa paper del Superbot | **EN DISEÑO — pre-registro propuesto (D-74), sin congelar; BLOQUEADA_POR_OWNER** en OD-T25-1..8 y OD-12. Sin código | GATE P6, T-024 congelado | **T-025** |
+| S-01 | **T-025 Shadow/Paper Trading Forward diario.** `análisis → recomendación → orden simulada → ejecución simulada → cartera paper → seguimiento → cierre → resultado`, con reglas congeladas antes de cualquier desenlace. B2 y S2 tal como están en `politicas-finales.json`, sobre el contrato de sistema de P6 (100.000 EUR, 0,5 % de riesgo, 10 % máximo, 0,10 % + 5 pb, rechazo sin cash); C0 solo como control descriptivo y BH como benchmark. **Base `paper.db` aparte y código fuera de `advisor/`** (propuesta para OD-T25-1): ninguna posición paper puede confundirse con una manual. **Desenlaces de B2 y S2 sellados** hasta que T-024 se resuelva (D-73 §2); C0, en OD-T25-4. Toda observación con desenlace consultado queda consumida y no puede ser holdout de P7. **No desbloquea P7, no es P10 y no valida B2 ni S2.** Es la capa paper del Superbot | **EN DISEÑO — pre-registro propuesto (D-74), sin congelar; BLOQUEADA_POR_OWNER** en OD-T25-1..9 y OD-12. Sin código | GATE P6, T-024 congelado | **T-025** |
 | S-02 | **Dashboard shadow.** Qué habría comprado hoy, cuánto, por qué, cómo evoluciona y con qué resultado (lo último solo para lo desellado). También las operaciones rechazadas y su motivo. Campos en T-025 §14 | PENDIENTE | S-01 | por escribir |
 | S-03 | **Superbot: convergencia con `trading-bot`.** El motor cuantitativo de intradia-bot más la capa de cartera de trading-bot. **Dashboard:** capital inicial, equity, cash, posiciones abiertas y cerradas, rentabilidad, drawdown, benchmark, recomendaciones actuales, B2/S2 y rechazos con motivo. **Paper broker automático:** señal → orden → entrada → posición → stop/objetivo → cierre → P&L, sin registro manual. **Historial reconstruible** desde `run_id` + SHA + config + datos + reglas | PENDIENTE — puede adelantarse en parte | S-01, S-02 | por escribir |
 
@@ -387,7 +387,7 @@ Actualizado el 2026-10-06 con D-73 y D-74. La lista anterior (OA-01 a T-013 y P3
 
 | Orden | Trabajo | ¿Espera datos? |
 |---:|---|---|
-| 1 | **T-025: diseño y pre-registro propuesto** (S-01, D-74): hecho en el PR de `research/t025-shadow-prereg`. Falta que el propietario cierre **OD-T25-1..8** y **OD-12**, la revisión final y la congelación de `T025_PREREG_SHA` | No |
+| 1 | **T-025: diseño y pre-registro propuesto** (S-01, D-74): hecho en el PR de `research/t025-shadow-prereg`. Falta que el propietario cierre **OD-T25-1..9** y **OD-12**, la revisión final y la congelación de `T025_PREREG_SHA` | No |
 | 2 | **Implementar T-025** con autorización aparte (ficha §16) y desplegarlo en la Pi como tag, en el checkout habitual y sin tocar el worktree de T-024 | No |
 | 3 | **PAPER-001 v1** (P-01): ficha y plan hechos; siguiente, el esqueleto del manuscrito | No |
 | 4 | **C-06 backups** | No |

@@ -10,8 +10,14 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 ## Objetivo
 
 Un manuscrito (preprint v1) que explique, solo con evidencia ya publicada en el repositorio, por qué B2
-y S2 muestran edge por operación y robustez local en P4/P5 y, aun así, no convierten ese edge en alfa
-de cartera en P6.
+y S2 muestran **edge por operación** (definido abajo) y robustez local en P4/P5 y, aun así, no lo
+convierten en alfa de cartera en P6.
+
+**Vocabulario fijado.** «Edge por operación» significa exactamente: `mean_R_local > 0` y
+`profit_factor > 1` medidos en desarrollo sobre la cosecha consumida, condicionados al universo 2026.
+**No** significa «ventaja demostrada»: P6 da a las dos `NO PASA` (D-70), con la causa formal
+`excess_CAGR_pp ≤ 0`, y P7 no se ha hecho. El texto nunca usa «ventaja» ni «el sistema funciona» para B2
+o S2.
 
 ## Pregunta
 
@@ -81,6 +87,24 @@ fichero de origen y su hash.
 Cada número del texto enlaza a un fichero de `evidence/` y coincide con él; el estatus de cada
 resultado es el de la tabla de arriba; la limitación de los CSV figura en limitaciones y en el apéndice;
 revisión independiente sin BLOCKER ni IMPORTANTE.
+
+## Dependencias previas
+
+GATE P6 (D-70) y T-023 cerrados. No depende de T-024 ni de T-025.
+
+## Archivos probables
+
+`docs/papers/PAPER-001/`; solo lectura de `docs/` y `evidence/`.
+
+## Invariantes que no pueden romperse
+
+INV-15 (no se consulta ningún holdout), INV-16 e INV-20 (ningún número sin su estatus), y la etiqueta
+de universo en todas las tablas.
+
+## Tests, verificación contra datos reales e impacto
+
+No aplica: no hay código, ni descarga, ni cambio de comportamiento. La verificación es la tabla de
+trazabilidad número → fichero de `evidence/` → hash.
 
 ## Entregable y ubicación
 

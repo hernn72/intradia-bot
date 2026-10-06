@@ -2031,20 +2031,24 @@ real».
    están en `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`, y C0 solo como control
    descriptivo; ninguna se optimiza con resultados del shadow. Lo que se persiste antes y después de
    conocer el futuro lo fija la ficha `docs/tareas/T-025-shadow-paper-trading-forward.md`.
-2. **Desenlaces de B2 y S2 sellados hasta que T-024 se resuelva para esa política.** T-024 (D-72,
+2. **Desenlaces de B2 y S2 sellados hasta que T-024 se resuelva.** T-024 (D-72,
    ficha §6.3 y §9) prohíbe mirar desenlaces de B2 y S2 posteriores al 2026-08-27 antes de su mirada,
    y T-025 opera las mismas políticas en las mismas sesiones.
    - De B2 y S2 solo se muestra lo que no depende de ningún desenlace.
-   - El resto se desella cuando T-024 emite `POSITIVO`, `NO POSITIVO` o `NO EVALUABLE POR MUESTRA`
-     en una mirada, o el veredicto final.
+   - El resto se desella cuando T-024 tiene resultado (`POSITIVO`, `NO POSITIVO` o `NO EVALUABLE POR
+     MUESTRA`) **para B2 y para S2 a la vez**. Es la lectura literal de la opción elegida («hasta la
+     mirada de T-024»). En los ledgers de P6, todas las señales de S2 son también de B2, así que
+     desellar una antes que la otra revelaría la segunda. _(Corrección del 2026-10-06, revisión
+     independiente: una versión anterior desellaba cada política por separado.)_
    - El texto de la opción elegida dejaba **C0 visible** por ser descriptiva en T-024. La ficha de
-     T-025 aporta un dato posterior (C0 comparte con B2 el stop de 2,0·ATR) y lo vuelve a preguntar
-     en OD-T25-4. **Hasta que se decida, rige lo elegido: C0 visible.**
-3. **Los desenlaces que observa T-025 quedan consumidos para investigación.** No pueden servir para
-   diseñar o elegir una candidata y luego hacer de holdout de esa misma candidata. P6-bis no usa
-   ningún desenlace de T-025. «Consumido» significa que el desenlace intervino en el diseño o la
-   selección, no que T-025 lo haya visto: si no, P7 no tendría nunca datos, porque T-025 corre
-   indefinidamente.
+     T-025 aporta un dato posterior (en P6 todas las señales de C0 son también de B2 y de S2, y C0
+     comparte con B2 el stop de 2,0·ATR) y lo vuelve a preguntar en OD-T25-4. **Hasta que se decida, rige lo elegido: C0 visible.**
+3. **Los desenlaces que se consultan en T-025 quedan consumidos para investigación** y no pueden ser
+   holdout virgen de P7. Es la regla del propietario fijada en D-74 §3, sin rebajas. P6-bis no usa
+   ningún desenlace de T-025. _(Corrección del 2026-10-06, revisión independiente: una versión anterior
+   de este punto limitaba «consumido» a lo que interviniera en el diseño o la selección. Contradecía la
+   regla del propietario y se retiró.)_ Como T-025 corre indefinidamente, P7 solo tendrá holdout si su
+   ventana no se consulta en T-025: eso se propone en OD-T25-9.
 4. **T-025 no toca T-024:** ni el worktree de la Pi, ni los `EXECUTOR_PATHS` de `1a697c3`, ni sus
    cosechas.
 5. **PAPER-001** («From Trade-Level Edge to Portfolio-Level Underperformance») empieza en paralelo.
@@ -2074,9 +2078,9 @@ real».
   pertenecen a la ventana de T-024. Por eso P6-bis solo puede desarrollarse con sesiones hasta el
   2026-08-27 inclusive, en una cosecha nueva con su `data_vintage_id`, porque los CSV de `071ddb2b…`
   se perdieron. Esa evaluación de cartera es **desarrollo, no confirmación**: la confirmación es P7.
-- **Frontera de P7 (OD-T24-11):** P7 empieza después de la congelación de su candidata **y** del `T1`
-  de la última mirada de T-024, con sesiones cuyos desenlaces no hayan intervenido en el diseño ni en
-  la selección de la candidata, ni por T-024, ni por T-025, ni por P6-bis.
+- **Frontera de P7 (OD-T24-11 y la regla de consumo):** P7 empieza después de la congelación de su
+  candidata **y** del `T1` de la última mirada de T-024. Solo usa sesiones cuyos desenlaces no se
+  hayan consultado en T-025 (`paper_outcome_access`) ni hayan intervenido en T-024 o en P6-bis.
 
 **Lo que no cambia.**
 - P6 (B2 `NO PASA`, S2 `NO PASA`, salida `[]`).
@@ -2123,9 +2127,12 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 - Las adaptaciones en vivo de §8, cada una declarada y con su test.
 - Idempotencia y concurrencia (§12).
 - MAE y MFE sobre barras diarias (§5).
+- **Base de precios de P6** (`get_raw_history`, `auto_adjust=False`, dividendos aparte) y no la caché
+  `validated_bar`, que está ajustada por dividendos (§3.3). No es una elección nueva: hace falta para no
+  cambiar B2 y S2.
 
 **Abierto (OWNER_DECISION_REQUIRED):**
-- OD-T25-1 a OD-T25-8, en la ficha §17;
+- OD-T25-1 a OD-T25-9, en la ficha §17;
 - **OD-12** (convivencia de T-024 con cambios en los `EXECUTOR_PATHS`), abajo.
 
 Mientras sigan abiertas, T-025 está `BLOQUEADA_POR_OWNER` para congelar.
@@ -2354,7 +2361,7 @@ demás**.
 - **Bloquea:** fusionar en `main` cualquier cambio en los `EXECUTOR_PATHS`. No bloquea esta entrega
   documental.
 
-### OD-T25-1 a OD-T25-8 — Decisiones de T-025 · ABIERTAS desde el 2026-10-06 (D-74)
+### OD-T25-1 a OD-T25-9 — Decisiones de T-025 · ABIERTAS desde el 2026-10-06 (D-74)
 Están en `docs/tareas/T-025-shadow-paper-trading-forward.md` §17, con el formato de esta sección:
 1. arquitectura (base `paper.db` y paquete fuera de `advisor/`);
 2. capital inicial;
@@ -2363,7 +2370,8 @@ Están en `docs/tareas/T-025-shadow-paper-trading-forward.md` §17, con el forma
 5. barra de entrada ausente;
 6. dividendos tardíos;
 7. activo sin datos de forma prolongada;
-8. cohortes y versiones del motor.
+8. cohortes y versiones del motor;
+9. alcance del consumo y ventana sellada de P7.
 
 **Bloquean:** la congelación del pre-registro de T-025.
 

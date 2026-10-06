@@ -320,8 +320,9 @@ pre-registro propios, que no cambia la etiqueta de P6.
 - **T-024 y T-025 no son P7 ni lo sustituyen.** Ninguno de los dos aporta candidatas ni datos de
   holdout.
 - **Frontera temporal:** P7 empieza después de la congelación de la candidata **y** del `T1` de la
-  última mirada de T-024 (OD-T24-11). Solo usa sesiones cuyos desenlaces no hayan intervenido en el
-  diseño ni en la selección de la candidata, ni por T-024, ni por T-025, ni por P6-bis.
+  última mirada de T-024 (OD-T24-11). Solo usa sesiones sin desenlace consultado en T-025 y que no
+  hayan intervenido en T-024 ni en P6-bis. Para que esa ventana exista mientras T-025 corre, se propone
+  sellarla en T-025 para todas las cohortes hasta la consulta única de P7 (OD-T25-9).
 - Toda observación cuyo desenlace se consulte durante T-025 queda consumida y no puede ser holdout
   virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10).
 
@@ -422,10 +423,14 @@ Requisitos:
 4. Es la **única** validación no condicionada al universo 2026, porque las
    señales se generan sin conocer el futuro y sobre el universo vigente.
 
-Nota (D-74): el contrato de persistencia de T-025 (§5 de su ficha) cubre el registro por señal del
-requisito 2, salvo `context_state`, que llega con la línea B (B-07). T-025 construye ese
-registrador, pero **no es P10**: P10 exige la política, la cartera y el riesgo finales con un tag
-congelado.
+Nota (D-74): el contrato de persistencia de T-025 (§5 de su ficha) cubre buena parte del registro
+del requisito 2, con tres diferencias:
+- falta `context_state`, que llega con la línea B (B-07);
+- el desenlace es por posición abierta, no por cada señal;
+- el «alfa» se lee como exceso frente al buy-and-hold, y P10 tendrá que definirlo.
+
+T-025 construye ese registrador, pero **no es P10**: P10 exige la política, la cartera y el riesgo
+finales con un tag congelado.
 
 Desbloquea: release final y paquete de revisión externa.
 
