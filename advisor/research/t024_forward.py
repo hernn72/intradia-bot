@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
+from advisor.analysis.execution import ABOVE_MAX_ENTRY, DATA_NOT_EXECUTABLE, INVALID_STOP, INVALID_TARGET, RR_TOO_LOW
 from advisor.research import t024_comun as comun
 from advisor.research.t024_captura import ResultadoCaptura, _barras_ciegas, calidad_barras, capturar
 from advisor.research.t024_comun import DEV_VINTAGE_ID, POLITICAS_DECISORIAS, POLITICAS_DESCRIPTIVAS
@@ -45,6 +46,11 @@ N_SIMBOLOS_FORWARD = 126
 # Universo congelado de P6 (T-024 §6.2), el mismo `UNIVERSE_VINTAGE_ID` de p4/p5.
 UNIVERSE_VINTAGE_ID = "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19"
 ZONA_CHECKPOINT = "Atlantic/Canary"
+# La lista de símbolos sale siempre del manifiesto consumido versionado en este repositorio, sea cual sea el
+# `--data-dir` de las cosechas forward o el directorio de trabajo.
+DEV_MANIFEST_ROOT = Path(__file__).resolve().parents[2] / "data" / "vintages"
+MOTIVOS_RECHAZO = frozenset({DATA_NOT_EXECUTABLE, INVALID_STOP, INVALID_TARGET, ABOVE_MAX_ENTRY, RR_TOO_LOW})
+_EXCLUSION = re.compile(r"(excluida_[A-Za-z0-9_,]+|sin_niveles|no_operar)")
 POLITICAS = (*POLITICAS_DECISORIAS, *POLITICAS_DESCRIPTIVAS)
 
 REGISTRO_SCHEMA = "t024-registro-forward"
@@ -100,7 +106,7 @@ class T024ForwardError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 
-def simbolos_forward(root_dir: str | Path = "data/vintages") -> tuple[str, ...]:
+def simbolos_forward(root_dir: str | Path = DEV_MANIFEST_ROOT) -> tuple[str, ...]:
     """Símbolos de toda cosecha forward: los de la cosecha consumida, ordenados y con hash verificado."""
 
     _vintage_dir, manifest = _verified_manifest(DEV_VINTAGE_ID, root_dir)
@@ -177,7 +183,7 @@ class PeticionForward:
 
 
 def peticion_checkpoint(
-    checkpoint: date, festivos: Iterable[date], *, simbolos_root: str | Path = "data/vintages"
+    checkpoint: date, festivos: Iterable[date], *, simbolos_root: str | Path = DEV_MANIFEST_ROOT
 ) -> PeticionForward:
     """Petición exacta de un checkpoint. Solo calcula: no descarga nada."""
 
@@ -224,6 +230,7 @@ def congelar_checkpoint(
     *,
     root_dir: str | Path = "data/vintages",
     universe_vintage: str,
+    t024_code_sha: str,
     hoy: Optional[date] = None,
     downloaded_at: Optional[datetime] = None,
 ) -> CosechaForward:
@@ -238,6 +245,8 @@ def congelar_checkpoint(
         raise T024ForwardError(f"hoy ({dia}) es anterior al checkpoint {peticion.checkpoint}: no se captura antes de tiempo")
     if universe_vintage != UNIVERSE_VINTAGE_ID:
         raise T024ForwardError(f"universo {universe_vintage} distinto del congelado de P6")
+    if not _SHA_GIT.fullmatch(t024_code_sha):
+        raise T024ForwardError("T024_CODE_SHA con formato inválido")
     try:
         result = freeze_vintage(
             peticion.symbols,
@@ -248,19 +257,36 @@ def congelar_checkpoint(
             root_dir=root_dir,
             downloaded_at=downloaded_at,
             universe_vintage=universe_vintage,
+            request_context=contexto_peticion(peticion, t024_code_sha),
         )
     except ValueError as exc:
         return CosechaForward(peticion, None, False, (f"congelación fallida: {exc}",), (), {})
-    motivos = verificar_cosecha_forward(result.data_vintage_id, peticion, root_dir=root_dir)
+    motivos = verificar_cosecha_forward(result.data_vintage_id, peticion, t024_code_sha=t024_code_sha, root_dir=root_dir)
     return CosechaForward(
         peticion, result.data_vintage_id, not motivos, motivos, tuple(result.succeeded), dict(result.failed)
     )
 
 
+def contexto_peticion(peticion: PeticionForward, t024_code_sha: str) -> dict[str, object]:
+    """Lo que liga la cosecha a su checkpoint: va dentro del manifiesto y, por tanto, del `data_vintage_id`."""
+
+    return {
+        "estudio": "T-024",
+        "checkpoint": peticion.checkpoint.isoformat(),
+        "festivos": [dia.isoformat() for dia in peticion.festivos],
+        "T024_PREREG_SHA": comun.T024_PREREG_SHA,
+        "T024_CODE_SHA": t024_code_sha,
+    }
+
+
 def verificar_cosecha_forward(
-    data_vintage_id: str, peticion: PeticionForward, *, root_dir: str | Path = "data/vintages"
+    data_vintage_id: str, peticion: PeticionForward, *, t024_code_sha: str, root_dir: str | Path = "data/vintages"
 ) -> tuple[str, ...]:
-    """Motivos por los que la cosecha no es apta para el registro; vacío si lo es."""
+    """Motivos por los que la cosecha no es apta para el registro; vacío si lo es.
+
+    Exige la petición exacta, el contexto (checkpoint, festivos e identidades con que se congeló), los 126
+    símbolos sin fallos, el universo de P6 y una descarga del día del checkpoint o posterior.
+    """
 
     try:
         _vintage_dir, manifest = _verified_manifest(data_vintage_id, root_dir)
@@ -278,6 +304,7 @@ def verificar_cosecha_forward(
         "auto_adjust": False,
         "actions": True,
         "provider": PROVIDER,
+        "context": contexto_peticion(peticion, t024_code_sha),
     }
     if manifest.get("schema_version") != 2 or not isinstance(request, dict):
         motivos.append("el manifiesto no es de petición exacta (schema_version 2)")
@@ -294,6 +321,12 @@ def verificar_cosecha_forward(
         motivos.append("los símbolos congelados no son exactamente los pedidos")
     if manifest.get("universe_vintage_id") != UNIVERSE_VINTAGE_ID:
         motivos.append("universe_vintage_id distinto del congelado de P6")
+    try:
+        creada = datetime.fromisoformat(str(manifest.get("created_at")).replace("Z", "+00:00"))
+        if creada.tzinfo is None or creada.astimezone(ZoneInfo(ZONA_CHECKPOINT)).date() < peticion.checkpoint:
+            motivos.append("cosecha descargada antes del checkpoint")
+    except ValueError:
+        motivos.append("created_at del manifiesto ilegible")
     if not motivos:
         try:
             load_vintage(data_vintage_id, root_dir=root_dir)
@@ -316,11 +349,11 @@ def entrada_registro(
 ) -> dict[str, object]:
     """Entrada canónica del registro para una cosecha apta. Solo identidad y petición: ningún desenlace."""
 
-    motivos = verificar_cosecha_forward(data_vintage_id, peticion, root_dir=root_dir)
-    if motivos:
-        raise T024ForwardError(f"cosecha {data_vintage_id} no apta para el registro: {list(motivos)}")
     if not _SHA_GIT.fullmatch(t024_code_sha):
         raise T024ForwardError("T024_CODE_SHA con formato inválido")
+    motivos = verificar_cosecha_forward(data_vintage_id, peticion, t024_code_sha=t024_code_sha, root_dir=root_dir)
+    if motivos:
+        raise T024ForwardError(f"cosecha {data_vintage_id} no apta para el registro: {list(motivos)}")
     vintage_dir, manifest = _verified_manifest(data_vintage_id, root_dir)
     return {
         "checkpoint": peticion.checkpoint.isoformat(),
@@ -385,6 +418,7 @@ def validar_registro(data: Mapping[str, object]) -> None:
         raise T024ForwardError("cosechas del registro forward no es una lista")
     previo: Optional[date] = None
     vistos: set[str] = set()
+    meses: set[tuple[int, int]] = set()
     for item in cosechas:
         _validar_entrada(item)
         checkpoint = date.fromisoformat(str(item["checkpoint"]))
@@ -392,6 +426,9 @@ def validar_registro(data: Mapping[str, object]) -> None:
             raise T024ForwardError("registro forward no ordenado por checkpoint estrictamente creciente")
         if item["data_vintage_id"] in vistos:
             raise T024ForwardError("data_vintage_id repetido en el registro forward")
+        if (checkpoint.year, checkpoint.month) in meses:
+            raise T024ForwardError("dos checkpoints del mismo mes en el registro forward")
+        meses.add((checkpoint.year, checkpoint.month))
         previo = checkpoint
         vistos.add(str(item["data_vintage_id"]))
     if data["sha256"] != _sha256_compatible(cosechas) or data["entradas_sha256"] != _sha256_entradas(cosechas):
@@ -470,7 +507,7 @@ def entrada_de(registro: Mapping[str, object], data_vintage_id: str) -> tuple[Ma
     raise T024ForwardError(f"cosecha {data_vintage_id} ausente del registro forward")
 
 
-def peticion_de_entrada(entrada: Mapping[str, object], *, simbolos_root: str | Path = "data/vintages") -> PeticionForward:
+def peticion_de_entrada(entrada: Mapping[str, object], *, simbolos_root: str | Path = DEV_MANIFEST_ROOT) -> PeticionForward:
     festivos_raw = entrada["festivos"]
     if not isinstance(festivos_raw, list):
         raise T024ForwardError("festivos de la entrada no es una lista")
@@ -585,14 +622,43 @@ def capturar_checkpoint(
 
 
 def validar_salida(salida: Mapping[str, object]) -> None:
+    """Claves y contenido cerrados: enteros no negativos, motivos previos a la entrada y exclusiones conocidas."""
+
     if set(salida) != CLAVES_SALIDA:
         raise T024ForwardError("salida de captura con claves fuera del contrato")
+    for key in ("checkpoint", "c_e", "data_vintage_id"):
+        if not isinstance(salida[key], str):
+            raise T024ForwardError(f"salida de captura: {key} no es texto")
+    if salida["previa_data_vintage_id"] is not None and not isinstance(salida["previa_data_vintage_id"], str):
+        raise T024ForwardError("salida de captura: previa_data_vintage_id no es texto")
+    for key in ("barras_nuevas", "barras_revisadas"):
+        if salida[key] is not None and not _conteo(salida[key]):
+            raise T024ForwardError(f"salida de captura: {key} no es un conteo")
+    if (salida["previa_data_vintage_id"] is None) != (salida["barras_nuevas"] is None) or (salida["barras_nuevas"] is None) != (
+        salida["barras_revisadas"] is None
+    ):
+        raise T024ForwardError("salida de captura: la calidad de barras existe solo con previa")
     politicas = salida["politicas"]
     if not isinstance(politicas, dict) or set(politicas) != set(POLITICAS):
         raise T024ForwardError("salida de captura sin exactamente B2, S2 y C0")
     for bloque in politicas.values():
-        if set(bloque) != CLAVES_CONTEO_POLITICA:
+        if not isinstance(bloque, dict) or set(bloque) != CLAVES_CONTEO_POLITICA:
             raise T024ForwardError("conteo de política con claves fuera del contrato")
+        if not all(_conteo(bloque[key]) for key in ("senales_operar", "ejecutables", "q_p", "w_p")):
+            raise T024ForwardError("conteo de política que no es un entero no negativo")
+        rechazos, exclusiones = bloque["rechazos"], bloque["exclusiones"]
+        if not isinstance(rechazos, dict) or not set(rechazos) <= MOTIVOS_RECHAZO or not all(map(_conteo, rechazos.values())):
+            raise T024ForwardError("rechazos fuera de los motivos previos a la entrada")
+        if (
+            not isinstance(exclusiones, dict)
+            or not all(_EXCLUSION.fullmatch(str(key)) for key in exclusiones)
+            or not all(map(_conteo, exclusiones.values()))
+        ):
+            raise T024ForwardError("exclusiones fuera del contrato")
+
+
+def _conteo(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
 def _json(value: object) -> str:
@@ -630,10 +696,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.cmd == "congelar":
         from advisor.config import load_config
         from advisor.data.market_data import MarketDataProvider
+        from advisor.research.t024_decision import verificar_identidad
         from advisor.universe.loader import load_universe
         from advisor.universe.vintage import universe_vintage_id
 
         peticion = peticion_checkpoint(args.checkpoint, args.festivo)
+        if hoy_checkpoint() < peticion.checkpoint:
+            raise T024ForwardError(f"hoy es anterior al checkpoint {peticion.checkpoint}: no se captura antes de tiempo")
+        code_sha = verificar_identidad()
         config = load_config("config.yaml")
         universe = load_universe(config.universe_path)
         cosecha = congelar_checkpoint(
@@ -641,6 +711,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             MarketDataProvider(config.request_min_interval_seconds),
             root_dir=args.data_dir,
             universe_vintage=universe_vintage_id(universe),
+            t024_code_sha=code_sha,
         )
         sys.stdout.write(_json(cosecha.serializable()))
         return 0 if cosecha.apta else 2

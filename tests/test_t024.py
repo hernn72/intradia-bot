@@ -442,12 +442,43 @@ def test_ic_bonferroni_delta_cuatro_estados() -> None:
     assert dec.etiquetar(0.1, 0.2, n=99) == dec.NO_EVALUABLE
 
 
+def _entrada_sintetica(vintage_id: str, checkpoint: date) -> dict[str, object]:
+    """Entrada canónica de `t024_forward` para un checkpoint laborable cualquiera.
+
+    Declara festivos los laborables del mes anteriores a `checkpoint` para que sea el primer día hábil.
+    """
+
+    from advisor.research import t024_forward as fwd
+
+    festivos = [checkpoint.replace(day=d) for d in range(1, checkpoint.day) if checkpoint.replace(day=d).weekday() < 5]
+    return {
+        "checkpoint": checkpoint.isoformat(),
+        "data_vintage_id": vintage_id,
+        "manifest_hash": vintage_id,
+        "manifest_file_sha256": "0" * 64,
+        "requested_start": fwd.FORWARD_START.isoformat(),
+        "requested_end": fwd.end_exclusivo(checkpoint, festivos).isoformat(),
+        "end_exclusive": True,
+        "interval": "1d",
+        "auto_adjust": False,
+        "actions": True,
+        "symbols_sha256": fwd.SIMBOLOS_FORWARD_SHA256,
+        "n_symbols": fwd.N_SIMBOLOS_FORWARD,
+        "festivos": [d.isoformat() for d in festivos],
+        "universe_vintage_id": fwd.UNIVERSE_VINTAGE_ID,
+        "provider": "yfinance",
+        "provider_version": "0.0-test",
+        "T024_PREREG_SHA": dec.comun.T024_PREREG_SHA,
+        "T024_CODE_SHA": "a" * 40,
+    }
+
+
 def _registro_forward(tmp_path: Path, ids: list[str], checkpoints: Optional[list[date]] = None) -> Path:
+    from advisor.research import t024_forward as fwd
+
     fechas = checkpoints or [date(2027, 4, 1) + timedelta(days=i) for i in range(len(ids))]
-    entries = [{"data_vintage_id": item, "checkpoint": fecha.isoformat()} for item, fecha in zip(ids, fechas)]
-    digest = hashlib.sha256(json.dumps({"cosechas": entries}, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     path = tmp_path / "forward.json"
-    path.write_text(json.dumps({"cosechas": entries, "sha256": digest}), encoding="utf-8")
+    fwd.escribir_registro(path, fwd._registro([_entrada_sintetica(item, fecha) for item, fecha in zip(ids, fechas)]))
     return path
 
 

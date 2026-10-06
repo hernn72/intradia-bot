@@ -40,6 +40,7 @@ from advisor.research.t024_comun import (
     SenalT024,
     semana_iso,
 )
+from advisor.research.t024_forward import T024ForwardError, validar_registro
 from advisor.research.vintage import VintageLoad
 
 EXIT_STOP = "stop"
@@ -636,6 +637,12 @@ def _git(args: Sequence[str], repo: str | Path) -> Optional[bool]:
 
 def cargar_registro_forward(path: Path, cosecha_decisiva: str) -> RegistroForward:
     data = json.loads(path.read_text(encoding="utf-8"))
+    # El registro decisorio es exactamente el canónico de `t024_forward`: claves cerradas, `entradas_sha256`
+    # sobre las entradas completas, checkpoints estrictamente crecientes y sin ids repetidos.
+    try:
+        validar_registro(data)
+    except T024ForwardError as exc:
+        raise T024DecisionError(f"registro forward no canónico: {exc}") from exc
     entries = tuple((str(item["data_vintage_id"]), date.fromisoformat(str(item["checkpoint"]))) for item in data["cosechas"])
     encoded = json.dumps(
         {"cosechas": [{"data_vintage_id": vintage_id, "checkpoint": checkpoint.isoformat()} for vintage_id, checkpoint in entries]},

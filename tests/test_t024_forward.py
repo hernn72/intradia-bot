@@ -153,8 +153,9 @@ def _congelar(tmp_path: Path, checkpoint: date = CHECKPOINT_1, festivos: tuple[d
         ExactProvider(**provider),
         root_dir=tmp_path,
         universe_vintage=fwd.UNIVERSE_VINTAGE_ID,
+        t024_code_sha=CODE_SHA,
         hoy=checkpoint,
-        downloaded_at=DOWNLOADED,
+        downloaded_at=datetime.combine(checkpoint, datetime.min.time(), UTC) + timedelta(hours=9),
     )
 
 
@@ -408,9 +409,9 @@ def test_congelar_antes_del_checkpoint_se_niega_sin_llamar_al_proveedor(tmp_path
     provider = ExactProvider()
     peticion = fwd.peticion_checkpoint(CHECKPOINT_1, FESTIVOS_1)
     with pytest.raises(fwd.T024ForwardError):
-        fwd.congelar_checkpoint(peticion, provider, root_dir=tmp_path, universe_vintage=fwd.UNIVERSE_VINTAGE_ID, hoy=date(2026, 11, 2))
+        fwd.congelar_checkpoint(peticion, provider, root_dir=tmp_path, universe_vintage=fwd.UNIVERSE_VINTAGE_ID, t024_code_sha=CODE_SHA, hoy=date(2026, 11, 2))
     with pytest.raises(fwd.T024ForwardError):
-        fwd.congelar_checkpoint(peticion, provider, root_dir=tmp_path, universe_vintage="x" * 64, hoy=CHECKPOINT_1)
+        fwd.congelar_checkpoint(peticion, provider, root_dir=tmp_path, universe_vintage="x" * 64, t024_code_sha=CODE_SHA, hoy=CHECKPOINT_1)
     assert provider.calls == [] and not any(tmp_path.iterdir())
 
 
@@ -418,7 +419,7 @@ def test_congelar_completa_es_apta_y_pide_los_126_con_start_end(tmp_path: Path) 
     provider = ExactProvider()
     peticion = fwd.peticion_checkpoint(CHECKPOINT_1, FESTIVOS_1)
     cosecha = fwd.congelar_checkpoint(
-        peticion, provider, root_dir=tmp_path, universe_vintage=fwd.UNIVERSE_VINTAGE_ID, hoy=CHECKPOINT_1, downloaded_at=DOWNLOADED
+        peticion, provider, root_dir=tmp_path, universe_vintage=fwd.UNIVERSE_VINTAGE_ID, t024_code_sha=CODE_SHA, hoy=CHECKPOINT_1, downloaded_at=DOWNLOADED
     )
     assert cosecha.apta and cosecha.motivos == () and cosecha.data_vintage_id
     assert [s for s, _kw in provider.calls] == list(fwd.simbolos_forward())
@@ -445,7 +446,7 @@ def test_cosecha_con_otra_peticion_no_es_apta_para_otro_checkpoint(tmp_path: Pat
     cosecha = _congelar(tmp_path)
     assert cosecha.data_vintage_id
     otra = fwd.peticion_checkpoint(CHECKPOINT_2, ())
-    motivos = fwd.verificar_cosecha_forward(cosecha.data_vintage_id, otra, root_dir=tmp_path)
+    motivos = fwd.verificar_cosecha_forward(cosecha.data_vintage_id, otra, t024_code_sha=CODE_SHA, root_dir=tmp_path)
     assert any("end" in motivo for motivo in motivos)
 
 
@@ -454,7 +455,7 @@ def test_csv_alterado_deja_la_cosecha_no_apta(tmp_path: Path) -> None:
     assert cosecha.data_vintage_id
     csv = tmp_path / cosecha.data_vintage_id / "AAPL.csv"
     csv.write_text(csv.read_text().replace(",101,99,", ",101,98,", 1))
-    assert fwd.verificar_cosecha_forward(cosecha.data_vintage_id, cosecha.peticion, root_dir=tmp_path)
+    assert fwd.verificar_cosecha_forward(cosecha.data_vintage_id, cosecha.peticion, t024_code_sha=CODE_SHA, root_dir=tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -737,3 +738,173 @@ def test_cli_registrar_apta_escribe_registro_compatible(monkeypatch: pytest.Monk
     with pytest.raises(fwd.T024ForwardError):
         fwd.main(args)
     shutil.rmtree(tmp_path / cosecha.data_vintage_id)
+
+
+# ---------------------------------------------------------------------------
+# Revisión Codex r1: el lector decisorio solo acepta el registro canónico
+# ---------------------------------------------------------------------------
+
+
+def _escribir_json(path: Path, data: object) -> Path:
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
+def test_lector_decisorio_rechaza_registro_contaminado_aunque_cuadre_el_sha_minimo(tmp_path: Path) -> None:
+    cosecha = _congelar(tmp_path)
+    assert cosecha.data_vintage_id
+    vid = cosecha.data_vintage_id
+    canonico = _registro_con(tmp_path, cosecha)
+    path = tmp_path / "r.json"
+
+    contaminado = json.loads(json.dumps(canonico))
+    contaminado["cosechas"][0]["D2"] = 0.01  # el sha256 mínimo (id + checkpoint) sigue cuadrando
+    assert contaminado["sha256"] == fwd._sha256_compatible(contaminado["cosechas"])
+    with pytest.raises(dec.T024DecisionError, match="no canónico"):
+        dec.cargar_registro_forward(_escribir_json(path, contaminado), vid)
+
+    arriba = {**json.loads(json.dumps(canonico)), "mean_R": 0.3}
+    with pytest.raises(dec.T024DecisionError, match="no canónico"):
+        dec.cargar_registro_forward(_escribir_json(path, arriba), vid)
+
+    editado = json.loads(json.dumps(canonico))
+    editado["cosechas"][0]["T024_CODE_SHA"] = "c" * 40
+    with pytest.raises(dec.T024DecisionError, match="no canónico"):
+        dec.cargar_registro_forward(_escribir_json(path, editado), vid)
+
+    minimo = {"cosechas": [{"data_vintage_id": vid, "checkpoint": "2026-11-03"}], "sha256": canonico["sha256"]}
+    with pytest.raises(dec.T024DecisionError, match="no canónico"):
+        dec.cargar_registro_forward(_escribir_json(path, minimo), vid)
+
+    assert dec.cargar_registro_forward(_escribir_json(path, canonico), vid).cosechas == ((vid, CHECKPOINT_1),)
+
+
+def test_lector_decisorio_rechaza_checkpoint_repetido(tmp_path: Path) -> None:
+    c1 = _congelar(tmp_path)
+    c2 = _congelar(tmp_path, CHECKPOINT_2, ())
+    assert c1.data_vintage_id and c2.data_vintage_id
+    e1 = fwd.entrada_registro(c1.data_vintage_id, c1.peticion, t024_code_sha=CODE_SHA, root_dir=tmp_path)
+    e2 = {**e1, "data_vintage_id": c2.data_vintage_id, "manifest_hash": c2.data_vintage_id}
+    with pytest.raises(dec.T024DecisionError, match="no canónico"):
+        dec.cargar_registro_forward(_escribir_json(tmp_path / "r.json", fwd._registro([e1, e2])), c2.data_vintage_id)
+
+
+# ---------------------------------------------------------------------------
+# Revisión Codex r1: la salida se valida también por contenido
+# ---------------------------------------------------------------------------
+
+
+def _salida_valida(**calidad: Any) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {"previa_data_vintage_id": None, "barras_nuevas": None, "barras_revisadas": None, **calidad}
+    return fwd.salida_captura(_resultado_captura(), checkpoint=CHECKPOINT_1, data_vintage_id="v", **kwargs)
+
+
+@pytest.mark.parametrize(
+    "mutar",
+    [
+        lambda s: s["politicas"]["B2"]["rechazos"].update({"R": 1}),
+        lambda s: s["politicas"]["B2"]["rechazos"].update({"exit_reason=stop": 1}),
+        lambda s: s["politicas"]["S2"]["exclusiones"].update({"D2_media": 0}),
+        lambda s: s["politicas"]["S2"]["exclusiones"].update({"no_operar": 0.5}),
+        lambda s: s["politicas"]["C0"].update({"q_p": True}),
+        lambda s: s["politicas"]["C0"].update({"w_p": -1}),
+        lambda s: s.update({"barras_nuevas": 3}),
+        lambda s: s.update({"previa_data_vintage_id": "p"}),
+    ],
+)
+def test_salida_rechaza_fugas_dentro_de_los_mapas_permitidos(mutar: Any) -> None:
+    salida = json.loads(json.dumps(_salida_valida()))
+    fwd.validar_salida(salida)
+    mutar(salida)
+    with pytest.raises(fwd.T024ForwardError):
+        fwd.validar_salida(salida)
+
+
+def test_salida_con_previa_exige_calidad() -> None:
+    fwd.validar_salida(_salida_valida(previa_data_vintage_id="p", barras_nuevas=5, barras_revisadas=0))
+
+
+def test_simbolos_forward_no_dependen_del_directorio_de_trabajo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    esperado = fwd.simbolos_forward()
+    monkeypatch.chdir(tmp_path)
+    assert fwd.simbolos_forward() == esperado
+    assert fwd.peticion_checkpoint(CHECKPOINT_1, FESTIVOS_1).symbols == esperado
+
+
+def test_cli_congelar_exige_identidad_antes_de_tocar_la_red(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def deniega() -> str:
+        raise dec.T024DecisionError("árbol de ejecutor no limpio")
+
+    monkeypatch.setattr(market_data.yf, "Ticker", _Prohibido("yf.Ticker"))
+    monkeypatch.setattr(fwd, "hoy_checkpoint", lambda: CHECKPOINT_1)
+    monkeypatch.setattr(dec, "verificar_identidad", deniega)
+    with pytest.raises(dec.T024DecisionError):
+        fwd.main(["congelar", "--checkpoint", "2026-11-03", "--festivo", "2026-11-02", "--data-dir", str(tmp_path)])
+    assert not any(tmp_path.iterdir())
+
+
+def test_cache_de_barras_pasa_la_peticion_exacta_sin_tocarla() -> None:
+    from advisor.data.bar_cache import CachedBarProvider
+
+    inner = ExactProvider()
+    cached = CachedBarProvider(
+        inner, store=None, resolve_market=lambda _s: None, reference=DOWNLOADED, settlement_minutes=0, window_sessions=5,
+        readjustment_tolerance=0.0,
+    )
+    cached.get_raw_history("A", interval="1d", start="2026-10-19", end="2026-10-26")
+    assert inner.calls == [("A", {"period": "1y", "interval": "1d", "drop_na": True, "start": "2026-10-19", "end": "2026-10-26"})]
+
+
+# ---------------------------------------------------------------------------
+# Revisión r1 (revisor): la cosecha queda ligada a su checkpoint, festivos e identidad
+# ---------------------------------------------------------------------------
+
+
+def test_manifiesto_forward_guarda_el_contexto_del_checkpoint(tmp_path: Path) -> None:
+    cosecha = _congelar(tmp_path)
+    assert cosecha.data_vintage_id
+    manifest = json.loads((tmp_path / cosecha.data_vintage_id / "manifest.json").read_text())
+    assert manifest["request"]["context"] == {
+        "estudio": "T-024",
+        "checkpoint": "2026-11-03",
+        "festivos": ["2026-11-02"],
+        "T024_PREREG_SHA": "dfcca0ef3428df916089480a0ca574f47e550c24",
+        "T024_CODE_SHA": CODE_SHA,
+    }
+
+
+def test_cosecha_congelada_con_otro_codigo_no_se_registra(tmp_path: Path) -> None:
+    cosecha = _congelar(tmp_path)
+    assert cosecha.data_vintage_id
+    with pytest.raises(fwd.T024ForwardError, match="context"):
+        fwd.entrada_registro(cosecha.data_vintage_id, cosecha.peticion, t024_code_sha="c" * 40, root_dir=tmp_path)
+
+
+def test_cosecha_registrada_con_otro_checkpoint_o_festivos_se_niega(tmp_path: Path) -> None:
+    cosecha = _congelar(tmp_path, CHECKPOINT_2, ())
+    assert cosecha.data_vintage_id
+    desplazada = fwd.peticion_checkpoint(date(2026, 12, 2), (date(2026, 12, 1),))
+    assert desplazada.end == cosecha.peticion.end
+    with pytest.raises(fwd.T024ForwardError, match="context"):
+        fwd.entrada_registro(cosecha.data_vintage_id, desplazada, t024_code_sha=CODE_SHA, root_dir=tmp_path)
+
+
+def test_cosecha_descargada_antes_del_checkpoint_no_es_apta(tmp_path: Path) -> None:
+    peticion = fwd.peticion_checkpoint(CHECKPOINT_1, FESTIVOS_1)
+    cosecha = fwd.congelar_checkpoint(
+        peticion, ExactProvider(), root_dir=tmp_path, universe_vintage=fwd.UNIVERSE_VINTAGE_ID, t024_code_sha=CODE_SHA,
+        hoy=CHECKPOINT_1, downloaded_at=datetime(2026, 11, 2, 23, 30, tzinfo=UTC),  # 23:30 en Canarias: día 2
+    )
+    assert not cosecha.apta and "cosecha descargada antes del checkpoint" in cosecha.motivos
+
+
+def test_registro_rechaza_dos_checkpoints_del_mismo_mes() -> None:
+    from tests.test_t024 import _entrada_sintetica
+
+    with pytest.raises(fwd.T024ForwardError, match="mismo mes"):
+        fwd.validar_registro(fwd._registro([_entrada_sintetica("v1", CHECKPOINT_2), _entrada_sintetica("v2", date(2026, 12, 2))]))
+
+
+def test_request_context_solo_en_peticion_exacta(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="request_context"):
+        freeze_vintage(["AAPL"], LegacyProvider(), period="1y", interval="1d", root_dir=tmp_path, request_context={"x": 1})

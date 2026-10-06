@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from importlib import metadata
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Mapping, Optional
 from urllib.parse import quote
 
 import pandas as pd
@@ -83,6 +83,7 @@ def freeze_vintage(
     root_dir: str | Path = "data/vintages",
     downloaded_at: Optional[datetime] = None,
     universe_vintage: Optional[str] = None,
+    request_context: Optional[Mapping[str, object]] = None,
 ) -> VintageRunResult:
     """Descarga símbolos, persiste CSV deterministas y escribe el manifiesto.
 
@@ -96,11 +97,15 @@ def freeze_vintage(
     exclusivo, como en yfinance), nunca las dos. La exacta escribe
     ``schema_version`` 2 con la petición completa en ``request`` y rechaza el
     símbolo cuya respuesta traiga alguna barra fuera de ``[start, end)``.
+    ``request_context`` (solo en la exacta) queda en ``request.context`` y
+    entra en el hash: liga la cosecha al contexto que la pidió.
     """
 
     exact = validate_exact_range(start, end)
     if exact == (period is not None):
         raise ValueError("freeze_vintage: o period, o start y end; exactamente una de las dos peticiones")
+    if request_context is not None and not exact:
+        raise ValueError("freeze_vintage: request_context solo existe en la petición exacta")
     timestamp = _downloaded_at(downloaded_at)
     root = Path(root_dir)
     requested = _unique_symbols(symbols)
@@ -172,6 +177,8 @@ def freeze_vintage(
             "provider": PROVIDER,
             "provider_version": _provider_version(),
         }
+        if request_context is not None:
+            manifest_body["request"]["context"] = dict(request_context)
     # Va dentro del cuerpo que se hashea a propósito: el universo forma parte
     # de la identidad de la cosecha, no es un adorno. Consecuencia asumida: las
     # cosechas congeladas a partir de aquí tienen un `data_vintage_id` distinto
