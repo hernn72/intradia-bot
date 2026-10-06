@@ -92,6 +92,23 @@ for ruta in "${T024_ARTEFACTOS_DIR}" "${T024_ARTEFACTOS_DIR}/copias/vintages" "$
       ;;
   esac
 done
+# Y, como el wrapper, artefactos y segunda copia fuera del data-dir (y este fuera de ellos).
+data_real="$(realpath -m "${T024_DATA_DIR}")"
+for ruta in "${T024_ARTEFACTOS_DIR}" "${T024_ARTEFACTOS_DIR}/copias/vintages"; do
+  real="$(realpath -m "${ruta}")"
+  case "${real}/" in
+    "${data_real}/"*)
+      echo "${ruta} resuelve dentro de T024_DATA_DIR ${data_real}: no se instala" >&2
+      exit 1
+      ;;
+  esac
+  case "${data_real}/" in
+    "${real}/"*)
+      echo "${ruta} contiene T024_DATA_DIR ${data_real}: no se instala" >&2
+      exit 1
+      ;;
+  esac
+done
 install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "${T024_ARTEFACTOS_DIR}"
 # El wrapper corre como T024_USER y escribe sus propios logs: ningún directorio suyo puede ser de root.
 install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "${T024_ARTEFACTOS_DIR}/logs"

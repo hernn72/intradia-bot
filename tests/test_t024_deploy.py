@@ -764,3 +764,29 @@ def test_configuracion_invalida_no_escribe_ni_descarga(tmp_path: Path, donde: st
 def test_instalador_comprueba_que_artefactos_y_copia_quedan_fuera_del_worktree() -> None:
     instalar = (ROOT / "deploy/t024/instalar.sh").read_text(encoding="utf-8")
     assert 'realpath -m "${T024_REPO_DIR}"' in instalar and '"${T024_ARTEFACTOS_DIR}/copias/vintages"' in instalar
+    assert 'realpath -m "${T024_DATA_DIR}"' in instalar
+
+
+def test_instalador_valida_rutas_como_el_wrapper(tmp_path: Path) -> None:
+    """Ejecuta solo el bloque de validación de rutas del instalador (sin root ni systemd) contra casos reales."""
+
+    import subprocess
+
+    instalar = (ROOT / "deploy/t024/instalar.sh").read_text(encoding="utf-8")
+    inicio = instalar.index("# Artefactos, segunda copia")
+    fin = instalar.index('install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "${T024_ARTEFACTOS_DIR}"', inicio)
+    bloque = instalar[inicio:fin]
+    if subprocess.run(["bash", "-c", "realpath -m / >/dev/null 2>&1"], check=False).returncode != 0:
+        pytest.skip("realpath -m no disponible (coreutils de GNU)")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    casos = {
+        "ok": (tmp_path / "art", tmp_path / "data", 0),
+        "art_en_repo": (repo / "art", tmp_path / "data", 1),
+        "data_en_repo": (tmp_path / "art", repo / "data", 1),
+        "art_en_data": (tmp_path / "data" / "art", tmp_path / "data", 1),
+    }
+    for nombre, (art, data, esperado) in casos.items():
+        entorno = {**os.environ, "T024_REPO_DIR": str(repo), "T024_ARTEFACTOS_DIR": str(art), "T024_DATA_DIR": str(data)}
+        rc = subprocess.run(["bash", "-c", "set -euo pipefail\n" + bloque], env=entorno, capture_output=True, check=False).returncode
+        assert rc == esperado, nombre
