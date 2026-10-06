@@ -82,6 +82,8 @@ Códigos de salida:
 | 7 | La petición no coincide con el calendario versionado |
 | 8 | Calendario inválido |
 | 9 | Error inesperado de congelación |
+| 10 | `ERROR_COPIA`: la cosecha se congeló, pero su segunda copia fuera del checkout falló |
+| 11 | Configuración inválida: artefactos, segunda copia o `--data-dir` dentro del checkout (no se escribe ni descarga nada) |
 | 75 | Lock ocupado |
 
 ## Segunda copia y borrado seguro

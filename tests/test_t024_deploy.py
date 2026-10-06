@@ -731,3 +731,36 @@ def test_checkpoint_pasado_con_intento_sin_estado_queda_interrumpido(tmp_path: P
     checkpoint.ejecutar(cfg, date(2026, 11, 4), lambda c, w: calls.append(c) or (0, "", ""))
     assert calls == []
     assert json.loads((cp_dir / "estado.json").read_text())["estado"] == "INTERRUMPIDO"
+
+
+
+@pytest.mark.parametrize("donde", ["artefactos_en_repo", "copia_en_repo", "artefactos_por_enlace", "copia_en_data", "data_en_repo"])
+def test_configuracion_invalida_no_escribe_ni_descarga(tmp_path: Path, donde: str) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    data = tmp_path / "data"
+    artefactos = tmp_path / "art"
+    copia: Path | None = None
+    if donde == "artefactos_en_repo":
+        artefactos = repo / "art"
+    elif donde == "copia_en_repo":
+        copia = repo / "copias"
+    elif donde == "artefactos_por_enlace":
+        (tmp_path / "enlace").symlink_to(repo)
+        artefactos = tmp_path / "enlace" / "art"
+    elif donde == "copia_en_data":
+        copia = data / "copias"
+    elif donde == "data_en_repo":
+        data = repo / "data"
+    cfg = checkpoint.Cfg(
+        repo=repo, python="python", data_dir=data, artefactos=artefactos,
+        calendario=_calendario_con_sha(tmp_path, CODE_SHA), copia_dir=copia,
+    )
+    calls: list[list[str]] = []
+    assert checkpoint.ejecutar(cfg, date(2026, 11, 3), lambda c, w: calls.append(c) or (0, "", "")) == checkpoint.RC_CONFIG
+    assert calls == [] and list(repo.iterdir()) == []
+
+
+def test_instalador_comprueba_que_artefactos_y_copia_quedan_fuera_del_worktree() -> None:
+    instalar = (ROOT / "deploy/t024/instalar.sh").read_text(encoding="utf-8")
+    assert 'realpath -m "${T024_REPO_DIR}"' in instalar and '"${T024_ARTEFACTOS_DIR}/copias/vintages"' in instalar

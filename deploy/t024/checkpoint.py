@@ -57,6 +57,7 @@ RC_CALENDARIO = 7
 RC_CALENDARIO_INVALIDO = 8
 RC_CONGELACION = 9
 RC_COPIA = 10
+RC_CONFIG = 11
 RC_LOCK = 75
 
 SNIPPET_PREFLIGHT = "import advisor; print(advisor.__file__)"
@@ -405,8 +406,36 @@ def _ultimos_10_dias_mes(hoy: date) -> bool:
     return (siguiente - hoy).days <= 10
 
 
+def errores_de_configuracion(cfg: Cfg) -> list[str]:
+    """Rutas que harían inútil la captura: se comprueban antes de escribir nada.
+
+    Los artefactos y la segunda copia tienen que quedar fuera del checkout que ejecuta (y fuera del
+    `--data-dir`), y el `--data-dir` fuera del checkout. Se resuelven los enlaces de los antecesores existentes.
+    """
+
+    repo = cfg.repo.resolve()
+    errores: list[str] = []
+    rutas = {"--artefactos": cfg.artefactos.resolve(), "segunda copia": cfg.copia().resolve()}
+    if cfg.data_dir is not None:
+        data = cfg.data_dir.resolve()
+        if _dentro(data, repo) or _dentro(repo, data):
+            errores.append(f"--data-dir ({data}) no puede estar dentro del checkout ({repo}) ni contenerlo")
+        for nombre, ruta in rutas.items():
+            if _dentro(ruta, data) or _dentro(data, ruta):
+                errores.append(f"{nombre} ({ruta}) no puede estar dentro de --data-dir ({data}) ni contenerlo")
+    for nombre, ruta in rutas.items():
+        if _dentro(ruta, repo) or _dentro(repo, ruta):
+            errores.append(f"{nombre} ({ruta}) no puede estar dentro del checkout ({repo}) ni contenerlo")
+    return errores
+
+
 def ejecutar(cfg: Cfg, hoy: date, runner: Runner) -> int:
     calendario = cargar_calendario(cfg.calendario)
+    errores = errores_de_configuracion(cfg)
+    if errores:
+        # Sin escribir nada (ni log en artefactos, que podrían estar dentro del checkout) y antes de todo intento.
+        print("CONFIGURACION_INVALIDA: " + "; ".join(errores), file=sys.stderr)
+        return RC_CONFIG
     cfg.artefactos.mkdir(parents=True, exist_ok=True)
     lock_path = cfg.artefactos / ".lock"
     with lock_path.open("a", encoding="utf-8") as lock_fh:

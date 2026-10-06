@@ -75,6 +75,23 @@ fi
 
 t024_group="$(id -gn "${T024_USER}")"
 
+# Artefactos, segunda copia (por defecto <artefactos>/copias/vintages) y data-dir fuera del worktree que ejecuta.
+repo_real="$(realpath -m "${T024_REPO_DIR}")"
+for ruta in "${T024_ARTEFACTOS_DIR}" "${T024_ARTEFACTOS_DIR}/copias/vintages" "${T024_DATA_DIR}"; do
+  real="$(realpath -m "${ruta}")"
+  case "${real}/" in
+    "${repo_real}/"*)
+      echo "${ruta} resuelve dentro del worktree ${repo_real}: no se instala" >&2
+      exit 1
+      ;;
+  esac
+  case "${repo_real}/" in
+    "${real}/"*)
+      echo "${ruta} contiene el worktree ${repo_real}: no se instala" >&2
+      exit 1
+      ;;
+  esac
+done
 install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "${T024_ARTEFACTOS_DIR}"
 # El wrapper corre como T024_USER y escribe sus propios logs: ningún directorio suyo puede ser de root.
 install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "${T024_ARTEFACTOS_DIR}/logs"
