@@ -442,13 +442,125 @@ def test_ic_bonferroni_delta_cuatro_estados() -> None:
     assert dec.etiquetar(0.1, 0.2, n=99) == dec.NO_EVALUABLE
 
 
+def _festivos_hasta(checkpoint: date) -> list[date]:
+    """Festivos que hacen de `checkpoint` (laborable) el primer día hábil de su mes."""
+
+    return [checkpoint.replace(day=d) for d in range(1, checkpoint.day) if checkpoint.replace(day=d).weekday() < 5]
+
+
+def _manifiesto_sintetico(vintage_id: str, checkpoint: date) -> dict[str, Any]:
+    from advisor.research import t024_forward as fwd
+
+    festivos = _festivos_hasta(checkpoint)
+    simbolos = list(fwd.simbolos_forward())
+    contexto = {
+        "estudio": "T-024",
+        "checkpoint": checkpoint.isoformat(),
+        "festivos": [d.isoformat() for d in festivos],
+        "T024_PREREG_SHA": dec.comun.T024_PREREG_SHA,
+        "T024_CODE_SHA": "a" * 40,
+    }
+    return {
+        "schema_version": 2,
+        "assets": [{"symbol": symbol} for symbol in simbolos],
+        "failed": [],
+        "universe_vintage_id": fwd.UNIVERSE_VINTAGE_ID,
+        "manifest_hash": vintage_id,
+        "data_vintage_id": vintage_id,
+        "request": {
+            "symbols": simbolos,
+            "symbols_sha256": fwd.SIMBOLOS_FORWARD_SHA256,
+            "start": fwd.FORWARD_START.isoformat(),
+            "end": fwd.end_exclusivo(checkpoint, festivos).isoformat(),
+            "end_exclusive": True,
+            "interval": "1d",
+            "auto_adjust": False,
+            "actions": True,
+            "provider": "yfinance",
+            "provider_version": "0.0-test",
+            "context": contexto,
+        },
+    }
+
+
+def _entrada_sintetica(vintage_id: str, checkpoint: date) -> dict[str, object]:
+    """Entrada canónica de `t024_forward` para un checkpoint laborable cualquiera, coherente con
+    `_manifiesto_sintetico`."""
+
+    from advisor.research import t024_forward as fwd
+    from advisor.research.vintage import _canonical_json
+
+    festivos = _festivos_hasta(checkpoint)
+    manifest = _manifiesto_sintetico(vintage_id, checkpoint)
+    return {
+        "checkpoint": checkpoint.isoformat(),
+        "data_vintage_id": vintage_id,
+        "manifest_hash": vintage_id,
+        "manifest_file_sha256": hashlib.sha256((_canonical_json(manifest) + "\n").encode()).hexdigest(),
+        "requested_start": fwd.FORWARD_START.isoformat(),
+        "requested_end": fwd.end_exclusivo(checkpoint, festivos).isoformat(),
+        "end_exclusive": True,
+        "interval": "1d",
+        "auto_adjust": False,
+        "actions": True,
+        "symbols_sha256": fwd.SIMBOLOS_FORWARD_SHA256,
+        "n_symbols": fwd.N_SIMBOLOS_FORWARD,
+        "festivos": [d.isoformat() for d in festivos],
+        "universe_vintage_id": fwd.UNIVERSE_VINTAGE_ID,
+        "provider": "yfinance",
+        "provider_version": "0.0-test",
+        "T024_PREREG_SHA": dec.comun.T024_PREREG_SHA,
+        "T024_CODE_SHA": "a" * 40,
+    }
+
+
 def _registro_forward(tmp_path: Path, ids: list[str], checkpoints: Optional[list[date]] = None) -> Path:
+    from advisor.research import t024_forward as fwd
+
     fechas = checkpoints or [date(2027, 4, 1) + timedelta(days=i) for i in range(len(ids))]
-    entries = [{"data_vintage_id": item, "checkpoint": fecha.isoformat()} for item, fecha in zip(ids, fechas)]
-    digest = hashlib.sha256(json.dumps({"cosechas": entries}, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     path = tmp_path / "forward.json"
-    path.write_text(json.dumps({"cosechas": entries, "sha256": digest}), encoding="utf-8")
+    fwd.escribir_registro(path, fwd._registro([_entrada_sintetica(item, fecha) for item, fecha in zip(ids, fechas)]))
     return path
+
+
+def _cosecha_hasheada(checkpoint: date) -> VintageLoad:
+    """Cosecha sintética coherente consigo misma: 126 series de una barra, hashes y `data_vintage_id` reales."""
+
+    from advisor.research import t024_forward as fwd
+    from advisor.research.vintage import build_views, hash_actions, hash_manifest, hash_series
+
+    frame = _vintage_from_rows("X", [cap.BarraCiega(date(2026, 9, 1), 100, 101, 99, 100, 1000)]).by_symbol["X"].raw
+    frame = frame.assign(**{"Adj Close": frame["Close"]})
+    views = build_views(frame)
+    body = _manifiesto_sintetico("", checkpoint)
+    body = {k: v for k, v in body.items() if k not in {"manifest_hash", "data_vintage_id"}}
+    body["assets"] = [
+        {"symbol": symbol, "series_hash": hash_series(frame), "corporate_actions_hash": hash_actions(frame)}
+        for symbol in fwd.simbolos_forward()
+    ]
+    vid = hash_manifest(body)
+    manifest = {**body, "manifest_hash": vid, "data_vintage_id": vid}
+    return VintageLoad(vid, manifest, dict.fromkeys(fwd.simbolos_forward(), views))
+
+
+def _entrada_de_cosecha(vintage: VintageLoad) -> dict[str, object]:
+    from advisor.research.vintage import _canonical_json
+
+    checkpoint = date.fromisoformat(vintage.manifest["request"]["context"]["checkpoint"])
+    entrada = _entrada_sintetica(vintage.data_vintage_id, checkpoint)
+    entrada["manifest_file_sha256"] = hashlib.sha256((_canonical_json(vintage.manifest) + "\n").encode()).hexdigest()
+    return entrada
+
+
+def _mirada_args(tmp_path: Path, checkpoints: Sequence[date] = (date(2027, 1, 1), date(2027, 4, 1))) -> dict[str, Any]:
+    """Registro canónico con `v0` sintética y una decisiva hasheada en el segundo checkpoint."""
+
+    from advisor.research import t024_forward as fwd
+
+    decisiva = _cosecha_hasheada(checkpoints[1])
+    path = tmp_path / "forward.json"
+    fwd.escribir_registro(path, fwd._registro([_entrada_sintetica("v0", checkpoints[0]), _entrada_de_cosecha(decisiva)]))
+    return {"cosecha_decisiva": decisiva, "cosecha_decisiva_id": decisiva.data_vintage_id, "registro_forward_path": path}
 
 
 def _conteo(policy: str, cumple: bool) -> cap.ConteoCaptura:
@@ -674,9 +786,7 @@ def test_token_se_desactiva_tras_excepcion_en_ejecutar_mirada(monkeypatch: pytes
             c_e=date(2027, 1, 1),
             config=None,  # type: ignore[arg-type]
             universe=_Universe(),
-            cosecha_decisiva=replace(_vintage_from_rows("AAA", []), data_vintage_id="v1"),
-            cosecha_decisiva_id="v1",
-            registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
+            **_mirada_args(tmp_path),
             evidence_dir=tmp_path,
         )
     assert dec._TOKEN_ACTIVO is None
@@ -698,9 +808,7 @@ def test_mirada_reconfirmacion_fallida_no_consume_ni_abre(monkeypatch: pytest.Mo
         c_e=date(2027, 1, 1),
         config=None,  # type: ignore[arg-type]
         universe=_Universe(),
-        cosecha_decisiva=replace(_vintage_from_rows("AAA", []), data_vintage_id="v1"),
-        cosecha_decisiva_id="v1",
-        registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
+        **_mirada_args(tmp_path),
         evidence_dir=tmp_path,
     )
     assert out == dec.REPROPONER
@@ -720,19 +828,18 @@ def test_marca_exclusiva_y_registro_de_cosechas(monkeypatch: pytest.MonkeyPatch,
         None,
     )
     monkeypatch.setattr(dec, "construir_resultado", lambda *_a, **_k: result)
+    args = _mirada_args(tmp_path)
     out = dec.ejecutar_mirada(
         mirada="mirada_1",
         c_e=date(2027, 1, 1),
         config=None,  # type: ignore[arg-type]
         universe=_Universe(),
-        cosecha_decisiva=replace(_vintage_from_rows("AAA", []), data_vintage_id="v1"),
-        cosecha_decisiva_id="v1",
-        registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
+        **args,
         evidence_dir=tmp_path,
     )
     assert out == result
     mark = tmp_path / "mirada_1.t024.consumida"
-    assert json.loads(mark.read_text())["cosecha_decisiva"] == "v1"
+    assert json.loads(mark.read_text())["cosecha_decisiva"] == args["cosecha_decisiva_id"]
     with pytest.raises(FileExistsError):
         dec.crear_marca_exclusiva(mark, "")
 
@@ -787,16 +894,19 @@ def test_cosecha_decisiva_es_la_primera_a_75_dias(tmp_path: Path) -> None:
 
 
 def _mirada_kwargs(tmp_path: Path, mirada: str, c_e: date, vintage_id: str) -> dict[str, Any]:
-    return dict(
+    """`vintage_id` distinto de "v1" sustituye el id de la cosecha recibida, no el de la declarada."""
+
+    kwargs: dict[str, Any] = dict(
         mirada=mirada,
         c_e=c_e,
         config=None,
         universe=_Universe(),
-        cosecha_decisiva=replace(_vintage_from_rows("AAA", []), data_vintage_id=vintage_id),
-        cosecha_decisiva_id="v1",
-        registro_forward_path=_registro_forward(tmp_path, ["v0", "v1"], [date(2027, 1, 1), date(2027, 4, 1)]),
+        **_mirada_args(tmp_path),
         evidence_dir=tmp_path,
     )
+    if vintage_id != "v1":
+        kwargs["cosecha_decisiva"] = replace(kwargs["cosecha_decisiva"], data_vintage_id=vintage_id)
+    return kwargs
 
 
 def test_cosecha_recibida_distinta_de_la_declarada_se_deniega_sin_marca(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -822,7 +932,7 @@ def test_mirada_final_capacidad_por_politica(monkeypatch: pytest.MonkeyPatch, tm
 
     monkeypatch.setattr(dec, "construir_resultado", construir)
     kwargs = _mirada_kwargs(tmp_path, "mirada_final", dec.C_E_FINAL, "v1")
-    kwargs["registro_forward_path"] = _registro_forward(tmp_path, ["v0", "v1"], [dec.C_E_FINAL - timedelta(days=30), dec.C_E_FINAL + timedelta(days=80)])
+    kwargs.update(_mirada_args(tmp_path, (dec.C_E_FINAL - timedelta(days=30), dec.C_E_FINAL + timedelta(days=80))))
     out = dec.ejecutar_mirada(**kwargs)
     assert pedidas == [("S2",)]
     assert isinstance(out, dec.ResultadoDecision)
