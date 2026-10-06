@@ -332,6 +332,9 @@ def test_simbolos_forward_cubren_activos_benchmarks_y_contexto() -> None:
     needed |= {config.market_context.vix_symbol, config.market_context.trend_symbol}
     needed |= {a.primary_symbol for a in context_assets_of(universe) if a.region == "ASIA"}
     assert needed <= set(fwd.simbolos_forward())
+    # Los tests de procedencia usan un universo doble que resuelve cualquier símbolo; el real también debe
+    # resolver los 126, o la comprobación de rango fallaría cerrada en el checkpoint.
+    assert all(universe.get(symbol) is not None for symbol in fwd.simbolos_forward())
 
 
 def test_universo_congelado_igual_al_de_p5() -> None:
