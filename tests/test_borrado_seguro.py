@@ -645,3 +645,45 @@ def test_spawnl_y_execl_pasan_por_la_regla_via_sus_variantes_v(tmp_path: Path) -
     )
     os.spawnle(os.P_WAIT, sys.executable, sys.executable, "-c", codigo, entorno_limpio)
     assert salida.read_text(encoding="utf-8") == "BorradoProhibidoEnTests"
+
+
+
+# ---------------------------------------------------------------------------
+# Revisión final de Codex (sobre 5866152): escrituras directas sobre rutas protegidas
+# ---------------------------------------------------------------------------
+
+
+def test_escrituras_directas_sobre_rutas_protegidas_se_niegan(tmp_path: Path) -> None:
+    protegido = ROOT / "evidence" / f"{NO_EXISTE}.txt"
+    with pytest.raises(BorradoProhibidoEnTests):
+        protegido.write_text("x", encoding="utf-8")
+    with pytest.raises(BorradoProhibidoEnTests):
+        open(protegido, "w")  # noqa: SIM115
+    with pytest.raises(BorradoProhibidoEnTests):
+        open(ROOT / "data" / NO_EXISTE, "ab")  # noqa: SIM115
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.open(protegido, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+    with pytest.raises(BorradoProhibidoEnTests):
+        protegido.touch()
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.truncate(ROOT / "evidence" / f"{NO_EXISTE}-truncar.txt", 0)
+    assert not protegido.exists()
+
+
+def test_lectura_de_evidencia_y_escritura_en_temporales_siguen_permitidas(tmp_path: Path) -> None:
+    texto = (ROOT / "evidence" / "2026-10-06-incidente-perdida-vintage" / "README.md").read_text(encoding="utf-8")
+    assert "Incidente" in texto
+    (tmp_path / "libre.txt").write_text("ok", encoding="utf-8")
+    fd = os.open(tmp_path / "libre2.txt", os.O_WRONLY | os.O_CREAT)
+    os.close(fd)
+    assert (tmp_path / "libre.txt").read_text(encoding="utf-8") == "ok"
+
+
+def test_hijo_python_tampoco_escribe_en_evidence(tmp_path: Path) -> None:
+    import subprocess
+
+    protegido = ROOT / "evidence" / f"{NO_EXISTE}.txt"
+    resultado = subprocess.run(
+        [sys.executable, "-c", f"open({str(protegido)!r}, 'w').write('x')"], capture_output=True, text=True, check=False
+    )
+    assert "BorradoProhibidoEnTests" in resultado.stderr and not protegido.exists()

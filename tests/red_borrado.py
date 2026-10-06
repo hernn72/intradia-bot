@@ -3,8 +3,9 @@
 Solo biblioteca estándar: la usan `tests/conftest.py` (con monkeypatch, restaurable) y
 `tests/red_hijos/sitecustomize.py`, que la instala en todo intérprete Python hijo lanzado por un test.
 
-Ningún test puede borrar, mover ni pisar `/`, `$HOME`, la raíz del repo o sus antecesores, ni nada en `data/`,
-`evidence/` o `.git/` del repo, ni una base SQLite del repo. Las órdenes externas se inspeccionan por tokens.
+Ningún test puede borrar, mover, pisar ni abrir para escritura `/`, `$HOME`, la raíz del repo o sus
+antecesores, ni nada en `data/`, `evidence/` o `.git/` del repo, ni una base SQLite del repo. La lectura sigue
+permitida. Las órdenes externas se inspeccionan por tokens.
 
 Riesgos residuales documentados (fuera del modelo accidental/estructural o cubiertos por los backups fuera
 del repositorio):
@@ -324,6 +325,45 @@ def envolver_proceso(original: Callable[..., Any], nombre: str) -> Callable[...,
     return guardada
 
 
+_FLAGS_ESCRITURA = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND
+
+
+def _comprobar_escritura(ruta: Any, nombre: str, dir_fd: Any = None) -> None:
+    if isinstance(ruta, int):
+        return  # descriptor ya abierto: se comprobó al abrirlo
+    motivo = ruta_prohibida(ruta_efectiva(ruta, dir_fd))
+    if motivo is not None:
+        raise BorradoProhibidoEnTests(f"{nombre} en escritura denegado en tests: {motivo}")
+
+
+def envolver_open(original: Callable[..., Any], nombre: str) -> Callable[..., Any]:
+    """`open`/`io.open`: escribir (w, a, x, +) sobre una ruta protegida equivale a pisarla."""
+
+    def guardada(file: Any, mode: str = "r", *args: Any, **kwargs: Any) -> Any:
+        if any(c in mode for c in "wax+"):
+            _comprobar_escritura(file, nombre)
+        return original(file, mode, *args, **kwargs)
+
+    return guardada
+
+
+def envolver_os_open(original: Callable[..., Any]) -> Callable[..., Any]:
+    def guardada(path: Any, flags: int, *args: Any, **kwargs: Any) -> Any:
+        if flags & _FLAGS_ESCRITURA:
+            _comprobar_escritura(path, "os.open", kwargs.get("dir_fd"))
+        return original(path, flags, *args, **kwargs)
+
+    return guardada
+
+
+def envolver_truncate(original: Callable[..., Any]) -> Callable[..., Any]:
+    def guardada(path: Any, *args: Any, **kwargs: Any) -> Any:
+        _comprobar_escritura(path, "os.truncate")
+        return original(path, *args, **kwargs)
+
+    return guardada
+
+
 def instalar(setattr_: Callable[[Any, str, Any], None]) -> None:
     """Envuelve todas las vías de borrado conocidas usando `setattr_` (monkeypatch o setattr directo)."""
 
@@ -337,6 +377,14 @@ def instalar(setattr_: Callable[[Any, str, Any], None]) -> None:
     setattr_(os, "rename", envolver_renombrado(os.rename, "os.rename"))
     setattr_(os, "replace", envolver_renombrado(os.replace, "os.replace"))
     setattr_(subprocess, "Popen", PopenGuardado)
+    import builtins
+    import io
+
+    abrir = envolver_open(io.open, "open")
+    setattr_(builtins, "open", abrir)
+    setattr_(io, "open", abrir)
+    setattr_(os, "open", envolver_os_open(os.open))
+    setattr_(os, "truncate", envolver_truncate(os.truncate))
     setattr_(os, "system", envolver_proceso(os.system, "os.system"))
     for nombre in _FIRMAS_OS:
         if hasattr(os, nombre):
