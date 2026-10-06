@@ -234,8 +234,10 @@ def _dirs_byte_iguales(left: Path, right: Path) -> bool:
 def copiar(args: argparse.Namespace, runner: Runner = _run_subprocess) -> int:
     """Trae artefactos y vintage de la Pi a staging, verifica y solo entonces promueve.
 
-    Todo borrado pasa por `borrado_seguro.borrar_staging`. Una promoción que haya que deshacer vuelve a su
-    staging con `os.replace`; nunca se borra un destino final.
+    Todo borrado pasa por `borrado_seguro.borrar_staging`. La promoción no pisa nada y es todo o nada
+    (`promover_sin_pisar`). Si falla la de los artefactos después de promover el vintage en esta misma
+    ejecución, ese vintage recién creado se renombra a un staging nuevo y se borra por la guarda. Nunca se
+    borra un destino que existiera antes.
     """
 
     destino = args.destino_artefactos

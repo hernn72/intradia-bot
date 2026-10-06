@@ -93,7 +93,8 @@ def promover_sin_pisar(staging: str | os.PathLike[str], destino: str | os.PathLi
     """Materializa el contenido de `staging` en `destino` sin sobrescribir nunca nada.
 
     `destino` se crea con `mkdir` exclusivo (falla si ya existe, aunque esté vacío) y cada fichero se enlaza
-    con `os.link`, que también falla si el nombre existe. Exige ficheros regulares, sin enlaces simbólicos, en
+    con `os.link`, que también falla si el nombre existe. Si algo falla a mitad, el destino recién creado se
+    retira entero: o queda completo o no existe. Exige ficheros regulares, sin enlaces simbólicos, en
     el mismo sistema de ficheros. El staging sigue existiendo: lo borra después quien lo creó, vía la guarda.
     """
 
@@ -107,9 +108,17 @@ def promover_sin_pisar(staging: str | os.PathLike[str], destino: str | os.PathLi
                 raise BorradoDenegado(f"{ruta} es un enlace simbólico: no se promueve")
         relativos.extend((Path(raiz) / f).relative_to(origen) for f in ficheros)
     os.mkdir(final)
-    for rel in sorted(relativos):
-        (final / rel).parent.mkdir(parents=True, exist_ok=True)
-        os.link(origen / rel, final / rel)
+    try:
+        for rel in sorted(relativos):
+            (final / rel).parent.mkdir(parents=True, exist_ok=True)
+            os.link(origen / rel, final / rel)
+    except BaseException:
+        # `final` lo acaba de crear esta llamada con mkdir exclusivo: se retira entero y el destino vuelve a
+        # no existir. Se renombra a un staging nuevo y se borra por la guarda; nunca se borra in situ.
+        retirada = final.parent / nombre_staging(f"retirada-{uuid.uuid4().hex}")
+        os.rename(final, retirada)
+        borrar_staging(retirada, base=final.parent)
+        raise
 
 
 def nombre_staging(etiqueta: str) -> str:

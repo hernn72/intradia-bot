@@ -183,15 +183,23 @@ def test_red_de_tests_permite_temporales(tmp_path: Path) -> None:
     llamadas: list[Any] = []
     guardada = envolver_borrado(lambda ruta, *a, **k: llamadas.append(ruta), "prueba")
     guardada(tmp_path / "x")
-    guardada("relativo", dir_fd=3)
+    fd = os.open(tmp_path, os.O_RDONLY)
+    try:
+        guardada("relativo", dir_fd=fd)
+    finally:
+        os.close(fd)
     assert llamadas == [tmp_path / "x", "relativo"]
 
 
 def test_red_de_tests_esta_activa_en_la_sesion() -> None:
     import shutil
+    import subprocess
 
-    for funcion in (shutil.rmtree, os.remove, os.unlink, os.rmdir):
+    from tests.conftest import _PopenGuardado
+
+    for funcion in (shutil.rmtree, os.remove, os.unlink, os.rmdir, os.removedirs, os.rename, os.replace):
         assert funcion.__name__ == "guardada"
+    assert subprocess.Popen is _PopenGuardado
 
 
 
@@ -305,3 +313,52 @@ def test_red_no_bloquea_subprocess_normales(tmp_path: Path) -> None:
 
     assert subprocess.run(["git", "--version"], capture_output=True, check=False).returncode == 0
     assert subprocess.run("echo hola", shell=True, capture_output=True, text=True, check=False).stdout == "hola\n"
+
+
+
+def test_red_resuelve_dir_fd_hacia_rutas_protegidas(tmp_path: Path) -> None:
+    fd = os.open(ROOT / "evidence", os.O_RDONLY)
+    try:
+        with pytest.raises(BorradoProhibidoEnTests):
+            os.unlink(f"{NO_EXISTE}.txt", dir_fd=fd)
+        with pytest.raises(BorradoProhibidoEnTests):
+            os.rmdir(NO_EXISTE, dir_fd=fd)
+        origen = tmp_path / "x.txt"
+        origen.write_text("x", encoding="utf-8")
+        with pytest.raises(BorradoProhibidoEnTests):
+            os.replace(origen, f"{NO_EXISTE}.txt", dst_dir_fd=fd)
+        with pytest.raises(BorradoProhibidoEnTests):
+            os.rename(f"{NO_EXISTE}.txt", origen, src_dir_fd=fd)
+        assert origen.exists()
+    finally:
+        os.close(fd)
+
+
+def test_red_con_dir_fd_en_temporales_funciona(tmp_path: Path) -> None:
+    (tmp_path / "borrable.txt").write_text("x", encoding="utf-8")
+    fd = os.open(tmp_path, os.O_RDONLY)
+    try:
+        os.unlink("borrable.txt", dir_fd=fd)
+    finally:
+        os.close(fd)
+    assert not (tmp_path / "borrable.txt").exists()
+
+
+def test_promover_sin_pisar_es_todo_o_nada(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    staging = _staging(tmp_path, "parcial")
+    (staging / "otro.csv").write_text("2\n", encoding="utf-8")
+    enlazados: list[Any] = []
+    link_real = os.link
+
+    def link_que_falla(origen: Any, destino: Any) -> None:
+        if enlazados:
+            raise OSError("fallo simulado a mitad de la promoción")
+        enlazados.append(destino)
+        link_real(origen, destino)
+
+    monkeypatch.setattr(bs.os, "link", link_que_falla)
+    with pytest.raises(OSError, match="a mitad"):
+        bs.promover_sin_pisar(staging, tmp_path / "destino")
+    assert not (tmp_path / "destino").exists()
+    assert sorted(p.name for p in tmp_path.iterdir()) == [staging.name]
+    assert sorted(p.name for p in staging.iterdir()) == ["dato.csv", "otro.csv"]

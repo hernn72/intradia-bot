@@ -215,15 +215,41 @@ def ruta_prohibida(objetivo: Any, *, repo: Path = REPO_TESTS, home: Optional[Pat
     return None
 
 
+def ruta_de_descriptor(fd: int) -> Optional[str]:
+    """Ruta real de un descriptor de directorio (macOS: F_GETPATH; Linux: /proc/self/fd)."""
+
+    try:
+        import fcntl
+
+        if hasattr(fcntl, "F_GETPATH"):
+            crudo = fcntl.fcntl(fd, fcntl.F_GETPATH, bytes(1024))
+            return os.fsdecode(crudo.split(b"\0", 1)[0])
+    except OSError:
+        return None
+    try:
+        return os.readlink(f"/proc/self/fd/{fd}")
+    except OSError:
+        return None
+
+
+def ruta_efectiva(ruta: Any, dir_fd: Any) -> Any:
+    """La ruta que de verdad se toca: relativa a `dir_fd` si lo hay. Sin resolver → falla cerrada."""
+
+    if dir_fd is None:
+        return ruta
+    base = ruta_de_descriptor(int(dir_fd))
+    if base is None:
+        raise BorradoProhibidoEnTests(f"no se puede resolver dir_fd={dir_fd}: se deniega")
+    return os.path.join(base, os.fsdecode(ruta))
+
+
 def envolver_borrado(original: Callable[..., Any], nombre: str, *, repo: Path = REPO_TESTS) -> Callable[..., Any]:
-    """Envuelve una función de borrado: comprueba la ruta antes de llamar a la original."""
+    """Envuelve una función de borrado: comprueba la ruta efectiva (también con dir_fd) antes de borrar."""
 
     def guardada(ruta: Any, *args: Any, **kwargs: Any) -> Any:
-        # Con dir_fd la ruta es relativa a un descriptor (uso interno de shutil.rmtree, ya comprobado arriba).
-        if kwargs.get("dir_fd") is None:
-            motivo = ruta_prohibida(ruta, repo=repo)
-            if motivo is not None:
-                raise BorradoProhibidoEnTests(f"{nombre} denegado en tests: {motivo}")
+        motivo = ruta_prohibida(ruta_efectiva(ruta, kwargs.get("dir_fd")), repo=repo)
+        if motivo is not None:
+            raise BorradoProhibidoEnTests(f"{nombre} denegado en tests: {motivo}")
         return original(ruta, *args, **kwargs)
 
     for atributo in ("avoids_symlink_attacks",):
@@ -236,11 +262,10 @@ def envolver_renombrado(original: Callable[..., Any], nombre: str, *, repo: Path
     """`os.rename`/`os.replace`: mover algo protegido equivale a borrarlo; pisarlo, también."""
 
     def guardada(origen: Any, destino: Any, *args: Any, **kwargs: Any) -> Any:
-        if kwargs.get("src_dir_fd") is None and kwargs.get("dst_dir_fd") is None:
-            for ruta in (origen, destino):
-                motivo = ruta_prohibida(ruta, repo=repo)
-                if motivo is not None:
-                    raise BorradoProhibidoEnTests(f"{nombre} denegado en tests: {motivo}")
+        for ruta, fd in ((origen, kwargs.get("src_dir_fd")), (destino, kwargs.get("dst_dir_fd"))):
+            motivo = ruta_prohibida(ruta_efectiva(ruta, fd), repo=repo)
+            if motivo is not None:
+                raise BorradoProhibidoEnTests(f"{nombre} denegado en tests: {motivo}")
         return original(origen, destino, *args, **kwargs)
 
     return guardada
