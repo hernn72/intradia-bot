@@ -12,6 +12,7 @@ tokens (p. ej. un binario propio) no pasa por la red. Lo cubren los backups fuer
 
 from __future__ import annotations
 
+import inspect
 import os
 import re
 import shlex
@@ -157,13 +158,27 @@ def flags_que_anulan_la_red(argv: list[str]) -> list[str]:
     """Banderas de un intérprete Python que harían ignorar `PYTHONPATH`/`sitecustomize` (-I, -E, -S)."""
 
     malas: list[str] = []
-    for token in argv[1:]:
-        if token in {"-c", "-m"} or not token.startswith("-") or token == "-":
-            break
-        if token.startswith("--"):
-            continue
+    indice = 1
+    while indice < len(argv):
+        token = argv[indice]
+        if not token.startswith("-") or token == "-" or token.startswith("--"):
+            if token.startswith("--") and token != "--":
+                # La única opción larga de CPython con argumento separado.
+                indice += 2 if token == "--check-hash-based-pycs" else 1
+                continue
+            break  # script, `-` (stdin) o `--`: fin de las opciones del intérprete
         letras = token[1:]
-        malas.extend(f"-{letra}" for letra in letras if letra in {"I", "E", "S"})
+        for posicion, letra in enumerate(letras):
+            if letra in {"c", "m"}:
+                return malas  # lo que sigue es código o módulo, no opciones
+            if letra in {"W", "X"}:
+                # El resto del token es su argumento; si no queda nada, lo es el token siguiente.
+                if posicion == len(letras) - 1:
+                    indice += 1
+                break
+            if letra in {"I", "E", "S"}:
+                malas.append(f"-{letra}")
+        indice += 1
     return malas
 
 
@@ -205,16 +220,23 @@ def asegurar_hijo(args: Any, *, shell: bool = False, executable: Any = None, env
     return {**env, **{v: os.environ[v] for v in VARIABLES_RED if v in os.environ}}
 
 
-class PopenGuardado(subprocess.Popen):  # type: ignore[type-arg]
-    """`subprocess.Popen` que aplica `asegurar_hijo` a todo lanzamiento."""
+_FIRMA_POPEN = inspect.signature(subprocess.Popen.__init__)
 
-    def __init__(self, args: Any, *posicionales: Any, **kwargs: Any) -> None:
-        entorno = asegurar_hijo(
-            args, shell=bool(kwargs.get("shell")), executable=kwargs.get("executable"), env=kwargs.get("env")
-        )
+
+class PopenGuardado(subprocess.Popen):  # type: ignore[type-arg]
+    """`subprocess.Popen` que aplica `asegurar_hijo` a todo lanzamiento.
+
+    Los argumentos se enlazan con la firma real de `Popen`, de modo que `shell`, `executable` y `env` cuentan
+    igual pasados por nombre que por posición.
+    """
+
+    def __init__(self, *posicionales: Any, **kwargs: Any) -> None:
+        enlazados = _FIRMA_POPEN.bind(self, *posicionales, **kwargs)
+        a = enlazados.arguments
+        entorno = asegurar_hijo(a["args"], shell=bool(a.get("shell", False)), executable=a.get("executable"), env=a.get("env"))
         if entorno is not None:
-            kwargs["env"] = entorno
-        super().__init__(args, *posicionales, **kwargs)
+            a["env"] = entorno
+        super().__init__(*enlazados.args[1:], **enlazados.kwargs)
 
 
 # Posición de (programa, argv, env) en cada función de os; None si no tiene ese argumento.
@@ -236,17 +258,35 @@ def envolver_proceso(original: Callable[..., Any], nombre: str) -> Callable[...,
     """`os.system`, `os.spawn*`, `os.posix_spawn*` y `os.exec*`: la misma regla que `subprocess`."""
 
     corto = nombre.removeprefix("os.")
+    try:
+        firma: Optional[inspect.Signature] = inspect.signature(original)
+    except (TypeError, ValueError):
+        firma = None  # p. ej. posix_spawn: path, argv y env son solo posicionales
 
     def guardada(*args: Any, **kwargs: Any) -> Any:
         if corto == "system":
-            asegurar_hijo(args[0], shell=True)
+            orden_sistema = args[0] if args else kwargs.get("command")
+            asegurar_hijo(orden_sistema, shell=True)
             return original(*args, **kwargs)
         i_prog, i_argv, i_env = _FIRMAS_OS[corto]
-        argv = list(args[i_argv]) if len(args) > i_argv else []
-        programa = args[i_prog] if len(args) > i_prog else None
+        if firma is not None:
+            # Enlace con la firma real: posición o nombre, da igual.
+            enlazados = firma.bind(*args, **kwargs)
+            nombres = list(firma.parameters)
+            valores = [enlazados.arguments.get(n) for n in nombres]
+        else:
+            enlazados = None
+            nombres = []
+            valores = list(args)
+        programa = valores[i_prog] if len(valores) > i_prog else None
+        argv = list(valores[i_argv]) if len(valores) > i_argv and valores[i_argv] is not None else []
+        env_actual = valores[i_env] if i_env is not None and len(valores) > i_env else None
         orden = [os.fsdecode(programa), *argv[1:]] if programa is not None else argv
-        entorno = asegurar_hijo(orden, executable=programa, env=args[i_env] if i_env is not None and len(args) > i_env else None)
+        entorno = asegurar_hijo(orden, executable=programa, env=env_actual)
         if entorno is not None and i_env is not None:
+            if enlazados is not None:
+                enlazados.arguments[nombres[i_env]] = entorno
+                return original(*enlazados.args, **enlazados.kwargs)
             args = (*args[:i_env], entorno, *args[i_env + 1 :])
         return original(*args, **kwargs)
 

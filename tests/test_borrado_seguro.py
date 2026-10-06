@@ -527,3 +527,57 @@ def test_executable_python_con_argv0_ajeno_se_trata_como_python(tmp_path: Path) 
 
     with pytest.raises(BorradoProhibidoEnTests):
         subprocess.run(["no-python", "-I", "-c", "pass"], executable=sys.executable, cwd=tmp_path, check=False)
+
+
+
+# ---------------------------------------------------------------------------
+# Verificación de Codex sobre b37de47: argumentos por posición, keywords y opciones con argumento
+# ---------------------------------------------------------------------------
+
+
+def test_popen_con_shell_por_posicion_se_analiza_como_shell(tmp_path: Path) -> None:
+    import subprocess
+
+    with pytest.raises(BorradoProhibidoEnTests):
+        subprocess.Popen(f"{sys.executable} -S -c pass", -1, None, None, None, None, None, True, True)
+
+
+def test_spawnve_con_keywords_aplica_la_regla() -> None:
+    entorno_limpio = {"PATH": os.environ.get("PATH", "")}
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.spawnve(os.P_WAIT, file=sys.executable, args=[sys.executable, "-S", "-c", "pass"], env=entorno_limpio)
+
+
+def test_spawnve_con_keywords_y_entorno_limpio_recibe_la_red(tmp_path: Path) -> None:
+    protegido = ROOT / "evidence" / NO_EXISTE
+    salida = tmp_path / "salida.txt"
+    codigo = (
+        "import shutil\n"
+        f"try:\n    shutil.rmtree({str(protegido)!r})\n"
+        f"except Exception as exc:\n    open({str(salida)!r}, 'w').write(type(exc).__name__)\n"
+    )
+    os.spawnve(os.P_WAIT, file=sys.executable, args=[sys.executable, "-c", codigo], env={"PATH": os.environ.get("PATH", "")})
+    assert salida.read_text(encoding="utf-8") == "BorradoProhibidoEnTests"
+
+
+@pytest.mark.parametrize(
+    "argv,esperado",
+    [
+        (["python", "-W", "ignore", "-S", "-c", "x"], ["-S"]),
+        (["python", "-Wignore", "-E", "-c", "x"], ["-E"]),
+        (["python", "-X", "utf8", "-I", "x.py"], ["-I"]),
+        (["python", "-uI", "-c", "x"], ["-I"]),
+        (["python", "-c", "-S"], []),
+        (["python", "-m", "mod", "-S"], []),
+        (["python", "-W", "ignore", "-c", "x"], []),
+        (["python", "x.py", "-S"], []),
+        (["python", "-uc", "-S"], []),
+        (["python", "-SuI", "-c", "x"], ["-S", "-I"]),
+        (["python", "--check-hash-based-pycs", "default", "-c", "x"], []),
+        (["python", "--check-hash-based-pycs", "default", "-S", "-c", "x"], ["-S"]),
+    ],
+)
+def test_flags_que_anulan_la_red_saltan_argumentos_de_opciones(argv: list[str], esperado: list[str]) -> None:
+    from tests.red_borrado import flags_que_anulan_la_red
+
+    assert flags_que_anulan_la_red(argv) == esperado
