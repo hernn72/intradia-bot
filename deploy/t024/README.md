@@ -97,6 +97,15 @@ Códigos de salida:
   `.t024-staging-*`, hijos directos de `base`, sin `.git` ni SQLite. Rechaza `/`, `$HOME`, la raíz del
   repositorio, el directorio actual y sus antecesores.
 
+**Identidad fijada en el calendario.**
+- `deploy/t024/calendario-checkpoints.json` declara `t024_code_sha`, hoy
+  `1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0`.
+- El wrapper exige que `verificar_identidad()` devuelva exactamente ese SHA antes de construir la
+  petición. Si no coincide, el estado es `ERROR_IDENTIDAD` y no se descarga nada. Así, un worktree movido a
+  otro commit no puede gastar el único intento automático con otra identidad.
+- El instalador lee el mismo valor. `traer_cosecha verificar` exige que coincida con el sidecar.
+- Cambiar `T024_CODE_SHA` exige actualizar también este campo, de forma explícita.
+
 ## Calendario
 
 El calendario es operativo y versionado, separado del ejecutor. Para ampliarlo, usa solo una fuente

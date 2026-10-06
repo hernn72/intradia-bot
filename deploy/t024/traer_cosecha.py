@@ -67,6 +67,8 @@ def _paths_for_sum(artefactos: Path, vintage_dir: Path, rel: str) -> Path:
         parts = rel.split("/")
         if len(parts) < 3:
             raise ValueError(f"ruta vintage inválida en SHA256SUMS: {rel}")
+        if parts[1] != vintage_dir.name:
+            raise ValueError(f"SHA256SUMS nombra otro vintage ({parts[1]}) que el verificado ({vintage_dir.name})")
         return vintage_dir / "/".join(parts[2:])
     return artefactos / rel
 
@@ -103,7 +105,11 @@ def _verificar_sha256s(artefactos: Path, vintage_dir: Path) -> list[str]:
             listados_vintage.add(rel_vintage)
         else:
             listados_artefactos.add(rel)
-        path = _paths_for_sum(artefactos, vintage_dir, rel)
+        try:
+            path = _paths_for_sum(artefactos, vintage_dir, rel)
+        except ValueError as exc:
+            errores.append(str(exc))
+            continue
         if not path.is_file():
             errores.append(f"falta fichero listado: {rel}")
         elif _sha256(path) != digest:
@@ -149,12 +155,36 @@ def verificar(
     errores.extend(_verificar_sha256s(artefactos, vintage_dir))
     if code_sha_esperado is None:
         code_sha_esperado = (repo / CODE_SHA_SIDECAR).read_text(encoding="utf-8").strip()
+        # Fuera de los tests, el calendario operativo y el sidecar de identidad tienen que coincidir.
+        declarado = _load_json(calendario).get("t024_code_sha")
+        if declarado != code_sha_esperado:
+            errores.append(f"t024_code_sha del calendario ({declarado}) distinto del sidecar ({code_sha_esperado})")
     try:
         identidad = (artefactos / "identidad.txt").read_text(encoding="utf-8").strip()
         if identidad != code_sha_esperado:
             errores.append("identidad.txt distinto del T024_CODE_SHA esperado")
     except OSError as exc:
         errores.append(f"identidad.txt no verificable: {exc}")
+    # La petición copiada tiene que ser la exacta del calendario, campo a campo.
+    simbolos = peticion.get("symbols")
+    contrato = {
+        "checkpoint": checkpoint,
+        "start": "2021-08-30",
+        "end": esperado["requested_end"],
+        "end_exclusive": True,
+        "interval": "1d",
+        "auto_adjust": False,
+        "actions": True,
+        "festivos": esperado["festivos"],
+        "n_symbols": 126,
+    }
+    for clave, valor in contrato.items():
+        if peticion.get(clave) != valor:
+            errores.append(f"peticion.json: {clave} distinto del contrato")
+    if not isinstance(simbolos, list) or len(simbolos) != 126 or peticion.get("n_symbols") != len(simbolos):
+        errores.append("peticion.json: lista de símbolos incoherente con n_symbols")
+    elif hashlib.sha256("\n".join(simbolos).encode("utf-8")).hexdigest() != peticion.get("symbols_sha256"):
+        errores.append("peticion.json: symbols_sha256 no corresponde a symbols")
     if isinstance(congelacion.get("peticion"), dict):
         peticion_congelacion = congelacion["peticion"]
         if peticion_congelacion.get("end") != peticion.get("end"):

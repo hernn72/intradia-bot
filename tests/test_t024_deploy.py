@@ -38,13 +38,24 @@ traer = _load("t024_traer_cosecha", "deploy/t024/traer_cosecha.py")
 render_mod = _load("t024_render", "deploy/t024/render.py")
 
 
-def _cfg(tmp_path: Path, *, data_dir: Path | None = None, cal: Path | None = None):
+def _calendario_con_sha(tmp_path: Path, code_sha: str) -> Path:
+    """Copia del calendario versionado con el T024_CODE_SHA que devuelve el runner de la prueba."""
+
+    datos = json.loads((ROOT / "deploy/t024/calendario-checkpoints.json").read_text(encoding="utf-8"))
+    datos["t024_code_sha"] = code_sha
+    ruta = tmp_path / "calendario-prueba.json"
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(json.dumps(datos), encoding="utf-8")
+    return ruta
+
+
+def _cfg(tmp_path: Path, *, data_dir: Path | None = None, cal: Path | None = None, code_sha: str = CODE_SHA):
     return checkpoint.Cfg(
         repo=ROOT,
         python="python",
         data_dir=data_dir or (tmp_path / "data"),
         artefactos=tmp_path / "art",
-        calendario=cal or (ROOT / "deploy/t024/calendario-checkpoints.json"),
+        calendario=cal or _calendario_con_sha(tmp_path, code_sha),
     )
 
 
@@ -352,7 +363,7 @@ def _run_realistic_checkpoint(tmp_path: Path, *, code_sha: str):
             return 0, json.dumps(cosecha.serializable(), sort_keys=True), ""
         raise AssertionError(cmd)
 
-    cfg = _cfg(tmp_path)
+    cfg = _cfg(tmp_path, code_sha=code_sha)
     assert checkpoint.ejecutar(cfg, date(2026, 11, 3), runner) == 0
     estado = json.loads((cfg.artefactos / "checkpoints" / CP / "estado.json").read_text())
     vid = estado["data_vintage_id"]
@@ -606,3 +617,74 @@ def test_copiar_reverifica_lo_promovido_y_retira_si_cambio_el_staging(tmp_path: 
     assert not (args.data_dir / vid).exists()
     assert not args.destino_artefactos.exists()
     assert not list(args.data_dir.glob(".t024-staging-*")) and not list(args.data_dir.parent.glob(".t024-staging-*"))
+
+
+
+# ---------------------------------------------------------------------------
+# Ronda 2 de Codex (sobre ac975eb), tratada tras el incidente
+# ---------------------------------------------------------------------------
+
+
+def test_calendario_versionado_declara_el_sha_del_sidecar() -> None:
+    cal = checkpoint.cargar_calendario(ROOT / "deploy/t024/calendario-checkpoints.json")
+    assert cal.code_sha == (ROOT / traer.CODE_SHA_SIDECAR).read_text(encoding="utf-8").strip()
+    assert cal.code_sha == "1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0"
+
+
+@pytest.mark.parametrize("valor", ["", "1A697C3FA2AB76DDFCF567C2EF3F5AB56492EAF0", "1a697c3", None])
+def test_calendario_con_sha_invalido_falla(tmp_path: Path, valor: Any) -> None:
+    datos = json.loads((ROOT / "deploy/t024/calendario-checkpoints.json").read_text(encoding="utf-8"))
+    datos["t024_code_sha"] = valor
+    ruta = tmp_path / "cal.json"
+    ruta.write_text(json.dumps(datos), encoding="utf-8")
+    with pytest.raises(ValueError):
+        checkpoint.cargar_calendario(ruta)
+
+
+def test_identidad_distinta_del_calendario_no_gasta_el_intento_en_congelar(tmp_path: Path) -> None:
+    runner, calls, _vid = _fake_runner(tmp_path)
+    cfg = _cfg(tmp_path, code_sha="c" * 40)
+    assert checkpoint.ejecutar(cfg, date(2026, 11, 3), runner) == checkpoint.RC_PREFLIGHT
+    assert not any(len(cmd) > 3 and cmd[3] in {"peticion", "congelar"} for cmd in calls)
+    estado = json.loads((cfg.artefactos / "checkpoints" / CP / "estado.json").read_text())
+    assert estado["estado"] == "ERROR_IDENTIDAD" and estado["esperado"] == "c" * 40 and estado["obtenido"] == CODE_SHA
+
+
+@pytest.mark.parametrize(
+    "campo,valor",
+    [("festivos", []), ("end_exclusive", False), ("n_symbols", 125), ("start", "2021-08-31"), ("interval", "1wk")],
+)
+def test_verificar_exige_la_peticion_completa(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, campo: str, valor: Any) -> None:
+    monkeypatch.setattr(vintage_mod, "_provider_version", lambda: "0.0-test")
+    cfg, vid = _run_realistic_checkpoint(tmp_path, code_sha=CODE_SHA)
+    artefactos = cfg.artefactos / "checkpoints" / CP
+    peticion = artefactos / "peticion.json"
+    datos = json.loads(peticion.read_text(encoding="utf-8"))
+    datos[campo] = valor
+    peticion.write_text(json.dumps(datos, sort_keys=True), encoding="utf-8")
+    # Se recalcula SHA256SUMS como haría quien manipulara la copia: la comprobación tiene que ser de contenido.
+    sums = artefactos / "SHA256SUMS"
+    lineas = [
+        f"{checkpoint.sha256_path(peticion)}  peticion.json" if linea.endswith("  peticion.json") else linea
+        for linea in sums.read_text(encoding="utf-8").splitlines()
+    ]
+    sums.write_text("\n".join(lineas) + "\n", encoding="utf-8")
+    ok, informe = traer.verificar(checkpoint=CP, artefactos=artefactos, vintage_dir=tmp_path / "data" / vid, code_sha_esperado=CODE_SHA)
+    assert not ok and any(campo in e or "símbolos" in e for e in informe["errores"]), informe
+
+
+def test_verificar_exige_que_sha256sums_nombre_el_vintage_verificado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(vintage_mod, "_provider_version", lambda: "0.0-test")
+    cfg, vid = _run_realistic_checkpoint(tmp_path, code_sha=CODE_SHA)
+    artefactos = cfg.artefactos / "checkpoints" / CP
+    sums = artefactos / "SHA256SUMS"
+    sums.write_text(sums.read_text(encoding="utf-8").replace(f"vintage/{vid}/", f"vintage/{'f' * 64}/"), encoding="utf-8")
+    ok, informe = traer.verificar(checkpoint=CP, artefactos=artefactos, vintage_dir=tmp_path / "data" / vid, code_sha_esperado=CODE_SHA)
+    assert not ok and any("otro vintage" in e for e in informe["errores"]), informe
+
+
+def test_instalador_lee_el_sha_del_calendario_y_valida_el_env() -> None:
+    instalar = (ROOT / "deploy/t024/instalar.sh").read_text(encoding="utf-8")
+    assert "1a697c3" not in instalar
+    assert "calendario-checkpoints.json" in instalar and '["t024_code_sha"]' in instalar
+    assert '-L "${ENV_FILE}"' in instalar and "-perm /022" in instalar and "stat -c '%u'" in instalar

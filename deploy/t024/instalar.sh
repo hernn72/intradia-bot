@@ -7,9 +7,13 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 ENV_FILE=/etc/intradia-bot/t024.env
-T024_CODE_SHA=1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0
 if [[ ! -r "${ENV_FILE}" ]]; then
   echo "no se puede leer ${ENV_FILE}" >&2
+  exit 1
+fi
+# Se carga como root: tiene que ser un fichero real de root y no escribible por grupo ni otros.
+if [[ -L "${ENV_FILE}" || "$(stat -c '%u' "${ENV_FILE}")" != "0" ]] || [[ -n "$(find "${ENV_FILE}" -perm /022)" ]]; then
+  echo "${ENV_FILE} debe ser un fichero de root, no enlace, sin escritura de grupo ni otros (0644)" >&2
   exit 1
 fi
 
@@ -42,6 +46,13 @@ if [[ ! -f "${T024_REPO_DIR}/deploy/t024/checkpoint.py" ]]; then
   echo "T024_REPO_DIR no contiene deploy/t024/checkpoint.py: ${T024_REPO_DIR}" >&2
   exit 1
 fi
+# El T024_CODE_SHA esperado sale del calendario operativo versionado (la misma fuente que usa el wrapper).
+T024_CODE_SHA="$(run_in_repo env PYTHONDONTWRITEBYTECODE=1 "${T024_PYTHON}" -c 'import json; print(json.load(open("deploy/t024/calendario-checkpoints.json", encoding="utf-8"))["t024_code_sha"])')"
+if [[ ! "${T024_CODE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "t024_code_sha del calendario inválido: ${T024_CODE_SHA}" >&2
+  exit 1
+fi
+
 if ! run_as_user git -C "${T024_REPO_DIR}" diff --quiet "${T024_CODE_SHA}" HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt; then
   echo "el contrato de código T-024 difiere de ${T024_CODE_SHA} en rutas protegidas" >&2
   exit 1

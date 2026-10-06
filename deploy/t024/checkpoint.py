@@ -82,6 +82,7 @@ class Checkpoint:
 class Calendario:
     path: Path
     checkpoints: tuple[Checkpoint, ...]
+    code_sha: str = ""
 
 
 @dataclass(frozen=True)
@@ -120,11 +121,14 @@ def cargar_calendario(path: str | Path) -> Calendario:
     data = json.loads(source.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("calendario: JSON raíz no es objeto")
-    requeridas = {"schema", "schema_version", "zona", "regla", "checkpoints"}
+    requeridas = {"schema", "schema_version", "zona", "regla", "t024_code_sha", "checkpoints"}
     if set(data) != requeridas:
         raise ValueError(f"calendario: claves inválidas {sorted(set(data) ^ requeridas)}")
     if data["schema"] != SCHEMA or data["schema_version"] != SCHEMA_VERSION or data["zona"] != ZONA:
         raise ValueError("calendario: schema, versión o zona inválidos")
+    code_sha = data["t024_code_sha"]
+    if not isinstance(code_sha, str) or not SHA40.fullmatch(code_sha):
+        raise ValueError("calendario: t024_code_sha debe ser un SHA de 40 hex en minúscula")
     items = data["checkpoints"]
     if not isinstance(items, list) or not items:
         raise ValueError("calendario: checkpoints debe ser lista no vacía")
@@ -156,7 +160,7 @@ def cargar_calendario(path: str | Path) -> Calendario:
         meses.add(mes)
         previo = cp
         out.append(Checkpoint(cp, festivos, requested_end, fuente))
-    return Calendario(source, tuple(out))
+    return Calendario(source, tuple(out), code_sha)
 
 
 def hoy_canarias() -> date:
@@ -471,9 +475,11 @@ def _ejecutar_checkpoint(cfg: Cfg, calendario: Calendario, cp: Checkpoint, hoy: 
         return RC_PREFLIGHT
     rc, stdout, stderr = run([cfg.python, "-c", SNIPPET_IDENTIDAD], cfg.repo, runner, python=cfg.python)
     _atomic_text(dir_cp / "identidad.txt", stdout)
-    if rc != 0 or not SHA40.fullmatch(stdout.strip()):
+    if rc != 0 or not SHA40.fullmatch(stdout.strip()) or stdout.strip() != calendario.code_sha:
+        # Además de un SHA válido, tiene que ser el T024_CODE_SHA declarado en el calendario: un worktree movido
+        # a otro commit no puede gastar el único intento automático con otra identidad.
         _atomic_text(dir_cp / "identidad.stderr.log", stderr)
-        _estado(dir_cp, cp.checkpoint, "ERROR_IDENTIDAD")
+        _estado(dir_cp, cp.checkpoint, "ERROR_IDENTIDAD", esperado=calendario.code_sha, obtenido=stdout.strip())
         return RC_PREFLIGHT
     peticion_cmd = [
         cfg.python,

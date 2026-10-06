@@ -3,6 +3,7 @@
   "schema_version": 1,
   "zona": "Atlantic/Canary",
   "regla": "checkpoint = primer día hábil del mes (lunes a viernes menos festivos laborales de Canarias); requested_end = quinto día hábil anterior, exclusivo",
+  "t024_code_sha": "1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0",
   "checkpoints": [
     {
       "checkpoint": "2026-11-03",
