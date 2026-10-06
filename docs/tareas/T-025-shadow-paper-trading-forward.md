@@ -265,7 +265,7 @@ Reglas generales:
 | `paper_bar_rescale` | cambio de escala detectado en la serie | `data_symbol`, `factor`, `effective_session`, `explained_by` (`SPLIT` con su id, o `UNEXPLAINED`), `detected_at` | `(data_symbol, effective_session)` |
 | `paper_fx_quote` | barra FX usada | `fx_pair`, `bar_timestamp`, `timestamp_available` (= marca + 24 h), `rate`, `provider`, `observed_at` | `(fx_pair, bar_timestamp)`; manda la primera observada |
 | `paper_context_observation` | cierre de contexto usado | serie (`^VIX`, `^STOXX50E`, Asia), marca, cierre de `get_raw_history` (`auto_adjust=False`), `observed_at`, `provider` | `(serie, marca)`; manda la primera observada |
-| `paper_signal_evaluation` | (cohorte, activo, sesión `t`, pasada) | `signal_id` (`stable_signal_id`), `instrument_id`, `symbol`, `data_symbol`, `market`, `signal_session_date`, `pass_scheduled_ts`, `analysis_timestamp`, `bar_t_observation_id`, `reference_price` (cierre de `t`), `entry_max`, `stop`, `target1`, `target2`, `target3`, `rr_at_reference`, `risk_fraction`, `score`, `score_model_version`, `setup_radar`, `setup_accion`, `operar` (sí/no), `context_snapshot_json`, `data_quality` y frescura, `reasons`, `input_observation_ids`, `max_input_observed_at` (< apertura, O-5; y ≤ fin de la ejecución original de su pasada, de modo que repetirla no use observaciones de pasadas posteriores), `source_recommendation_id` (solo enlace) | `(cohort_id, signal_id, pass_scheduled_ts)` y `(cohort_id, instrument_id, signal_session_date, pass_scheduled_ts)` |
+| `paper_signal_evaluation` | (cohorte, activo, sesión `t`, pasada) | `signal_id` (`stable_signal_id`), `instrument_id`, `symbol`, `data_symbol`, `market`, `signal_session_date`, `pass_scheduled_ts`, `analysis_timestamp`, `bar_t_observation_id`, `reference_price` (cierre de `t`), `entry_max`, `stop`, `target1`, `target2`, `target3`, `rr_at_reference`, `risk_fraction`, `score`, `score_model_version`, `setup_radar`, `setup_accion`, `operar` (sí/no), `context_snapshot_json`, `data_quality` y frescura, `reasons`, `input_observation_ids`, `analysis_timestamp` (hora programada, PIT), `decision_ts` (fin de la ejecución original, < apertura), `max_input_observed_at` (≤ `decision_ts`; ver §7.1), `source_recommendation_id` (solo enlace) | `(cohort_id, signal_id, pass_scheduled_ts)` y `(cohort_id, instrument_id, signal_session_date, pass_scheduled_ts)` |
 | `paper_open_check` | señal vinculante OPERAR, **por política y sin depender del libro** | `policy_id`, `signal_id`, `instrument_id`, `signal_session_date`, `entry_session`, `bar_observation_id`, `open_market`, `entry_effective`, `check` (`PASS` o `DATA_NOT_EXECUTABLE`/`INVALID_STOP`/`INVALID_TARGET`/`ABOVE_MAX_ENTRY`/`RR_TOO_LOW`) | `(policy_id, signal_id)`. Se calcula para toda señal vinculante OPERAR, haya o no posición, como los «ejecutables» de T-024 §6.3. Es la **única** fuente visible de una cohorte sellada sobre la apertura |
 | `paper_signal_disposition` | señal vinculante OPERAR en un libro, en la fase `SIGNAL` (cierre de `t`, P6 §7.6) | `cohort_id`, `signal_id`, `event_ts_utc` (= `analysis_timestamp`), `disposition` (`ORDER` o `IGNORED_ALREADY_OPEN`), `open_position_id` si se ignora | `(cohort_id, signal_id)` |
 | `paper_order` | disposición `ORDER` | `order_id`, `cohort_id`, `signal_id`, `binding_evaluation_id`, `target_session` (primera sesión de calendario > `t`), `order_type = OPEN_NEXT_BAR_WITH_MAX` | `(cohort_id, signal_id)`. Como en P6, no hay orden para una señal ignorada |
@@ -334,14 +334,24 @@ entera: se declara como cota.
   Se guarda como `paper_signal_evaluation`, aunque el resultado sea «no OPERAR».
 - Cada pasada vuelve a evaluar las sesiones `t` cuya apertura siguiente todavía no ha llegado. Cada
   evaluación es una fila nueva e inmutable.
+- **Dos instantes distintos (ronda 3):**
+  - **`analysis_timestamp`** = la hora **programada** de la pasada (D-50). Es la referencia
+    point-in-time con la que el contexto y la frescura filtran por `available_at` (marca de la barra
+    más liquidación), exactamente como en P6 (`analysis_timestamp_for_signal`,
+    `advisor/context/point_in_time.py:230`). También ordena la fase `SIGNAL`.
+  - **`decision_ts`** = el **fin de la ejecución original** de la pasada. En vivo, la pasada descarga
+    sus datos durante su ejecución, así que toda observación tiene `observed_at` posterior a la hora
+    programada. Exigir `observed_at ≤ analysis_timestamp` dejaría sin entradas a toda evaluación.
+- **Reglas de las entradas:** toda observación usada por la evaluación cumple
+  `observed_at ≤ decision_ts` (`max_input_observed_at`) y `available_at ≤ analysis_timestamp` (la
+  regla PIT de P6). Además, `decision_ts` es estrictamente anterior a la apertura de la sesión de
+  entrada. Repetir la evaluación más tarde no puede incorporar observaciones posteriores a su
+  `decision_ts` original. No basta con la hora de escritura de la fila.
 - **Señal vinculante (D-50):** la evaluación de la **última pasada programada cuya hora es anterior a
-  la apertura de la sesión de entrada** y que tenía observada la barra `t`. La elección es determinista
-  y solo usa marcas anteriores a la apertura. **Todas sus entradas** (barras, acciones corporativas,
-  contexto) tienen `observed_at` anterior a esa apertura (`max_input_observed_at`). Además, las
-  entradas de la evaluación de una pasada son solo las observaciones con `observed_at` ≤ el fin de la
-  ejecución original de esa pasada. Repetirla más tarde no puede incorporar barras guardadas por una
-  pasada posterior. No basta con la
-  hora de escritura de la fila.
+  la apertura de la sesión de entrada**, cuya ejecución terminó antes de esa apertura y que tenía
+  observada la barra `t`. La elección es determinista. Una pasada que todavía corre al llegar la
+  apertura no es vinculante (lo impide `TimeoutStartSec=1800`, que deja 30 minutos antes de la
+  apertura más temprana tras cada pasada; se comprueba por señal).
 - Si la vinculante dice OPERAR:
   1. se escribe `paper_open_check` para cada política, sin mirar ningún libro (§10);
   2. en cada libro se escribe `paper_signal_disposition` en la fase `SIGNAL`: `IGNORED_ALREADY_OPEN` si
@@ -651,7 +661,9 @@ P10, hay tres diferencias:
 - **INV-02, INV-06, INV-07, INV-13, INV-15, INV-16 e INV-18:** se ejercitan con los tests de §16.
 - Específicas de T-025:
   - **T25-1:** ninguna fila de hechos se actualiza ni se borra;
-  - **T25-2:** ninguna decisión usa una entrada con marca ≥ τ, salvo la apertura de su barra;
+  - **T25-2:** ninguna decisión usa una entrada con marca ≥ τ, salvo la apertura de su barra. Para la
+    señal, τ es `decision_ts` (fin de la ejecución, anterior a la apertura) y además rige
+    `available_at ≤ analysis_timestamp` (§7.1);
   - **T25-3:** como mucho una posición abierta por `(cohorte, activo)`;
   - **T25-4:** ningún camino de presentación lee lo sellado de una cohorte sellada;
   - **T25-5:** ninguna consulta de `intradia.db` devuelve una fila paper, y `paper/` nunca abre
@@ -948,6 +960,18 @@ los IMPORTANTES de la ronda 1, sin BLOCKER nuevo.** Hallazgos nuevos, verificado
 | La lista del dashboard estaba incompleta | MENOR (Codex) | Completada (§14) |
 | Unidad de consumo pendiente; BH; T-024 que no se resuelva | OBSERVACIÓN (revisor) | Declarados en OD-T25-9, `gates.md` y OD-T25-4 |
 
-Las correcciones de la ronda 2 pasan una ronda 3 (abajo). Lo que queda abierto son decisiones del
+Las correcciones de la ronda 2 pasaron una ronda 3 (abajo). Lo que queda abierto son decisiones del
 propietario (OD-T25-1..9, OD-12). Una revisión final del pre-registro completo, tras esas decisiones, es
 condición para congelar.
+
+**Ronda 3 (Codex, 2026-10-06, sobre `6a75bcf`): 0 BLOCKER, 1 IMPORTANTE, 0 MENOR.** Los dos
+IMPORTANTES de la ronda 2 quedan resueltos, y la vista de señal ajustada por splits, el dividendo
+tardío tras split, el contexto con `PointInTimeContextResolver` y las sesiones en
+`paper_outcome_access` están bien planteados.
+- **IMPORTANTE:** acotar las entradas al fin de la ejecución dejaba entrar observaciones posteriores al
+  `analysis_timestamp` programado. **Corrección:** §7.1 separa `analysis_timestamp`, referencia PIT de
+  `available_at` como en P6, de `decision_ts` (fin de la ejecución, anterior a la apertura), que acota
+  `observed_at`. La alternativa del revisor (`observed_at ≤ analysis_timestamp`) no es viable en vivo,
+  porque la pasada descarga después de su hora programada. T25-2 se reescribe con los dos instantes.
+- **Sin revisar en una ronda 4:** esta última corrección. La revisión final del pre-registro completo,
+  tras las decisiones del propietario, la cubrirá.
