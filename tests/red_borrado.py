@@ -6,8 +6,13 @@ Solo biblioteca estándar: la usan `tests/conftest.py` (con monkeypatch, restaur
 Ningún test puede borrar, mover ni pisar `/`, `$HOME`, la raíz del repo o sus antecesores, ni nada en `data/`,
 `evidence/` o `.git/` del repo, ni una base SQLite del repo. Las órdenes externas se inspeccionan por tokens.
 
-Riesgo residual documentado: un programa externo no Python cuya forma de borrar no se reconozca por sus
-tokens (p. ej. un binario propio) no pasa por la red. Lo cubren los backups fuera del repositorio.
+Riesgos residuales documentados (fuera del modelo accidental/estructural o cubiertos por los backups fuera
+del repositorio):
+- un programa externo no Python cuya forma de borrar no se reconozca por sus tokens (p. ej. un binario
+  propio);
+- un intérprete Python lanzado desde una orden de shell de forma ofuscada (variables, `$(which python)`,
+  alias): la búsqueda de intérpretes en órdenes de shell es por tokens y separa espacios y puntuación del
+  shell, pero no evalúa el shell.
 """
 
 from __future__ import annotations
@@ -194,6 +199,9 @@ def _tokens(args: Any, *, shell: bool) -> list[str]:
     return [os.fsdecode(a) for a in args]
 
 
+_METACARACTERES = re.compile(r"[;&|()`<>\n]+|\$\(")
+
+
 def _expandir(tokens: list[str], profundidad: int = 4) -> list[str]:
     """Trocea con shlex los tokens que contienen órdenes (p. ej. el argumento de `bash -c "..."`).
 
@@ -212,7 +220,8 @@ def _expandir(tokens: list[str], profundidad: int = 4) -> list[str]:
                 partes = token.split()
             salida.extend(_expandir(partes, profundidad - 1))
         else:
-            salida.append(token)
+            # `true;python` o `(python`: la puntuación del shell separa órdenes aunque no haya espacios.
+            salida.extend(p for p in _METACARACTERES.split(token) if p)
     return salida
 
 

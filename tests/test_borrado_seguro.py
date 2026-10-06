@@ -609,3 +609,39 @@ def test_ordenes_de_shell_normales_siguen_funcionando(tmp_path: Path) -> None:
 
     resultado = subprocess.run(["bash", "-c", f"{PY} -c 'print(1)'"], capture_output=True, text=True, check=False)
     assert resultado.stdout.strip() == "1", resultado.stderr
+
+
+
+@pytest.mark.parametrize(
+    "orden",
+    [
+        ["bash", "-c", f"true;{PY} -S -c pass"],
+        ["bash", "-c", f"true&&{PY} -I -c pass"],
+        ["bash", "-c", f"({PY} -E -c pass)"],
+        ["bash", "-c", f"echo $({PY} -S -c pass)"],
+    ],
+)
+def test_python_tras_puntuacion_de_shell_se_analiza(orden: list[str], tmp_path: Path) -> None:
+    import subprocess
+
+    with pytest.raises(BorradoProhibidoEnTests):
+        subprocess.run(orden, cwd=tmp_path, check=False)
+
+
+def test_spawnl_y_execl_pasan_por_la_regla_via_sus_variantes_v(tmp_path: Path) -> None:
+    entorno_limpio = {"PATH": os.environ.get("PATH", "")}
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.spawnle(os.P_WAIT, sys.executable, sys.executable, "-S", "-c", "pass", entorno_limpio)
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.spawnl(os.P_WAIT, sys.executable, sys.executable, "-I", "-c", "pass")
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.execle(sys.executable, sys.executable, "-E", "-c", "pass", entorno_limpio)
+    protegido = ROOT / "evidence" / NO_EXISTE
+    salida = tmp_path / "salida.txt"
+    codigo = (
+        "import shutil\n"
+        f"try:\n    shutil.rmtree({str(protegido)!r})\n"
+        f"except Exception as exc:\n    open({str(salida)!r}, 'w').write(type(exc).__name__)\n"
+    )
+    os.spawnle(os.P_WAIT, sys.executable, sys.executable, "-c", codigo, entorno_limpio)
+    assert salida.read_text(encoding="utf-8") == "BorradoProhibidoEnTests"
