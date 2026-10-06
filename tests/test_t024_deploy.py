@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -688,3 +689,45 @@ def test_instalador_lee_el_sha_del_calendario_y_valida_el_env() -> None:
     assert "1a697c3" not in instalar
     assert "calendario-checkpoints.json" in instalar and '["t024_code_sha"]' in instalar
     assert '-L "${ENV_FILE}"' in instalar and "-perm /022" in instalar and "stat -c '%u'" in instalar
+
+
+
+# ---------------------------------------------------------------------------
+# Verificación global de Codex (sobre 75aff57)
+# ---------------------------------------------------------------------------
+
+
+def test_verificar_fija_la_lista_de_simbolos_del_contrato(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(vintage_mod, "_provider_version", lambda: "0.0-test")
+    cfg, vid = _run_realistic_checkpoint(tmp_path, code_sha=CODE_SHA)
+    artefactos = cfg.artefactos / "checkpoints" / CP
+    peticion = artefactos / "peticion.json"
+    datos = json.loads(peticion.read_text(encoding="utf-8"))
+    otros = sorted(f"X{i:03d}" for i in range(126))
+    datos["symbols"] = otros
+    datos["symbols_sha256"] = hashlib.sha256("\n".join(otros).encode()).hexdigest()  # autoconsistente
+    peticion.write_text(json.dumps(datos, sort_keys=True), encoding="utf-8")
+    ok, informe = traer.verificar(checkpoint=CP, artefactos=artefactos, vintage_dir=tmp_path / "data" / vid, code_sha_esperado=CODE_SHA)
+    assert not ok and any("lista congelada" in e for e in informe["errores"]), informe
+
+
+def test_checkpoint_pasado_con_directorio_sin_intento_queda_perdido(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    cfg = _cfg(tmp_path)
+    (cfg.artefactos / "checkpoints" / CP).mkdir(parents=True)  # caída justo tras crear el directorio
+    calls: list[list[str]] = []
+    assert checkpoint.ejecutar(cfg, date(2026, 11, 4), lambda c, w: calls.append(c) or (0, "", "")) == checkpoint.RC_PERDIDO
+    assert calls == []
+    assert json.loads((cfg.artefactos / "checkpoints" / CP / "estado.json").read_text())["estado"] == "PERDIDO"
+
+
+def test_checkpoint_pasado_con_intento_sin_estado_queda_interrumpido(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    cfg = _cfg(tmp_path)
+    cp_dir = cfg.artefactos / "checkpoints" / CP
+    cp_dir.mkdir(parents=True)
+    (cp_dir / "intento.json").write_text("{}\n", encoding="utf-8")
+    assert checkpoint.estado(cfg, date(2026, 11, 4)) == 0
+    assert json.loads(capsys.readouterr().out)["checkpoints"][0]["estado"] == "INTERRUMPIDO"
+    calls: list[list[str]] = []
+    checkpoint.ejecutar(cfg, date(2026, 11, 4), lambda c, w: calls.append(c) or (0, "", ""))
+    assert calls == []
+    assert json.loads((cp_dir / "estado.json").read_text())["estado"] == "INTERRUMPIDO"

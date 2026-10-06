@@ -418,11 +418,15 @@ def ejecutar(cfg: Cfg, hoy: date, runner: Runner) -> int:
         perdido_nuevo = False
         for cp in calendario.checkpoints:
             path = _cp_dir(cfg.artefactos, cp.checkpoint)
-            if cp.checkpoint < hoy and not path.exists():
-                path.mkdir(parents=True, exist_ok=True)
-                _estado(path, cp.checkpoint, "PERDIDO", detectado=hoy.isoformat())
-                log(cfg.artefactos, f"{cp.checkpoint.isoformat()} marcado como PERDIDO")
-                perdido_nuevo = True
+            if cp.checkpoint >= hoy or (path / "estado.json").exists():
+                continue
+            # Checkpoint pasado sin cerrar: sin intento.json nunca empezó (PERDIDO, aunque exista el directorio
+            # por una caída justo tras crearlo); con intento.json empezó y no terminó (INTERRUMPIDO).
+            final = "INTERRUMPIDO" if (path / "intento.json").exists() else "PERDIDO"
+            path.mkdir(parents=True, exist_ok=True)
+            _estado(path, cp.checkpoint, final, detectado=hoy.isoformat())
+            log(cfg.artefactos, f"{cp.checkpoint.isoformat()} marcado como {final}")
+            perdido_nuevo = True
         aviso_horizonte = _ultimos_10_dias_mes(hoy) and not _checkpoint_mes_siguiente(hoy, calendario)
         cp_hoy = next((item for item in calendario.checkpoints if item.checkpoint == hoy), None)
         base = RC_OK
@@ -566,10 +570,10 @@ def estado(cfg: Cfg, hoy: date) -> int:
         dir_cp = _cp_dir(cfg.artefactos, cp.checkpoint)
         if (dir_cp / "estado.json").exists():
             estado_cp = str(_leer_json(dir_cp / "estado.json").get("estado"))
+        elif cp.checkpoint < hoy:
+            estado_cp = "INTERRUMPIDO" if (dir_cp / "intento.json").exists() else "PERDIDO"
         elif dir_cp.exists():
             estado_cp = "SIN_ESTADO"
-        elif cp.checkpoint < hoy:
-            estado_cp = "PERDIDO"
         else:
             estado_cp = "PENDIENTE"
         checkpoints.append({"checkpoint": cp.checkpoint.isoformat(), "estado": estado_cp})

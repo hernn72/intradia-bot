@@ -181,10 +181,16 @@ def verificar(
     for clave, valor in contrato.items():
         if peticion.get(clave) != valor:
             errores.append(f"peticion.json: {clave} distinto del contrato")
+    from advisor.research.t024_forward import SIMBOLOS_FORWARD_SHA256
+
     if not isinstance(simbolos, list) or len(simbolos) != 126 or peticion.get("n_symbols") != len(simbolos):
         errores.append("peticion.json: lista de símbolos incoherente con n_symbols")
+    elif simbolos != sorted(set(simbolos)):
+        errores.append("peticion.json: símbolos no ordenados o con duplicados")
     elif hashlib.sha256("\n".join(simbolos).encode("utf-8")).hexdigest() != peticion.get("symbols_sha256"):
         errores.append("peticion.json: symbols_sha256 no corresponde a symbols")
+    if peticion.get("symbols_sha256") != SIMBOLOS_FORWARD_SHA256:
+        errores.append("peticion.json: symbols_sha256 distinto de la lista congelada del contrato")
     if isinstance(congelacion.get("peticion"), dict):
         peticion_congelacion = congelacion["peticion"]
         if peticion_congelacion.get("end") != peticion.get("end"):
