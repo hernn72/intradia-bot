@@ -40,7 +40,7 @@ from advisor.research.t024_comun import (
     SenalT024,
     semana_iso,
 )
-from advisor.research.t024_forward import T024ForwardError, validar_registro
+from advisor.research.t024_forward import T024ForwardError, exigir_procedencia, validar_registro
 from advisor.research.vintage import VintageLoad
 
 EXIT_STOP = "stop"
@@ -136,6 +136,7 @@ class ResultadoPolitica:
 class RegistroForward:
     cosechas: tuple[tuple[str, date], ...]
     sha256: str
+    entradas: tuple[Mapping[str, object], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -656,7 +657,7 @@ def cargar_registro_forward(path: Path, cosecha_decisiva: str) -> RegistroForwar
         raise T024DecisionError("registro forward no ordenado")
     if cosecha_decisiva not in {vintage_id for vintage_id, _checkpoint in entries}:
         raise T024DecisionError("cosecha decisiva ausente del registro forward")
-    return RegistroForward(entries, digest)
+    return RegistroForward(entries, digest, tuple(data["cosechas"]))
 
 
 def checkpoint_de(registro: RegistroForward, cosecha_decisiva: str) -> date:
@@ -937,6 +938,11 @@ def ejecutar_mirada(
     if cosecha_decisiva.data_vintage_id != cosecha_decisiva_id:
         raise T024DecisionError("la cosecha recibida no es la cosecha decisiva declarada")
     checkpoint = checkpoint_de(registro_forward, cosecha_decisiva_id)
+    entrada = next(item for item in registro_forward.entradas if item["data_vintage_id"] == cosecha_decisiva_id)
+    try:
+        exigir_procedencia(entrada, cosecha_decisiva, universe, code_sha)
+    except T024ForwardError as exc:
+        raise T024DecisionError(f"procedencia de la cosecha decisiva: {exc}") from exc
     exigir_regla_75_dias(c_e, checkpoint)
     exigir_calendario_registro(registro_forward, c_e, cosecha_decisiva_id)
     captura = capturar(config, universe, cosecha_decisiva, c_e=c_e, desarrollo=False)

@@ -908,3 +908,111 @@ def test_registro_rechaza_dos_checkpoints_del_mismo_mes() -> None:
 def test_request_context_solo_en_peticion_exacta(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="request_context"):
         freeze_vintage(["AAPL"], LegacyProvider(), period="1y", interval="1d", root_dir=tmp_path, request_context={"x": 1})
+
+
+# ---------------------------------------------------------------------------
+# Revisión Codex r2: rango revalidado, procedencia en la mirada y contenido del registro
+# ---------------------------------------------------------------------------
+
+
+def _forjar_con_barras_excluidas(tmp_path: Path, cosecha: fwd.CosechaForward) -> None:
+    """Reescribe un CSV con barras del 26 al 30 de octubre y rehace hashes y manifiesto (mismo id falsificado)."""
+
+    assert cosecha.data_vintage_id
+    vdir = tmp_path / cosecha.data_vintage_id
+    raw = _frame(_business_days(date(2026, 10, 19), date(2026, 10, 31)))
+    vintage_mod._write_raw_csv(vintage_mod.normalize_raw_history(raw), vdir / "AAPL.csv")
+    manifest = json.loads((vdir / "manifest.json").read_text())
+    entry = next(a for a in manifest["assets"] if a["symbol"] == "AAPL")
+    entry["series_hash"] = vintage_mod.hash_series(raw)
+    entry["corporate_actions_hash"] = vintage_mod.hash_actions(raw)
+    body = {k: v for k, v in manifest.items() if k not in {"manifest_hash", "data_vintage_id"}}
+    nuevo = hash_manifest(body)
+    shutil.move(str(vdir), str(tmp_path / nuevo))
+    manifest["manifest_hash"] = manifest["data_vintage_id"] = nuevo
+    (tmp_path / nuevo / "manifest.json").write_text(vintage_mod._canonical_json(manifest) + "\n")
+    object.__setattr__(cosecha, "data_vintage_id", nuevo)
+
+
+def test_cosecha_forjada_con_dias_excluidos_no_se_registra_ni_se_captura(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    cosecha = _congelar(tmp_path)
+    _forjar_con_barras_excluidas(tmp_path, cosecha)
+    assert cosecha.data_vintage_id
+    # Autoconsistente: hashes y petición cuadran, así que la entrada se puede construir…
+    entrada = fwd.entrada_registro(cosecha.data_vintage_id, cosecha.peticion, t024_code_sha=CODE_SHA, root_dir=tmp_path)
+    vintage = load_vintage(cosecha.data_vintage_id, root_dir=tmp_path)
+    # …pero la procedencia revalida el rango de lo cargado.
+    with pytest.raises(fwd.T024ForwardError, match="end exclusivo"):
+        fwd.exigir_procedencia(entrada, vintage, _Universe(), CODE_SHA)
+    monkeypatch.setattr(dec, "verificar_identidad", lambda: CODE_SHA)
+    monkeypatch.setattr(fwd, "_universo", lambda: _Universe())
+    registro = tmp_path / "registro-forward.json"
+    with pytest.raises(fwd.T024ForwardError, match="end exclusivo"):
+        fwd.main(["registrar", "--data-vintage-id", cosecha.data_vintage_id, "--checkpoint", "2026-11-03", "--festivo", "2026-11-02",
+                  "--registro", str(registro), "--data-dir", str(tmp_path)])
+    assert not registro.exists()
+    fwd.escribir_registro(registro, fwd.anadir_entrada(fwd.registro_vacio(), entrada))
+    monkeypatch.setattr(fwd, "capturar", _Prohibido("capturar"))
+    with pytest.raises(fwd.T024ForwardError, match="end exclusivo"):
+        fwd.capturar_checkpoint(None, _Universe(), data_vintage_id=cosecha.data_vintage_id, registro_path=registro, root_dir=tmp_path)
+
+
+def test_rango_cargado_en_la_zona_del_activo_solo_limite_superior() -> None:
+    cosecha_ok = VintageLoadFake.de({"A": [date(2026, 10, 23)]})
+    fwd.verificar_rango_cargado(cosecha_ok, _Universe(), date(2026, 10, 26))
+    with pytest.raises(fwd.T024ForwardError):
+        fwd.verificar_rango_cargado(VintageLoadFake.de({"A": [date(2026, 10, 26)]}), _Universe(), date(2026, 10, 26))
+    # Barras anteriores a start no son fuga: no se comprueban (la zona del activo puede adelantar un día).
+    fwd.verificar_rango_cargado(VintageLoadFake.de({"A": [date(2021, 8, 29)]}), _Universe(), date(2026, 10, 26))
+
+
+class VintageLoadFake:
+    @staticmethod
+    def de(rows: dict[str, list[date]]) -> Any:
+        from advisor.research.vintage import VintageLoad, build_views
+
+        return VintageLoad("x", {}, {s: build_views(_frame(d)) for s, d in rows.items()})
+
+
+def _mirada(tmp_path: Path, cosecha: Any, registro: Path, vid: str) -> dict[str, Any]:
+    return dict(
+        mirada="mirada_1", c_e=CHECKPOINT_1, config=None, universe=_Universe(), cosecha_decisiva=cosecha,
+        cosecha_decisiva_id=vid, registro_forward_path=registro, evidence_dir=tmp_path / "ev",
+    )
+
+
+def test_ejecutar_mirada_exige_procedencia_de_la_decisiva_sin_marca(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    ejecutar_mirada = dec.ejecutar_mirada
+    _blindar_decision(monkeypatch)
+    monkeypatch.setattr(dec, "ejecutar_mirada", ejecutar_mirada)
+    monkeypatch.setattr(dec, "capturar", _Prohibido("capturar"))
+    c1 = _congelar(tmp_path)
+    c2 = _congelar(tmp_path, date(2027, 2, 1), ())
+    assert c1.data_vintage_id and c2.data_vintage_id
+    registro = _registro_en_disco(tmp_path, c1, c2)
+    decisiva = load_vintage(c2.data_vintage_id, root_dir=tmp_path)
+
+    monkeypatch.setattr(dec, "verificar_identidad", lambda: "c" * 40)  # otro código vigente
+    with pytest.raises(dec.T024DecisionError, match="otro T024_CODE_SHA"):
+        dec.ejecutar_mirada(**_mirada(tmp_path, decisiva, registro, c2.data_vintage_id))
+
+    monkeypatch.setattr(dec, "verificar_identidad", lambda: CODE_SHA)
+    otra = load_vintage(c1.data_vintage_id, root_dir=tmp_path)
+    from dataclasses import replace as dc_replace
+
+    disfrazada = dc_replace(otra, data_vintage_id=c2.data_vintage_id)
+    with pytest.raises(dec.T024DecisionError, match="procedencia"):
+        dec.ejecutar_mirada(**_mirada(tmp_path, disfrazada, registro, c2.data_vintage_id))
+    assert not (tmp_path / "ev").exists()
+
+
+@pytest.mark.parametrize(
+    "campo,valor",
+    [("n_symbols", 0), ("provider", "evil"), ("manifest_file_sha256", "x"), ("provider_version", ""), ("data_vintage_id", 1)],
+)
+def test_registro_valida_el_contenido_de_cada_campo(tmp_path: Path, campo: str, valor: object) -> None:
+    cosecha = _congelar(tmp_path)
+    assert cosecha.data_vintage_id
+    entrada = fwd.entrada_registro(cosecha.data_vintage_id, cosecha.peticion, t024_code_sha=CODE_SHA, root_dir=tmp_path)
+    with pytest.raises(fwd.T024ForwardError):
+        fwd.validar_registro(fwd._registro([{**entrada, campo: valor}]))

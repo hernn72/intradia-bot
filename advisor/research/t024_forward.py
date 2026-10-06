@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 from advisor.analysis.execution import ABOVE_MAX_ENTRY, DATA_NOT_EXECUTABLE, INVALID_STOP, INVALID_TARGET, RR_TOO_LOW
 from advisor.research import t024_comun as comun
 from advisor.research.t024_captura import ResultadoCaptura, _barras_ciegas, calidad_barras, capturar
-from advisor.research.t024_comun import DEV_VINTAGE_ID, POLITICAS_DECISORIAS, POLITICAS_DESCRIPTIVAS
+from advisor.research.t024_comun import DEV_VINTAGE_ID, POLITICAS_DECISORIAS, POLITICAS_DESCRIPTIVAS, local_dates
 from advisor.research.vintage import (
     PROVIDER,
     VintageLoad,
@@ -95,6 +95,7 @@ T024_FORWARD_IMPORTED_CALLABLES = (
     "advisor.research.vintage.load_vintage",
 )
 _SHA_GIT = re.compile(r"[0-9a-f]{40}")
+_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 class T024ForwardError(RuntimeError):
@@ -449,8 +450,14 @@ def _validar_entrada(item: object) -> None:
         raise T024ForwardError("entrada con start o interval distintos de los congelados")
     if item["end_exclusive"] is not True or item["auto_adjust"] is not False or item["actions"] is not True:
         raise T024ForwardError("entrada con una petición distinta de auto_adjust=False, actions=True y end exclusivo")
-    if item["manifest_hash"] != item["data_vintage_id"]:
+    if item["manifest_hash"] != item["data_vintage_id"] or not isinstance(item["data_vintage_id"], str):
         raise T024ForwardError("entrada con manifest_hash distinto de su data_vintage_id")
+    if item["n_symbols"] != N_SIMBOLOS_FORWARD or item["provider"] != PROVIDER:
+        raise T024ForwardError("entrada con n_symbols o provider distintos de los congelados")
+    if not _SHA256.fullmatch(str(item["manifest_file_sha256"])):
+        raise T024ForwardError("entrada con manifest_file_sha256 inválido")
+    if not isinstance(item["provider_version"], str) or not item["provider_version"]:
+        raise T024ForwardError("entrada sin provider_version")
     if date.fromisoformat(str(item["checkpoint"])) < PRIMER_CHECKPOINT:
         raise T024ForwardError(f"checkpoint anterior al primero previsto ({PRIMER_CHECKPOINT})")
     if not isinstance(item["festivos"], list):
@@ -513,6 +520,47 @@ def peticion_de_entrada(entrada: Mapping[str, object], *, simbolos_root: str | P
         raise T024ForwardError("festivos de la entrada no es una lista")
     festivos = tuple(date.fromisoformat(str(dia)) for dia in festivos_raw)
     return peticion_checkpoint(date.fromisoformat(str(entrada["checkpoint"])), festivos, simbolos_root=simbolos_root)
+
+
+def contexto_de_entrada(entrada: Mapping[str, object]) -> dict[str, object]:
+    return {
+        "estudio": "T-024",
+        "checkpoint": entrada["checkpoint"],
+        "festivos": entrada["festivos"],
+        "T024_PREREG_SHA": entrada["T024_PREREG_SHA"],
+        "T024_CODE_SHA": entrada["T024_CODE_SHA"],
+    }
+
+
+def verificar_rango_cargado(vintage: VintageLoad, universe: Any, end: date) -> None:
+    """Ninguna barra cargada cae en `end` o después, en las sesiones locales que ve la captura.
+
+    Solo el límite superior: es el que protege los días hábiles excluidos. El inferior no se comprueba
+    porque la zona del activo puede adelantar un día la fecha de la plaza (p. ej. `EURUSD=X`).
+    """
+
+    for symbol, views in sorted(vintage.by_symbol.items()):
+        asset = universe.get(symbol)
+        if asset is None:
+            raise T024ForwardError(f"{symbol}: fuera del universo, sin zona para comprobar el rango")
+        sesiones = local_dates(views.raw.index, asset.timezone)
+        if sesiones and max(sesiones) >= end:
+            raise T024ForwardError(f"{symbol}: barra del {max(sesiones)} en o después del end exclusivo {end}")
+
+
+def exigir_procedencia(entrada: Mapping[str, object], vintage: VintageLoad, universe: Any, code_sha: str) -> None:
+    """La cosecha cargada es la de la entrada, congelada con el código vigente y dentro de su petición."""
+
+    if entrada["T024_CODE_SHA"] != code_sha:
+        raise T024ForwardError("la cosecha se registró con otro T024_CODE_SHA")
+    if not (vintage.data_vintage_id == entrada["data_vintage_id"] == vintage.manifest.get("manifest_hash")):
+        raise T024ForwardError("la cosecha cargada no es la de la entrada del registro")
+    request = vintage.manifest.get("request")
+    if not isinstance(request, dict) or request.get("context") != contexto_de_entrada(entrada):
+        raise T024ForwardError("el contexto del manifiesto no es el de la entrada del registro")
+    if request.get("end") != entrada["requested_end"] or request.get("start") != entrada["requested_start"]:
+        raise T024ForwardError("la petición del manifiesto no es la de la entrada del registro")
+    verificar_rango_cargado(vintage, universe, date.fromisoformat(str(entrada["requested_end"])))
 
 
 # ---------------------------------------------------------------------------
@@ -606,6 +654,7 @@ def capturar_checkpoint(
         raise T024ForwardError("la entrada del registro no se reproduce desde la cosecha y la petición")
     checkpoint = peticion.checkpoint
     vintage = load_vintage(data_vintage_id, root_dir=root_dir)
+    exigir_procedencia(entrada, vintage, universe, code_sha)
     previa = load_vintage(previa_id, root_dir=root_dir) if previa_id is not None else None
     resultado = capturar(config, universe, vintage, c_e=checkpoint, desarrollo=False)
     nuevas, revisadas = calidad_cosechas(vintage, previa, universe, c_e=checkpoint)
@@ -670,6 +719,13 @@ def _json(value: object) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _universo() -> Any:
+    from advisor.config import load_config
+    from advisor.universe.loader import load_universe
+
+    return load_universe(load_config("config.yaml").universe_path)
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m advisor.research.t024_forward")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -721,6 +777,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         code_sha = verificar_identidad()
         peticion = peticion_checkpoint(args.checkpoint, args.festivo)
         entrada = entrada_registro(args.data_vintage_id, peticion, t024_code_sha=code_sha, root_dir=args.data_dir)
+        exigir_procedencia(entrada, load_vintage(args.data_vintage_id, root_dir=args.data_dir), _universo(), code_sha)
         registro = leer_registro(args.registro) if args.registro.exists() else registro_vacio()
         nuevo = anadir_entrada(registro, entrada)
         escribir_registro(args.registro, nuevo)
