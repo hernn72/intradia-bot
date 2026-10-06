@@ -194,6 +194,28 @@ def _tokens(args: Any, *, shell: bool) -> list[str]:
     return [os.fsdecode(a) for a in args]
 
 
+def _expandir(tokens: list[str], profundidad: int = 4) -> list[str]:
+    """Trocea con shlex los tokens que contienen órdenes (p. ej. el argumento de `bash -c "..."`).
+
+    Cada token con espacios se sustituye por su troceado, recursivamente y con profundidad acotada; así
+    un `python -S` anidado en una orden de shell queda a la vista como tokens propios.
+    """
+
+    if profundidad == 0:
+        return tokens
+    salida: list[str] = []
+    for token in tokens:
+        if any(c.isspace() for c in token):
+            try:
+                partes = shlex.split(token, posix=True)
+            except ValueError:
+                partes = token.split()
+            salida.extend(_expandir(partes, profundidad - 1))
+        else:
+            salida.append(token)
+    return salida
+
+
 def asegurar_hijo(args: Any, *, shell: bool = False, executable: Any = None, env: Any = None) -> Any:
     """Única regla para todo lanzamiento de procesos desde los tests.
 
@@ -207,7 +229,7 @@ def asegurar_hijo(args: Any, *, shell: bool = False, executable: Any = None, env
     motivo = orden_de_borrado(args, shell=shell)
     if motivo is not None:
         raise BorradoProhibidoEnTests(f"lanzamiento denegado en tests: {motivo}")
-    tokens = _tokens(args, shell=shell)
+    tokens = _expandir(_tokens(args, shell=shell))
     candidatos = [i for i, t in enumerate(tokens) if es_python(t)]
     if executable is not None and es_python(os.fsdecode(executable)) and 0 not in candidatos:
         candidatos.insert(0, 0)

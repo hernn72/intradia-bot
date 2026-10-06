@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import re
+import shlex
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -581,3 +582,30 @@ def test_flags_que_anulan_la_red_saltan_argumentos_de_opciones(argv: list[str], 
     from tests.red_borrado import flags_que_anulan_la_red
 
     assert flags_que_anulan_la_red(argv) == esperado
+
+
+
+PY = shlex.quote(sys.executable)
+
+
+@pytest.mark.parametrize(
+    "orden",
+    [
+        ["bash", "-c", f"{PY} -S -c pass"],
+        ["sh", "-c", f"cd /tmp && {PY} -I -c pass"],
+        ["env", "A=1", sys.executable, "-E", "-c", "pass"],
+        ["bash", "-c", f"bash -c {shlex.quote(PY + ' -S -c pass')}"],
+    ],
+)
+def test_python_anidado_en_shell_o_env_se_analiza(orden: list[str], tmp_path: Path) -> None:
+    import subprocess
+
+    with pytest.raises(BorradoProhibidoEnTests):
+        subprocess.run(orden, cwd=tmp_path, check=False)
+
+
+def test_ordenes_de_shell_normales_siguen_funcionando(tmp_path: Path) -> None:
+    import subprocess
+
+    resultado = subprocess.run(["bash", "-c", f"{PY} -c 'print(1)'"], capture_output=True, text=True, check=False)
+    assert resultado.stdout.strip() == "1", resultado.stderr
