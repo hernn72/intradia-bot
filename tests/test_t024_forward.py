@@ -1075,3 +1075,43 @@ def test_procedencia_cruza_campos_bien_formados_pero_falsos(tmp_path: Path, camp
     fwd.validar_registro(fwd._registro([{**entrada, campo: valor}]))  # bien formado: el registro lo admite…
     with pytest.raises(fwd.T024ForwardError):
         fwd.exigir_procedencia({**entrada, campo: valor}, vintage, _Universe(), CODE_SHA)  # …la procedencia no
+
+
+# ---------------------------------------------------------------------------
+# Revisión Codex r4: la cosecha recibida en memoria es la de disco
+# ---------------------------------------------------------------------------
+
+
+def test_procedencia_liga_la_cosecha_en_memoria_a_sus_hashes(tmp_path: Path) -> None:
+    from dataclasses import replace as dc_replace
+
+    from advisor.research.vintage import VintageViews
+
+    cosecha = _congelar(tmp_path)
+    assert cosecha.data_vintage_id
+    entrada = fwd.entrada_registro(cosecha.data_vintage_id, cosecha.peticion, t024_code_sha=CODE_SHA, root_dir=tmp_path)
+    vintage = load_vintage(cosecha.data_vintage_id, root_dir=tmp_path)
+    fwd.exigir_procedencia(entrada, vintage, _Universe(), CODE_SHA)
+
+    # Manifiesto falso con id «v1»: no reproduce su data_vintage_id.
+    falso = dc_replace(vintage, data_vintage_id="v1", manifest={**vintage.manifest, "manifest_hash": "v1", "data_vintage_id": "v1"})
+    entrada_falsa = {
+        **entrada,
+        "data_vintage_id": "v1",
+        "manifest_hash": "v1",
+        "manifest_file_sha256": hashlib.sha256((vintage_mod._canonical_json(falso.manifest) + "\n").encode()).hexdigest(),
+    }
+    with pytest.raises(fwd.T024ForwardError, match="no reproduce su data_vintage_id"):
+        fwd.exigir_procedencia(entrada_falsa, falso, _Universe(), CODE_SHA)
+
+    # Barras alteradas en memoria.
+    views = vintage.by_symbol["AAPL"]
+    otras = vintage_mod.build_views(views.raw.assign(Close=views.raw["Close"] * 1.01))
+    with pytest.raises(fwd.T024ForwardError, match="no son las del manifiesto"):
+        fwd.exigir_procedencia(entrada, dc_replace(vintage, by_symbol={**vintage.by_symbol, "AAPL": otras}), _Universe(), CODE_SHA)
+
+    # Barras intactas, vista de ejecución alterada.
+    exec_mod = views.execution_prices.assign(Open=views.execution_prices["Open"] + 1)
+    vistas = VintageViews(views.raw, exec_mod, views.signal_prices, views.gap_for_catalyst)
+    with pytest.raises(fwd.T024ForwardError, match="vistas cargadas"):
+        fwd.exigir_procedencia(entrada, dc_replace(vintage, by_symbol={**vintage.by_symbol, "AAPL": vistas}), _Universe(), CODE_SHA)

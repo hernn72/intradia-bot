@@ -31,7 +31,11 @@ from advisor.research.vintage import (
     VintageLoad,
     _canonical_json,
     _verified_manifest,
+    build_views,
     freeze_vintage,
+    hash_actions,
+    hash_manifest,
+    hash_series,
     hash_symbol_list,
     load_vintage,
 )
@@ -92,12 +96,17 @@ T024_FORWARD_IMPORTED_CALLABLES = (
     "advisor.research.t024_decision.verificar_identidad",
     "advisor.research.vintage._canonical_json",
     "advisor.research.vintage._verified_manifest",
+    "advisor.research.vintage.build_views",
     "advisor.research.vintage.freeze_vintage",
+    "advisor.research.vintage.hash_actions",
+    "advisor.research.vintage.hash_manifest",
+    "advisor.research.vintage.hash_series",
     "advisor.research.vintage.hash_symbol_list",
     "advisor.research.vintage.load_vintage",
 )
 _SHA_GIT = re.compile(r"[0-9a-f]{40}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
+VISTAS = ("raw", "execution_prices", "signal_prices", "gap_for_catalyst")
 
 
 class T024ForwardError(RuntimeError):
@@ -586,6 +595,16 @@ def exigir_procedencia(entrada: Mapping[str, object], vintage: VintageLoad, univ
     fichero = hashlib.sha256((_canonical_json(manifest) + "\n").encode("utf-8")).hexdigest()
     if fichero != entrada["manifest_file_sha256"]:
         raise T024ForwardError("manifest_file_sha256 de la entrada distinto del manifiesto cargado")
+    cuerpo = {k: v for k, v in manifest.items() if k not in {"manifest_hash", "data_vintage_id"}}
+    if hash_manifest(cuerpo) != vintage.data_vintage_id or manifest.get("data_vintage_id") != vintage.data_vintage_id:
+        raise T024ForwardError("el manifiesto cargado no reproduce su data_vintage_id")
+    for asset in manifest["assets"]:
+        views = vintage.by_symbol[str(asset["symbol"])]
+        if hash_series(views.raw) != asset.get("series_hash") or hash_actions(views.raw) != asset.get("corporate_actions_hash"):
+            raise T024ForwardError(f"{asset['symbol']}: las barras cargadas no son las del manifiesto")
+        derivadas = build_views(views.raw)
+        if not all(getattr(views, campo).equals(getattr(derivadas, campo)) for campo in VISTAS):
+            raise T024ForwardError(f"{asset['symbol']}: vistas cargadas distintas de las derivadas de las barras")
     verificar_rango_cargado(vintage, universe, date.fromisoformat(str(entrada["requested_end"])))
 
 
