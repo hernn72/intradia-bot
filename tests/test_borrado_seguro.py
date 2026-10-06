@@ -141,7 +141,9 @@ def test_deploy_t024_solo_borra_a_traves_de_la_guarda() -> None:
         assert re.search(patron, texto) is None, fichero.name
     for fichero in sorted((ROOT / "deploy" / "t024").glob("*.sh")):
         texto = fichero.read_text(encoding="utf-8")
-        assert [linea for linea in texto.splitlines() if "rm -" in linea] == ["trap 'rm -rf \"${tmpdir}\"' EXIT"]
+        assert [linea.strip() for linea in texto.splitlines() if "rm -" in linea] == [
+            '/*/t024-staging-*) rm -rf -- "${tmpdir:?}" ;;'
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -410,3 +412,67 @@ def test_interprete_hijo_hereda_la_red(tmp_path: Path) -> None:
     permitido.mkdir()
     ok = subprocess.run([sys.executable, "-c", f"import shutil; shutil.rmtree({str(permitido)!r})"], check=False)
     assert ok.returncode == 0 and not permitido.exists()
+
+
+
+# ---------------------------------------------------------------------------
+# Revisión del revisor (ronda sobre 8c5ba1f)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("flags", [["-I"], ["-E"], ["-S"], ["-IS"], ["-u", "-E"]])
+def test_interprete_hijo_con_flags_que_anulan_la_red_se_niega(flags: list[str], tmp_path: Path) -> None:
+    import subprocess
+
+    with pytest.raises(BorradoProhibidoEnTests):
+        subprocess.run([sys.executable, *flags, "-c", "pass"], cwd=tmp_path, check=False)
+
+
+def test_interprete_hijo_con_env_explicito_sigue_con_red(tmp_path: Path) -> None:
+    import subprocess
+
+    protegido = ROOT / "evidence" / NO_EXISTE
+    codigo = f"import shutil; shutil.rmtree({str(protegido)!r})"
+    entorno = {"PATH": os.environ.get("PATH", "")}
+    resultado = subprocess.run([sys.executable, "-c", codigo], env=entorno, capture_output=True, text=True, check=False, cwd=tmp_path)
+    assert resultado.returncode != 0 and "BorradoProhibidoEnTests" in resultado.stderr, resultado.stderr
+
+
+@pytest.mark.parametrize(
+    "orden",
+    [
+        ["mv", "data", "fuera"],
+        "mv data fuera",
+        ["git", "reset", "--hard"],
+        ["git", "checkout", "--", "."],
+        ["git", "restore", "evidence"],
+        ["git", "stash", "-u"],
+        ["git", "rm", "-r", "evidence"],
+        ["rsync", "-a", "--delete", "a/", "data/"],
+        "find . -name x -delete;",
+    ],
+)
+def test_red_ve_mas_ordenes_destructivas(orden: Any) -> None:
+    from tests.red_borrado import orden_de_borrado
+
+    assert orden_de_borrado(orden, shell=isinstance(orden, str)) is not None
+
+
+@pytest.mark.parametrize("orden", [["git", "checkout", "-q", "-b", "rama"], ["git", "status"], ["git", "commit", "-m", "x"], ["echo", "mvp"]])
+def test_red_no_marca_ordenes_inocuas(orden: list[str]) -> None:
+    from tests.red_borrado import orden_de_borrado
+
+    assert orden_de_borrado(orden) is None
+
+
+def test_red_protege_data_aunque_sea_un_enlace(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    externo = tmp_path / "externo"
+    (externo / "vintages").mkdir(parents=True)
+    (repo / "data").symlink_to(externo)
+    llamadas: list[Any] = []
+    guardada = envolver_borrado(lambda ruta, *a, **k: llamadas.append(ruta), "prueba", repo=repo)
+    with pytest.raises(BorradoProhibidoEnTests):
+        guardada(repo / "data" / "vintages")
+    assert llamadas == [] and (externo / "vintages").is_dir()

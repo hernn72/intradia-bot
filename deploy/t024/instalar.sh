@@ -69,8 +69,15 @@ install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "${T024_ARTEFACTOS_DIR}"
 install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "${T024_ARTEFACTOS_DIR}/logs"
 install -d -m 0755 -o "${T024_USER}" -g "${t024_group}" "$(dirname "${T024_LOG}")"
 
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "${tmpdir}"' EXIT
+tmpdir="$(mktemp -d -t t024-staging-XXXXXX)"
+borrar_tmpdir() {
+  # Solo el temporal propio: ruta no vacía, absoluta y con el prefijo de staging.
+  case "${tmpdir:-}" in
+    /*/t024-staging-*) rm -rf -- "${tmpdir:?}" ;;
+    *) echo "no se borra ${tmpdir:-<vacío>}: no es un staging t024" >&2 ;;
+  esac
+}
+trap borrar_tmpdir EXIT
 # El render corre como T024_USER: necesita escribir en el temporal.
 chown "${T024_USER}" "${tmpdir}"
 

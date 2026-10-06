@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -39,11 +40,15 @@ def ruta_prohibida(objetivo: Any, *, repo: Path = REPO_TESTS, home: Optional[Pat
         if real == protegida or real in protegida.parents:
             return f"{real} es o contiene {protegida}"
     for sub in SUBDIRS_PROTEGIDOS:
-        base = repo / sub
-        if real == base or base in real.parents:
-            return f"{real} está en {base}"
+        # Literal y resuelta: si `data/` fuera un enlace a otro volumen, el objetivo resuelto cae en el destino.
+        for base in {repo / sub, (repo / sub).resolve()}:
+            if real == base or base in real.parents:
+                return f"{real} está en {base}"
     nombre = real.name.lower()
-    if repo in real.parents and any(nombre.endswith(s) or f"{s}." in nombre or f"{s}-" in nombre for s in SUFIJOS_SQLITE):
+    raices = {repo, *((repo / sub).resolve() for sub in SUBDIRS_PROTEGIDOS)}
+    if any(r in real.parents for r in raices) and any(
+        nombre.endswith(s) or f"{s}." in nombre or f"{s}-" in nombre for s in SUFIJOS_SQLITE
+    ):
         return f"{real} es una base SQLite del repo"
     return None
 
@@ -104,8 +109,10 @@ def envolver_renombrado(original: Callable[..., Any], nombre: str, *, repo: Path
     return guardada
 
 
-ORDENES_BORRADO = {"rm", "rmdir", "unlink", "shred", "srm", "trash"}
-_PALABRA_BORRADO = re.compile(r"(^|[\s;&|(`'\"/])(rm|rmdir|unlink|shred|srm|trash)(\s|$|[;&|)`'\"])")
+ORDENES_BORRADO = {"rm", "rmdir", "unlink", "shred", "srm", "trash", "mv"}
+_PALABRA_BORRADO = re.compile(r"(^|[\s;&|(`'\"/])(rm|rmdir|unlink|shred|srm|trash|mv)(\s|$|[;&|)`'\"])")
+# git que descarta trabajo o ficheros: clean, reset --hard, checkout --, restore, stash, rm.
+_GIT_DESTRUCTIVO = re.compile(r"\bgit\b.*\s(clean|restore|stash|rm)(\s|$)|\bgit\b.*\sreset\s.*--hard|\bgit\b.*\scheckout\s.*--(\s|$)")
 
 
 def orden_de_borrado(args: Any, *, shell: bool = False) -> Optional[str]:
@@ -122,18 +129,52 @@ def orden_de_borrado(args: Any, *, shell: bool = False) -> Optional[str]:
     nombres = {os.path.basename(t) for t in tokens}
     if nombres & ORDENES_BORRADO or _PALABRA_BORRADO.search(texto):
         return f"orden con borrado: {texto!r}"
-    if "-delete" in tokens or "-delete" in texto.split():
-        return f"find -delete: {texto!r}"
-    if re.search(r"\bgit\b.*\bclean\b", texto):
-        return f"git clean: {texto!r}"
+    palabras = [t.rstrip(";&|)") for t in texto.split()]
+    if "-delete" in palabras or any(p.startswith("--delete") or p.startswith("--remove-source-files") for p in palabras):
+        return f"find -delete / rsync --delete: {texto!r}"
+    if _GIT_DESTRUCTIVO.search(texto):
+        return f"git destructivo: {texto!r}"
     return None
 
 
+VARIABLES_RED = ("PYTHONPATH", "INTRADIA_RED_BORRADO_REPO")
+
+
+def es_python(programa: str) -> bool:
+    nombre = os.path.basename(programa)
+    return re.fullmatch(r"python(\d+(\.\d+)*)?", nombre) is not None or os.path.realpath(programa) == os.path.realpath(sys.executable)
+
+
+def flags_que_anulan_la_red(argv: list[str]) -> list[str]:
+    """Banderas de un intérprete Python que harían ignorar `PYTHONPATH`/`sitecustomize` (-I, -E, -S)."""
+
+    malas: list[str] = []
+    for token in argv[1:]:
+        if token in {"-c", "-m"} or not token.startswith("-") or token == "-":
+            break
+        if token.startswith("--"):
+            continue
+        letras = token[1:]
+        malas.extend(f"-{letra}" for letra in letras if letra in {"I", "E", "S"})
+    return malas
+
+
 class PopenGuardado(subprocess.Popen):  # type: ignore[type-arg]
+    """`subprocess.Popen` que niega órdenes de borrado y garantiza la red en los intérpretes Python hijos."""
+
     def __init__(self, args: Any, *posicionales: Any, **kwargs: Any) -> None:
         motivo = orden_de_borrado(args, shell=bool(kwargs.get("shell")))
         if motivo is not None:
             raise BorradoProhibidoEnTests(f"subprocess denegado en tests: {motivo}")
+        argv = [os.fsdecode(args)] if isinstance(args, (str, bytes, os.PathLike)) else [os.fsdecode(a) for a in args]
+        if argv and not kwargs.get("shell") and es_python(argv[0]):
+            malas = flags_que_anulan_la_red(argv)
+            if malas:
+                raise BorradoProhibidoEnTests(f"intérprete hijo con {malas}: ignoraría la red de borrado")
+            entorno = kwargs.get("env")
+            if entorno is not None:
+                # Un entorno explícito no hereda la red: se le añaden sus variables.
+                kwargs["env"] = {**entorno, **{v: os.environ[v] for v in VARIABLES_RED if v in os.environ}}
         super().__init__(args, *posicionales, **kwargs)
 
 
