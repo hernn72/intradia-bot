@@ -2,7 +2,16 @@
 
 `T024_CODE_SHA.txt` contiene el SHA completo del último commit que toca el ejecutor y la captura de T-024:
 
-**`ddcdb8de7e8781f87fa860db4c0ef0b0675f8356`**
+**`1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0`** (desde el 2026-10-06)
+
+> **Supersesión.** El valor anterior, `ddcdb8de7e8781f87fa860db4c0ef0b0675f8356`, quedó supersedido el
+> 2026-10-06, **antes de cualquier captura forward**, por la corrección de implementación del contrato
+> de captura:
+> - petición exacta `start`/`end` exigida por §7 de la ficha;
+> - registro forward canónico.
+>
+> No cambia ninguna regla metodológica y `T024_PREREG_SHA` sigue igual. Detalle y revisiones en
+> `evidence/2026-10-06-T-024-contrato-captura/`.
 
 - El fichero vive fuera de `advisor/` y de los demás `EXECUTOR_PATHS` a propósito. Escribir el SHA dentro
   de `advisor/` cambiaría el ejecutor después de ese SHA, y `executor_unchanged_since` fallaría siempre.
@@ -20,5 +29,8 @@
 
   Devuelve el SHA validado, que es el que registra la marca de cada mirada.
 
-Este fichero se creó en un commit **exclusivo de identidad y evidencia**, posterior a
-`ddcdb8de7e8781f87fa860db4c0ef0b0675f8356`. Desde ese commit no se ha tocado ninguna ruta del ejecutor.
+Este fichero se actualiza solo en commits **exclusivos de identidad y evidencia**:
+- se creó después de `ddcdb8de7e8781f87fa860db4c0ef0b0675f8356`;
+- se reescribió después de `1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0`.
+
+Desde `1a697c3` no se ha tocado ninguna ruta del ejecutor.
