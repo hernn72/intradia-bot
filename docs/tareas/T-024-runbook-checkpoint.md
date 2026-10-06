@@ -1,8 +1,16 @@
-# T-024 — Runbook del checkpoint mensual (solo conteos)
+# T-024 — Runbook del checkpoint mensual
 
 Contrato operativo de la captura forward de T-024 (§6.3 y §7 de la ficha, D-72). Implementado en
-`advisor/research/t024_forward.py`. **No cambia ninguna regla metodológica**: concreta la petición exacta
-que la ficha ya exigía (`start`, `end`, `interval = 1d`, `auto_adjust = False`, `actions = True`).
+`advisor/research/t024_forward.py` y operado en dos fases:
+
+- **Fase A, Raspberry Pi 24/7:** captura forward automática. Un timer diario ejecuta
+  `deploy/t024/checkpoint.py`; solo el día de un checkpoint declarado verifica identidad, calcula la
+  petición, ejecuta `congelar` una vez, guarda artefactos y hashes, y para.
+- **Fase B, PC:** revisión manual, copia verificada, versionado de evidencia y ejecución posterior de
+  registro y conteos.
+
+**No cambia ninguna regla metodológica**: concreta la petición exacta que la ficha ya exigía (`start`,
+`end`, `interval = 1d`, `auto_adjust = False`, `actions = True`).
 
 ## Contrato de la petición
 
@@ -45,35 +53,83 @@ python -m advisor.research.t024_forward peticion --checkpoint 2026-11-03 --festi
 
 Ese comando solo calcula la petición; no descarga nada.
 
-## Pasos el día del checkpoint
+## Fase A automática en la Pi
 
-Desde el repositorio en `main`, con el árbol limpio y el sidecar de `T024_CODE_SHA` vigente:
+Producción permanece en `/home/fer/intradia-bot`. La captura forward corre en el worktree dedicado
+`/home/fer/intradia-t024`, creado desde el commit de identidad de T-024, con el intérprete del venv del
+bot. Esto evita tocar el release productivo y permite que `verificar_identidad()` valide el ejecutor.
+La unidad systemd no fuerza `TZ`; el wrapper calcula explícitamente la fecha en Canarias y la congelación
+ve el mismo entorno que una ejecución manual con el venv.
 
-1. **Identidad.**
-   `python -c "from advisor.research.t024_decision import verificar_identidad; print(verificar_identidad())"`
-   tiene que imprimir el `T024_CODE_SHA` del sidecar. Si falla, STOP.
-2. **Petición.** `peticion` (arriba) a `evidence/T-024-forward/<checkpoint>/peticion.json`.
-3. **Congelación.**
-   `python -m advisor.research.t024_forward congelar --checkpoint 2026-11-03 --festivo 2026-11-02 > evidence/T-024-forward/2026-11-03/congelacion.json`
-   Exige la identidad (`verificar_identidad`) y la fecha del checkpoint antes de llamar al proveedor.
-   - Salida `0` y `"apta": true`: sigue.
-   - Salida `2` (`"apta": false`): **STOP**. La cosecha parcial no cuenta como checkpoint, no se registra y
-     no se ejecuta `capturar`. El JSON y el manifiesto quedan como evidencia del intento. No se sustituyen
-     símbolos, no se usa otra fuente y no se rellenan barras. Repetir la misma petición lo decide el
-     propietario y se documenta.
-4. **Registro.**
-   `python -m advisor.research.t024_forward registrar --data-vintage-id <id> --checkpoint 2026-11-03 --festivo 2026-11-02 --registro evidence/T-024-forward/registro-forward.json`
+El timer diario de `deploy/t024/systemd/` llama a:
+
+```sh
+python deploy/t024/checkpoint.py ejecutar --data-dir /home/fer/intradia-bot/data/vintages --artefactos /home/fer/t024-forward
+```
+
+El wrapper:
+
+1. Valida `deploy/t024/calendario-checkpoints.json`.
+2. Toma un lock no bloqueante.
+3. Marca como `PERDIDO` cualquier checkpoint pasado sin directorio de artefactos.
+4. Si hoy no es un checkpoint declarado, no ejecuta ningún comando del módulo forward.
+5. Si hoy es checkpoint, crea `intento.json`, verifica preflight e identidad, escribe `peticion.json`,
+   comprueba que la petición coincide con el calendario y ejecuta `congelar` una sola vez.
+6. Escribe `congelacion.json`, `congelar.stderr.log`, `estado.json` y `SHA256SUMS`.
+
+La fase A **no registra, no captura conteos, no decide y no reintenta automáticamente**. `NO_APTA`,
+`ERROR_*`, `INTERRUMPIDO` y `PERDIDO` quedan visibles para el propietario.
+
+Política de fallos:
+
+- `APTA`: queda lista para copiar y revisar en PC.
+- `NO_APTA`: la unidad systemd falla; la cosecha parcial no cuenta como checkpoint.
+- `ERROR_*`: se conserva el intento y se requiere intervención.
+- `INTERRUMPIDO`: existe `intento.json` sin cierre; no se descarga otra vez.
+- `PERDIDO`: se detectó tarde un checkpoint pasado sin artefactos; no se descarga retrospectivamente.
+
+## Fase B manual en el PC
+
+La fecha en que se ejecute esta fase no cambia el checkpoint: manda la cosecha congelada en la Pi.
+
+1. **Copiar y verificar artefactos de la Pi.**
+
+   ```sh
+   python deploy/t024/traer_cosecha.py copiar \
+     --checkpoint 2026-11-03 \
+     --destino-artefactos evidence/T-024-forward/2026-11-03/pi \
+     --data-dir data/vintages \
+     --pi-artefactos /home/fer/t024-forward \
+     --pi-data-dir /home/fer/intradia-bot/data/vintages
+   ```
+
+   `copiar` usa `rsync -a` sin borrar destino, exige `APTA`, verifica hashes, manifiesto, petición,
+   contexto y sidecar de identidad, y solo instala el vintage local si no existe. Si existe, exige igualdad
+   byte a byte; el staging vive junto a `--data-dir` para poder mover dentro del mismo sistema de ficheros.
+
+2. **Registro.**
+
+   ```sh
+   python -m advisor.research.t024_forward registrar --data-vintage-id <id> --checkpoint 2026-11-03 --festivo 2026-11-02 --registro evidence/T-024-forward/registro-forward.json
+   ```
+
    Vuelve a verificar la cosecha completa y la identidad, y añade la entrada. Niega una cosecha no apta,
    un checkpoint no creciente o un `data_vintage_id` repetido.
-5. **Commit solo de evidencia** del registro, `congelacion.json`, `peticion.json` y el `manifest.json` de
-   la cosecha (que `.gitignore` deja versionar; los CSV se quedan en el portátil). Es obligatorio antes de
-   capturar: desde el segundo checkpoint el registro es un fichero versionado modificado y
-   `verificar_identidad` exige el árbol limpio.
-6. **Captura (solo conteos).**
-   `python -m advisor.research.t024_forward capturar --data-vintage-id <id> --registro evidence/T-024-forward/registro-forward.json > evidence/T-024-forward/2026-11-03/conteos.json`
-   Usa `c_e` = checkpoint. Desde el segundo checkpoint, la cosecha inmediatamente anterior del registro
-   se usa **solo** para `barras_nuevas` y `barras_revisadas`.
-7. Commit solo de evidencia de `conteos.json`.
+
+3. **Commit de evidencia** del registro, artefactos de Pi y manifiesto versionable de la cosecha. El árbol
+   debe quedar limpio antes de capturar, porque desde el segundo checkpoint el registro modificado entra en
+   la identidad.
+
+4. **Captura de conteos.**
+
+   ```sh
+   python -m advisor.research.t024_forward capturar --data-vintage-id <id> --registro evidence/T-024-forward/registro-forward.json > evidence/T-024-forward/2026-11-03/conteos.json
+   ```
+
+   Usa `c_e` = checkpoint. Desde el segundo checkpoint, la cosecha inmediatamente anterior del registro se
+   usa **solo** para `barras_nuevas` y `barras_revisadas`.
+
+5. Commit solo de evidencia de `conteos.json`.
 
 ## Formatos
 

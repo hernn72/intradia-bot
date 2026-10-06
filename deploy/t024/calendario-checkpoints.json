@@ -1,0 +1,16 @@
+{
+  "schema": "t024-calendario-checkpoints",
+  "schema_version": 1,
+  "zona": "Atlantic/Canary",
+  "regla": "checkpoint = primer día hábil del mes (lunes a viernes menos festivos laborales de Canarias); requested_end = quinto día hábil anterior, exclusivo",
+  "checkpoints": [
+    {
+      "checkpoint": "2026-11-03",
+      "festivos": [
+        "2026-11-02"
+      ],
+      "requested_end": "2026-10-26",
+      "fuente": "Gobierno de Canarias, nota del 2025-04-28 'El Gobierno aprueba el calendario laboral de Canarias para 2026': 2 de noviembre (traslado de Todos los Santos) festivo laboral en todo el archipiélago. https://www3.gobiernodecanarias.org/noticias/el-gobierno-aprueba-el-calendario-laboral-de-canarias-para-2026-y-abre-el-plazo-para-fijar-las-fiestas-locales/"
+    }
+  ]
+}
