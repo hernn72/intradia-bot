@@ -1995,6 +1995,146 @@ pre-registro queda congelado en el commit que añade `evidence/2026-10-05-T-024-
 es **`T024_PREREG_SHA`**. El commit no puede contener su propio SHA: se identifica en el PR #44. T-024
 no está implementado y no se ha calculado ningún desenlace.
 
+### D-73 — 2026-10-06 — Reorientación: objetivo Superbot, tres velocidades y T-025 con desenlaces sellados
+Decisión del propietario, tomada el 2026-10-06 sobre su plan «Roadmap pendiente — Intradia Bot →
+Superbot» y sobre dos preguntas que se le hicieron en la misma sesión:
+- cómo resolver el choque entre un shadow con P&L visible y la ceguera de T-024: eligió **«desenlaces
+  de B2/S2 ocultos»**;
+- qué es el «iTrade Bot» de su plan: es **`trading-bot`**.
+
+No cambia ningún resultado, ningún pre-registro ni el código de la Pi.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Objetivo final.** Un único bot (el «Superbot») que:
+- analiza el universo y detecta oportunidades;
+- indica qué comprar, la entrada máxima, el stop, los objetivos, el RR y el tamaño;
+- controla el capital, las posiciones y el riesgo de cartera;
+- simula en paper trading hasta el cierre, con dashboard y avisos;
+- acumula resultados forward.
+
+El capital real solo se plantea después de P10. El motor cuantitativo es el de intradia-bot. La capa
+de cartera, paper trading y dashboard recoge la filosofía de `trading-bot`, y los dos proyectos
+convergen en S-03.
+
+**Tres velocidades.**
+- **Bot:** T-025 → paper trading → dashboard → Superbot. No espera a P7.
+- **Investigación:** T-024 + P6-bis → nueva candidata → evaluación de cartera → P7 → P10. Ningún gate
+  se rebaja.
+- **Publicación:** PAPER-001 v1 con P2–P6 y T-023; la v2/final incorpora T-024, T-025, P7 y P10.
+
+Un bot que funciona y simula operaciones **no** es un sistema con ventaja demostrada. Toda operación
+de T-025 lleva la etiqueta «SHADOW / PAPER — estrategia en investigación, no validada para capital
+real».
+
+**Decisiones.**
+1. **T-025 (Shadow Trading Forward) es la prioridad máxima.** B2 y S2 quedan congeladas tal como
+   están en `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`, y C0 solo como control
+   descriptivo; ninguna se optimiza con resultados del shadow. Lo que se persiste antes y después de
+   conocer el futuro lo fija la ficha `docs/tareas/T-025-shadow-paper-trading-forward.md`.
+2. **Desenlaces de B2 y S2 sellados hasta que T-024 se resuelva para esa política.** T-024 (D-72,
+   ficha §6.3 y §9) prohíbe mirar desenlaces de B2 y S2 posteriores al 2026-08-27 antes de su mirada,
+   y T-025 opera las mismas políticas en las mismas sesiones.
+   - De B2 y S2 solo se muestra lo que no depende de ningún desenlace.
+   - El resto se desella cuando T-024 emite `POSITIVO`, `NO POSITIVO` o `NO EVALUABLE POR MUESTRA`
+     en una mirada, o el veredicto final.
+   - El texto de la opción elegida dejaba **C0 visible** por ser descriptiva en T-024. La ficha de
+     T-025 aporta un dato posterior (C0 comparte con B2 el stop de 2,0·ATR) y lo vuelve a preguntar
+     en OD-T25-4. **Hasta que se decida, rige lo elegido: C0 visible.**
+3. **Los desenlaces que observa T-025 quedan consumidos para investigación.** No pueden servir para
+   diseñar o elegir una candidata y luego hacer de holdout de esa misma candidata. P6-bis no usa
+   ningún desenlace de T-025. «Consumido» significa que el desenlace intervino en el diseño o la
+   selección, no que T-025 lo haya visto: si no, P7 no tendría nunca datos, porque T-025 corre
+   indefinidamente.
+4. **T-025 no toca T-024:** ni el worktree de la Pi, ni los `EXECUTOR_PATHS` de `1a697c3`, ni sus
+   cosechas.
+5. **PAPER-001** («From Trade-Level Edge to Portfolio-Level Underperformance») empieza en paralelo.
+   - Separa lo confirmatorio (P2–P6), lo post hoc (T-023) y lo prospectivo (T-024 y T-025).
+   - Declara la pérdida de los CSV de `071ddb2b…`.
+   - Puede salir como preprint antes de que termine T-024.
+6. **P6-bis** pregunta si se puede conservar la señal B2/S2 y mejorar su transformación en cartera.
+   Tiene tres bloques separados, cada uno con su pre-registro, sin cambiar a la vez la señal y la
+   cartera:
+   - (A) gestión de ganadores;
+   - (B) asignación de capital;
+   - (C) participación.
+7. **El resultado de P6-bis** es una de dos cosas:
+   - ninguna candidata: se vuelve a investigación y no se fuerza P7;
+   - una candidata congelada (config, código, entrada, salida, sizing, asignación, costes, universo y
+     hashes) que pasa una evaluación de cartera equivalente a P6 y entonces va a P7.
+8. **P7 no se elimina ni se rebaja.**
+9. **Ingeniería en paralelo:** C-06 (backups) con prioridad alta tras el incidente del 2026-10-06 y el
+   backup fuera del árbol que protege; después C-04 y C-05. Con C-03 a C-06 se puede cerrar GATE PROD.
+10. **La línea B no bloquea T-025.** El contexto se guarda en `context_shadow_decision`, separado de
+    `quant_decision`, y solo puede degradar una señal, nunca rescatarla.
+11. **R-01 puede diseñarse antes**, pero solo se cierra tras GATE P7.
+12. **T-025 se diseña como la capa paper del Superbot**, no como prototipo desechable.
+
+**Consecuencias de decisiones anteriores (no son decisiones nuevas):**
+- **Datos de P6-bis:** D-71 consume la cosecha hasta el 2026-08-27, y las sesiones posteriores
+  pertenecen a la ventana de T-024. Por eso P6-bis solo puede desarrollarse con sesiones hasta el
+  2026-08-27 inclusive, en una cosecha nueva con su `data_vintage_id`, porque los CSV de `071ddb2b…`
+  se perdieron. Esa evaluación de cartera es **desarrollo, no confirmación**: la confirmación es P7.
+- **Frontera de P7 (OD-T24-11):** P7 empieza después de la congelación de su candidata **y** del `T1`
+  de la última mirada de T-024, con sesiones cuyos desenlaces no hayan intervenido en el diseño ni en
+  la selección de la candidata, ni por T-024, ni por T-025, ni por P6-bis.
+
+**Lo que no cambia.**
+- P6 (B2 `NO PASA`, S2 `NO PASA`, salida `[]`).
+- El pre-registro y el código de T-024.
+- P7 BLOQUEADO.
+- La Pi: C0, Score v1 70/60, `v0.4.1`.
+
+### D-74 — 2026-10-06 — Apertura de T-025: diseño y pre-registro propuesto, con OD abiertas
+Registra la apertura formal de T-025 por encargo del propietario (2026-10-06). Separa lo que el
+propietario fijó en el encargo, lo que decide el agente por ser técnico y reversible, y lo que queda
+abierto. **No congela el pre-registro.**
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Fijado por el propietario en el encargo:**
+1. **Alcance de la primera entrega:** inspección, diseño, pre-registro, roadmap, decisiones, revisión
+   independiente y PR documental. Sin paper broker, sin descargas, sin abrir posiciones, sin observar
+   desenlaces, sin tocar la Pi y sin desplegar.
+2. **T-025 no desbloquea P7, no convierte B2/S2 en políticas validadas** y no se presenta como
+   sustituto de P7. T-024 tampoco.
+3. **La regla de contaminación:** «Toda observación cuyo desenlace se consulte durante T-025 queda
+   consumida para investigación y no podrá utilizarse posteriormente como holdout virgen de P7».
+4. **Reglas de modificación:**
+   - B2/S2 congeladas;
+   - el paper broker congelado por versión o tag;
+   - un cambio de política crea una `policy_version` nueva;
+   - un cambio de arquitectura relevante crea una cohorte nueva;
+   - no se mezclan versiones sin etiqueta;
+   - nunca se reescriben observaciones.
+5. **Punto de partida de capital, riesgo y costes:** las reglas de P6 (100.000 EUR; 0,5 % de la
+   equity causal; máximo del 10 %; long only; sin apalancamiento; rechazo completo sin cash; 0,10 % por
+   lado y 5 pb). Nada distinto se adopta sin decisión del propietario.
+6. **Terminología:** la Pi es un **entorno de desarrollo/integración**, no producción. La producción
+   real será el bot final cuando termine la validación. Los textos de estado actuales se corrigen; las
+   entradas históricas del decision log conservan su redacción y, en ellas, «producción» significa «la
+   configuración desplegada en la Pi».
+7. **PAPER-001:** solo ficha y plan; la pérdida de los CSV de `071ddb2b…` se declara y ese vintage no
+   se reconstruye ni se vuelve a descargar fingiendo que es el original.
+
+**Decisiones técnicas del agente (reversibles; las valida la revisión independiente):**
+- Ficha `docs/tareas/T-025-shadow-paper-trading-forward.md` y ficha
+  `docs/tareas/PAPER-001-trade-edge-vs-portfolio.md`.
+- Nombres y forma del contrato de persistencia (ficha §5).
+- La señal vinculante es la de la última pasada anterior a la apertura, conforme a D-50 (§7.1).
+- Las adaptaciones en vivo de §8, cada una declarada y con su test.
+- Idempotencia y concurrencia (§12).
+- MAE y MFE sobre barras diarias (§5).
+
+**Abierto (OWNER_DECISION_REQUIRED):**
+- OD-T25-1 a OD-T25-8, en la ficha §17;
+- **OD-12** (convivencia de T-024 con cambios en los `EXECUTOR_PATHS`), abajo.
+
+Mientras sigan abiertas, T-025 está `BLOQUEADA_POR_OWNER` para congelar.
+
+**Hallazgo registrado:** cualquier commit en `main` que toque `advisor/`, `config.yaml`,
+`universe.yaml`, `exchange_overrides.yaml`, `pyproject.toml` o `requirements.txt` hace que
+`verificar_identidad()` de T-024 falle sobre ese checkout (ficha de T-025 §3.8). Esta entrega no toca
+ninguno. `T024_CODE_SHA` sigue siendo válido.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
@@ -2182,6 +2322,50 @@ demás**.
 - **Bloquea:** A-03 (P3, score v2). No bloquea nada más.
 - **Respuesta del propietario, 2026-09-21:** el RR **sale del score como
   dimensión de puntuación**. Registrada en **D-43**, que es el texto que manda.
+
+---
+
+### OD-12 — Cómo convive T-024 con cambios en los `EXECUTOR_PATHS` · ABIERTA desde el 2026-10-06 (D-74)
+- **Por qué existe:** `verificar_identidad()` de T-024 exige
+  `git diff --quiet 1a697c3 HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml
+  pyproject.toml requirements.txt` y un árbol limpio. La fase A de la Pi y la fase B del PC
+  (`t024_forward registrar` y `capturar`) la llaman. Hoy `main` cumple: comprobado el 2026-10-06. El
+  primer commit en `main` que toque esas rutas, ya sea de T-025, P6-bis, C-04 o C-05, dejará T-024
+  inoperable desde `main`. Además, la declaración mensual del calendario
+  (`deploy/t024/calendario-checkpoints.json`, la de diciembre antes del 2026-11-21) exige mover el
+  worktree de la Pi a un commit con esas rutas idénticas a `1a697c3`.
+- **Pregunta:** ¿cómo se sigue operando T-024 hasta su mirada final (corte 2027-08-27, más la cosecha
+  decisiva) mientras el resto del proyecto cambia el código?
+- **Alternativas:**
+  - (a) **Línea dedicada de T-024:** una rama `t024/forward` desde `4170bb4` y un worktree propio en el
+    PC. Las declaraciones de calendario, la fase B y la mirada se hacen ahí. La evidencia llega a
+    `main` por PR solo de evidencia, y nunca se fusiona `main` en esa línea.
+  - (b) **Congelar los `EXECUTOR_PATHS` de `main`** hasta que T-024 termine, a finales de 2027.
+  - (c) **Escribir todo el código nuevo fuera de los `EXECUTOR_PATHS`.**
+- **Consecuencia:**
+  - (a) `main` evoluciona sin riesgo para T-024, a cambio de mantener dos líneas y de cuidar que la
+    evidencia no se mezcle.
+  - (b) bloquea P6-bis, C-04, C-05 y cualquier cambio de `advisor/` durante más de un año.
+  - (c) no es viable para C-04, C-05 ni P6-bis, que tocan `advisor/`, y empuja duplicados contra
+    INV-06.
+- **Recomendación técnica:** (a), abierta **antes** del primer commit que toque esas rutas, y
+  **antes del 2026-11-21** si alguna tarea va a fusionarse en `main` antes de la declaración de
+  diciembre. T-025 (OD-T25-1 A) no las toca, pero las demás líneas sí.
+- **Bloquea:** fusionar en `main` cualquier cambio en los `EXECUTOR_PATHS`. No bloquea esta entrega
+  documental.
+
+### OD-T25-1 a OD-T25-8 — Decisiones de T-025 · ABIERTAS desde el 2026-10-06 (D-74)
+Están en `docs/tareas/T-025-shadow-paper-trading-forward.md` §17, con el formato de esta sección:
+1. arquitectura (base `paper.db` y paquete fuera de `advisor/`);
+2. capital inicial;
+3. libros de B2 y S2;
+4. visibilidad de C0 mientras T-024 no se resuelve (reabre en parte D-73 §2);
+5. barra de entrada ausente;
+6. dividendos tardíos;
+7. activo sin datos de forma prolongada;
+8. cohortes y versiones del motor.
+
+**Bloquean:** la congelación del pre-registro de T-025.
 
 ---
 
