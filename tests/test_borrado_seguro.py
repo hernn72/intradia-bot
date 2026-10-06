@@ -195,11 +195,11 @@ def test_red_de_tests_esta_activa_en_la_sesion() -> None:
     import shutil
     import subprocess
 
-    from tests.conftest import _PopenGuardado
+    from tests.conftest import PopenGuardado
 
     for funcion in (shutil.rmtree, os.remove, os.unlink, os.rmdir, os.removedirs, os.rename, os.replace):
         assert funcion.__name__ == "guardada"
-    assert subprocess.Popen is _PopenGuardado
+    assert subprocess.Popen is PopenGuardado
 
 
 
@@ -362,3 +362,51 @@ def test_promover_sin_pisar_es_todo_o_nada(tmp_path: Path, monkeypatch: pytest.M
     assert not (tmp_path / "destino").exists()
     assert sorted(p.name for p in tmp_path.iterdir()) == [staging.name]
     assert sorted(p.name for p in staging.iterdir()) == ["dato.csv", "otro.csv"]
+
+
+
+@pytest.mark.parametrize(
+    "orden",
+    [
+        ["/usr/bin/env", "rm", "-rf", "objetivo"],
+        ["find", ".", "-name", "objetivo", "-exec", "rm", "-rf", "{}", ";"],
+        ["xargs", "rm", "-rf"],
+        ["git", "-C", ".", "clean", "-fdx"],
+    ],
+)
+def test_red_ve_borrados_envueltos_en_otras_ordenes(orden: list[str], tmp_path: Path) -> None:
+    import subprocess
+
+    objetivo = tmp_path / "objetivo"
+    objetivo.mkdir()
+    with pytest.raises(BorradoProhibidoEnTests):
+        subprocess.run(orden, cwd=tmp_path, check=False, input=b"")
+    assert objetivo.exists()
+
+
+def test_red_cubre_os_system_y_spawn(tmp_path: Path) -> None:
+    objetivo = tmp_path / "objetivo"
+    objetivo.mkdir()
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.system(f"rm -rf {objetivo}")
+    with pytest.raises(BorradoProhibidoEnTests):
+        os.spawnvp(os.P_WAIT, "rm", ["rm", "-rf", str(objetivo)])
+    if hasattr(os, "posix_spawnp"):
+        with pytest.raises(BorradoProhibidoEnTests):
+            os.posix_spawnp("rm", ["rm", "-rf", str(objetivo)], dict(os.environ))
+    assert objetivo.exists()
+
+
+def test_interprete_hijo_hereda_la_red(tmp_path: Path) -> None:
+    import subprocess
+
+    protegido = ROOT / "evidence" / NO_EXISTE
+    codigo = f"import shutil; shutil.rmtree({str(protegido)!r})"
+    resultado = subprocess.run([sys.executable, "-c", codigo], capture_output=True, text=True, check=False, cwd=tmp_path)
+    # Sin red, el hijo fallaría con FileNotFoundError (la ruta no existe); con red, con BorradoProhibidoEnTests.
+    assert resultado.returncode != 0
+    assert "BorradoProhibidoEnTests" in resultado.stderr, resultado.stderr
+    permitido = tmp_path / "borrable"
+    permitido.mkdir()
+    ok = subprocess.run([sys.executable, "-c", f"import shutil; shutil.rmtree({str(permitido)!r})"], check=False)
+    assert ok.returncode == 0 and not permitido.exists()

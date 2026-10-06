@@ -588,3 +588,21 @@ def test_segunda_copia_nueva_tiene_inodos_propios(tmp_path: Path) -> None:
         assert copia.read_bytes() == fichero.read_bytes()
         assert os.stat(copia).st_ino != os.stat(fichero).st_ino
     assert sorted(p.name for p in (tmp_path / "copias").iterdir()) == [vid]
+
+
+def test_copiar_reverifica_lo_promovido_y_retira_si_cambio_el_staging(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    args, vid, calls = _preparar_pi_desde_captura(tmp_path, monkeypatch)
+    promover_real = traer.borrado_seguro.promover_sin_pisar
+
+    def promover_tras_manipular(staging: Path, destino: Path) -> None:
+        # Cambio en staging después de la primera verificación y antes de promover.
+        csv = Path(staging) / "AAPL.csv"
+        if csv.exists():
+            csv.write_bytes(csv.read_bytes().replace(b"100", b"109", 1))
+        promover_real(staging, destino)
+
+    monkeypatch.setattr(traer.borrado_seguro, "promover_sin_pisar", promover_tras_manipular)
+    assert traer.copiar(args, runner=_local_rsync_runner(calls)) == 1
+    assert not (args.data_dir / vid).exists()
+    assert not args.destino_artefactos.exists()
+    assert not list(args.data_dir.glob(".t024-staging-*")) and not list(args.data_dir.parent.glob(".t024-staging-*"))

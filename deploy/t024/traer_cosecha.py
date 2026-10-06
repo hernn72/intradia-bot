@@ -273,20 +273,32 @@ def copiar(args: argparse.Namespace, runner: Runner = _run_subprocess) -> int:
         if destino.exists() and not _dirs_byte_iguales(staging_artefactos, destino):
             raise SystemExit(f"ya existe {destino}, pero no es byte a byte igual")
         args.data_dir.mkdir(parents=True, exist_ok=True)
-        promoted_final = False
+        creados: list[Path] = []
+
+        def retirar_creados() -> None:
+            # Solo lo creado en esta ejecución: vuelve a un staging nuevo y se borra por la guarda.
+            for creado in reversed(creados):
+                retirada = creado.parent / borrado_seguro.nombre_staging(f"retirada-{creado.name}-{os.getpid()}")
+                os.rename(creado, retirada)
+                borrado_seguro.borrar_staging(retirada, base=creado.parent)
+
         try:
             if not final.exists():
                 borrado_seguro.promover_sin_pisar(staging, final)
-                promoted_final = True
+                creados.append(final)
             if not destino.exists():
                 borrado_seguro.promover_sin_pisar(staging_artefactos, destino)
+                creados.append(destino)
         except Exception:
-            if promoted_final:
-                # Recién creado en esta ejecución: vuelve a un staging nuevo y se borra por la guarda.
-                retirada = args.data_dir / borrado_seguro.nombre_staging(f"retirada-{vintage_id}-{os.getpid()}")
-                os.rename(final, retirada)
-                borrado_seguro.borrar_staging(retirada, base=args.data_dir)
+            retirar_creados()
             raise
+        # Lo promovido se verifica otra vez donde queda: un cambio en staging entre la primera verificación y
+        # la promoción no puede colarse.
+        ok_final, informe_final = verificar(checkpoint=args.checkpoint, artefactos=destino, vintage_dir=final)
+        if not ok_final:
+            print(json.dumps(informe_final, sort_keys=True, indent=2, ensure_ascii=False))
+            retirar_creados()
+            return 1
         return 0
     finally:
         if staging_artefactos.exists():

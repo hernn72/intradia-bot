@@ -88,7 +88,22 @@ comprobó lo siguiente:
    - solo borra directorios de nombre `.t024-staging-*` situados bajo la base esperada;
    - falla cerrada en cualquier otro caso.
 
-   Además, `tests/conftest.py` impide que cualquier test borre esas rutas.
+   Además, la red de `tests/red_borrado.py` (instalada por `tests/conftest.py`) impide que un test
+   borre, mueva o pise esas rutas:
+   - envuelve `shutil.rmtree`, `os.remove`/`unlink`/`rmdir`/`removedirs` y `os.rename`/`replace`,
+     resolviendo también las rutas relativas a `dir_fd`;
+   - inspecciona las órdenes externas por tokens (`subprocess`, `os.system`, `spawn*`, `exec*`);
+   - se propaga a todo intérprete Python hijo mediante `tests/red_hijos/sitecustomize.py`.
+
+   **Riesgo residual:** un programa externo no Python que borre de una forma no reconocible por sus
+   tokens. Lo cubren los backups fuera del repositorio.
+
+   Se probó y se descartó dejar `data/` y `evidence/` sin permiso de escritura durante los tests. En este
+   portátil el repositorio está en el Escritorio sincronizado con iCloud Drive, e iCloud reescribe los
+   permisos de los directorios en segundos: los dejó en `drwx------`, tanto con la protección puesta como
+   después. El 2026-10-06 se restauraron a mano los modos originales (`755`, comprobados contra el backup).
+   Ningún fichero cambió. Mientras el repositorio siga en una carpeta sincronizada, la protección no
+   puede apoyarse en permisos del sistema de ficheros.
 3. **Doble copia de toda cosecha forward desde su creación** (también en el commit siguiente).
    - El wrapper de la Pi deja una segunda copia, verificada por hash, fuera del checkout del bot.
    - Dos copias dentro del mismo árbol no cuentan como backup.

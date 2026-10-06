@@ -7,11 +7,8 @@ que un fallo sea siempre reproducible.
 from __future__ import annotations
 
 import os
-import re
-import shutil
-import subprocess
 from pathlib import Path
-from typing import Any, Callable, Iterator, List, Optional
+from typing import Iterator, List, Optional
 
 import pandas as pd
 import pytest
@@ -180,140 +177,31 @@ def hostile_context() -> MarketContext:
 
 
 # ---------------------------------------------------------------------------
-# Red de seguridad de borrado (incidente 2026-10-06: evidence/2026-10-06-incidente-perdida-vintage/).
-# Ningún test puede borrar `/`, `$HOME`, la raíz del repo ni sus antecesores, ni nada en `data/`,
-# `evidence/` o `.git/` del repo, ni una base SQLite del repo. Los temporales de pytest quedan fuera.
+# Red de seguridad de borrado: lógica en tests/red_borrado.py. También se propaga a los intérpretes Python
+# hijos mediante tests/red_hijos/sitecustomize.py en PYTHONPATH.
 # ---------------------------------------------------------------------------
 
-REPO_TESTS = Path(__file__).resolve().parents[1]
-SUBDIRS_PROTEGIDOS = ("data", "evidence", ".git")
-SUFIJOS_SQLITE = (".db", ".sqlite", ".sqlite3")
+from tests.red_borrado import (  # noqa: E402
+    REPO_TESTS,
+    BorradoProhibidoEnTests,
+    PopenGuardado,
+    envolver_borrado,
+    orden_de_borrado,
+    ruta_prohibida,
+)
 
+__all__ = ["BorradoProhibidoEnTests", "PopenGuardado", "envolver_borrado", "orden_de_borrado", "ruta_prohibida"]
 
-class BorradoProhibidoEnTests(RuntimeError):
-    """Un test intentó borrar datos protegidos del repositorio o del sistema."""
-
-
-def ruta_prohibida(objetivo: Any, *, repo: Path = REPO_TESTS, home: Optional[Path] = None) -> Optional[str]:
-    """Motivo por el que `objetivo` no se puede borrar en tests, o None si se puede."""
-
-    try:
-        real = Path(os.path.realpath(os.fspath(objetivo)))
-    except TypeError:
-        return None
-    repo = repo.resolve()
-    for protegida in (Path("/"), (home or Path.home()).resolve(), repo):
-        if real == protegida or real in protegida.parents:
-            return f"{real} es o contiene {protegida}"
-    for sub in SUBDIRS_PROTEGIDOS:
-        base = repo / sub
-        if real == base or base in real.parents:
-            return f"{real} está en {base}"
-    nombre = real.name.lower()
-    if repo in real.parents and any(nombre.endswith(s) or f"{s}." in nombre or f"{s}-" in nombre for s in SUFIJOS_SQLITE):
-        return f"{real} es una base SQLite del repo"
-    return None
-
-
-def ruta_de_descriptor(fd: int) -> Optional[str]:
-    """Ruta real de un descriptor de directorio (macOS: F_GETPATH; Linux: /proc/self/fd)."""
-
-    try:
-        import fcntl
-
-        if hasattr(fcntl, "F_GETPATH"):
-            crudo = fcntl.fcntl(fd, fcntl.F_GETPATH, bytes(1024))
-            return os.fsdecode(crudo.split(b"\0", 1)[0])
-    except OSError:
-        return None
-    try:
-        return os.readlink(f"/proc/self/fd/{fd}")
-    except OSError:
-        return None
-
-
-def ruta_efectiva(ruta: Any, dir_fd: Any) -> Any:
-    """La ruta que de verdad se toca: relativa a `dir_fd` si lo hay. Sin resolver → falla cerrada."""
-
-    if dir_fd is None:
-        return ruta
-    base = ruta_de_descriptor(int(dir_fd))
-    if base is None:
-        raise BorradoProhibidoEnTests(f"no se puede resolver dir_fd={dir_fd}: se deniega")
-    return os.path.join(base, os.fsdecode(ruta))
-
-
-def envolver_borrado(original: Callable[..., Any], nombre: str, *, repo: Path = REPO_TESTS) -> Callable[..., Any]:
-    """Envuelve una función de borrado: comprueba la ruta efectiva (también con dir_fd) antes de borrar."""
-
-    def guardada(ruta: Any, *args: Any, **kwargs: Any) -> Any:
-        motivo = ruta_prohibida(ruta_efectiva(ruta, kwargs.get("dir_fd")), repo=repo)
-        if motivo is not None:
-            raise BorradoProhibidoEnTests(f"{nombre} denegado en tests: {motivo}")
-        return original(ruta, *args, **kwargs)
-
-    for atributo in ("avoids_symlink_attacks",):
-        if hasattr(original, atributo):
-            setattr(guardada, atributo, getattr(original, atributo))
-    return guardada
-
-
-def envolver_renombrado(original: Callable[..., Any], nombre: str, *, repo: Path = REPO_TESTS) -> Callable[..., Any]:
-    """`os.rename`/`os.replace`: mover algo protegido equivale a borrarlo; pisarlo, también."""
-
-    def guardada(origen: Any, destino: Any, *args: Any, **kwargs: Any) -> Any:
-        for ruta, fd in ((origen, kwargs.get("src_dir_fd")), (destino, kwargs.get("dst_dir_fd"))):
-            motivo = ruta_prohibida(ruta_efectiva(ruta, fd), repo=repo)
-            if motivo is not None:
-                raise BorradoProhibidoEnTests(f"{nombre} denegado en tests: {motivo}")
-        return original(origen, destino, *args, **kwargs)
-
-    return guardada
-
-
-ORDENES_BORRADO = {"rm", "rmdir", "unlink", "shred", "srm"}
-
-
-def orden_de_borrado(args: Any, *, shell: bool = False) -> Optional[str]:
-    """Motivo si `args` (lo que recibe `subprocess.Popen`) es una orden de borrado; None si no."""
-
-    if isinstance(args, (str, bytes)) and (shell or " " in os.fsdecode(args)):
-        texto = os.fsdecode(args)
-        if re.search(r"(^|[;&|(`\s])(rm|rmdir|unlink|shred|srm)(\s|$)", texto) or "git clean" in texto or "-delete" in texto:
-            return f"orden de shell con borrado: {texto!r}"
-        return None
-    argv = [os.fsdecode(a) for a in ([args] if isinstance(args, (str, bytes, os.PathLike)) else list(args))]
-    if not argv:
-        return None
-    primero = os.path.basename(argv[0])
-    if primero in ORDENES_BORRADO:
-        return f"orden de borrado: {argv!r}"
-    if primero == "git" and "clean" in argv[1:]:
-        return f"git clean: {argv!r}"
-    if primero == "find" and "-delete" in argv:
-        return f"find -delete: {argv!r}"
-    if primero in {"sh", "bash", "zsh"} and "-c" in argv:
-        return orden_de_borrado(argv[argv.index("-c") + 1], shell=True) if argv.index("-c") + 1 < len(argv) else None
-    return None
-
-
-class _PopenGuardado(subprocess.Popen):  # type: ignore[type-arg]
-    def __init__(self, args: Any, *posicionales: Any, **kwargs: Any) -> None:
-        motivo = orden_de_borrado(args, shell=bool(kwargs.get("shell")))
-        if motivo is not None:
-            raise BorradoProhibidoEnTests(f"subprocess denegado en tests: {motivo}")
-        super().__init__(args, *posicionales, **kwargs)
+DIR_RED_HIJOS = Path(__file__).resolve().parent / "red_hijos"
 
 
 @pytest.fixture(autouse=True, scope="session")
 def _red_de_seguridad_de_borrado() -> Iterator[None]:
+    from tests import red_borrado
+
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(shutil, "rmtree", envolver_borrado(shutil.rmtree, "shutil.rmtree"))
-        mp.setattr(os, "remove", envolver_borrado(os.remove, "os.remove"))
-        mp.setattr(os, "unlink", envolver_borrado(os.unlink, "os.unlink"))
-        mp.setattr(os, "rmdir", envolver_borrado(os.rmdir, "os.rmdir"))
-        mp.setattr(os, "removedirs", envolver_borrado(os.removedirs, "os.removedirs"))
-        mp.setattr(os, "rename", envolver_renombrado(os.rename, "os.rename"))
-        mp.setattr(os, "replace", envolver_renombrado(os.replace, "os.replace"))
-        mp.setattr(subprocess, "Popen", _PopenGuardado)
+        red_borrado.instalar(mp.setattr)
+        previo = os.environ.get("PYTHONPATH")
+        mp.setenv("PYTHONPATH", os.pathsep.join([str(DIR_RED_HIJOS), *([previo] if previo else [])]))
+        mp.setenv("INTRADIA_RED_BORRADO_REPO", str(REPO_TESTS))
         yield
