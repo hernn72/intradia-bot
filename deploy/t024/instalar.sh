@@ -75,9 +75,9 @@ fi
 
 t024_group="$(id -gn "${T024_USER}")"
 
-# Artefactos, segunda copia (por defecto <artefactos>/copias/vintages) y data-dir fuera del worktree que ejecuta.
+# Artefactos, segunda copia (por defecto <artefactos>/copias/vintages), data-dir y log fuera del worktree que ejecuta.
 repo_real="$(realpath -m "${T024_REPO_DIR}")"
-for ruta in "${T024_ARTEFACTOS_DIR}" "${T024_ARTEFACTOS_DIR}/copias/vintages" "${T024_DATA_DIR}"; do
+for ruta in "${T024_ARTEFACTOS_DIR}" "${T024_ARTEFACTOS_DIR}/copias/vintages" "${T024_DATA_DIR}" "$(dirname "${T024_LOG}")"; do
   real="$(realpath -m "${ruta}")"
   case "${real}/" in
     "${repo_real}/"*)

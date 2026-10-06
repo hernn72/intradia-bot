@@ -785,8 +785,16 @@ def test_instalador_valida_rutas_como_el_wrapper(tmp_path: Path) -> None:
         "art_en_repo": (repo / "art", tmp_path / "data", 1),
         "data_en_repo": (tmp_path / "art", repo / "data", 1),
         "art_en_data": (tmp_path / "data" / "art", tmp_path / "data", 1),
+        "log_en_repo": (tmp_path / "art", tmp_path / "data", 1),
     }
     for nombre, (art, data, esperado) in casos.items():
-        entorno = {**os.environ, "T024_REPO_DIR": str(repo), "T024_ARTEFACTOS_DIR": str(art), "T024_DATA_DIR": str(data)}
+        log = repo / "logs" / "systemd.log" if nombre == "log_en_repo" else tmp_path / "art" / "logs" / "systemd.log"
+        entorno = {
+            **os.environ,
+            "T024_REPO_DIR": str(repo),
+            "T024_ARTEFACTOS_DIR": str(art),
+            "T024_DATA_DIR": str(data),
+            "T024_LOG": str(log),
+        }
         rc = subprocess.run(["bash", "-c", "set -euo pipefail\n" + bloque], env=entorno, capture_output=True, check=False).returncode
         assert rc == esperado, nombre
