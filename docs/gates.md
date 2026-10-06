@@ -313,6 +313,18 @@ gate no lo inicia ni lo desbloquea operativamente.)
 y no tiene ninguna candidata que validar. Reabrirlo exige investigación nueva, con ficha y
 pre-registro propios, que no cambia la etiqueta de P6.
 
+**Entrada a P7 (D-73, D-74):**
+- P7 solo recibe una **candidata nueva de P6-bis** (A-11), congelada, que antes haya superado una
+  evaluación de cartera pre-registrada y equivalente a GATE P6. Esa evaluación se hace sobre datos ya
+  consumidos (hasta el 2026-08-27), así que es desarrollo. La confirmación es P7.
+- **T-024 y T-025 no son P7 ni lo sustituyen.** Ninguno de los dos aporta candidatas ni datos de
+  holdout.
+- **Frontera temporal:** P7 empieza después de la congelación de la candidata **y** del `T1` de la
+  última mirada de T-024 (OD-T24-11). Solo usa sesiones cuyos desenlaces no hayan intervenido en el
+  diseño ni en la selección de la candidata, ni por T-024, ni por T-025, ni por P6-bis.
+- Toda observación cuyo desenlace se consulte durante T-025 queda consumida y no puede ser holdout
+  virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10).
+
 Requisitos:
 
 1. Ventanas de desarrollo, validación y holdout definidas **antes** de mirar
@@ -409,6 +421,11 @@ Requisitos:
    estimador primario e intervalos; sin tocar ninguna regla a mitad.
 4. Es la **única** validación no condicionada al universo 2026, porque las
    señales se generan sin conocer el futuro y sobre el universo vigente.
+
+Nota (D-74): el contrato de persistencia de T-025 (§5 de su ficha) cubre el registro por señal del
+requisito 2, salvo `context_state`, que llega con la línea B (B-07). T-025 construye ese
+registrador, pero **no es P10**: P10 exige la política, la cartera y el riesgo finales con un tag
+congelado.
 
 Desbloquea: release final y paquete de revisión externa.
 
