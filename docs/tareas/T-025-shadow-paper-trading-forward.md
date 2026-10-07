@@ -817,7 +817,8 @@ y datos sintéticos con posiciones abiertas, cerradas, `DATA_LOSS_SUSPENDED` y r
     agentes, mientras se quiera conservar como candidata a holdout;
   - **elegibilidad como holdout de P7 (OD-T25-12, cerrada en D-79: alternativa A, sin excepción a GATE
     P7):** una ventana `VIRGEN_REUTILIZABLE` solo es elegible como holdout de P7 para una candidata que estaba
-**completamente congelada antes de la primera sesión de esa ventana** (como mínimo: política, geometría,
+**completamente congelada antes de la primera sesión de esa ventana** (con 9 plazas: antes de la
+apertura más temprana, en cualquier plaza, de la fecha `sessions_from`) (como mínimo: política, geometría,
 entrada, salida, sizing, arquitectura de cartera, costes, universo aplicable, configuración y el código y
 la identidad que exija el pre-registro de P7). Su pre-registro de P7 cita la D-nn de cierre y la evidencia. Además, esas sesiones
     tienen que cumplir la frontera ordinaria de P7 (posteriores al `T1` de T-024 y sin intervenir en
@@ -1458,7 +1459,7 @@ P10) y la ficha de PAPER-001 (visibilidad parcial de T-024).
 
 ## Handoff al siguiente agente
 
-- **Estado:** pre-registro con todas las OD cerradas (D-75, D-77, D-78), la visibilidad parcial de
+- **Estado:** pre-registro con todas las OD cerradas (D-75, D-77, D-78, D-79), la visibilidad parcial de
   T-024 declarada (D-76) y las dos precisiones ratificadas (D-78).
 - **Verificado:**
   - inventario del código citado en §3, leído el 2026-10-06; la semántica de valoración de P6
@@ -1469,8 +1470,8 @@ P10) y la ficha de PAPER-001 (visibilidad parcial de T-024).
     declarado en D-76;
   - hashes de §0 leídos de `politicas-finales.json` y de `system-hashes.json`;
   - línea base de §0.
-- **Pendiente:** la congelación de `T025_PREREG_SHA` si la revisión final de OD-T25-12 queda con 0
-  BLOCKER y 0 IMPORTANTE (D-78 §5); la creación de
+- **Pendiente:** la congelación de `T025_PREREG_SHA` tras la revisión final, con 0 BLOCKER y 0
+  IMPORTANTE (D-78 §5); la creación de
   `t024/forward` (D-77, antes del primer cambio en los `EXECUTOR_PATHS` de `main` y antes del
   2026-11-21) y, con autorización aparte, la implementación (§16).
 - **Hallazgos:**
@@ -1588,7 +1589,7 @@ IMPORTANTES y MENORES de la ronda 4 resueltos; hallazgos nuevos introducidos por
 | `CLOSED` deducible de otras señales | MENOR (revisor) | Deja de evaluar en `CLOSING`; compromiso con nonce hasta desellar (§13) |
 | La apertura ex como sustituto del reajuste del proveedor | MENOR (revisor) | `observed_at` del propio split y escala dudosa fuera de la vista (§3.3) |
 | Frescura calculada sobre la descarga anulaba «observada»; texto de `decision_ts` en §5 | MENOR (revisor, Codex) | Frescura y calidad sobre la serie guardada (§7.1); §5 y §16 corregidos |
-| Estado de la ficha frente a OD-T25-10 | MENOR (revisor) | Estado explícito: OD-T25-10 y OD-T25-11 abiertas; si la congelación las espera lo decide el propietario |
+| Estado de la ficha frente a OD-T25-10 | MENOR (revisor) | Estado explícito: OD-T25-10 y OD-T25-11 abiertas (cerradas después en D-78); si la congelación las espera lo decide el propietario |
 | Test N/N+k solo en la CI de N+k; caída larga cuenta de golpe | OBSERVACIÓN | Redactados (§12, §8.7) |
 
 **Ronda 4c (confirmación final del `revisor`, sobre `9bb84d3`): APROBADO.** N-2 a N-6 resueltos;
@@ -1611,7 +1612,7 @@ Detalle en `evidence/2026-10-06-T-025-diseno/revision-ronda5.md`.
 | «Una caída larga se cuenta de golpe» contradecía D-78 | IMPORTANTE | Solo cuentan sesiones cerradas con el motor operativo; los plazos empiezan en la recuperación (§8.7); test |
 | `first_event_ts_utc` y el instante de `ENGINE_UNRUNNABLE` delataban la frontera | IMPORTANTE | Primera pasada programada de la época; instantes visibles administrativos; «último evento válido» sellado (§5, §13); test de §10.5 ampliado |
 | La equivalencia medía identidad de datos, no interpretación: un split o una barra provisional daba `FAIL` | IMPORTANTE | Comparación entre entornos si el viejo descarga; si no, invariantes de interpretación y diferencias aisladas explicadas (split observado, barra provisional de D-21), criterio fijado antes (§13) |
-| Reutilizar una ventana de P7 abandonada choca con el requisito 1 de GATE P7 | IMPORTANTE | **Exige decisión del propietario: OD-T25-12, abierta**; provisional, la lectura más estricta (§10.7, §17, `gates.md`). **Bloquea la congelación** |
+| Reutilizar una ventana de P7 abandonada choca con el requisito 1 de GATE P7 | IMPORTANTE | **Exigió decisión del propietario: OD-T25-12**, que entonces quedó abierta y bloqueó la congelación. _Resuelta por D-79: alternativa A, sin excepción a GATE P7._ |
 | Hashes deterministas del ledger en la evidencia visible | MENOR | Solo compromisos con nonce (§13) |
 | Causas de `SIGNAL_NOT_EVALUATED` incompletas | MENOR | `ERROR`, `LOCKED`, `IDENTITY_MISMATCH` y `FETCH_FAILURE` dentro de `ENGINE_DOWNTIME` (§5, §7.1) |
 | `DATA_NOT_EXECUTABLE` frente a la espera de 5 sesiones | MENOR | `DATA_NOT_EXECUTABLE` solo con barra presente e inválida; si falta, §7.2 (§8.7) |
@@ -1636,6 +1637,6 @@ abrieron dos IMPORTANTES, corregidos en el commit siguiente:
 resueltos, sin BLOCKER ni IMPORTANTE nuevos. **Defectos abiertos: BLOCKER 0 · IMPORTANTE 0 · MENOR 0.**
 Una observación sin cambio: un objeto que vuelve vacío por un fallo transitorio sin excepción, con el
 testigo correcto, avanzaría un plazo; acotado porque los plazos exigen varias sesiones y `yfinance`
-lanza excepción ante la limitación de peticiones. **Lo único que impide congelar `T025_PREREG_SHA` es
-OD-T25-12**, decisión del propietario.
+lanza excepción ante la limitación de peticiones. En ese momento, lo único que impedía congelar
+`T025_PREREG_SHA` era OD-T25-12. _(Resuelta por D-79: alternativa A, sin excepción a GATE P7.)_
 
