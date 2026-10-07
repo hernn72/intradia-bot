@@ -329,6 +329,8 @@ pre-registro propios, que no cambia la etiqueta de P6.
   (`paper_outcome_access`, `P7_HOLDOUT_QUERY`). T-025 sigue funcionando internamente (ficha §10.7).
 - **Exposición ex ante:** durante la ventana de P7 la información ex ante de T-025 sigue visible, como
   durante el embargo de T-024 (D-76). El pre-registro de P7 tiene que declararla.
+- Qué pasa con una ventana fijada que nunca se consulta es OD-T25-10, abierta; mientras tanto sigue
+  sellada.
 - Toda observación cuyo desenlace se consulte durante T-025 queda consumida y no puede ser holdout
   virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10.6).
 

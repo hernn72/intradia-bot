@@ -2170,7 +2170,9 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
    Telegram, Claude, Codex y cualquier agente. **C0 queda también sellado** en desenlaces y P&L durante
    el mismo embargo, por su solape con B2 y S2; su información ex ante puede guardarse y verse. Esto
    sustituye la regla provisional «C0 visible» de D-73 §2. La exposición de T-024 se registra en D-76.
-   - **Aplicación de la cláusula de canales laterales (revisión ronda 4):** el tamaño en unidades o en
+   - **Interpretación técnica del agente, no parte de la decisión; pendiente de ratificación del
+     propietario en la revisión final del PR #48** (las dos revisiones de la ronda 4 la consideran la
+     única lectura compatible con las dos listas): el tamaño en unidades o en
      EUR revela la equity, y el resultado por libro (`FILLED`, `IGNORED_ALREADY_OPEN`,
      `INSUFFICIENT_CASH`, `POSITION_TOO_SMALL`) revela el cash y si una posición anterior sigue abierta.
      Por eso se muestran en su forma por política: tamaño solicitado como fracción de la equity y
@@ -2236,6 +2238,9 @@ declaraciones mensuales del calendario o abandonar T-024). Sus reglas ya están 
 automático, sin descargas retrospectivas), y desde hoy se toman con esta exposición declarada. Cualquier
 ruptura del sellado de T-025 (vía extraordinaria) que afecte a B2, S2 o C0 durante el embargo se
 registra en una D-nn propia como pérdida adicional de ceguera de T-024.
+Las alertas de dato por activo de T-025 (por ejemplo, 20 sesiones sin datos), cruzadas con una señal
+`PASS` visible, permiten sospechar una posición suspendida sin confirmarla: es la misma inferencia
+exógena que permiten las señales y los precios públicos, no un dato de libro, y se declara aquí.
 
 ### D-77 — 2026-10-07 — OD-12 cerrada: T-024 vive en la línea Git dedicada `t024/forward`
 Decisión del propietario. T-024 tendrá una **línea Git dedicada y congelada**, independiente de la
@@ -2510,7 +2515,8 @@ demás**.
 - **Pregunta:** ¿cómo se sigue operando T-024 hasta su mirada final (corte 2027-08-27, más la cosecha
   decisiva) mientras el resto del proyecto cambia el código?
 - **Alternativas:**
-  - (a) **Línea dedicada de T-024:** una rama `t024/forward` desde `4170bb4` y un worktree propio en el
+  - (a) **Línea dedicada de T-024** _(elegida y concretada por D-77: desde el último commit compatible, y
+    `main` solo se fusiona en ella mientras siga siendo compatible)_: una rama `t024/forward` desde `4170bb4` y un worktree propio en el
     PC. Las declaraciones de calendario, la fase B y la mirada se hacen ahí. La evidencia llega a
     `main` por PR solo de evidencia, y nunca se fusiona `main` en esa línea.
   - (b) **Congelar los `EXECUTOR_PATHS` de `main`** hasta que T-024 termine, a finales de 2027.
@@ -2542,6 +2548,10 @@ Están en `docs/tareas/T-025-shadow-paper-trading-forward.md` §17, con el forma
 7. activo sin datos de forma prolongada;
 8. cohortes y versiones del motor;
 9. alcance del consumo y ventana sellada de P7.
+
+La revisión de la ronda 4 abrió **OD-T25-10** (estado de las sesiones de una ventana de P7 fijada y
+nunca consultada), **ABIERTA desde el 2026-10-07**, en la ficha §17; mientras no se decida, la ventana
+sigue sellada.
 
 **Bloqueaban** la congelación del pre-registro de T-025. Decisiones en D-75 (con D-76 para la
 visibilidad de T-024) y texto completo en la ficha §17. OD-T25-7 se cerró con una regla distinta de las

@@ -20,9 +20,11 @@ detalle operativo de cada tarea: eso vive en `docs/tareas/` y el método en
 
 ---
 
-## Estado verificado — 2026-10-06
+## Estado verificado — 2026-10-06 (actualizado el 2026-10-07)
 
-Comprobado contra el repositorio, la CI y la Pi el 2026-10-06.
+Comprobado contra el repositorio, la CI y la Pi el 2026-10-06. El 2026-10-07 se fusionó el PR #47
+(`main = f80ab28`, solo `docs/roadmap.md`) y el propietario cerró OD-T25-1..9 y OD-12 (D-75 a D-77);
+las filas que lo citan son de esa fecha.
 
 **Terminología (D-74).** La Pi es un **entorno de desarrollo/integración**, no producción. La
 producción real será el bot final cuando termine el proceso de validación (GATE P10 y F-01). Las filas
@@ -31,7 +33,7 @@ significa «la configuración desplegada en la Pi».
 
 | Qué | Valor |
 |---|---|
-| Rama / HEAD | **`main` en `4170bb4`** (merge del PR #46, T-024 contrato de captura forward + Pi 24/7). CI de `main` verde (3.12 y 3.13) |
+| Rama / HEAD | **`main` en `f80ab28`** desde el 2026-10-07 (merge del PR #47, solo documentación; el 2026-10-06 estaba en `4170bb4`, merge del PR #46, T-024 contrato de captura forward + Pi 24/7). CI de `main` verde (3.12 y 3.13) |
 | Tests / lint / tipos | 1430 pasan y 20 se saltan: 19 necesitan los CSV de `071ddb2b…`, perdidos el 2026-10-06, y 1 requiere `realpath -m` de GNU y corre en CI. `ruff check .` y `mypy advisor` limpios (79 ficheros). Python 3.12.13 |
 | Universo | 126 instrumentos, **93 analizables** |
 | Laboratorio | GATE P2–P6 cruzados. **P6 cerrado: B2 y S2 `NO PASA`, salida `[]` (D-70); P7 BLOQUEADO.** T-023 (diagnóstico post-P6) **cerrado**. **T-024** (edge relativo al drift, D-71/D-72) **preparado y automático**, en acumulación forward: `T024_PREREG_SHA` `dfcca0ef…`, `T024_CODE_SHA` `1a697c3…`. Los `EXECUTOR_PATHS` de `main` (`f80ab28`) siguen idénticos a `1a697c3`. Desde D-77 (OD-12) T-024 se operará desde la línea dedicada `t024/forward`, que todavía no existe; con visibilidad parcial ex ante del propietario declarada (D-76) |
@@ -387,9 +389,9 @@ Actualizado el 2026-10-06 con D-73 y D-74. La lista anterior (OA-01 a T-013 y P3
 
 | Orden | Trabajo | ¿Espera datos? |
 |---:|---|---|
-| 1 | **T-025: diseño y pre-registro propuesto** (S-01, D-74), con **OD-T25-1..9 y OD-12 cerradas** el 2026-10-07 (D-75, D-76, D-77), en el PR #48. Falta la revisión final del propietario y la congelación de `T025_PREREG_SHA` | No |
+| 1 | **T-025: diseño y pre-registro propuesto** (S-01, D-74), con **OD-T25-1..9 y OD-12 cerradas** el 2026-10-07 (D-75, D-76, D-77), en el PR #48. Falta la revisión final del propietario (con OD-T25-10, abierta en la ronda 4) y la congelación de `T025_PREREG_SHA` | No |
 | 1b | **Crear `t024/forward`** desde el último commit compatible (D-77) y mover a ella el worktree de la Pi con el procedimiento de D-77. Antes del primer cambio en los `EXECUTOR_PATHS` de `main` y antes del 2026-11-21 | No |
-| 2 | **Implementar T-025** con autorización aparte (ficha §16) y desplegarlo en la Pi como tag, en el checkout habitual y sin tocar el worktree de T-024 | No |
+| 2 | **Implementar T-025** con autorización aparte (ficha §16) y desplegarlo en la Pi como tag, en un worktree y un venv propios por versión del motor (nunca en el checkout habitual ni en el de T-024) | No |
 | 3 | **PAPER-001 v1** (P-01): ficha y plan hechos; siguiente, el esqueleto del manuscrito | No |
 | 4 | **C-06 backups** | No |
 | 5 | **Diseñar P6-bis** (A-11): fichas y pre-registros por bloque. Su código toca `advisor/`: antes de fusionarlo tiene que existir `t024/forward` (D-77) | No |
