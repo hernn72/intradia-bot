@@ -1,14 +1,14 @@
 # T-025 — Shadow/Paper Trading Forward diario: B2 y S2 operando en el tiempo, sin dinero real (S-01)
 
-Estado: **PRE-REGISTRO PROPUESTO, TODAS LAS OD CERRADAS (OD-T25-1..12), PENDIENTE DE CONGELAR.** El
-propietario cerró OD-T25-1 a OD-T25-9 (§17, D-75) y OD-12 (D-77), declaró la
-visibilidad parcial ex ante de T-024 (D-76) y, en D-78, cerró OD-T25-10 y OD-T25-11 y ratificó la
-visibilidad estricta (`MARKET_PASS` frente a `FILLED`) y los plazos de 5 y 20 sesiones. Por su decisión,
-`T025_PREREG_SHA` solo se congela si la revisión independiente final termina con 0 BLOCKER y 0
-IMPORTANTE. La revisión final (ronda 5) abrió OD-T25-12, que el propietario cerró en D-79 (alternativa
-A, sin excepción a GATE P7). La implementación necesita autorización aparte. No hay código, ni tablas, ni paper broker.
-No se ha descargado ningún dato forward ni observado ningún desenlace. B2, S2 y C0 no cambian. La Pi
-no se ha tocado.
+Estado: **PRE-REGISTRO CONGELADO (2026-10-07).** OD-T25-1 a OD-T25-12 CERRADAS (D-75, D-78, D-79),
+OD-12 cerrada (D-77), visibilidad parcial ex ante de T-024 declarada (D-76) y visibilidad estricta y
+plazos ratificados (D-78). Revisión final con 0 BLOCKER y 0 IMPORTANTE
+(`evidence/2026-10-07-T-025-prereg-final/`). **`T025_PREREG_SHA` = HEAD del commit de congelación** que
+añade esa carpeta (se identifica en el PR #48; el commit no puede contener su propio SHA). Desde ese
+commit, el pre-registro solo cambia mediante una D-nn del propietario que declare la enmienda. Las
+recomendaciones de la ficha son reglas vinculantes. La implementación necesita autorización aparte. No
+hay código, ni tablas, ni paper broker. No se ha descargado ningún dato forward ni observado ningún
+desenlace. B2, S2 y C0 no cambian. La Pi no se ha tocado.
 
 Agente: Opus (diseño) → revisión independiente → propietario (OD) → revisión final → congelación.
 Línea / fase: S-01 (línea S, velocidad «bot», D-73).
@@ -1470,8 +1470,7 @@ P10) y la ficha de PAPER-001 (visibilidad parcial de T-024).
     declarado en D-76;
   - hashes de §0 leídos de `politicas-finales.json` y de `system-hashes.json`;
   - línea base de §0.
-- **Pendiente:** la congelación de `T025_PREREG_SHA` tras la revisión final, con 0 BLOCKER y 0
-  IMPORTANTE (D-78 §5); la creación de
+- **Pendiente:** la revisión del PR #48 por el propietario; la creación de
   `t024/forward` (D-77, antes del primer cambio en los `EXECUTOR_PATHS` de `main` y antes del
   2026-11-21) y, con autorización aparte, la implementación (§16).
 - **Hallazgos:**
@@ -1639,4 +1638,10 @@ Una observación sin cambio: un objeto que vuelve vacío por un fallo transitori
 testigo correcto, avanzaría un plazo; acotado porque los plazos exigen varias sesiones y `yfinance`
 lanza excepción ante la limitación de peticiones. En ese momento, lo único que impedía congelar
 `T025_PREREG_SHA` era OD-T25-12. _(Resuelta por D-79: alternativa A, sin excepción a GATE P7.)_
+
+**Revisión final del pre-registro (2026-10-07, tras D-79).** `revisor` (APROBADO) y Codex sobre
+`fef0429`, y confirmación de Codex sobre `4efcba1`. Un IMPORTANTE (el historial de la ronda 5 presentaba
+OD-T25-12 como abierta) y cuatro MENORES de texto, corregidos. **Recuento final: 0 BLOCKER · 0
+IMPORTANTE · 0 MENOR.** Detalle en `evidence/2026-10-07-T-025-prereg-final/revision-final.md`. Se
+congela el pre-registro.
 

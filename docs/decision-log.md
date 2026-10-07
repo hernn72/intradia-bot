@@ -2393,6 +2393,12 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 Con esta decisión, **todas las OD de T-025 (OD-T25-1..12) quedan cerradas** (D-75, D-78 y D-79).
 Ficha §10.7 y §17; `docs/gates.md`, GATE P7.
 
+**Congelación (2026-10-07).** La revisión final de coherencia (`revisor` y Codex) terminó con 0 BLOCKER
+y 0 IMPORTANTE, como exige D-78 §5. **El pre-registro de T-025 queda congelado: `T025_PREREG_SHA` = HEAD
+del commit de congelación** que añade `evidence/2026-10-07-T-025-prereg-final/` (se identifica en el PR
+#48). Desde entonces solo cambia mediante una D-nn que declare la enmienda. T-025 no está implementado
+ni ejecutado.
+
 **Lo que no cambia:** GATE P7 y su requisito 1; B2, S2 y C0; T-024 y `T024_CODE_SHA`; la Pi.
 
 ## OWNER_DECISION_REQUIRED
