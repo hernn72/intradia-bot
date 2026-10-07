@@ -1018,8 +1018,9 @@ Nada de esto se hace en esta entrega.
    - patrón de D-21: la barra europea guardada a las 21:00 hace vinculante la pasada de las 07:00;
    - una caída de la Pi de 7 sesiones no declara barras ausentes ni hace correr el plazo de 20;
    - MAE y MFE de una posición que atraviesa un split;
-   - el motor N lee y escribe sobre el esquema N+k; dos worktrees concurrentes: el segundo espera el
-     lock;
+   - el motor N lee y escribe sobre el esquema N+k; ante un valor de referencia desconocido escrito
+     por N+k (por ejemplo, en `paper_corporate_action` o `paper_data_alert`) **falla cerrado**: se
+     detiene sin escribir, no lo ignora; dos worktrees concurrentes: el segundo espera el lock;
    - `CLOSING` cancela las órdenes pendientes; `CLOSED` no se publica durante un sellado;
    - el compromiso de sellado cambia en cada ejecución aunque no haya filas selladas nuevas;
    - `paper/` se niega a abrir una base sin su `application_id`;
@@ -1397,3 +1398,9 @@ IMPORTANTES y MENORES de la ronda 4 resueltos; hallazgos nuevos introducidos por
 | Frescura calculada sobre la descarga anulaba «observada»; texto de `decision_ts` en §5 | MENOR (revisor, Codex) | Frescura y calidad sobre la serie guardada (§7.1); §5 y §16 corregidos |
 | Estado de la ficha frente a OD-T25-10 | MENOR (revisor) | Estado explícito: OD-T25-10 y OD-T25-11 abiertas; si la congelación las espera lo decide el propietario |
 | Test N/N+k solo en la CI de N+k; caída larga cuenta de golpe | OBSERVACIÓN | Redactados (§12, §8.7) |
+
+**Ronda 4c (confirmación final del `revisor`, sobre `9bb84d3`): APROBADO.** N-2 a N-6 resueltos;
+OD-T25-11 recoge N-1 y su provisional no abre ningún defecto. **Recuento final de defectos abiertos:
+BLOCKER 0 · IMPORTANTE 0 · MENOR 0.** Una observación (el motor N falla cerrado ante un valor de
+referencia desconocido), incorporada al test de §16. Quedan decisiones del propietario: OD-T25-10,
+OD-T25-11, si la congelación las espera, y ratificar §10.2 y los plazos de §8.7.

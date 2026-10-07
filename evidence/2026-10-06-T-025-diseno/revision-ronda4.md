@@ -103,3 +103,14 @@ OD-T25-10. Nuevos:
 - **Observaciones:** test N/N+k en la CI de N+k y caída larga contada de golpe (**redactadas**).
 
 Recuento del `revisor` sobre `264f845`: BLOCKER 0 · IMPORTANTE 2 · MENOR 4 · OBSERVACIÓN 2.
+
+## Ronda 4c — confirmación final del `revisor` sobre `9bb84d3`
+
+**APROBADO.** N-2 a N-6 resueltos (§5, §12, §13, §3.3, §7.1, estado de la ficha). OD-T25-11 recoge N-1
+correctamente; su provisional C no fabrica salidas, no hace correr plazos, su `IDENTITY_MISMATCH` es igual
+para todos los libros y no bloquea cohortes nuevas. Ningún BLOCKER ni IMPORTANTE nuevo. Observación: el
+test N/N+k debe incluir un valor de referencia desconocido y N debe fallar cerrado (**incorporado**).
+
+**Recuento final de defectos abiertos: BLOCKER 0 · IMPORTANTE 0 · MENOR 0 · OBSERVACIÓN 0** (la única,
+incorporada). Decisiones pendientes del propietario: OD-T25-10, OD-T25-11, si la congelación espera a
+ambas, ratificar §10.2 y ratificar los plazos de §8.7.
