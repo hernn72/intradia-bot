@@ -28,6 +28,7 @@ desarrollo consumido. Resultado: B2 10.577, S2 2.440, C0 2.423; S2 ⊂ B2 y C0 �
 | `revision-ronda2.md` | Los mismos revisores sobre `4eeb9a1`: sin BLOCKER; 3 IMPORTANTES nuevos (vista con splits, A-07, visibilidad) |
 | La ficha, sección «Revisión independiente del diseño» | La ronda 3 (Codex, sobre `6a75bcf`): 1 IMPORTANTE (los instantes de la señal), corregido |
 | `revision-ronda4.md` | Codex y `revisor` sobre `ce45c4e`, tras D-75..D-77: 0 BLOCKER; 6 IMPORTANTES y 11 MENORES corregidos; OD-T25-10 abierta |
+| `revision-ronda5.md` | Revisión final tras D-78 (Codex y `revisor`) y sus confirmaciones: defectos abiertos 0/0/0; **OD-T25-12 abierta, sin congelar** |
 | `verificacion.txt` | Salida de `pytest -q`, `ruff check .`, `mypy advisor`, del diff de `EXECUTOR_PATHS` y de `verificar_identidad()` |
 
 Línea base antes de tocar nada (`0918cb3`): 1430 pasan y 20 se saltan; `ruff` y `mypy` limpios.

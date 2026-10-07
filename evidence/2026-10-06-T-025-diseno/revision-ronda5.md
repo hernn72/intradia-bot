@@ -65,3 +65,11 @@ antes de la primera sesión de la ventana) cumple GATE P7 sin abrir defecto. Nue
 
 Recuento sobre `2ac2c97`: BLOCKER 0 · IMPORTANTE 2 · MENOR 1 · OBSERVACIÓN 1, más OD-T25-12 (decisión del
 propietario, no defecto).
+
+## Cierre del `revisor` sobre `cdd002b`: APROBADO
+
+N-1, N-2 y el MENOR resueltos; sin BLOCKER ni IMPORTANTE nuevos. Observación sin cambio (objeto vacío
+por fallo transitorio sin excepción, con testigo correcto: avanzaría un plazo; riesgo acotado).
+
+**Recuento final de defectos abiertos: BLOCKER 0 · IMPORTANTE 0 · MENOR 0 · OBSERVACIÓN 1.** La
+congelación de `T025_PREREG_SHA` queda bloqueada solo por **OD-T25-12** (decisión del propietario).

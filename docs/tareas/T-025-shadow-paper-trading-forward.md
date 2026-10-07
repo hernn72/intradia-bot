@@ -1626,3 +1626,10 @@ abrieron dos IMPORTANTES, corregidos en el commit siguiente:
   normalizada por los dos (§13); test.
 - **MENOR:** `gates.md` decía «solo con sesiones futuras» sin remitir a la excepción. **Corregido.**
 
+**Cierre de la ronda 5 (`revisor`, sobre `cdd002b`): APROBADO.** N-1, N-2 y el MENOR de `gates.md`
+resueltos, sin BLOCKER ni IMPORTANTE nuevos. **Defectos abiertos: BLOCKER 0 · IMPORTANTE 0 · MENOR 0.**
+Una observación sin cambio: un objeto que vuelve vacío por un fallo transitorio sin excepción, con el
+testigo correcto, avanzaría un plazo; acotado porque los plazos exigen varias sesiones y `yfinance`
+lanza excepción ante la limitación de peticiones. **Lo único que impide congelar `T025_PREREG_SHA` es
+OD-T25-12**, decisión del propietario.
+
