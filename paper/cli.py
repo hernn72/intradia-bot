@@ -93,7 +93,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         from paper.universe import load_p6_universe
 
         provider: Provider = MarketDataProvider()
-        pass_ts = args.pass_ts if args.pass_ts.tzinfo else args.pass_ts.replace(tzinfo=timezone.utc)
+        pass_ts = (args.pass_ts if args.pass_ts.tzinfo else args.pass_ts.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
         report = run_pass(store, load_p6_universe(), provider, pass_ts=pass_ts, clock=_now, code_sha=git_head(),
                           environment=current_environment(), envs=policy_envs(("B2", "S2", "C0")),
                           identity_ok=code_identity_ok, source_run_id=args.source_run_id)

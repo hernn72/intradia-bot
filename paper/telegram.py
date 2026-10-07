@@ -23,10 +23,14 @@ def shadow_message(store: PaperStore, *, session: Optional[str] = None) -> str:
     signals = visible_signals(store, since=session)
     if session:
         signals = [s for s in signals if s["signal_session_date"] == session]
-    latest: Dict[tuple, Dict[str, Any]] = {}
+    # La última evaluación de cada sesión manda (la vinculante, o la más reciente si aún no hay apertura): una
+    # pasada posterior que dice «no OPERAR» retira la señal.
+    newest: Dict[tuple, Dict[str, Any]] = {}
     for item in signals:
-        if item["operar"]:
-            latest[(item["policy"], item["symbol"], item["signal_session_date"])] = item
+        key = (item["policy"], item["symbol"], item["signal_session_date"])
+        if key not in newest or item["pass_scheduled_ts"] >= newest[key]["pass_scheduled_ts"]:
+            newest[key] = item
+    latest = {key: item for key, item in newest.items() if item["operar"]}
     lines: List[str] = [f"🧪 {LABEL}"]
     if not latest:
         lines.append("Sin señales OPERAR de B2-P6, S2-P6 ni C0-P6.")

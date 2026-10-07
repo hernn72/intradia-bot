@@ -26,7 +26,7 @@ REFERENCE_DOMAINS: Dict[str, Tuple[str, ...]] = {
     "downtime_cause": ("ENGINE_DOWNTIME",),
     "data_alert_kind": (
         "BAR_MISSING", "ENTRY_BAR_DECLARED_MISSING", "NO_DATA_20_SESSIONS", "DATA_RESUMED", "FX_MISSING",
-        "SCALE_CHANGE_UNEXPLAINED", "LATE_BAR", "LATE_DIVIDEND", "FETCH_FAILURE",
+        "SCALE_CHANGE_UNEXPLAINED", "LATE_BAR", "LATE_DIVIDEND", "FETCH_FAILURE", "NON_SESSION_ROW",
     ),
     "corporate_action_kind": ("DIVIDEND", "SPLIT", "TERMINAL"),
     "terminal_kind": ("", "DELISTING_CASH", "LIQUIDATION", "CASH_MERGER"),
@@ -115,6 +115,21 @@ FACT_TABLES: Dict[str, str] = {
         decision_ref TEXT NOT NULL,
         equivalence_commitment TEXT NOT NULL,
         PRIMARY KEY (cohort_id, epoch_no)
+    """,
+    "paper_run_start": """
+        paper_run_id TEXT PRIMARY KEY,
+        run_seq INTEGER NOT NULL UNIQUE,
+        pass_scheduled_ts TEXT NOT NULL,
+        started_at TEXT NOT NULL
+    """,
+    "paper_run_decision": """
+        paper_run_id TEXT PRIMARY KEY REFERENCES paper_run_start(paper_run_id),
+        run_seq INTEGER NOT NULL UNIQUE,
+        pass_scheduled_ts TEXT NOT NULL,
+        data_cutoff_ts TEXT NOT NULL,
+        decision_ts TEXT NOT NULL,
+        late_before TEXT NOT NULL,
+        fetch_failure INTEGER NOT NULL
     """,
     "paper_run": f"""
         paper_run_id TEXT PRIMARY KEY,
@@ -382,13 +397,6 @@ FACT_TABLES: Dict[str, str] = {
         state_sha256 TEXT NOT NULL,
         PRIMARY KEY (cohort_id, run_seq)
     """,
-    "paper_engine_checkpoint": """
-        cohort_id TEXT NOT NULL,
-        run_seq INTEGER NOT NULL,
-        state_blob BLOB NOT NULL,
-        state_sha256 TEXT NOT NULL,
-        PRIMARY KEY (cohort_id, run_seq)
-    """,
     "paper_seal_nonce": """
         cohort_id TEXT NOT NULL,
         paper_run_id TEXT NOT NULL,
@@ -432,12 +440,24 @@ FACT_TABLES: Dict[str, str] = {
 }
 
 
+# Caché del estado del motor: NO es un hecho. Una fila por cohorte, reemplazable, verificada contra el
+# ``state_sha256`` (append-only) de ``paper_cohort_progress``; si no cuadra, se descarta y se repite desde cero.
+CACHE_TABLES: Dict[str, str] = {
+    "paper_engine_state_cache": """
+        cohort_id TEXT PRIMARY KEY,
+        run_seq INTEGER NOT NULL,
+        state_json_zlib BLOB NOT NULL,
+        state_sha256 TEXT NOT NULL
+    """,
+}
+
+
 def _migration_v1() -> List[str]:
     statements: List[str] = []
     for domain, values in REFERENCE_DOMAINS.items():
         statements.append(f"CREATE TABLE paper_ref_{domain} (value TEXT PRIMARY KEY)")
         statements.extend(f"INSERT INTO paper_ref_{domain}(value) VALUES ('{value}')" for value in values)
-    for table, body in FACT_TABLES.items():
+    for table, body in {**FACT_TABLES, **CACHE_TABLES}.items():
         statements.append(f"CREATE TABLE {table} ({body})")
     for table in [*FACT_TABLES, *(f"paper_ref_{d}" for d in REFERENCE_DOMAINS)]:
         statements.append(
@@ -474,7 +494,8 @@ def migrate(conn: sqlite3.Connection) -> int:
         return current
     for version in range(current + 1, SCHEMA_VERSION + 1):
         additive, description, statements = MIGRATIONS[version]
-        with conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
             for statement in statements:
                 conn.execute(statement)
             conn.execute(
@@ -482,4 +503,8 @@ def migrate(conn: sqlite3.Connection) -> int:
                 (version, int(additive), description),
             )
             conn.execute(f"PRAGMA user_version = {version}")
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+        conn.execute("COMMIT")
     return SCHEMA_VERSION

@@ -4,49 +4,65 @@ Cada avance de una cohorte se escribe en una sola transacción (más estricta qu
 entero o no entra. Las filas de hechos llevan un ``content_sha256`` sobre su contenido económico; reescribir
 una clave con otro contenido es ``ERROR_DIVERGENCIA``.
 
-El estado del motor se guarda como checkpoint (``pickle``) con su sha256 en ``paper_cohort_progress``; la
-reconstrucción completa desde las ejecuciones registradas (``paper.audit``) lo verifica.
+El estado del motor se guarda como JSON canónico comprimido (nunca ``pickle``) en una **caché** de una fila
+por cohorte, que no es un hecho: solo se usa si su sha256 coincide con el ``state_sha256`` append-only de la
+última ejecución en ``paper_cohort_progress``. Si no, se descarta y el estado se reconstruye repitiendo la
+secuencia registrada, comprobando que regenera exactamente lo escrito (``paper.audit`` lo verifica desde cero).
 """
 
 from __future__ import annotations
 
 import hashlib
-import pickle
+import json
+import zlib
 from dataclasses import asdict
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
-from paper.engine_v1 import AdvanceResult, Engine
+from paper.engine_v1 import AdvanceResult, Engine, EngineSpec, engine_from_state, engine_to_state
 from paper.store import PaperStore, canonical, content_sha256
 
 META = ("run_seq", "content_sha256")
 
 
-def engine_blob(engine: Engine) -> Tuple[bytes, str]:
-    view, result = engine._view, engine._result
-    engine._view = None
-    try:
-        blob = pickle.dumps(engine, protocol=4)
-    finally:
-        engine._view, engine._result = view, result
-    return blob, hashlib.sha256(blob).hexdigest()
+class ReplayMismatch(RuntimeError):
+    """La repetición de una ejecución no regenera lo escrito: el estado no se puede restaurar."""
 
 
-def load_engine(store: PaperStore, cohort_id: str) -> Tuple[Optional[Engine], int]:
-    row = store.one(
-        "SELECT c.run_seq, c.state_blob, c.state_sha256, p.state_sha256 AS expected FROM paper_engine_checkpoint c "
-        "JOIN paper_cohort_progress p ON p.cohort_id = c.cohort_id AND p.run_seq = c.run_seq "
-        "WHERE c.cohort_id = ? ORDER BY c.run_seq DESC LIMIT 1", (cohort_id,),
-    )
-    if row is None:
-        return None, 0
-    blob = bytes(row["state_blob"])
-    digest = hashlib.sha256(blob).hexdigest()
-    if digest != row["state_sha256"] or digest != row["expected"]:
-        raise RuntimeError(f"{cohort_id}: checkpoint del motor corrupto (sha256 no cuadra)")
-    engine = pickle.loads(blob)
-    if not isinstance(engine, Engine):
-        raise RuntimeError(f"{cohort_id}: checkpoint no es un Engine")
-    return engine, int(row["run_seq"])
+def state_digest(engine: Engine) -> Tuple[str, str]:
+    text = canonical(engine_to_state(engine))
+    return text, hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def restore_engine(store: PaperStore, spec: EngineSpec, cohort_id: str, rebuild_view: Any) -> Engine:
+    """Estado del libro al final de su última ejecución.
+
+    Primero la caché, si su sha256 cuadra con el ``state_sha256`` (append-only) de esa ejecución en
+    ``paper_cohort_progress`` y es la última. Si no, se descarta y se repite desde cero toda la secuencia
+    registrada, comprobando en cada ejecución que regenera lo escrito y su ``state_sha256``.
+    """
+
+    last = store.one("SELECT run_seq, state_sha256 FROM paper_cohort_progress WHERE cohort_id = ? ORDER BY run_seq DESC LIMIT 1",
+                     (cohort_id,))
+    if last is None:
+        return Engine(spec)
+    cached = store.one("SELECT * FROM paper_engine_state_cache WHERE cohort_id = ?", (cohort_id,))
+    if cached is not None and int(cached["run_seq"]) == int(last["run_seq"]):
+        text = zlib.decompress(bytes(cached["state_json_zlib"])).decode("utf-8")
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        if digest == cached["state_sha256"] == last["state_sha256"]:
+            return engine_from_state(spec, json.loads(text))
+    engine = Engine(spec)
+    for run in store.rows(
+        "SELECT d.*, p.state_sha256 AS expected FROM paper_cohort_progress p JOIN paper_run_decision d ON d.run_seq = p.run_seq "
+        "WHERE p.cohort_id = ? ORDER BY p.run_seq", (cohort_id,),
+    ):
+        result = engine.advance(rebuild_view(run))
+        stored = {int(r["seq"]): r["row_json"] for r in store.rows(
+            "SELECT seq, row_json FROM paper_ledger WHERE cohort_id = ? AND run_seq = ?", (cohort_id, run["run_seq"]))}
+        regenerated = {int(r["seq"]): canonical(r) for r in result.rows}
+        if stored != regenerated or state_digest(engine)[1] != run["expected"]:
+            raise ReplayMismatch(f"{cohort_id}: la ejecución {run['run_seq']} no se reproduce")
+    return engine
 
 
 def _next(store: PaperStore, table: str, column: str, cohort_id: str) -> int:
@@ -139,15 +155,22 @@ def _derived(store: PaperStore, cohort_id: str, row: Dict[str, Any]) -> None:
 
 def persist_progress(store: PaperStore, cohort_id: str, run_seq: int, paper_run_id: str, result: AdvanceResult,
                      engine: Engine) -> str:
-    blob, digest = engine_blob(engine)
+    text, digest = state_digest(engine)
     frontier = result.frontier
-    store.insert("paper_engine_checkpoint", {"cohort_id": cohort_id, "run_seq": run_seq, "state_blob": blob,
-                 "state_sha256": digest}, ("cohort_id", "run_seq"))
+    counters = dict(engine.counters)
+    if result.late_signals:
+        counters["late_signals"] = len(result.late_signals)
     store.insert("paper_cohort_progress", {
         "cohort_id": cohort_id, "run_seq": run_seq, "paper_run_id": paper_run_id,
         "frontier_ts_utc": frontier[0].isoformat() if frontier else "",
         "frontier_key": canonical([frontier[0].isoformat(), frontier[1], frontier[2]]) if frontier else "",
         "stop_reason": result.stop_reason, "stalled_on": canonical(list(result.stalled_on)),
-        "counters_json": canonical(engine.counters), "state_sha256": digest,
+        "counters_json": canonical(counters), "state_sha256": digest,
     }, ("cohort_id", "run_seq"))
+    store.conn.execute(
+        "INSERT OR REPLACE INTO paper_engine_state_cache (cohort_id, run_seq, state_json_zlib, state_sha256) VALUES (?, ?, ?, ?)",
+        (cohort_id, run_seq, zlib.compress(text.encode("utf-8"), 9), digest),
+    )
     return digest
+
+

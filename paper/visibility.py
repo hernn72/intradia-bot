@@ -29,7 +29,7 @@ from paper.store import PaperStore, canonical, sha256_text
 SEALED_TABLES = (
     "paper_ledger", "paper_signal_disposition", "paper_order", "paper_entry_decision", "paper_position",
     "paper_position_event", "paper_equity_snapshot", "paper_trade_outcome", "paper_cohort_progress",
-    "paper_run_diagnostic", "paper_seal_nonce", "paper_engine_checkpoint",
+    "paper_run_diagnostic", "paper_seal_nonce", "paper_engine_state_cache",
 )
 VISIBLE_EVALUATION_FIELDS = (
     "policy_id", "signal_id", "symbol", "market", "signal_session_date", "pass_scheduled_ts", "analysis_timestamp",
@@ -107,16 +107,16 @@ def visible_signals(store: PaperStore, *, since: Optional[str] = None) -> List[D
         where = "WHERE e.signal_session_date >= ?"
         params.append(since)
     rows = store.rows(
-        f"SELECT e.*, c.policy_id AS cohort_policy FROM paper_signal_evaluation e "
+        f"SELECT e.*, c.t025_code_sha AS code_sha FROM paper_signal_evaluation e "
         f"JOIN paper_cohort c ON c.cohort_id = e.cohort_id {where} "
         "ORDER BY e.signal_session_date, e.symbol, e.policy_id, e.pass_scheduled_ts", params,
     )
-    checks = {(r["policy_id"], r["signal_id"]): r for r in store.rows("SELECT * FROM paper_open_check")}
+    checks = {(r["policy_id"], r["t025_code_sha"], r["signal_id"]): r for r in store.rows("SELECT * FROM paper_open_check")}
     out = []
     for row in rows:
         item = {f: row[f] for f in VISIBLE_EVALUATION_FIELDS}
         item["policy"] = POLICY_DISPLAY.get(row["policy_id"], row["policy_id"])
-        check = checks.get((row["policy_id"], row["signal_id"]))
+        check = checks.get((row["policy_id"], row["code_sha"], row["signal_id"]))
         for field in VISIBLE_OPEN_CHECK_FIELDS:
             item[field] = check[field] if check is not None else None
         out.append(item)

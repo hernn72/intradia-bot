@@ -59,6 +59,7 @@ from advisor.research.p6_sim import (
     Snapshot,
     Trade,
     _trade,
+    check_ledger_flows,
     tiebreak_key,
     utc_iso,
 )
@@ -256,6 +257,10 @@ class Engine:
         self.late_dividends_done: Set[Tuple[str, int]] = set()
         self.seen_signals: Set[str] = set()
         self.awaiting_outcome: List[PaperPosition] = []
+        self.applied_splits: Set[Tuple[str, int]] = set()
+        self.bh_eve_units: Dict[Tuple[str, int], float] = {}
+        self.bh_dividend_settled: Dict[Tuple[str, int], bool] = {}
+        self.bh_late_done: Set[Tuple[str, int]] = set()
         self.cancelled_closing = False
         self.unrunnable_done = False
         self.counters: Dict[str, int] = {}
@@ -268,6 +273,7 @@ class Engine:
         self.last_key: Optional[EventKey] = None
         self._view: Optional[EngineView] = None
         self._result = AdvanceResult()
+        self._cash_at_start = self.cash
 
     # ------------------------------------------------------------------ utilidades
 
@@ -411,6 +417,7 @@ class Engine:
 
         self._view = view
         self._result = AdvanceResult()
+        self._cash_at_start = self.cash
         if view.unrunnable:
             self._unrunnable()
             self._result.stop_reason = STOP_UNRUNNABLE
@@ -459,8 +466,19 @@ class Engine:
             self.last_key = event.sort_key()
             position += 1
         self._emit_outcomes()
+        self._check_identities()
         self._result.frontier = self.last_key
         return self._result
+
+    def _check_identities(self) -> None:
+        """Identidades contables de P6 §19 en cada avance: el cash encadena con los flujos de cada fila y el
+        cash final es el del libro; ``cash ≥ 0``. Si falla, la ejecución aborta (§12)."""
+
+        final = check_ledger_flows(self._result.rows, self._cash_at_start)
+        if abs(final - self.cash) > ACCOUNTING_TOLERANCE_EUR * max(1.0, len(self._result.rows)):
+            raise AccountingError(f"cash del libro {self.cash} ≠ cash del ledger {final}")
+        if self.cash < -ACCOUNTING_TOLERANCE_EUR:
+            raise AccountingError(f"cash negativo ({self.cash})")
 
     def _emit_outcomes(self) -> None:
         """El desenlace de una posición cerrada se fija cuando ya no le queda ningún dividendo con derecho por
@@ -479,6 +497,7 @@ class Engine:
 
     def _before_event(self, event: _Event) -> None:
         if self.spec.kind == KIND_POLICY:
+            self._late_splits(event)
             self._terminal_exits(event)
         closing_at = self.view.closing_at
         if closing_at is not None and event.at >= closing_at and not self.cancelled_closing:
@@ -613,11 +632,28 @@ class Engine:
             )
             self.position_event(at, OPEN_ENTRY, held, EV_OPEN, units_after=units, effective_price=eff)
 
-    def _split_adjust(self, held: PaperPosition, event: _Event) -> None:
+    def _late_splits(self, event: _Event) -> None:
+        """Un split observado después de procesar su apertura ex se aplica en la frontera, marcado ``late``,
+        sin reescribir nada (§8.6, §12). Lo normal es que la barra ex espere al split (escala dudosa en la
+        ingesta), así que este camino es la red de seguridad."""
+
+        for held in sorted(self.positions.values(), key=lambda item: item.position_id):
+            series = self.view.assets[held.asset]
+            key = f"{series.meta.market}|{held.asset}"
+            for index in sorted(series.splits):
+                if (held.asset, index) in self.applied_splits or index <= held.entry_index:
+                    continue
+                if index >= len(series.open_utc) or self.last_key is None:
+                    continue
+                if (series.open_utc[index], PHASE_RANK[OPEN_EXIT], key) <= self.last_key:
+                    self._split_adjust(held, _Event(event.at, event.phase, key, held.asset, index), late=True)
+
+    def _split_adjust(self, held: PaperPosition, event: _Event, *, late: bool = False) -> None:
         series = self.view.assets[event.asset]
         ratio = series.splits.get(event.index)
-        if ratio is None or held.entry_index >= event.index:
+        if ratio is None or held.entry_index >= event.index or (event.asset, event.index) in self.applied_splits:
             return
+        self.applied_splits.add((event.asset, event.index))
         before = held.units
         held.units *= ratio
         for name in ("stop", "target2", "entry_eff", "market_entry", "mark_price"):
@@ -626,12 +662,13 @@ class Engine:
         held.max_high /= ratio
         held.split_factor *= ratio
         self.write(
-            event.at, OPEN_EXIT, "SPLIT_ADJUST", market=series.meta.market, asset=event.asset,
+            event.at, event.phase if late else OPEN_EXIT, "SPLIT_ADJUST", late=late, market=series.meta.market, asset=event.asset,
             session_date=str(series.session_dates[event.index]), signal_id=held.signal_id, position_id=held.position_id,
             cash_before=self.cash, cash_after=self.cash, units_before=before, units_after=held.units,
             currency=held.currency, reason=f"SPLIT_{ratio:g}", stop=held.stop, target2=held.target2,
         )
-        self.position_event(event.at, OPEN_EXIT, held, EV_SPLIT_ADJUST, units_before=before, units_after=held.units, ratio=ratio)
+        self.position_event(event.at, OPEN_EXIT, held, EV_SPLIT_ADJUST, units_before=before, units_after=held.units, ratio=ratio,
+                            late=int(late))
 
     def _track_range(self, held: PaperPosition, series: AssetView, i: int) -> None:
         held.min_low = min(held.min_low, series.low[i])
@@ -736,9 +773,16 @@ class Engine:
         series = self.view.assets[event.asset]
         key = (event.asset, event.index)
         entries = self.entitlements.pop(key, [])
-        self.dividend_settled[key] = series.dividends.get(event.index, 0.0) > 0
+        dividend_now = series.dividends.get(event.index, 0.0)
+        self.dividend_settled[key] = dividend_now > 0
         for held, dividend in entries:
             self._credit(held, dividend, held.units, event, late=False)
+        if not entries and dividend_now > 0 and key not in self.late_dividends_done:
+            # Conocido después de procesar su apertura ex (la frontera se detuvo a mitad de la barra): mismo
+            # derecho, con las unidades de la víspera, marcado ``late``.
+            self.late_dividends_done.add(key)
+            for held, units in self.eve_units.get(key, []):
+                self._credit(held, dividend_now, units, event, late=True)
         self._late_dividends(event)
 
     def _late_dividends(self, event: _Event) -> None:
@@ -846,23 +890,28 @@ class Engine:
         if event.phase == OPEN_EXIT and series is not None:
             held = self.holdings.get(event.asset)
             dividend = series.dividends.get(event.index, 0.0)
+            if held is not None:
+                self.bh_eve_units[(event.asset, event.index)] = held.units
             if held is not None and dividend > 0:
                 self.bh_entitlements[(event.asset, event.index)] = held.units * dividend
         elif event.phase == CLOSE_DIVIDEND and series is not None:
-            amount_local = self.bh_entitlements.pop((event.asset, event.index), 0.0)
+            key = (event.asset, event.index)
+            amount_local = self.bh_entitlements.pop(key, 0.0)
+            dividend_now = series.dividends.get(event.index, 0.0)
+            self.bh_dividend_settled[key] = dividend_now > 0
             if amount_local > 0:
-                quote = self.view.fx.quote(series.meta.currency, event.at)
-                amount_eur = amount_local * quote.rate_to_eur
-                cash_before = self.cash
-                self.cash += amount_eur
-                self.dividends += amount_eur
-                self.reinvest[event.asset] = self.reinvest.get(event.asset, 0.0) + amount_eur
-                self.write(
-                    event.at, CLOSE_DIVIDEND, "BH_DIVIDEND", market=series.meta.market, asset=event.asset,
-                    session_date=str(series.session_dates[event.index]), cash_before=cash_before, cash_after=self.cash,
-                    currency=series.meta.currency, fx_pair=quote.pair, fx_rate=quote.rate_to_eur,
-                    fx_timestamp_available=utc_iso(quote.available_at), dividend_base=amount_eur, reason="DIVIDENDO_BRUTO",
-                )
+                self._bh_credit(series, event, amount_local, late=False)
+            elif dividend_now > 0 and key in self.bh_eve_units and key not in self.bh_late_done:
+                self.bh_late_done.add(key)
+                self._bh_credit(series, event, self.bh_eve_units[key] * dividend_now, late=True)
+            for index, dividend in sorted(series.dividends.items()):
+                late_key = (event.asset, index)
+                if index >= event.index or dividend <= 0 or late_key in self.bh_late_done:
+                    continue
+                if self.bh_dividend_settled.get(late_key, True) or late_key not in self.bh_eve_units:
+                    continue
+                self.bh_late_done.add(late_key)
+                self._bh_credit(series, event, self.bh_eve_units[late_key] * dividend, late=True)
         elif event.phase == CLOSE_VALUATION and series is not None:
             held = self.holdings.get(event.asset)
             if held is not None:
@@ -870,6 +919,20 @@ class Engine:
         elif event.phase == SNAPSHOT:
             assert event.day is not None
             self._snapshot(event.day, event.at)
+
+    def _bh_credit(self, series: AssetView, event: _Event, amount_local: float, *, late: bool) -> None:
+        quote = self.view.fx.quote(series.meta.currency, event.at)
+        amount_eur = amount_local * quote.rate_to_eur
+        cash_before = self.cash
+        self.cash += amount_eur
+        self.dividends += amount_eur
+        self.reinvest[event.asset] = self.reinvest.get(event.asset, 0.0) + amount_eur
+        self.write(
+            event.at, CLOSE_DIVIDEND, "BH_DIVIDEND", late=late, market=series.meta.market, asset=event.asset,
+            session_date=str(series.session_dates[event.index]), cash_before=cash_before, cash_after=self.cash,
+            currency=series.meta.currency, fx_pair=quote.pair, fx_rate=quote.rate_to_eur,
+            fx_timestamp_available=utc_iso(quote.available_at), dividend_base=amount_eur, reason="DIVIDENDO_BRUTO",
+        )
 
     def _bh_entry(self, event: _Event) -> None:
         if event.asset not in self.first_buy_done:
@@ -942,3 +1005,128 @@ def outcome_of(position: PaperPosition) -> Outcome:
     mae = (position.min_low - position.entry_eff) * position.units / risk_local if math.isfinite(position.min_low) else 0.0
     mfe = (position.max_high - position.entry_eff) * position.units / risk_local if math.isfinite(position.max_high) else 0.0
     return Outcome(trade=trade, mae_R=mae, mfe_R=mfe)
+
+
+# ---------------------------------------------------------------------------- estado persistible (JSON, sin pickle)
+
+_POSITION_DATETIMES = ("entry_ts", "exit_ts")
+
+
+def _dt(value: Optional[str]) -> Optional[datetime]:
+    return datetime.fromisoformat(value) if value else None
+
+
+def _num(value: float) -> Any:
+    return None if not math.isfinite(value) else value
+
+
+def _position_state(position: PaperPosition) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    for name in PaperPosition.__dataclass_fields__:
+        value = getattr(position, name)
+        if isinstance(value, datetime):
+            value = value.isoformat()
+        elif isinstance(value, float):
+            value = _num(value) if name in ("min_low", "max_high") else value
+        out[name] = value
+    return out
+
+
+def _position_from(state: Mapping[str, Any]) -> PaperPosition:
+    values = dict(state)
+    for name in _POSITION_DATETIMES:
+        values[name] = _dt(values.get(name))
+    values["min_low"] = math.inf if values.get("min_low") is None else values["min_low"]
+    values["max_high"] = -math.inf if values.get("max_high") is None else values["max_high"]
+    return PaperPosition(**values)
+
+
+def _signal_state(signal: Signal) -> Dict[str, Any]:
+    return {"signal_id": signal.signal_id, "asset": signal.asset, "bar_index": signal.bar_index,
+            "analysis_ts": signal.analysis_ts.isoformat(), "stop": signal.stop, "target2": signal.target2,
+            "entry_max": signal.entry_max}
+
+
+def _signal_from(state: Mapping[str, Any]) -> Signal:
+    return Signal(state["signal_id"], state["asset"], int(state["bar_index"]), datetime.fromisoformat(state["analysis_ts"]),
+                  float(state["stop"]), float(state["target2"]), float(state["entry_max"]))
+
+
+def engine_to_state(engine: Engine) -> Dict[str, Any]:
+    """Estado completo del libro en JSON canónico (tipos explícitos; nunca ``pickle``)."""
+
+    registry: Dict[str, PaperPosition] = {}
+    for position in [*engine.positions.values(), *engine.closed, *engine.awaiting_outcome]:
+        registry[position.position_id] = position
+    for entries in [*engine.entitlements.values(), *engine.eve_units.values()]:
+        for position, _value in entries:
+            registry[position.position_id] = position
+
+    def pairs(mapping: Mapping[Tuple[str, int], List[Tuple[PaperPosition, float]]]) -> List[Any]:
+        return [[asset, index, [[p.position_id, v] for p, v in entries]] for (asset, index), entries in sorted(mapping.items())]
+
+    return {
+        "schema": "paper.engine_v1.state.v1",
+        "cash": engine.cash,
+        "positions_registry": {pid: _position_state(p) for pid, p in sorted(registry.items())},
+        # Listas en el orden de inserción: las sumas de equity recorren ese orden (equivalencia bit a bit).
+        "open": [[asset, p.position_id] for asset, p in engine.positions.items()],
+        "closed": [p.position_id for p in engine.closed],
+        "awaiting_outcome": [p.position_id for p in engine.awaiting_outcome],
+        "pending": [[asset, _signal_state(s)] for asset, s in engine.pending.items()],
+        "holdings": [[a, h.currency, h.units, h.mark_price] for a, h in engine.holdings.items()],
+        "first_buy_done": sorted(engine.first_buy_done),
+        "reinvest": dict(sorted(engine.reinvest.items())),
+        "bh_entitlements": [[a, i, v] for (a, i), v in sorted(engine.bh_entitlements.items())],
+        "entitlements": pairs(engine.entitlements),
+        "eve_units": pairs(engine.eve_units),
+        "dividend_settled": [[a, i, v] for (a, i), v in sorted(engine.dividend_settled.items())],
+        "late_dividends_done": sorted([a, i] for a, i in engine.late_dividends_done),
+        "seen_signals": sorted(engine.seen_signals),
+        "applied_splits": sorted([a, i] for a, i in engine.applied_splits),
+        "bh_eve_units": [[a, i, v] for (a, i), v in sorted(engine.bh_eve_units.items())],
+        "bh_dividend_settled": [[a, i, v] for (a, i), v in sorted(engine.bh_dividend_settled.items())],
+        "bh_late_done": sorted([a, i] for a, i in engine.bh_late_done),
+        "cancelled_closing": engine.cancelled_closing,
+        "unrunnable_done": engine.unrunnable_done,
+        "counters": dict(sorted(engine.counters.items())),
+        "totals": [engine.notional, engine.fees, engine.slippage, engine.dividends],
+        "seq": engine.seq,
+        "position_seq": engine.position_seq,
+        "last_key": [engine.last_key[0].isoformat(), engine.last_key[1], engine.last_key[2]] if engine.last_key else None,
+    }
+
+
+def engine_from_state(spec: EngineSpec, state: Mapping[str, Any]) -> Engine:
+    if state.get("schema") != "paper.engine_v1.state.v1":
+        raise ValueError("estado del motor con un esquema desconocido")
+    engine = Engine(spec)
+    registry = {pid: _position_from(p) for pid, p in state["positions_registry"].items()}
+    engine.cash = float(state["cash"])
+    engine.positions = {asset: registry[pid] for asset, pid in state["open"]}
+    engine.closed = [registry[pid] for pid in state["closed"]]
+    engine.awaiting_outcome = [registry[pid] for pid in state["awaiting_outcome"]]
+    engine.pending = {asset: _signal_from(s) for asset, s in state["pending"]}
+    engine.holdings = {a: _Holding(a, cur, float(units), float(mark)) for a, cur, units, mark in state["holdings"]}
+    engine.first_buy_done = set(state["first_buy_done"])
+    engine.reinvest = {a: float(v) for a, v in state["reinvest"].items()}
+    engine.bh_entitlements = {(a, int(i)): float(v) for a, i, v in state["bh_entitlements"]}
+    engine.entitlements = {(a, int(i)): [(registry[pid], float(v)) for pid, v in e] for a, i, e in state["entitlements"]}
+    engine.eve_units = {(a, int(i)): [(registry[pid], float(v)) for pid, v in e] for a, i, e in state["eve_units"]}
+    engine.dividend_settled = {(a, int(i)): bool(v) for a, i, v in state["dividend_settled"]}
+    engine.late_dividends_done = {(a, int(i)) for a, i in state["late_dividends_done"]}
+    engine.seen_signals = set(state["seen_signals"])
+    engine.applied_splits = {(a, int(i)) for a, i in state["applied_splits"]}
+    engine.bh_eve_units = {(a, int(i)): float(v) for a, i, v in state["bh_eve_units"]}
+    engine.bh_dividend_settled = {(a, int(i)): bool(v) for a, i, v in state["bh_dividend_settled"]}
+    engine.bh_late_done = {(a, int(i)) for a, i in state["bh_late_done"]}
+    engine.cancelled_closing = bool(state["cancelled_closing"])
+    engine.unrunnable_done = bool(state["unrunnable_done"])
+    engine.counters = {k: int(v) for k, v in state["counters"].items()}
+    engine.notional, engine.fees, engine.slippage, engine.dividends = (float(v) for v in state["totals"])
+    engine.seq = int(state["seq"])
+    engine.position_seq = int(state["position_seq"])
+    key = state["last_key"]
+    engine.last_key = (datetime.fromisoformat(key[0]), int(key[1]), str(key[2])) if key else None
+    engine._cash_at_start = engine.cash
+    return engine

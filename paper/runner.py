@@ -19,16 +19,15 @@ from __future__ import annotations
 import traceback
 import uuid
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
 from paper import ENGINE_VERSION
 from paper.contract import contract_from_row
-from paper.engine_v1 import Engine
 from paper.environment import Environment, cohort_state, environment_matches, latest_epoch, set_state
 from paper.ingest import Ingestor, Provider
 from paper.inputs import build_view, ts
-from paper.persist import load_engine, persist_advance, persist_progress
+from paper.persist import persist_advance, persist_progress, restore_engine
 from paper.schema import SCHEMA_VERSION
 from paper.signals import PolicyEnv, evaluate_pass, not_evaluated, open_checks, write_evaluations
 from paper.store import PaperStore, canonical
@@ -52,21 +51,32 @@ class RunReport:
 
 
 def _record_downtime(store: PaperStore, pass_ts: datetime, now: datetime) -> Optional[datetime]:
-    """Pasadas programadas entre la última ejecución y esta sin ejecución completa → ``ENGINE_DOWNTIME``.
-    Devuelve la última pasada perdida (``late_before``) o ``None``."""
+    """Cada pasada programada sin decisión confirmada desde la última que sí la tuvo → ``ENGINE_DOWNTIME``
+    (una fila por pasada perdida). Devuelve la última pasada perdida (``late_before``) o ``None``."""
 
-    last = store.one("SELECT pass_scheduled_ts FROM paper_run WHERE status = 'OK' ORDER BY run_seq DESC LIMIT 1")
+    last = store.one("SELECT pass_scheduled_ts FROM paper_run_decision ORDER BY run_seq DESC LIMIT 1")
     if last is None:
         return None
     previous = ts(last["pass_scheduled_ts"])
-    missed = list(scheduled_passes(previous + timedelta(seconds=1), pass_ts - timedelta(seconds=1)))
-    if not missed:
-        return None
+    decided = {r["pass_scheduled_ts"] for r in store.rows("SELECT pass_scheduled_ts FROM paper_run_decision")}
+    missed = [p for p in scheduled_passes(previous + timedelta(seconds=1), pass_ts - timedelta(seconds=1))
+              if p.isoformat() not in decided]
+    for moment in missed:
+        _downtime(store, "ALL", moment, "SIN_EJECUCION", now)
+    # Todo evento anterior a la última pasada perdida que se procese a partir de ahora es procesamiento
+    # tardío (§8.7), aunque la barra que lo bloqueaba llegue varias ejecuciones después de la recuperación.
+    row = store.one(
+        "SELECT MAX(from_scheduled_pass) AS m FROM paper_engine_downtime WHERE scope = 'ALL' AND from_scheduled_pass < ?",
+        (pass_ts.isoformat(),),
+    )
+    return ts(row["m"]) if row is not None and row["m"] else None
+
+
+def _downtime(store: PaperStore, scope: str, moment: datetime, subcause: str, now: datetime) -> None:
     store.insert_first("paper_engine_downtime", {
-        "scope": "ALL", "from_scheduled_pass": missed[0].isoformat(), "to_scheduled_pass": missed[-1].isoformat(),
-        "cause": "ENGINE_DOWNTIME", "subcause": "SIN_EJECUCION", "detected_at": now.isoformat(),
+        "scope": scope, "from_scheduled_pass": moment.isoformat(), "to_scheduled_pass": moment.isoformat(),
+        "cause": "ENGINE_DOWNTIME", "subcause": subcause, "detected_at": now.isoformat(),
     }, ("scope", "from_scheduled_pass"))
-    return missed[-1]
 
 
 def _data_alerts(store: PaperStore, universe: PaperUniverse, *, start: date, now: datetime) -> None:
@@ -110,14 +120,38 @@ def _finish(store: PaperStore, report: RunReport, *, source_run_id: str, started
         }, ("paper_run_id",))
 
 
+def view_builder(store: PaperStore, universe: PaperUniverse, contract: Any, cohort_id: str) -> Callable[[Any], Any]:
+    """Vista de una ejecución registrada (``paper_run_decision``), la misma en la ejecución y en el replay."""
+
+    def build(run: Any) -> Any:
+        late = ts(run["late_before"]) if run["late_before"] else None
+        view, _infos = build_view(store, universe, contract, cohort_id, cutoff=ts(run["decision_ts"]),
+                                  limit=ts(run["pass_scheduled_ts"]), late_before=late, scope=cohort_id)
+        return view
+
+    return build
+
+
 def run_pass(store: PaperStore, universe: PaperUniverse, provider: Provider, *, pass_ts: datetime,
              clock: Callable[[], datetime], code_sha: str, environment: Environment,
              envs: Mapping[str, PolicyEnv], identity_ok: Callable[[str], bool], source_run_id: str = "",
              evaluator: Any = None, lock_wait_seconds: float = 1200.0) -> RunReport:
+    pass_ts = pass_ts.astimezone(timezone.utc)
     with store.lock(lock_wait_seconds):
+        done = store.one(
+            "SELECT paper_run_id, run_seq, status, decision_ts FROM paper_run WHERE pass_scheduled_ts = ? AND status = 'OK' "
+            "ORDER BY run_seq DESC LIMIT 1", (pass_ts.isoformat(),),
+        )
+        if done is not None:
+            # Una pasada ya completada no se repite: se devuelve sin escribir nada (idempotencia operativa).
+            return RunReport(done["paper_run_id"], int(done["run_seq"]), "ALREADY_DONE", pass_ts, ts(done["decision_ts"]))
         started = clock()
         paper_run_id = str(uuid.uuid4())
-        run_seq = store.next_run_seq()
+        with store.transaction():
+            row = store.one("SELECT COALESCE(MAX(run_seq), 0) AS m FROM paper_run_start")
+            run_seq = int(row["m"]) + 1 if row else 1
+            store.insert("paper_run_start", {"paper_run_id": paper_run_id, "run_seq": run_seq,
+                         "pass_scheduled_ts": pass_ts.isoformat(), "started_at": started.isoformat()}, ("paper_run_id",))
         report = RunReport(paper_run_id, run_seq, "OK", pass_ts)
         cohorts = store.rows("SELECT * FROM paper_cohort ORDER BY policy_id")
         if not cohorts:
@@ -128,75 +162,102 @@ def run_pass(store: PaperStore, universe: PaperUniverse, provider: Provider, *, 
             late_before = _record_downtime(store, pass_ts, started)
             ingest = Ingestor(store, universe, provider, now=started, paper_run_id=paper_run_id, start=start).run()
             if ingest.fetch_failure:
-                store.insert_first("paper_engine_downtime", {
-                    "scope": "ALL", "from_scheduled_pass": pass_ts.isoformat(), "to_scheduled_pass": pass_ts.isoformat(),
-                    "cause": "ENGINE_DOWNTIME", "subcause": "FETCH_FAILURE", "detected_at": started.isoformat(),
-                }, ("scope", "from_scheduled_pass"))
+                # Caída del motor: no avanza ningún plazo, pero no impide confirmar evaluaciones con lo guardado.
+                _downtime(store, "ALL", pass_ts, "FETCH_FAILURE", started)
             else:
                 _data_alerts(store, universe, start=start, now=started)
         data_cutoff = clock()
-        manifest = {"ingest": ingest.__dict__, "environment": {"python": environment.python_version,
-                                                               "packages_sha256": environment.packages_sha256}}
-        if ingest.fetch_failure:
-            report.status = "FETCH_FAILURE"
-            _finish(store, report, source_run_id=source_run_id, started=started, data_cutoff=data_cutoff,
-                    late_before=late_before, code_sha=code_sha, clock=clock, manifest=manifest)
-            return report
+        manifest: Dict[str, Any] = {"ingest": ingest.__dict__, "environment": {
+            "python": environment.python_version, "packages_sha256": environment.packages_sha256,
+            "requirements_sha256": environment.requirements_sha256}}
 
-        policy_cohorts = {c["policy_id"]: c["cohort_id"] for c in cohorts if c["kind"] == "POLICY"}
-        rows = evaluate_pass(store, universe, policy_cohorts, envs, pass_ts=pass_ts, now=data_cutoff, start=start,
+        # Compuertas antes de evaluar: estado, identidad del código y entorno de la época (§13, D-78).
+        gates: Dict[str, str] = {}
+        with store.transaction():
+            for cohort in cohorts:
+                cohort_id = cohort["cohort_id"]
+                contract = contract_from_row(dict(cohort))
+                state = cohort_state(store, cohort_id)
+                if state not in RUNNABLE_STATES and state != "ENGINE_UNRUNNABLE":
+                    gates[cohort_id] = state
+                elif not identity_ok(contract.t025_code_sha):
+                    gates[cohort_id] = "IDENTITY_MISMATCH"
+                elif state != "ENGINE_UNRUNNABLE" and not environment_matches(store, cohort_id, environment):
+                    set_state(store, cohort_id, "ENVIRONMENT_INVESTIGATION", at=data_cutoff,
+                              reason="entorno distinto del de la época vigente (D-78)")
+                    gates[cohort_id] = "ENVIRONMENT_INVESTIGATION"
+                else:
+                    gates[cohort_id] = state
+                evaluable = gates[cohort_id] == "ACTIVE"
+                if cohort["kind"] == "POLICY" and not evaluable:
+                    _downtime(store, cohort_id, pass_ts, f"COHORTE_{gates[cohort_id]}", data_cutoff)
+
+        evaluable_cohorts = {c["policy_id"]: c["cohort_id"] for c in cohorts
+                             if c["kind"] == "POLICY" and gates[c["cohort_id"]] == "ACTIVE"}
+        rows = evaluate_pass(store, universe, evaluable_cohorts, envs, pass_ts=pass_ts, now=data_cutoff, start=start,
                              paper_run_id=paper_run_id, source_run_id=source_run_id, evaluator=evaluator)
         with store.transaction():
             decision_ts = clock()
             report.evaluations = write_evaluations(store, rows, decision_ts)
             report.decision_ts = decision_ts
+            store.insert("paper_run_decision", {
+                "paper_run_id": paper_run_id, "run_seq": run_seq, "pass_scheduled_ts": pass_ts.isoformat(),
+                "data_cutoff_ts": data_cutoff.isoformat(), "decision_ts": decision_ts.isoformat(),
+                "late_before": late_before.isoformat() if late_before else "", "fetch_failure": int(ingest.fetch_failure),
+            }, ("paper_run_id",))
         with store.transaction():
-            report.open_checks = open_checks(store, universe, policy_cohorts, envs, code_sha, now=decision_ts, start=start,
-                                             paper_run_id=paper_run_id)
+            report.open_checks = open_checks(store, universe, evaluable_cohorts, envs, code_sha, now=decision_ts,
+                                             start=start, paper_run_id=paper_run_id)
+            policy_cohorts = {c["policy_id"]: c["cohort_id"] for c in cohorts if c["kind"] == "POLICY"}
             not_evaluated(store, universe, policy_cohorts, now=decision_ts, start=start)
 
+        if ingest.fetch_failure:
+            report.status = "FETCH_FAILURE"
         for cohort in cohorts:
             cohort_id = cohort["cohort_id"]
-            contract = contract_from_row(dict(cohort))
-            state = cohort_state(store, cohort_id)
-            if state not in RUNNABLE_STATES and state != "ENGINE_UNRUNNABLE":
-                report.cohorts[cohort["policy_id"]] = state
-                continue
-            if not identity_ok(contract.t025_code_sha):
-                report.cohorts[cohort["policy_id"]] = "IDENTITY_MISMATCH"
-                continue
-            if state != "ENGINE_UNRUNNABLE" and not environment_matches(store, cohort_id, environment):
+            gate = gates[cohort_id]
+            runnable = gate in RUNNABLE_STATES or gate == "ENGINE_UNRUNNABLE"
+            if ingest.fetch_failure or not runnable:
+                report.cohorts[cohort["policy_id"]] = "FETCH_FAILURE" if ingest.fetch_failure else gate
+            else:
+                report.cohorts[cohort["policy_id"]] = _advance_cohort(
+                    store, universe, cohort, run_seq=run_seq, paper_run_id=paper_run_id, decision_ts=decision_ts,
+                    report=report)
+            if is_sealed(store, cohort_id):
                 with store.transaction():
-                    set_state(store, cohort_id, "ENVIRONMENT_INVESTIGATION", at=decision_ts,
-                              reason="entorno distinto del de la época vigente (D-78)")
-                report.cohorts[cohort["policy_id"]] = "ENVIRONMENT_INVESTIGATION"
-                continue
-            try:
-                engine, _last = load_engine(store, cohort_id)
-                engine = engine or Engine(contract.engine_spec())
-                view, _infos = build_view(store, universe, contract, cohort_id, cutoff=decision_ts, limit=pass_ts,
-                                          late_before=late_before)
-                result = engine.advance(view)
-                epoch = latest_epoch(store, cohort_id)
-                epoch_no = int(epoch["epoch_no"]) if epoch else 0
-                with store.transaction():
-                    persist_advance(store, cohort_id, run_seq, epoch_no, result, engine)
-                    persist_progress(store, cohort_id, run_seq, paper_run_id, result, engine)
-                    if is_sealed(store, cohort_id):
-                        write_commitment(store, cohort_id, paper_run_id)
-                report.cohorts[cohort["policy_id"]] = "OK"
-            except Exception as exc:
-                report.status = "ERROR"
-                report.cohorts[cohort["policy_id"]] = "ERROR"
-                with store.transaction():
-                    store.insert_first("paper_run_diagnostic", {
-                        "paper_run_id": paper_run_id, "cohort_id": cohort_id, "code": type(exc).__name__,
-                        "detail_json": canonical({"error": str(exc), "traceback": traceback.format_exc()}),
-                    }, ("paper_run_id", "cohort_id", "code"))
+                    write_commitment(store, cohort_id, paper_run_id)
         manifest["cohorts"] = report.cohorts
         _finish(store, report, source_run_id=source_run_id, started=started, data_cutoff=data_cutoff,
                 late_before=late_before, code_sha=code_sha, clock=clock, manifest=manifest)
         return report
+
+
+def _advance_cohort(store: PaperStore, universe: PaperUniverse, cohort: Any, *, run_seq: int, paper_run_id: str,
+                    decision_ts: datetime, report: RunReport) -> str:
+    cohort_id = cohort["cohort_id"]
+    contract = contract_from_row(dict(cohort))
+    build = view_builder(store, universe, contract, cohort_id)
+    try:
+        engine = restore_engine(store, contract.engine_spec(), cohort_id, build)
+        decision = store.one("SELECT * FROM paper_run_decision WHERE paper_run_id = ?", (paper_run_id,))
+        result = engine.advance(build(decision))
+        epoch = latest_epoch(store, cohort_id)
+        epoch_no = int(epoch["epoch_no"]) if epoch else 0
+        with store.transaction():
+            persist_advance(store, cohort_id, run_seq, epoch_no, result, engine)
+            persist_progress(store, cohort_id, run_seq, paper_run_id, result, engine)
+            if cohort_state(store, cohort_id) == "CLOSING" and not engine.pending and all(
+                    p.non_evaluable for p in engine.positions.values()):
+                set_state(store, cohort_id, "CLOSED", at=decision_ts, reason="cierre ordinario completado")
+        return "OK"
+    except Exception as exc:
+        report.status = "ERROR"
+        with store.transaction():
+            store.insert_first("paper_run_diagnostic", {
+                "paper_run_id": paper_run_id, "cohort_id": cohort_id, "code": type(exc).__name__,
+                "detail_json": canonical({"error": str(exc), "traceback": traceback.format_exc()}),
+            }, ("paper_run_id", "cohort_id", "code"))
+        return "ERROR"
 
 
 def init_cohorts(store: PaperStore, contracts: List[Any], environment: Environment, *, now: datetime,

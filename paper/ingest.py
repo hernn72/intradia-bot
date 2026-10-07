@@ -27,7 +27,9 @@ from paper.universe import FX_MARKET, PaperUniverse, closed_by, sessions
 WITNESS = ("^VIX", "EURUSD=X")
 WARMUP_DAYS = 760
 OVERLAP_DAYS = 21
-SCALE_TOLERANCE = 1e-6
+RESCALE_THRESHOLD = 0.2  # un cambio de escala real; las revisiones menores de un cierre no lo son
+SPLIT_LIKE = (2.0, 3.0, 4.0, 5.0, 10.0, 1.5, 1 / 2, 1 / 3, 1 / 4, 1 / 5, 1 / 10, 2 / 3)
+SPLIT_LIKE_TOLERANCE = 0.01
 PROVIDER = "yfinance:get_raw_history:auto_adjust=False"
 
 
@@ -191,6 +193,10 @@ class Ingestor:
             if stamp.tzinfo is None:
                 stamp = stamp.tz_localize("UTC")
             day = _session_of(stamp, market)
+            if market != FX_MARKET and day not in sessions(market, day, day):
+                # Fila en un día que no es sesión de la plaza: se descarta y se avisa a nivel de dato.
+                self._alert(symbol, "NON_SESSION_ROW", day)
+                continue
             actions.append((day, bar))
             if not closed_by(market, day, self.now, self.universe.settlement_minutes):
                 continue  # barra no cerrada: nunca se guarda (sus acciones corporativas sí se conocen ya)
@@ -221,7 +227,7 @@ class Ingestor:
                     received.add(day.isoformat())
             return received
         vigente = _vigente(self.store, symbol)
-        doubtful = self._scale_doubtful(symbol, rows, vigente, actions)
+        doubtful_from = self._scale_doubtful(symbol, rows, vigente, actions)
         for day, bar in actions:
             for column, action_kind in (("Dividends", "DIVIDEND"), ("Stock Splits", "SPLIT")):
                 value = float(bar.get(column, 0.0) or 0.0)
@@ -229,32 +235,43 @@ class Ingestor:
                     self._corporate_action(symbol, action_kind, day, value, currency)
         for day, stamp, bar in rows:
             values = [float(bar[c]) for c in ("Open", "High", "Low", "Close")]
-            if not all(math.isfinite(v) for v in values):
+            if not all(math.isfinite(v) for v in values) or day.isoformat() in vigente:
                 continue
-            inserted = self.store.insert_first(
-                "paper_bar_observation",
-                {"data_symbol": symbol, "session_date": day.isoformat(), "bar_timestamp": stamp.isoformat(),
-                 "open": values[0], "high": values[1], "low": values[2], "close": values[3],
-                 "volume": float(bar.get("Volume", 0.0) or 0.0), "observed_at": self.observed_at,
-                 "provider": PROVIDER, "request": "start/end", "scale_doubtful": int(doubtful)},
-                ("data_symbol", "session_date"),
+            doubtful = doubtful_from is not None and day >= doubtful_from
+            any_row = self.store.one(
+                "SELECT 1 FROM paper_bar_observation WHERE data_symbol = ? AND session_date = ?", (symbol, day.isoformat()))
+            if doubtful and any_row is not None:
+                continue  # una sola fila dudosa por sesión; una observación coherente posterior sí entra
+            self.store.conn.execute(
+                "INSERT INTO paper_bar_observation (data_symbol, session_date, bar_timestamp, open, high, low, close, volume, "
+                "observed_at, provider, request, scale_doubtful) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (symbol, day.isoformat(), stamp.isoformat(), *values, float(bar.get("Volume", 0.0) or 0.0),
+                 self.observed_at, PROVIDER, "start/end", int(doubtful)),
             )
-            if inserted and not doubtful:
+            if not doubtful:
                 received.add(day.isoformat())
         return received
 
     def _scale_doubtful(self, symbol: str, rows: Sequence[Tuple[date, pd.Timestamp, Any]], vigente: Dict[str, Any],
-                        actions: Sequence[Tuple[date, Any]] = ()) -> bool:
-        """Cambio de escala frente a lo guardado que ningún split explica (§3.3, §8.6). Cada barra solapada se
-        compara con la guardada multiplicada por los splits con fecha ex posterior a su sesión que la guardada
-        todavía no reflejaba (observados después que ella, o nuevos en esta respuesta). Si no cuadra, la
-        respuesta entera queda de escala dudosa: no entra en la vista de señal ni en la de ejecución."""
+                        actions: Sequence[Tuple[date, Any]] = ()) -> Optional[date]:
+        """Primera sesión de esta respuesta en escala dudosa (§3.3, §8.6), o ``None``.
+
+        1. **Solape.** Cada barra ya guardada se compara con la nueva multiplicada por los splits con fecha ex
+           posterior que la guardada todavía no reflejaba. Solo un cambio de escala real (más del 20 %) que
+           ningún split explica hace dudosa la respuesta entera; una revisión menor del cierre no es un cambio
+           de escala (manda la primera observación).
+        2. **Salto de split no publicado.** Entre barras consecutivas de la misma respuesta, una apertura que
+           salta en un factor de split (±1 %) sin un split observado en esa sesión hace dudosa esa barra y las
+           siguientes: la posición la trata como dato ausente (``SCALE_MISMATCH``) hasta que llega el split.
+        """
 
         known = [(date.fromisoformat(r["ex_date"]), float(r["ratio"]), r["observed_at"]) for r in self.store.rows(
             "SELECT ex_date, ratio, observed_at FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'SPLIT'", (symbol,))]
-        new = [(day, float(bar.get("Stock Splits", 0.0) or 0.0)) for day, bar in actions]
-        new_splits = [(day, ratio) for day, ratio in new if ratio > 0 and not any(k[0] == day for k in known)]
-        mismatches = 0
+        new_splits = [(day, float(bar.get("Stock Splits", 0.0) or 0.0)) for day, bar in actions
+                      if float(bar.get("Stock Splits", 0.0) or 0.0) > 0]
+        split_days = {d for d, _r, _o in known} | {d for d, _r in new_splits}
+        overlap = 0
+        rescaled = 0
         for day, _stamp, bar in rows:
             old = vigente.get(day.isoformat())
             close = float(bar["Close"])
@@ -265,14 +282,25 @@ class Ingestor:
                 if ex_date > day and observed > old["observed_at"]:
                     expected *= ratio
             for ex_date, ratio in new_splits:
-                if ex_date > day:
+                if ex_date > day and not any(k[0] == ex_date for k in known):
                     expected *= ratio
-            if abs(float(old["close"]) / close / expected - 1.0) > 1e-4:
-                mismatches += 1
-        if not mismatches:
-            return False
-        self._alert(symbol, "SCALE_CHANGE_UNEXPLAINED", rows[-1][0])
-        return True
+            overlap += 1
+            if abs(float(old["close"]) / close / expected - 1.0) > RESCALE_THRESHOLD:
+                rescaled += 1
+        if overlap and rescaled * 2 >= overlap:
+            self._alert(symbol, "SCALE_CHANGE_UNEXPLAINED", rows[-1][0])
+            return min(day for day, _s, _b in rows if day.isoformat() not in vigente) if any(
+                day.isoformat() not in vigente for day, _s, _b in rows) else None
+        previous: Optional[float] = None
+        for day, _stamp, bar in rows:
+            close, opening = float(bar["Close"]), float(bar["Open"])
+            if previous is not None and previous > 0 and opening > 0 and day.isoformat() not in vigente:
+                jump = opening / previous
+                if day not in split_days and any(abs(jump / f - 1.0) <= SPLIT_LIKE_TOLERANCE for f in SPLIT_LIKE):
+                    self._alert(symbol, "SCALE_CHANGE_UNEXPLAINED", day)
+                    return day
+            previous = close
+        return None
 
     def _corporate_action(self, symbol: str, kind: str, day: date, value: float, currency: str) -> None:
         row = {"data_symbol": symbol, "kind": kind, "ex_date": day.isoformat(),

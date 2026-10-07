@@ -19,7 +19,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 from paper.store import PaperStore, canonical, sha256_text
 
@@ -66,7 +66,8 @@ def record_epoch(store: PaperStore, cohort_id: str, env: Environment, *, code_sh
 
 def environment_matches(store: PaperStore, cohort_id: str, env: Environment) -> bool:
     last = latest_epoch(store, cohort_id)
-    return last is not None and last["installed_packages_sha256"] == env.packages_sha256 and last["python_version"] == env.python_version
+    return (last is not None and last["installed_packages_sha256"] == env.packages_sha256
+            and last["python_version"] == env.python_version and last["requirements_sha256"] == env.requirements_sha256)
 
 
 def cohort_state(store: PaperStore, cohort_id: str) -> str:
@@ -94,17 +95,28 @@ class EquivalenceResult:
 
 
 def equivalence_check(store: PaperStore, universe: Any, cohort_id: str, *, contract_ok: bool,
-                      interpretation_ok: bool) -> EquivalenceResult:
-    """Prueba de equivalencia previa a reanudar con un entorno nuevo. El replay corre con el entorno actual
-    sobre las observaciones guardadas; el resultado visible es ``PASS``/``FAIL`` y un compromiso con nonce
-    (el detalle depende de los libros y queda sellado)."""
+                      interpretation_ok: bool, envs: Optional[Mapping[str, Any]] = None,
+                      evaluator: Any = None) -> EquivalenceResult:
+    """Prueba de equivalencia previa a reanudar con un entorno nuevo (D-78). Con el entorno actual y sin
+    descargas: el replay regenera byte a byte ledger, eventos, instantáneas y desenlaces, y las evaluaciones de
+    cada pasada (señales, niveles, contexto) se recalculan e igualan. El resultado visible es ``PASS``/``FAIL``
+    y un compromiso con nonce (el detalle depende de los libros y queda sellado)."""
 
-    from paper.audit import replay
+    from paper.audit import replay, replay_evaluations
 
     report = replay(store, universe, cohort_id)
+    is_policy = store.one("SELECT kind FROM paper_cohort WHERE cohort_id = ?", (cohort_id,))["kind"] == "POLICY"  # type: ignore[index]
+    evaluations_ok = True
+    eval_detail: Dict[str, Any] = {}
+    if is_policy:
+        if envs is None:
+            raise ValueError("la equivalencia de una cohorte de política exige recalcular sus evaluaciones (envs)")
+        evals = replay_evaluations(store, universe, envs, cohort_id, evaluator=evaluator)
+        evaluations_ok = evals.match
+        eval_detail = evals.__dict__
     checks = {"codigo_y_hashes_de_politica": contract_ok, "replay_byte_a_byte": report.match,
-              "interpretacion_del_proveedor": interpretation_ok}
-    detail = {"replay": report.as_dict()}
+              "evaluaciones_identicas": evaluations_ok, "interpretacion_del_proveedor": interpretation_ok}
+    detail = {"replay": report.as_dict(), "evaluaciones": eval_detail}
     nonce = secrets.token_hex(32)
     commitment = sha256_text(nonce + canonical(detail))
     return EquivalenceResult(all(checks.values()), checks, commitment, {"nonce": nonce, **detail})

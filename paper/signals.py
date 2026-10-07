@@ -244,8 +244,12 @@ def open_checks(store: PaperStore, universe: PaperUniverse, cohorts: Mapping[str
     infos = {a.symbol: series_info(store, a, start, now, universe.settlement_minutes, downtime) for a in universe.assets}
     written = 0
     for policy, cohort_id in cohorts.items():
+        done = {r["signal_id"] for r in store.rows(
+            "SELECT signal_id FROM paper_open_check WHERE policy_id = ? AND t025_code_sha = ?", (policy, code_sha))}
         for b in bindings(store, cohort_id, universe, now):
-            if not (b.final and b.operar):
+            # Se escribe una sola vez, cuando la barra de entrada ya está observada; nunca se recalcula el
+            # historial (una entrada posterior no reescribe una comprobación ya publicada).
+            if not (b.final and b.operar) or b.signal_id in done:
                 continue
             info = infos[b.asset]
             if b.signal_session not in info.sessions:
@@ -283,14 +287,15 @@ def not_evaluated(store: PaperStore, universe: PaperUniverse, cohorts: Mapping[s
 
     from paper.universe import binding_pass
 
-    downtime = Downtime(store, now)
+    downtimes = {cohort_id: Downtime(store, now, cohort_id) for cohort_id in cohorts.values()}
     known = {
         cohort_id: {(b.asset, b.signal_session) for b in bindings(store, cohort_id, universe, now)}
         for cohort_id in cohorts.values()
     }
     written = 0
+    base = Downtime(store, now)
     for asset in universe.assets:
-        info = series_info(store, asset, start, now, universe.settlement_minutes, downtime)
+        info = series_info(store, asset, start, now, universe.settlement_minutes, base)
         for t in info.sessions:
             if t < start:
                 continue
@@ -302,7 +307,8 @@ def not_evaluated(store: PaperStore, universe: PaperUniverse, cohorts: Mapping[s
                 if (asset.symbol, t) in known[cohort_id]:
                     continue
                 scheduled = binding_pass(asset.market, t, entry, universe.settlement_minutes)
-                cause = "ENGINE_DOWNTIME" if scheduled is not None and downtime.covers(scheduled) else "PROVIDER_DATA_MISSING"
+                down = downtimes[cohort_id]
+                cause = "ENGINE_DOWNTIME" if scheduled is not None and down.covers(scheduled) else "PROVIDER_DATA_MISSING"
                 if store.insert_first(
                     "paper_signal_not_evaluated",
                     {"cohort_id": cohort_id, "data_symbol": asset.data_symbol, "signal_session_date": t.isoformat(),

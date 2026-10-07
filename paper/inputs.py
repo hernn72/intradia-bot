@@ -297,7 +297,7 @@ def bindings(store: PaperStore, cohort_id: str, universe: PaperUniverse, cutoff:
         candidates = [r for r in rows if ts(r["pass_scheduled_ts"]) < entry_open and ts(r["decision_ts"]) < entry_open]
         if not candidates:
             continue
-        chosen = max(candidates, key=lambda r: r["pass_scheduled_ts"])
+        chosen = max(candidates, key=lambda r: ts(r["pass_scheduled_ts"]))
         final = cutoff >= entry_open or (scheduled is not None and any(ts(r["pass_scheduled_ts"]) == scheduled for r in candidates))
         out.append(Binding(
             signal_id=chosen["signal_id"], asset=symbol, signal_session=t, entry_session=entry,
@@ -305,6 +305,16 @@ def bindings(store: PaperStore, cohort_id: str, universe: PaperUniverse, cutoff:
             stop=chosen["stop"], target2=chosen["target2"], entry_max=chosen["entry_max"],
         ))
     return out
+
+
+def _fail_closed(store: PaperStore, cutoff: datetime) -> None:
+    """Un valor de lista cerrada escrito por una versión más nueva se rechaza, nunca se ignora (§16.3)."""
+
+    for table, column, domain in (("paper_corporate_action", "kind", "corporate_action_kind"),
+                                  ("paper_bar_request", "result", "bar_request_result")):
+        stamp = "observed_at" if table == "paper_corporate_action" else "requested_at"
+        for row in store.rows(f"SELECT DISTINCT {column} AS v FROM {table} WHERE {stamp} <= ?", (cutoff.isoformat(),)):
+            store.check_reference(domain, row["v"])
 
 
 def cohort_flags(store: PaperStore, cohort_id: str, cutoff: datetime) -> Tuple[Optional[datetime], bool]:
@@ -320,9 +330,14 @@ def cohort_flags(store: PaperStore, cohort_id: str, cutoff: datetime) -> Tuple[O
 
 
 def build_view(store: PaperStore, universe: PaperUniverse, contract: CohortContract, cohort_id: str, *,
-               cutoff: datetime, limit: datetime, late_before: Optional[datetime]) -> Tuple[EngineView, Dict[str, SeriesInfo]]:
+               cutoff: datetime, limit: datetime, late_before: Optional[datetime],
+               scope: str = "ALL") -> Tuple[EngineView, Dict[str, SeriesInfo]]:
+    """``scope``: la cohorte; sus caídas propias (``ENVIRONMENT_INVESTIGATION``, ``IDENTITY_MISMATCH``…)
+    tampoco hacen correr sus plazos (T25-10)."""
+
     start = date.fromisoformat(contract.start_date)
-    downtime = Downtime(store, cutoff)
+    _fail_closed(store, cutoff)
+    downtime = Downtime(store, cutoff, scope)
     infos = {a.symbol: series_info(store, a, start, cutoff, universe.settlement_minutes, downtime) for a in universe.assets}
     fx, fx_horizon = fx_inputs(store, universe, start, cutoff, downtime)
     signals: List[Signal] = []

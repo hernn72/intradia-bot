@@ -1,23 +1,22 @@
 """Reconstrucción y auditoría (ficha §12, §13; D-78).
 
-Repite desde cero la secuencia registrada de ejecuciones de una cohorte, cada una con sus propias entradas
-(``observed_at ≤`` su ``decision_ts``) y su límite (la hora programada de su pasada), y compara fila a fila
-lo que regenera con lo escrito. Es la prueba de idempotencia, la de reconstrucción y la base de la
-equivalencia de una época de entorno. En una cohorte sellada solo es visible si coincide o no.
+:func:`replay` repite desde cero la secuencia registrada de ejecuciones de una cohorte, cada una con su corte
+(``paper_run_decision``), y compara con lo escrito **todos** los hechos sellados que regenera: ledger, eventos
+de posición, instantáneas de equity y desenlaces. :func:`replay_evaluations` recalcula las evaluaciones de
+cada pasada con el código y el entorno actuales y las compara con las escritas. Juntas son la prueba de
+reconstrucción y la base de la equivalencia de una época de entorno. En una cohorte sellada solo es visible
+si coinciden o no.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Mapping, Optional
 
 from paper.contract import contract_from_row
 from paper.engine_v1 import Engine
-from paper.inputs import build_view, ts
-from paper.store import PaperStore, canonical, content_sha256
-
-META = ("run_seq", "content_sha256")
+from paper.store import PaperStore, canonical
 
 
 @dataclass
@@ -34,42 +33,100 @@ class ReplayReport:
                 "first_divergence": self.first_divergence, "notes": self.notes}
 
 
+def _stored(store: PaperStore, cohort_id: str) -> Dict[str, List[Any]]:
+    return {
+        "ledger": [r["row_json"] for r in store.rows("SELECT row_json FROM paper_ledger WHERE cohort_id = ? ORDER BY seq", (cohort_id,))],
+        "events": [r["payload_json"] for r in store.rows(
+            "SELECT payload_json FROM paper_position_event WHERE cohort_id = ? ORDER BY event_seq", (cohort_id,))],
+        "snapshots": [canonical([r["snapshot_day"], r["equity_eur"], r["cash_eur"], r["long_value_eur"], r["stale_value_eur"],
+                                 r["n_positions"], r["exposure_json"]])
+                      for r in store.rows("SELECT * FROM paper_equity_snapshot WHERE cohort_id = ? ORDER BY snapshot_day", (cohort_id,))],
+        "outcomes": [canonical([r["position_id"], r["trade_json"], r["mae_R"], r["mfe_R"]])
+                     for r in store.rows("SELECT * FROM paper_trade_outcome WHERE cohort_id = ? ORDER BY position_id", (cohort_id,))],
+    }
+
+
 def replay(store: PaperStore, universe: Any, cohort_id: str) -> ReplayReport:
+    from paper.runner import view_builder
+
     cohort = store.one("SELECT * FROM paper_cohort WHERE cohort_id = ?", (cohort_id,))
     if cohort is None:
         raise ValueError(f"cohorte {cohort_id} inexistente")
     contract = contract_from_row(dict(cohort))
+    build = view_builder(store, universe, contract, cohort_id)
     engine = Engine(contract.engine_spec())
     report = ReplayReport(cohort_id)
-    persisted = {int(r["seq"]): r for r in store.rows("SELECT * FROM paper_ledger WHERE cohort_id = ?", (cohort_id,))}
-    runs = store.rows(
-        "SELECT r.* FROM paper_run r JOIN paper_cohort_progress p ON p.run_seq = r.run_seq AND p.cohort_id = ? "
-        "ORDER BY r.run_seq", (cohort_id,),
-    )
-    for run in runs:
-        late_before = ts(run["late_before"]) if run["late_before"] else None
-        view, _infos = build_view(store, universe, contract, cohort_id, cutoff=ts(run["decision_ts"]),
-                                  limit=ts(run["pass_scheduled_ts"]), late_before=late_before)
-        result = engine.advance(view)
+    regenerated: Dict[str, List[Any]] = {"ledger": [], "events": [], "snapshots": [], "outcomes": []}
+    for run in store.rows(
+        "SELECT d.* FROM paper_run_decision d JOIN paper_cohort_progress p ON p.run_seq = d.run_seq AND p.cohort_id = ? "
+        "ORDER BY d.run_seq", (cohort_id,),
+    ):
+        result = engine.advance(build(run))
         report.runs += 1
-        for row in result.rows:
-            report.rows += 1
-            fact = {
-                "cohort_id": cohort_id, "seq": int(row["seq"]), "run_seq": int(run["run_seq"]), "epoch_no": 0,
-                "event_type": row["event_type"], "timestamp_utc": row["timestamp_utc"],
-                "signal_id": str(row["signal_id"]), "position_id": str(row["position_id"]), "row_json": canonical(row),
+        report.rows += len(result.rows)
+        regenerated["ledger"].extend(canonical(r) for r in result.rows)
+        regenerated["events"].extend(canonical(e) for e in result.position_events)
+        regenerated["snapshots"].extend(
+            canonical([s.day.isoformat(), s.equity, s.cash, s.long_value, stale, s.positions,
+                       canonical({"region": s.by_region, "currency": s.by_currency,
+                                  "economic_currency": s.by_economic_currency, "sector": s.by_sector})])
+            for s, stale in zip(result.snapshots, result.stale_values))
+        regenerated["outcomes"].extend(
+            canonical([o.trade.position_id, canonical(asdict(o.trade)), o.mae_R, o.mfe_R]) for o in result.outcomes)
+    stored = _stored(store, cohort_id)
+    regenerated["outcomes"].sort()
+    stored["outcomes"].sort()
+    for table in ("ledger", "events", "snapshots", "outcomes"):
+        a, b = stored[table], regenerated[table]
+        if a != b:
+            report.match = False
+            index = next((i for i, (x, y) in enumerate(zip(a, b)) if x != y), min(len(a), len(b)))
+            report.first_divergence = {
+                "tabla": table, "indice": index, "escritas": len(a), "regeneradas": len(b),
+                "escrita": json.loads(a[index]) if index < len(a) else None,
+                "regenerada": json.loads(b[index]) if index < len(b) else None,
             }
-            stored = persisted.get(int(row["seq"]))
-            if stored is None or stored["row_json"] != fact["row_json"] or int(stored["run_seq"]) != int(run["run_seq"]):
-                report.match = False
-                report.first_divergence = {
-                    "seq": int(row["seq"]), "run_seq": int(run["run_seq"]),
-                    "regenerada": json.loads(fact["row_json"]),
-                    "escrita": json.loads(stored["row_json"]) if stored is not None else None,
-                }
-                return report
-            _ = content_sha256(fact, META)
-    if report.rows != len(persisted):
-        report.match = False
-        report.notes.append(f"filas escritas {len(persisted)} ≠ regeneradas {report.rows}")
+            return report
     return report
+
+
+@dataclass
+class EvaluationReplay:
+    passes: int = 0
+    rows: int = 0
+    match: bool = True
+    first_divergence: Optional[Dict[str, Any]] = None
+
+
+def replay_evaluations(store: PaperStore, universe: Any, envs: Mapping[str, Any], cohort_id: str, *,
+                       evaluator: Any = None) -> EvaluationReplay:
+    """Recalcula, pasada a pasada y con su corte, las evaluaciones escritas de una cohorte de política."""
+
+    from datetime import date
+
+    from paper.inputs import ts
+    from paper.signals import evaluate_pass
+
+    cohort = store.one("SELECT policy_id, start_date FROM paper_cohort WHERE cohort_id = ?", (cohort_id,))
+    if cohort is None:
+        raise ValueError(f"cohorte {cohort_id} inexistente")
+    out = EvaluationReplay()
+    starts = [date.fromisoformat(r["start_date"]) for r in store.rows("SELECT start_date FROM paper_cohort")]
+    start = min(starts)
+    for run in store.rows("SELECT * FROM paper_run_decision ORDER BY run_seq"):
+        written = {r["signal_id"]: r["content_sha256"] for r in store.rows(
+            "SELECT signal_id, content_sha256 FROM paper_signal_evaluation WHERE cohort_id = ? AND paper_run_id = ?",
+            (cohort_id, run["paper_run_id"]))}
+        if not written:
+            continue
+        rows = evaluate_pass(store, universe, {cohort["policy_id"]: cohort_id}, envs, pass_ts=ts(run["pass_scheduled_ts"]),
+                             now=ts(run["data_cutoff_ts"]), start=start, paper_run_id=run["paper_run_id"],
+                             source_run_id="", evaluator=evaluator)
+        regenerated = {r["signal_id"]: r["content_sha256"] for r in rows}
+        out.passes += 1
+        out.rows += len(written)
+        if any(regenerated.get(signal_id) != digest for signal_id, digest in written.items()):
+            out.match = False
+            out.first_divergence = {"run_seq": int(run["run_seq"]), "escritas": len(written), "regeneradas": len(regenerated)}
+            return out
+    return out
