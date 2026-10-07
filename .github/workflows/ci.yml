@@ -41,5 +41,8 @@ jobs:
       - name: Run mypy
         run: mypy advisor
 
+      - name: Run mypy (paper, T-025)
+        run: mypy paper
+
       - name: Run pytest
         run: python -m pytest -q --durations=10
