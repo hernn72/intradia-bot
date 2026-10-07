@@ -479,6 +479,15 @@ class Engine:
             raise AccountingError(f"cash del libro {self.cash} ≠ cash del ledger {final}")
         if self.cash < -ACCOUNTING_TOLERANCE_EUR:
             raise AccountingError(f"cash negativo ({self.cash})")
+        if self.spec.kind == KIND_POLICY:
+            # V_T − V_0 sobre lo realizado: cash − capital = Σ P&L bruto cerrado + dividendos − comisiones −
+            # coste de lo abierto (P6 §19, en cada avance y no solo al final de una ventana).
+            closed = sum(p.units * ((p.exit_eff or 0.0) * (p.fx_exit or 0.0) - p.entry_eff * p.fx_entry) for p in self.closed)
+            open_cost = sum(p.units * p.entry_eff * p.fx_entry for p in self.positions.values())
+            expected = self.spec.capital + closed + self.dividends - self.fees - open_cost
+            tolerance = ACCOUNTING_TOLERANCE_EUR * max(1.0, len(self.closed) + len(self.positions)) * 10
+            if abs(self.cash - expected) > tolerance:
+                raise AccountingError(f"V_T − V_0 no cuadra: cash {self.cash} ≠ {expected}")
 
     def _emit_outcomes(self) -> None:
         """El desenlace de una posición cerrada se fija cuando ya no le queda ningún dividendo con derecho por

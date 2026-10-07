@@ -75,7 +75,7 @@ def cohort_state(store: PaperStore, cohort_id: str) -> str:
         "SELECT state FROM paper_cohort_event WHERE cohort_id = ? ORDER BY event_ts_utc DESC, created_at DESC LIMIT 1",
         (cohort_id,),
     )
-    return str(row["state"]) if row else "ACTIVE"
+    return store.check_reference("cohort_state", str(row["state"])) if row else "ACTIVE"
 
 
 def set_state(store: PaperStore, cohort_id: str, state: str, *, at: datetime, reason: str, decision_ref: str = "") -> None:

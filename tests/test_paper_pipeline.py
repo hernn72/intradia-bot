@@ -730,3 +730,50 @@ def test_el_compromiso_cambia_en_cada_ejecucion_aunque_no_haya_filas_nuevas(flow
     quiet = [r for r in rows if not store.rows("SELECT 1 FROM paper_ledger WHERE cohort_id = ? AND run_seq = ?", (b2, r["run_seq"]))]
     assert len(quiet) >= 2
     assert len({r["commitment_sha256"] for r in rows}) == len(rows)
+
+
+def test_hueco_real_con_forma_de_split_no_mata_el_activo_ni_esconde_la_perdida(tmp_path: Path) -> None:
+    gap_day = date(2026, 3, 18)
+    data = frames()
+    tz_frame = data["TSTB"]
+    after = [ts.date() >= gap_day for ts in tz_frame.index]
+    for column in ("Open", "High", "Low", "Close"):
+        tz_frame.loc[after, column] = tz_frame.loc[after, column] * (2 / 3)  # caída real del −33 %, sin split
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    run_passes(store, FakeProvider(data, clock), clock, passes_between(START, date(2026, 4, 17)))
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert info.missing is not None and info.missing.data_loss_since is None
+    assert info.sessions[-1] > date(2026, 4, 10), "el activo sigue vivo después del hueco"
+    assert gap_day in info.missing.declared, "la barra del salto, sin split, se declara ausente (salto de P6)"
+    assert not store.rows("SELECT * FROM paper_data_alert WHERE object = 'TSTB' AND kind = 'NO_DATA_20_SESSIONS'")
+
+
+def test_cierre_de_cohorte_no_aparece_como_caida_visible(tmp_path: Path) -> None:
+    from paper.environment import set_state
+
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    run_passes(store, provider, clock, passes_between(START, date(2026, 3, 13)))
+    b2 = _cohort(store, "B2")
+    with store.transaction():
+        set_state(store, b2, "CLOSING", at=clock(), reason="cierre ordinario", decision_ref="D-nn")
+    run_passes(store, provider, clock, passes_between(date(2026, 3, 16), date(2026, 3, 27)))
+    status = json.dumps(visible_status(store))
+    assert b2 not in status.split('"downtime"')[1].split('"seal_windows"')[0]
+    assert "CLOSED" not in status
+
+
+def test_late_processing_tras_una_caida_de_la_cohorte(tmp_path: Path) -> None:
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    passes = passes_between(START, date(2026, 3, 27))
+    run_passes(store, provider, clock, passes[:12])
+    run_passes(store, provider, clock, passes[12:24], identity_ok=lambda _sha: False)
+    run_passes(store, provider, clock, passes[24:])
+    b2 = _cohort(store, "B2")
+    assert store.rows("SELECT 1 FROM paper_ledger WHERE cohort_id = ? AND row_json LIKE '%\"late_processing\":1%'", (b2,))
+    assert replay(store, UNIVERSE, b2).match

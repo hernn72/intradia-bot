@@ -61,6 +61,8 @@ def seal_windows(store: PaperStore) -> List[SealWindow]:
         latest[row["window_id"]] = row
     out = []
     for row in latest.values():
+        store.check_reference("seal_kind", row["kind"])
+        store.check_reference("sessions_status", row["sessions_status"])
         out.append(SealWindow(
             window_id=row["window_id"], kind=row["kind"], cohorts=tuple(json.loads(row["cohorts_json"])),
             sessions_from=date.fromisoformat(row["sessions_from"]),

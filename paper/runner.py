@@ -124,7 +124,14 @@ def view_builder(store: PaperStore, universe: PaperUniverse, contract: Any, coho
     """Vista de una ejecución registrada (``paper_run_decision``), la misma en la ejecución y en el replay."""
 
     def build(run: Any) -> Any:
-        late = ts(run["late_before"]) if run["late_before"] else None
+        # Procesamiento tardío tras una caída general o de la propia cohorte (§8.7, §13): la última pasada
+        # perdida anterior a esta, con lo registrado hasta su decisión.
+        row = store.one(
+            "SELECT MAX(from_scheduled_pass) AS m FROM paper_engine_downtime WHERE scope IN ('ALL', ?) "
+            "AND from_scheduled_pass < ? AND detected_at <= ?",
+            (cohort_id, run["pass_scheduled_ts"], run["decision_ts"]),
+        )
+        late = ts(row["m"]) if row is not None and row["m"] else None
         view, _infos = build_view(store, universe, contract, cohort_id, cutoff=ts(run["decision_ts"]),
                                   limit=ts(run["pass_scheduled_ts"]), late_before=late, scope=cohort_id)
         return view
@@ -188,9 +195,10 @@ def run_pass(store: PaperStore, universe: PaperUniverse, provider: Provider, *, 
                     gates[cohort_id] = "ENVIRONMENT_INVESTIGATION"
                 else:
                     gates[cohort_id] = state
-                evaluable = gates[cohort_id] == "ACTIVE"
-                if cohort["kind"] == "POLICY" and not evaluable:
-                    _downtime(store, cohort_id, pass_ts, f"COHORTE_{gates[cohort_id]}", data_cutoff)
+                # Solo una cohorte que debía operar y no puede (identidad o entorno) está caída (D-78). CLOSING,
+                # CLOSED y los estados terminales no son caídas, y su instante no se publica (§13).
+                if gates[cohort_id] in ("IDENTITY_MISMATCH", "ENVIRONMENT_INVESTIGATION"):
+                    _downtime(store, cohort_id, pass_ts, "COHORTE_NO_OPERATIVA", data_cutoff)
 
         evaluable_cohorts = {c["policy_id"]: c["cohort_id"] for c in cohorts
                              if c["kind"] == "POLICY" and gates[c["cohort_id"]] == "ACTIVE"}
@@ -208,8 +216,9 @@ def run_pass(store: PaperStore, universe: PaperUniverse, provider: Provider, *, 
         with store.transaction():
             report.open_checks = open_checks(store, universe, evaluable_cohorts, envs, code_sha, now=decision_ts,
                                              start=start, paper_run_id=paper_run_id)
-            policy_cohorts = {c["policy_id"]: c["cohort_id"] for c in cohorts if c["kind"] == "POLICY"}
-            not_evaluated(store, universe, policy_cohorts, now=decision_ts, start=start)
+            down_cohorts = {c["policy_id"]: c["cohort_id"] for c in cohorts if c["kind"] == "POLICY"
+                            and gates[c["cohort_id"]] in ("ACTIVE", "IDENTITY_MISMATCH", "ENVIRONMENT_INVESTIGATION")}
+            not_evaluated(store, universe, down_cohorts, now=decision_ts, start=start)
 
         if ingest.fetch_failure:
             report.status = "FETCH_FAILURE"

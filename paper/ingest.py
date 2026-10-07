@@ -227,7 +227,7 @@ class Ingestor:
                     received.add(day.isoformat())
             return received
         vigente = _vigente(self.store, symbol)
-        doubtful_from = self._scale_doubtful(symbol, rows, vigente, actions)
+        doubtful_from, doubtful_day = self._scale_doubtful(symbol, rows, vigente, actions)
         for day, bar in actions:
             for column, action_kind in (("Dividends", "DIVIDEND"), ("Stock Splits", "SPLIT")):
                 value = float(bar.get(column, 0.0) or 0.0)
@@ -237,7 +237,7 @@ class Ingestor:
             values = [float(bar[c]) for c in ("Open", "High", "Low", "Close")]
             if not all(math.isfinite(v) for v in values) or day.isoformat() in vigente:
                 continue
-            doubtful = doubtful_from is not None and day >= doubtful_from
+            doubtful = (doubtful_from is not None and day >= doubtful_from) or day == doubtful_day
             any_row = self.store.one(
                 "SELECT 1 FROM paper_bar_observation WHERE data_symbol = ? AND session_date = ?", (symbol, day.isoformat()))
             if doubtful and any_row is not None:
@@ -253,7 +253,7 @@ class Ingestor:
         return received
 
     def _scale_doubtful(self, symbol: str, rows: Sequence[Tuple[date, pd.Timestamp, Any]], vigente: Dict[str, Any],
-                        actions: Sequence[Tuple[date, Any]] = ()) -> Optional[date]:
+                        actions: Sequence[Tuple[date, Any]] = ()) -> Tuple[Optional[date], Optional[date]]:
         """Primera sesión de esta respuesta en escala dudosa (§3.3, §8.6), o ``None``.
 
         1. **Solape.** Cada barra ya guardada se compara con la nueva multiplicada por los splits con fecha ex
@@ -261,8 +261,10 @@ class Ingestor:
            ningún split explica hace dudosa la respuesta entera; una revisión menor del cierre no es un cambio
            de escala (manda la primera observación).
         2. **Salto de split no publicado.** Entre barras consecutivas de la misma respuesta, una apertura que
-           salta en un factor de split (±1 %) sin un split observado en esa sesión hace dudosa esa barra y las
-           siguientes: la posición la trata como dato ausente (``SCALE_MISMATCH``) hasta que llega el split.
+           salta en un factor de split (±1 %) sin un split observado en esa sesión hace dudosa **solo esa
+           barra**: cuenta como dato ausente (``SCALE_MISMATCH``). Si el split llega, la barra entra con su
+           ajuste; si no, a las 5 sesiones se declara ausente (salto de P6) y la posición sale a la apertura
+           siguiente: un hueco real nunca se esconde.
         """
 
         known = [(date.fromisoformat(r["ex_date"]), float(r["ratio"]), r["observed_at"]) for r in self.store.rows(
@@ -289,8 +291,8 @@ class Ingestor:
                 rescaled += 1
         if overlap and rescaled * 2 >= overlap:
             self._alert(symbol, "SCALE_CHANGE_UNEXPLAINED", rows[-1][0])
-            return min(day for day, _s, _b in rows if day.isoformat() not in vigente) if any(
-                day.isoformat() not in vigente for day, _s, _b in rows) else None
+            new_days = [day for day, _s, _b in rows if day.isoformat() not in vigente]
+            return (min(new_days), None) if new_days else (None, None)
         previous: Optional[float] = None
         for day, _stamp, bar in rows:
             close, opening = float(bar["Close"]), float(bar["Open"])
@@ -298,9 +300,9 @@ class Ingestor:
                 jump = opening / previous
                 if day not in split_days and any(abs(jump / f - 1.0) <= SPLIT_LIKE_TOLERANCE for f in SPLIT_LIKE):
                     self._alert(symbol, "SCALE_CHANGE_UNEXPLAINED", day)
-                    return day
+                    return None, day
             previous = close
-        return None
+        return None, None
 
     def _corporate_action(self, symbol: str, kind: str, day: date, value: float, currency: str) -> None:
         row = {"data_symbol": symbol, "kind": kind, "ex_date": day.isoformat(),
