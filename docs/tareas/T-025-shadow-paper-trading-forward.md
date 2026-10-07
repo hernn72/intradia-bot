@@ -1,11 +1,12 @@
 # T-025 — Shadow/Paper Trading Forward diario: B2 y S2 operando en el tiempo, sin dinero real (S-01)
 
-Estado: **PRE-REGISTRO PROPUESTO, SIN CONGELAR: OD-T25-12 ABIERTA (revisión final, ronda 5).** El propietario cerró OD-T25-1 a OD-T25-9 (§17, D-75) y OD-12 (D-77), declaró la
+Estado: **PRE-REGISTRO PROPUESTO, TODAS LAS OD CERRADAS (OD-T25-1..12), PENDIENTE DE CONGELAR.** El
+propietario cerró OD-T25-1 a OD-T25-9 (§17, D-75) y OD-12 (D-77), declaró la
 visibilidad parcial ex ante de T-024 (D-76) y, en D-78, cerró OD-T25-10 y OD-T25-11 y ratificó la
 visibilidad estricta (`MARKET_PASS` frente a `FILLED`) y los plazos de 5 y 20 sesiones. Por su decisión,
 `T025_PREREG_SHA` solo se congela si la revisión independiente final termina con 0 BLOCKER y 0
-IMPORTANTE. La revisión final (ronda 5) encontró que reutilizar una ventana de P7 abandonada choca con
-GATE P7: es **OD-T25-12**, abierta, y la congelación espera a ella. La implementación necesita autorización aparte. No hay código, ni tablas, ni paper broker.
+IMPORTANTE. La revisión final (ronda 5) abrió OD-T25-12, que el propietario cerró en D-79 (alternativa
+A, sin excepción a GATE P7). La implementación necesita autorización aparte. No hay código, ni tablas, ni paper broker.
 No se ha descargado ningún dato forward ni observado ningún desenlace. B2, S2 y C0 no cambian. La Pi
 no se ha tocado.
 
@@ -26,7 +27,7 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 | | |
 |---|---|
 | Base | `main = f80ab2876f7a7cc2e001b285e66fa061c0d7a8dc` (merge normal del PR #47, 2026-10-07, que solo cambió `docs/roadmap.md`). La rama nació de `0918cb3`, la cabeza del PR #47, que es ancestro de ese merge |
-| Decisiones | D-70 (P6 `[]`), D-71 y D-72 (T-024), **D-73** (reorientación y sellado de T-025), **D-74** (apertura de T-025), **D-75** (cierre de OD-T25-1..9), **D-76** (visibilidad parcial ex ante de T-024), **D-77** (OD-12: línea `t024/forward`), **D-78** (OD-T25-10 y OD-T25-11; ratificación de visibilidad y plazos) |
+| Decisiones | D-70 (P6 `[]`), D-71 y D-72 (T-024), **D-73** (reorientación y sellado de T-025), **D-74** (apertura de T-025), **D-75** (cierre de OD-T25-1..9), **D-76** (visibilidad parcial ex ante de T-024), **D-77** (OD-12: línea `t024/forward`), **D-78** (OD-T25-10 y OD-T25-11; ratificación de visibilidad y plazos), **D-79** (OD-T25-12: sin excepción a GATE P7) |
 | Políticas | `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json` (`sha256 fa027058…9fd9f6b`; esquema `intradia.p5.politicas_finales.v1`; `p5_prereg_sha a7c3d238…`) |
 | B2 | `policy_sha256 d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9`; `advisor_config_hash c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760`; sistema P6 primario `system_sha256 010977688a180cc63d22111f2dcb520c937ba39bb63fbb88082c30a061724026` |
 | S2 | `policy_sha256 e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11`; `advisor_config_hash 8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb`; `system_sha256 824a1dff2d1bf1e6d89b842b9606887cec5eed28f3b76448f947dfbb28d39a69` |
@@ -780,9 +781,10 @@ y datos sintéticos con posiciones abiertas, cerradas, `DATA_LOSS_SUSPENDED` y r
 - **Frontera de P7:** P7 empieza después de la congelación de su candidata **y** del `T1` de la
   última mirada de T-024 (OD-T24-11), y solo usa sesiones sin desenlace consultado en T-025 y que no
   hayan intervenido en T-024 ni en P6-bis.
-- Cuando exista una candidata válida, **antes de comenzar P7 se fija su ventana**, solo con sesiones
-  futuras (la primera, posterior a la fecha en que se registra), **o** con sesiones en estado
-  `VIRGEN_REUTILIZABLE` de una ventana abandonada (abajo). Así nunca puede estar consumida, y
+- Cuando exista una candidata válida, **antes de comenzar P7 se fija su ventana**, con sesiones
+  futuras posteriores a la congelación de la candidata (la primera, posterior a la fecha en que se
+  registra). La única alternativa es una ventana `VIRGEN_REUTILIZABLE` de una ventana abandonada, y
+  solo si la candidata cumple la condición temporal de D-79 (abajo); GATE P7 no cambia. Así nunca puede estar consumida, y
   `paper_outcome_access` lo demuestra. Como T-025 nunca consume una sesión antes de que ocurra, siempre
   se puede reservar una ventana futura: T-025 no puede dejar a P7 sin holdout.
 - **Desde que se fija**, una fila `paper_seal_window` (`P7_WINDOW`) sella **todas** las cohortes T-025
@@ -812,18 +814,24 @@ y datos sintéticos con posiciones abiertas, cerradas, `DATA_LOSS_SUSPENDED` y r
   - **`VIRGEN_REUTILIZABLE`** si y solo si se cumplen las cuatro cosas: la ventana se abandonó, no hubo
     ninguna consulta de desenlaces, permaneció sellada y existe la evidencia. Entonces **sigue sellada**
     (`seal_still_active = sí`): no aparece en el dashboard, la CLI ni Telegram, ni es accesible a
-    agentes, mientras se quiera conservar como candidata a holdout. Una candidata futura solo puede
-    reutilizarla si se definió y congeló sin haber visto esos desenlaces; su pre-registro cita la D-nn y
-    la evidencia;
-  - **pendiente, OD-T25-12 (abierta en la ronda 5):** GATE P7 exige la configuración congelada **antes**
-    de cada ventana y una frontera solo con sesiones futuras; una candidata congelada **después** de que
-    ocurrieran las sesiones de la ventana reutilizada choca con esa regla. Hasta que el propietario
-    decida, rige la lectura compatible con los dos textos, la más estricta: **solo puede reutilizar una
-    ventana `VIRGEN_REUTILIZABLE` una candidata congelada antes de la primera sesión de esa ventana**;
+    agentes, mientras se quiera conservar como candidata a holdout;
+  - **elegibilidad como holdout de P7 (OD-T25-12, cerrada en D-79: alternativa A, sin excepción a GATE
+    P7):** una ventana `VIRGEN_REUTILIZABLE` solo es elegible como holdout de P7 para una candidata que estaba
+**completamente congelada antes de la primera sesión de esa ventana** (como mínimo: política, geometría,
+entrada, salida, sizing, arquitectura de cartera, costes, universo aplicable, configuración y el código y
+la identidad que exija el pre-registro de P7). Su pre-registro de P7 cita la D-nn de cierre y la evidencia. Además, esas sesiones
+    tienen que cumplir la frontera ordinaria de P7 (posteriores al `T1` de T-024 y sin intervenir en
+    T-024 ni en P6-bis);
+  - **si la candidata se congela después de que la ventana haya empezado o terminado**, los desenlaces
+    pueden seguir siendo informacionalmente vírgenes, pero esa ventana **no es elegible** como holdout de
+    P7 para esa candidata: no hay excepción retrospectiva, y P7 usa una ventana futura posterior a la
+    congelación de la candidata;
+  - una ventana `VIRGEN_REUTILIZABLE` puede conservarse sellada para una candidata que ya cumpliera esa
+    condición temporal;
   - **`CONSUMIDA`** si hubo cualquier acceso, directo o indirecto, o falta la evidencia: ya no puede ser
     holdout virgen;
-  - levantar después el sellado de una ventana `VIRGEN_REUTILIZABLE` exige otra D-nn, y consultar sus
-    desenlaces la convierte en `CONSUMIDA` (§10.6).
+  - si deja de tener utilidad, una D-nn puede liberarla; al liberarla y consultar sus desenlaces queda
+    `CONSUMIDA` (§10.6).
   No se eligió B (quemaría sesiones nunca observadas) ni C (sellado indefinido sin necesidad).
 - El embargo de T-024 y una ventana de P7 pueden coincidir: un valor solo es visible si **ningún**
   sellado activo lo cubre.
@@ -1089,14 +1097,15 @@ Los campos salen de §5. Frente al registro por señal de GATE P10, hay tres dif
   - **T25-11:** una cohorte nunca corre con un entorno distinto del de su época vigente; una época nueva
     exige la prueba de equivalencia y una D-nn, y si falla, `ENGINE_UNRUNNABLE` (§13);
   - **T25-12:** una ventana de P7 solo pasa a `VIRGEN_REUTILIZABLE` con 0 accesos demostrados y sellado
-    ininterrumpido, y sigue sellada mientras se conserve (§10.7).
+    ininterrumpido, sigue sellada mientras se conserve y solo es elegible como holdout para una candidata
+    completamente congelada antes de su primera sesión (§10.7, D-79).
 
 ## 16. Implementación requerida (tarea siguiente, con autorización aparte)
 
 Nada de esto se hace en esta entrega.
 
-1. Decisión de OD-T25-12, revisión independiente final con 0 BLOCKER y 0 IMPORTANTE y congelación de
-   `T025_PREREG_SHA` (D-78 §5; el resto de OD, cerradas en D-75, D-76, D-77 y D-78).
+1. Congelación de `T025_PREREG_SHA` tras la revisión final con 0 BLOCKER y 0 IMPORTANTE (D-78 §5); todas
+   las OD cerradas en D-75, D-76, D-77, D-78 y D-79.
 2. `paper/`: almacén y migraciones de `paper.db`, motor incremental `engine_v1`, capa de visibilidad,
    CLI y mensaje de Telegram.
 3. **Tests obligatorios, con datos sintéticos:**
@@ -1171,7 +1180,9 @@ Nada de esto se hace en esta entrega.
      `ENVIRONMENT_INVESTIGATION` no corre ni avanza plazos;
    - **ventana de P7 abandonada (D-78):** sin accesos y con sellado continuo → `VIRGEN_REUTILIZABLE` y
      sigue sellada; con un solo acceso (directo, de auditoría o a un valor acumulado que la incluya) →
-     `CONSUMIDA`; una interrupción del sellado → `CONSUMIDA`;
+     `CONSUMIDA`; una interrupción del sellado → `CONSUMIDA`; la comprobación de elegibilidad rechaza una
+     ventana `VIRGEN_REUTILIZABLE` para una candidata congelada en o después de su primera sesión
+     (D-79);
    - el compromiso de sellado cambia en cada ejecución aunque no haya filas selladas nuevas;
    - `paper/` se niega a abrir una base sin su `application_id`;
    - `seguimiento`, `posiciones` y `cerrar` no ven ninguna fila paper;
@@ -1187,7 +1198,7 @@ Nada de esto se hace en esta entrega.
    recomendaciones de C0 de la Pi solo como contraste descriptivo, y ese contraste queda etiquetado por
    versión. Antes de desplegar se registra en una D-nn.
 
-## 17. Decisiones del propietario (OD-T25) — OD-T25-1..11 CERRADAS el 2026-10-07 (D-75, D-78); OD-T25-12 ABIERTA (ronda 5)
+## 17. Decisiones del propietario (OD-T25) — todas CERRADAS el 2026-10-07 (OD-T25-1..9 en D-75; OD-T25-10 y OD-T25-11 en D-78; OD-T25-12 en D-79)
 
 Formato de `docs/decision-log.md`. Se conservan la pregunta y las alternativas que se presentaron; manda
 la decisión. Ya no bloquean la congelación: falta la revisión final del propietario.
@@ -1305,7 +1316,8 @@ la decisión. Ya no bloquean la congelación: falta la revisión final del propi
   tiene que poder demostrarse que hubo **0 accesos** a desenlaces de esas sesiones y que ninguna fila de
   `paper_outcome_access` las consume; mientras se quieran conservar como candidatas a holdout
   **permanecen selladas** (ni dashboard, ni CLI, ni Telegram, ni agentes); una candidata futura solo
-  puede reutilizarlas si se definió y congeló sin haber visto esos desenlaces. El estado es
+  puede reutilizarlas si se definió y congeló sin haber visto esos desenlaces _(precisado por D-79: solo
+  si estaba completamente congelada antes de la primera sesión de la ventana)_. El estado es
   **`VIRGEN_REUTILIZABLE`** si y solo si la ventana se abandonó, no hubo ninguna consulta de desenlaces,
   permaneció sellada y existe evidencia verificable. Con cualquier acceso, directo o indirecto, es
   **`CONSUMIDA`** y no puede reutilizarse como holdout virgen. No B, porque quemaría sesiones nunca
@@ -1331,28 +1343,23 @@ la decisión. Ya no bloquean la congelación: falta la revisión final del propi
   una cohorte nueva bajo el entorno nuevo. C solo como estado temporal durante la investigación técnica
   (`ENVIRONMENT_INVESTIGATION`). Regla operativa en §13.
 
-### OD-T25-12 — Reutilizar una ventana de P7 abandonada frente a GATE P7 · **ABIERTA desde el 2026-10-07** (ronda 5)
-- **Por qué existe:** D-78 (OD-T25-10) permite que una candidata futura reutilice las sesiones de una
-  ventana `VIRGEN_REUTILIZABLE` «si se definió y congeló sin haber visto esos desenlaces». GATE P7 exige
-  «configuración congelada antes de cada ventana» (requisito 1) y una ventana «solo con sesiones
-  futuras». Una candidata congelada **después** de que ocurrieran las sesiones de la ventana cumple D-78
-  y no cumple GATE P7. Además, «sin haber visto» solo se demuestra con `paper_outcome_access`: durante la
-  ventana la información ex ante fue visible y los precios son públicos (D-76).
-- **Alternativas:**
-  - (A) **solo una candidata congelada antes de la primera sesión de la ventana** puede reutilizarla.
-    Cumple los dos textos sin excepción. En la práctica, solo sirve para una candidata que ya estaba
-    congelada cuando la ventana empezó (por ejemplo, una segunda candidata preparada en paralelo);
-  - (B) **excepción explícita a GATE P7** para ventanas `VIRGEN_REUTILIZABLE`, con salvaguardas: los
-    datos de desarrollo de la candidata, de cualquier fuente, terminan antes de la primera sesión de la
-    ventana; su pre-registro declara la exposición ex ante y la de precios públicos de esas sesiones; se
-    registra en una D-nn y en GATE P7;
-  - (C) otra.
-- **Consecuencia:** A es la más estricta y hace casi inútil la reutilización; B la hace útil, pero el
-  holdout lo evalúa una candidata diseñada cuando esas sesiones ya eran pasado (con precios públicos
-  observables), y GATE P7 pasa a tener una excepción.
-- **Mientras no se decida:** rige A (§10.7).
-- **Bloquea:** la congelación de `T025_PREREG_SHA` (instrucción del propietario: si aparece una decisión
-  nueva, no se congela).
+### OD-T25-12 — Reutilizar una ventana de P7 abandonada frente a GATE P7 · CERRADA (D-79)
+- **Por qué existió (ronda 5):** D-78 permitía que una candidata futura reutilizara una ventana
+  `VIRGEN_REUTILIZABLE` «si se definió y congeló sin haber visto esos desenlaces», mientras que GATE P7
+  exige «configuración congelada antes de cada ventana» (requisito 1).
+- **Alternativas presentadas:** (A) solo una candidata congelada antes de la primera sesión de la
+  ventana; (B) excepción explícita a GATE P7 con salvaguardas; (C) otra.
+- **Decisión del propietario: A. No se crea ninguna excepción a GATE P7.** Una ventana
+  `VIRGEN_REUTILIZABLE` solo puede usarse como holdout de P7 si la candidata estaba **completamente
+  congelada antes de la primera sesión de esa ventana**: como mínimo política, geometría, entrada,
+  salida, sizing, arquitectura de cartera, costes, universo aplicable, configuración y el código y la
+  identidad que exija el pre-registro de P7. Si la candidata se congela después de que la ventana haya
+  empezado o terminado, los desenlaces pueden seguir siendo informacionalmente vírgenes, pero la
+  ventana **no es elegible** como holdout de P7 para esa candidata; no se modifica GATE P7, no hay
+  excepción retrospectiva y P7 usa una ventana futura posterior a la congelación de la candidata. Una
+  ventana `VIRGEN_REUTILIZABLE` puede conservarse sellada para una candidata que ya cumpliera la
+  condición; si deja de ser útil, una D-nn puede liberarla, y al liberarla y consultar sus desenlaces
+  queda consumida. Regla operativa en §10.7.
 
 ## 18. Riesgos y limitaciones
 
@@ -1413,10 +1420,9 @@ implementación:
 
 - La ficha recorre todos los apartados del encargo (§1–§17) y no queda ninguna regla sin fijar ni sin
   marcar como OD.
-- Ninguna OD se da por cerrada sin una decisión del propietario. Las OD-T25-1..11 y OD-12 se cierran
-  con su decisión literal (D-75, D-77, D-78), y la ficha no conserva texto incompatible con ellas.
-- La congelación exige además OD-T25-12 cerrada y una revisión final con 0 BLOCKER y 0 IMPORTANTE
-  (D-78 §5).
+- Ninguna OD se da por cerrada sin una decisión del propietario. Las OD-T25-1..12 y OD-12 se cierran
+  con su decisión literal (D-75, D-77, D-78, D-79), y la ficha no conserva texto incompatible con ellas.
+- La congelación exige una revisión final con 0 BLOCKER y 0 IMPORTANTE (D-78 §5).
 - El roadmap, el decision log y `docs/gates.md` son coherentes con esta ficha.
 - La revisión independiente queda sin BLOCKER ni IMPORTANTE abiertos.
 - `pytest`, `ruff` y `mypy` dan lo mismo que la línea base, y no cambia ningún fichero de los
@@ -1447,7 +1453,7 @@ trading forward`, más commits separados para el roadmap y las decisiones.
 ## Actualización documental requerida
 
 `docs/roadmap.md` (S-01, S-02, Línea S, presupuesto de datos, orden y fechas de T-024),
-`docs/decision-log.md` (D-73 a D-78, OD-12, las OD-T25 y OD-T25-12), `docs/gates.md` (GATE P7 y GATE
+`docs/decision-log.md` (D-73 a D-79, OD-12 y las OD-T25), `docs/gates.md` (GATE P7 y GATE
 P10) y la ficha de PAPER-001 (visibilidad parcial de T-024).
 
 ## Handoff al siguiente agente
@@ -1463,8 +1469,8 @@ P10) y la ficha de PAPER-001 (visibilidad parcial de T-024).
     declarado en D-76;
   - hashes de §0 leídos de `politicas-finales.json` y de `system-hashes.json`;
   - línea base de §0.
-- **Pendiente:** la decisión del propietario sobre OD-T25-12, una confirmación de la revisión final y,
-  si queda con 0 BLOCKER y 0 IMPORTANTE, la congelación de `T025_PREREG_SHA` (D-78 §5); la creación de
+- **Pendiente:** la congelación de `T025_PREREG_SHA` si la revisión final de OD-T25-12 queda con 0
+  BLOCKER y 0 IMPORTANTE (D-78 §5); la creación de
   `t024/forward` (D-77, antes del primer cambio en los `EXECUTOR_PATHS` de `main` y antes del
   2026-11-21) y, con autorización aparte, la implementación (§16).
 - **Hallazgos:**

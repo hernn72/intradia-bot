@@ -2326,7 +2326,8 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
    - Mientras se quieran conservar como candidatas a holdout, **permanecen selladas**: ni dashboard, ni
      CLI, ni Telegram, ni agentes.
    - Una candidata futura solo puede reutilizarlas si se definió y congeló sin haber visto esos
-     desenlaces.
+     desenlaces. _(Precisado el 2026-10-07 por D-79: solo si estaba completamente congelada antes de la
+     primera sesión de la ventana; sin excepción a GATE P7.)_
    - **`VIRGEN_REUTILIZABLE`** si y solo si: la ventana se abandonó, no hubo ninguna consulta de
      desenlaces, permaneció sellada y existe evidencia verificable. Con cualquier acceso, directo o
      indirecto: **`CONSUMIDA`**, y ya no puede ser holdout virgen.
@@ -2369,6 +2370,30 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
    **0 BLOCKER y 0 IMPORTANTE**.
 
 **Lo que no cambia:** B2, S2 y C0; P6; T-024 y `T024_CODE_SHA`; P7 BLOQUEADO; la Pi.
+
+### D-79 — 2026-10-07 — T-025: OD-T25-12 cerrada; ninguna excepción a GATE P7 para reutilizar una ventana
+Decisión del propietario sobre la última OD de T-025, abierta por la revisión final (ronda 5). Precisa
+D-78 punto 1. **No cambia ningún requisito de GATE P7.**
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Decisión: alternativa A.**
+1. Una ventana `VIRGEN_REUTILIZABLE` solo puede usarse como holdout de P7 si la candidata que va a
+   evaluarse estaba **completamente congelada antes de la primera sesión de esa ventana**. Como mínimo:
+   política, geometría, entrada, salida, sizing, arquitectura de cartera, costes, universo aplicable,
+   configuración, y el código y la identidad que exija el pre-registro de P7.
+2. Si la candidata se congela después de que la ventana haya empezado o terminado: sus desenlaces pueden
+   seguir siendo informacionalmente vírgenes, pero la ventana **no es elegible** como holdout de P7 para
+   esa candidata. No se modifica GATE P7, no se crea ninguna excepción retrospectiva y P7 usa una ventana
+   futura posterior a la congelación de la candidata.
+3. Una ventana `VIRGEN_REUTILIZABLE` puede conservarse sellada para una candidata que ya cumpliera la
+   condición del punto 1.
+4. Si deja de tener utilidad, una D-nn puede liberarla; al liberarla y consultar sus desenlaces queda
+   consumida.
+
+Con esta decisión, **todas las OD de T-025 (OD-T25-1..12) quedan cerradas** (D-75, D-78 y D-79).
+Ficha §10.7 y §17; `docs/gates.md`, GATE P7.
+
+**Lo que no cambia:** GATE P7 y su requisito 1; B2, S2 y C0; T-024 y `T024_CODE_SHA`; la Pi.
 
 ## OWNER_DECISION_REQUIRED
 
@@ -2594,7 +2619,7 @@ demás**.
   compatible con T-024; lo que bloquea ahora es **crear la línea** antes del primer cambio en los
   `EXECUTOR_PATHS` de `main`.
 
-### OD-T25-1 a OD-T25-9 — Decisiones de T-025 · **CERRADAS el 2026-10-07 en D-75**
+### OD-T25-1 a OD-T25-12 — Decisiones de T-025 · **CERRADAS el 2026-10-07** (OD-T25-1..9 en D-75; OD-T25-10 y OD-T25-11 en D-78; OD-T25-12 en D-79)
 Están en `docs/tareas/T-025-shadow-paper-trading-forward.md` §17, con el formato de esta sección:
 1. arquitectura (base `paper.db` y paquete fuera de `advisor/`);
 2. capital inicial;
@@ -2611,9 +2636,8 @@ nunca consultada) y su confirmación **OD-T25-11** (una cohorte viva cuyo entorn
 seguir igual). **Las dos se cerraron el 2026-10-07 en D-78**, que además ratifica la visibilidad
 estricta y los plazos de 5 y 20 sesiones, y condiciona la congelación a una revisión final limpia.
 La revisión final (ronda 5) abrió **OD-T25-12** (reutilizar una ventana de P7 abandonada frente al
-requisito 1 de GATE P7), **ABIERTA desde el 2026-10-07**, en la ficha §17; mientras no se decida solo
-puede reutilizarla una candidata congelada antes de la primera sesión de la ventana. **Bloquea la
-congelación de `T025_PREREG_SHA`.**
+requisito 1 de GATE P7), **cerrada el 2026-10-07 en D-79** (alternativa A, sin excepción a GATE P7).
+Ninguna OD de T-025 queda abierta.
 
 **Bloqueaban** la congelación del pre-registro de T-025. Decisiones en D-75 (con D-76 para la
 visibilidad de T-024) y texto completo en la ficha §17. OD-T25-7 se cerró con una regla distinta de las

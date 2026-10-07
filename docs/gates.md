@@ -322,9 +322,11 @@ pre-registro propios, que no cambia la etiqueta de P6.
 - **Frontera temporal:** P7 empieza después de la congelación de la candidata **y** del `T1` de la
   última mirada de T-024 (OD-T24-11). Solo usa sesiones sin desenlace consultado en T-025 (unidad de
   consumo: **la sesión**, para cualquier política o cohorte; D-75, OD-T25-9) y que no hayan intervenido
-  en T-024 ni en P6-bis. La ventana se fija solo con sesiones futuras, salvo la reutilización de una
-  ventana `VIRGEN_REUTILIZABLE` (abajo, sujeta a OD-T25-12).
-- **Ventana de P7 (D-75, OD-T25-9 C):** se fija antes de empezar P7, solo con sesiones futuras. Desde
+  en T-024 ni en P6-bis. La ventana se fija con sesiones futuras posteriores a la congelación de la
+  candidata, salvo una ventana `VIRGEN_REUTILIZABLE` para una candidata que ya estaba congelada antes de
+  su primera sesión (abajo, D-79). En ningún caso se cambia el requisito 1.
+- **Ventana de P7 (D-75, OD-T25-9 C):** se fija antes de empezar P7, con las sesiones de la frontera de
+  arriba. Desde
   ese momento **todas** las cohortes de T-025 quedan selladas para esas sesiones, y también todo lo
   acumulado que las incluya, hasta la consulta única del holdout, que se registra como consumo
   (`paper_outcome_access`, `P7_HOLDOUT_QUERY`). T-025 sigue funcionando internamente (ficha §10.7).
@@ -332,12 +334,16 @@ pre-registro propios, que no cambia la etiqueta de P6.
   durante el embargo de T-024 (D-76). El pre-registro de P7 tiene que declararla.
 - **Ventana fijada y abandonada sin consulta (D-78, OD-T25-10):** una D-nn la cierra. Es
   `VIRGEN_REUTILIZABLE` solo si se demuestran 0 accesos a desenlaces en `paper_outcome_access`, sellado
-  ininterrumpido y evidencia verificable, y entonces **sigue sellada** mientras se conserve. Una
-  candidata posterior solo puede reutilizarla si se definió y congeló sin ver esos desenlaces. Con
-  cualquier acceso, directo o indirecto, es `CONSUMIDA`. **Choca con el requisito 1 de abajo**
-  (configuración congelada antes de cada ventana) si la candidata se congela después de las sesiones
-  reutilizadas: es **OD-T25-12, abierta**. Mientras no se decida, solo puede reutilizarla una candidata
-  congelada antes de la primera sesión de esa ventana.
+  ininterrumpido y evidencia verificable, y entonces **sigue sellada** mientras se conserve. Con
+  cualquier acceso, directo o indirecto, es `CONSUMIDA`.
+- **Elegibilidad de una ventana `VIRGEN_REUTILIZABLE` (D-79, OD-T25-12 A; sin excepción a GATE P7):**
+  solo es holdout de P7 para una candidata **completamente congelada antes de la primera sesión de esa
+  ventana** (como mínimo política, geometría, entrada, salida, sizing, arquitectura de cartera, costes,
+  universo aplicable, configuración y código e identidad del pre-registro de P7), conforme al requisito
+  1. Si la candidata se congela después de que la ventana haya empezado o terminado, la ventana no es
+  elegible para ella aunque sus desenlaces sigan siendo vírgenes, y P7 usa una ventana futura posterior
+  a la congelación. Si la ventana deja de ser útil, una D-nn puede liberarla; al consultar sus
+  desenlaces queda consumida.
 - Toda observación cuyo desenlace se consulte durante T-025 queda consumida y no puede ser holdout
   virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10.6).
 
