@@ -27,11 +27,17 @@ La comprobación de `diff --quiet` debe salir 0: permite añadir el despliegue T
 metodológico congelado. Después, `verificar_identidad()` debe devolver exactamente
 `1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0`.
 
-El intérprete puede ser el venv del bot:
+El intérprete puede ser el venv del bot (estado transitorio; ver la condición de D-77 abajo):
 
 ```bash
 /home/fer/intradia-bot/.venv/bin/python -m advisor.research.t024_forward peticion --checkpoint 2026-11-03 --festivo 2026-11-02
 ```
+
+> **Condición de D-77 (2026-10-07):** usar el venv del bot es un estado transitorio. Antes del primer
+> despliegue en la Pi que cambie `requirements.txt` o el venv del bot, T-024 tiene que tener su propio
+> venv, instalado desde el `requirements.txt` de `t024/forward`, y la unidad reinstalada con ese
+> intérprete: `verificar_identidad()` comprueba ficheros, no versiones instaladas. Desde D-77, T-024 se
+> opera desde la línea `t024/forward`.
 
 ## Configuración
 
@@ -106,7 +112,10 @@ Códigos de salida:
   petición. Si no coincide, el estado es `ERROR_IDENTIDAD` y no se descarga nada. Así, un worktree movido a
   otro commit no puede gastar el único intento automático con otra identidad.
 - El instalador lee el mismo valor. `traer_cosecha verificar` exige que coincida con el sidecar.
-- Cambiar `T024_CODE_SHA` exige actualizar también este campo, de forma explícita.
+- **`T024_CODE_SHA` y `t024_code_sha` no se cambian mientras T-024 esté vivo** (D-77). Cualquier cambio
+  exigiría una decisión nueva del propietario y ya no sería la línea congelada `t024/forward`.
+  _(Texto anterior al 2026-10-07: «cambiar `T024_CODE_SHA` exige actualizar también este campo»; retirado
+  por D-77.)_
 
 ## Calendario
 

@@ -20,20 +20,59 @@ detalle operativo de cada tarea: eso vive en `docs/tareas/` y el método en
 
 ---
 
-## Estado verificado — 2026-10-06
+## Estado verificado — 2026-10-06 (actualizado el 2026-10-07)
 
-Comprobado contra el repositorio, la CI y la Pi el 2026-10-06.
+Comprobado contra el repositorio, la CI y la Pi el 2026-10-06. El 2026-10-07 se fusionó el PR #47
+(`main = f80ab28`, solo `docs/roadmap.md`) y el propietario cerró OD-T25-1..9 y OD-12 (D-75 a D-77), OD-T25-10 y OD-T25-11 (D-78) y OD-T25-12 (D-79);
+las filas que lo citan son de esa fecha.
+
+**Terminología (D-74).** La Pi es un **entorno de desarrollo/integración**, no producción. La
+producción real será el bot final cuando termine el proceso de validación (GATE P10 y F-01). Las filas
+históricas de este documento y del decision log conservan su redacción: en ellas, «producción»
+significa «la configuración desplegada en la Pi».
 
 | Qué | Valor |
 |---|---|
-| Rama / HEAD | **`main` en `4170bb4`** (merge del PR #46, T-024 contrato de captura forward + Pi 24/7). CI de `main` verde (3.12 y 3.13) |
+| Rama / HEAD | **`main` en `f80ab28`** desde el 2026-10-07 (merge del PR #47, solo documentación; el 2026-10-06 estaba en `4170bb4`, merge del PR #46, T-024 contrato de captura forward + Pi 24/7). CI de `main` verde (3.12 y 3.13) |
 | Tests / lint / tipos | 1430 pasan y 20 se saltan: 19 necesitan los CSV de `071ddb2b…`, perdidos el 2026-10-06, y 1 requiere `realpath -m` de GNU y corre en CI. `ruff check .` y `mypy advisor` limpios (79 ficheros). Python 3.12.13 |
 | Universo | 126 instrumentos, **93 analizables** |
-| Laboratorio | GATE P2–P6 cruzados. **P6: B2 y S2 `NO PASA`, salida `[]` (D-70); P7 BLOQUEADO.** T-023 (diagnóstico post-P6) hecho. **T-024** (edge relativo al drift, D-71/D-72) en **acumulación forward**: `T024_PREREG_SHA` `dfcca0ef…`, `T024_CODE_SHA` `1a697c3…` |
-| Producción (Pi) | Sin cambios: tag **`v0.4.1` = `8b2dddb`**, esquema v7, Score v1 con 70/60 y política C0. Timers `intradia-bot` e `intradia-bot-event` activos. `intradia.db` y sus 21 copias pasan `quick_check` |
-| Captura forward T-024 (Pi) | Worktree dedicado `/home/fer/intradia-t024` en `4170bb4`, separado del checkout de producción. `/etc/intradia-bot/t024.env`. Timer **`intradia-t024-checkpoint.timer`** habilitado (diario a las 12:00 Atlantic/Canary). **Primera congelación real automática: 2026-11-03.** Probado sin red: la unidad sale con 0 y «sin checkpoint hoy». Runbook: `docs/tareas/T-024-runbook-checkpoint.md` y `deploy/t024/README.md` |
+| Laboratorio | GATE P2–P6 cruzados. **P6 cerrado: B2 y S2 `NO PASA`, salida `[]` (D-70); P7 BLOQUEADO.** T-023 (diagnóstico post-P6) **cerrado**. **T-024** (edge relativo al drift, D-71/D-72) **preparado y automático**, en acumulación forward: `T024_PREREG_SHA` `dfcca0ef…`, `T024_CODE_SHA` `1a697c3…`. Los `EXECUTOR_PATHS` de `main` (`f80ab28`) siguen idénticos a `1a697c3`. Desde D-77 (OD-12) T-024 se operará desde la línea dedicada `t024/forward`, que todavía no existe; con visibilidad parcial ex ante del propietario declarada (D-76) |
+| Siguiente fase operativa | **T-025 Shadow/Paper Trading Forward** (S-01): **pre-registro CONGELADO el 2026-10-07** (`T025_PREREG_SHA` = commit de congelación del PR #48), con todas las OD cerradas (D-75, D-77, D-78, D-79). Sin implementar. Sin código ni datos forward. **PAPER-001** (P-01) en paralelo: ficha y plan |
+| Pi (desarrollo/integración) | Sin cambios: tag **`v0.4.1` = `8b2dddb`**, esquema v7, Score v1 con 70/60 y política C0. Timers `intradia-bot` e `intradia-bot-event` activos. `intradia.db` y sus 21 copias pasan `quick_check` |
+| Captura forward T-024 (Pi) | Worktree dedicado `/home/fer/intradia-t024` en `4170bb4`, separado del checkout habitual de la Pi. `/etc/intradia-bot/t024.env`. Timer **`intradia-t024-checkpoint.timer`** habilitado (diario a las 12:00 Atlantic/Canary). **Primera congelación real automática: 2026-11-03.** Probado sin red: la unidad sale con 0 y «sin checkpoint hoy». Runbook: `docs/tareas/T-024-runbook-checkpoint.md` y `deploy/t024/README.md` |
 | Cosecha de desarrollo | `071ddb2b…`: **manifiesto versionado intacto; sus 126 CSV se perdieron en el portátil el 2026-10-06** y no se recrearán (`evidence/2026-10-06-incidente-perdida-vintage/`). P6/T-023 conservan su evidencia, pero ya no son reproducibles desde los datos originales |
 | Backups | `~/intradia-backups/2026-10-06/` (portátil, fuera del repo y de iCloud): árbol completo y bases de la Pi verificadas |
+
+## Objetivo final y tres velocidades (D-73, 2026-10-06)
+
+**Objetivo: un único bot, el «Superbot».** Tiene que:
+- analizar el universo y detectar oportunidades;
+- indicar qué comprar, la entrada máxima, el stop, los objetivos, el RR y el tamaño;
+- controlar el capital, las posiciones simultáneas y el riesgo de cartera;
+- simular en paper trading hasta el cierre, con dashboard y avisos;
+- acumular resultados forward reales.
+
+El capital real solo se plantea tras GATE P10. El motor cuantitativo es el de intradia-bot. La capa de
+cartera, paper trading y dashboard recoge la filosofía de `trading-bot` (fase S-03).
+
+| Velocidad | Cadena | Regla |
+|---|---|---|
+| **Bot** | T-025 → paper trading → dashboard → Superbot | Avanza rápido: no espera a P7 |
+| **Investigación** | T-024 + P6-bis → nueva candidata → P7 → P10 | Sin trampas: ningún gate se rebaja |
+| **Publicación** | P2–P6 y T-023 → PAPER-001 v1; T-024, T-025, P7 y P10 → v2/final | Documenta lo que ya se sabe, con su etiqueta |
+
+Un bot que funciona y simula operaciones **no** es un sistema con ventaja demostrada. Todo lo que
+produzca T-025 lleva la etiqueta **«SHADOW / PAPER — estrategia en investigación, no validada para
+capital real»**.
+
+**Presupuesto de datos, vinculante (D-72 y D-73):**
+
+| Datos | Quién los consume | Consecuencia |
+|---|---|---|
+| Sesiones hasta el 2026-08-27 | P2–P6 y T-023 (consumidas) | Solo sirven para desarrollo: código, P6-bis y su filtro de cartera |
+| Sesiones desde el 2026-08-28 hasta el `T1` de T-024 | T-024 (decisorio) y T-025 | Los desenlaces de B2, S2 y **C0** quedan **sellados** en T-025 hasta que T-024 se resuelva para B2 y S2 (D-73, D-75); su información ex ante es visible (D-76); P6-bis no las usa |
+| Desenlaces que se consulten en T-025 | T-025 | **Consumidos** por sesión, para cualquier política o cohorte (D-74 §3, D-75): no pueden ser holdout virgen de P7. Quedan registrados en `paper_outcome_access`. P6-bis no los usa |
+| Después de la congelación de la candidata **y** del `T1` de la última mirada de T-024 | P7 | Solo sesiones sin desenlace consultado en T-025 y que no hayan intervenido en T-024 ni en P6-bis. La ventana se fija antes de empezar, con sesiones futuras posteriores a la congelación de la candidata (o una ventana `VIRGEN_REUTILIZABLE` solo si la candidata ya estaba congelada antes de su primera sesión; sin excepción a GATE P7, D-79), y desde entonces se sella en T-025 para todas las cohortes, con lo acumulado, hasta su consulta única (D-75) |
 
 ## Estado verificado — 2026-09-16 (histórico)
 
@@ -217,7 +256,7 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | C-04 | Logs rotados, alertas Telegram (pasada fallida, proveedor caído, reloj > 60 s, `events.yaml` caduca), timeouts y reintentos por proveedor, degradación sin red probada | PENDIENTE | C-02 | por escribir |
 | C-09 | **Caché local de barras de sesión cerrada ya validadas (D-40, D-41)**: el proveedor **retira** por la noche una barra que ya sirvió, y el bot la vio la tarde anterior, así que la caché va **primero** y la segunda fuente queda **condicionada** a una cifra que la propia ficha produce: sesión exigible + nunca observada + no entregada. No pasa por B-00 (no es fuente externa); la segunda fuente sí, si llega | **ACEPTADA** (2026-09-25, **PR #24 fusionado**): las cinco reglas implementadas, esquema **v6** (`validated_bar`, `validated_bar_revision` y cuatro columnas en la medición), contador de valor marginal por pasada y acumulado deduplicado por par activo-sesión, y **D-44** resolviendo la regla 4 —manda la primera validada— y la distinción entre reajuste de la serie y revisión de una barra. **665 tests**, `ruff` y `mypy` limpios. **17 hallazgos** de la revisión cruzada corregidos, cada uno con su test (3 de diseño y 14 de código, 11 de ellos pasando la suite). Verificación con datos reales: **12 sesiones retiradas al proveedor, 12 restauradas, 0 sin restaurar**. Abre **OD-02 bis**, que queda **abierta a acumulación de datos** y no se decide con una pasada. **DESPLEGADA en la Pi el 2026-09-26** como `v0.4.0` (`84ea28e`): migración v5 → v6 aplicada de forma aislada y verificada, backups manual y `pre-v6` en v5 y válidos, primera pasada real `ea08c727…` con 93 recomendaciones y 93 mediciones, `validated_bar = 3228`, `validated_bar_revision = 0`, timers reactivados (`evidence/2026-09-26-despliegue-v040/`). OD-02 bis acumula evidencia desde esa pasada: 16 sesiones exigibles nunca observadas en 16 ETF de XETRA | — | **T-018** |
 | C-05 | Persistir narrativa LLM con provider/model/prompt_version/input_hash (D-12); **y el mecanismo de presupuesto de D-38**: caché por `input_hash`, contador de gasto mensual persistido y degradación limpia al llegar al tope de 10 €/mes | PENDIENTE | C-01 | por escribir |
-| C-06 | Backup programado en la Pi + simulacro de restauración trimestral | PENDIENTE | C-01, C-03 | por escribir |
+| C-06 | Backup programado en la Pi + simulacro de restauración trimestral. **Prioridad alta tras el incidente del 2026-10-06 (D-73).** Backup automático de SQLite y de los vintages, segunda copia física, retención, hashes y restauración trimestral real. **El backup nunca vive en el mismo árbol que protege** | PENDIENTE — **PRIORIDAD ALTA** | C-01, C-03 | por escribir |
 
 ### Línea A — Modelo cuantitativo (arranca al cruzar GATE L0)
 
@@ -231,11 +270,15 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | A-04 | P4 Geometría: stop/objetivo/entrada **incluida la holgura de entrada** (D-06), pareado + bootstrap por bloques, heterogeneidad → **GATE P4** | **ACEPTADA — GATE P4 CRUZADO** el 2026-10-02 (D-64 y D-65). P4 se ejecutó una sola vez (`P4_CODE_SHA` `3df8230`, `P4_RUN_HEAD_SHA` `c2c52b1`, evidencia `cfa365d`). **B2 (objetivo 2 a 4,875·ATR) y S2 (stop 2,5·ATR, objetivo 3,75·ATR) pasan a P5 como candidatas**; S1 no pasa; E1 (entrada a la apertura) NO CONCLUYENTE; B1 solo descriptiva. Heterogeneidad ALTA explicada y no vetante (D-63). 447 comparaciones, 4 confirmatorias. Producción sin cambios: C0 sigue en `config.yaml` | A-03 | **T-020** |
 | A-05 | P5 Regiones robustas → **GATE P5** | **ACEPTADA — GATE P5 CRUZADO** el 2026-10-03 (D-67 y D-68). P5 se ejecutó una sola vez (`P5_CODE_SHA` `6c7f913`, `P5_RUN_HEAD_SHA` `282b1ce`, evidencia `86ddd5b`). **B2 y S2 ROBUSTA**: 13/13 vecinos ACEPTABLES, 6/6 LOCRO con IC95 > 0, 71/71 comparaciones, 0 confirmatorias nuevas. **Políticas candidatas `[B2, S2]`** con su config completa y su hash (`evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`). Ninguna se activa: producción sigue en C0. _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._ | A-04 | **T-021** |
 | A-06 | P6 Sistema completo con exceso sobre buy-and-hold del universo → **GATE P6** | **ACEPTADA — GATE P6 CRUZADO** el 2026-10-05 (D-70). P6 se ejecutó una sola vez (`P6_PREREG_SHA` `03f04a4`, `P6_CODE_SHA` `bc0636d`, `P6_RUN_HEAD_SHA` `353876d`, evidencia `0771989`). **B2 `NO PASA` y S2 `NO PASA`; salida `[]`.** Las dos cumplen N ≥ 100, PF local > 1, R medio local > 0 y DD ≥ −25 %, y fallan solo el exceso de CAGR sobre el buy-and-hold del universo (B2 −15,77 pp; S2 −18,72 pp; benchmark CAGR 33,80 %). C0, la sensibilidad de 10 pb y el puente de todas las barras son descriptivos y no cambian la salida. El gate exige la medición completa y reproducible, no un resultado favorable. Cierre en `evidence/2026-10-05-T-022-p6-cierre/`. Producción no cambia: sigue en C0. _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._ | A-05 | **T-022** |
-| A-07 | P7 Walk-forward + holdout (ventanas fijadas antes en el decision log) → **GATE P7** | **BLOQUEADO — sin supervivientes de P6** (D-70, salida `[]`). No iniciado y sin ninguna candidata. Cualquier corrección de selección de señales, prioridad, sizing, uso del cash, geometría o benchmark es investigación nueva, con ficha y pre-registro propios, y no cambia la etiqueta de P6 | A-06 | por escribir |
+| A-07 | P7 Walk-forward + holdout (ventanas fijadas antes en el decision log) → **GATE P7** | **BLOQUEADO — sin supervivientes de P6** (D-70, salida `[]`). No se elimina ni se rebaja (D-73): validará fuera de muestra una **candidata de P6-bis** (A-11). Empieza después de la congelación de la candidata y del `T1` de la última mirada de T-024 (OD-T24-11), solo con sesiones sin desenlace consultado en T-025 (regla de consumo de D-74 §3, por sesión según D-75) y que no hayan intervenido en T-024 ni en P6-bis; su ventana, fijada antes con sesiones futuras posteriores a su congelación (una ventana `VIRGEN_REUTILIZABLE` solo si ya estaba congelada antes de su primera sesión, D-79), se sella en T-025 para todas las cohortes hasta su consulta única (D-75). Su pre-registro declara la exposición ex ante de T-025 (D-76). Si se cruza, desbloquea R-01 y V-01 | A-11 | por escribir |
+| A-08 | Universo histórico (solo si aparece fuente de constituyentes) | OPCIONAL | — | — |
+| A-10 | **T-024 — Edge relativo al drift** (D-71, D-72). Ver el bloque de abajo | **EN_CURSO — acumulación forward**, autónoma en la Pi | A-06 | **T-024** |
+| A-11 | **P6-bis — de señal a cartera** (D-73). ¿Se conserva la señal B2/S2 y se mejora su transformación en cartera? Hay tres bloques, cada uno con su pre-registro, y **nunca se cambian la señal y la cartera a la vez**: **(A)** gestión de ganadores (objetivo fijo, trailing, salida parcial, extensión, salida temporal); **(B)** asignación de capital (prioridad entre señales simultáneas, concentración, sizing, reserva de cash, máximo de posiciones), sobre todo para la saturación de cash de B2 (T-023: exposición media 0,8371); **(C)** participación, sobre todo el capital ocioso de S2 (exposición media 0,6054, frente a 0,5313 de C0; rechazo principal `ABOVE_MAX_ENTRY`). **Datos:** solo sesiones hasta el 2026-08-27 inclusive, en una cosecha nueva con su `data_vintage_id`, ya que los CSV de `071ddb2b…` se perdieron. Están consumidas, así que el filtro de cartera «equivalente a P6» es **desarrollo, no confirmación**. **Salida:** o ninguna candidata (se vuelve a investigación y no se fuerza P7), o **una candidata congelada** (config, código, entrada, salida, sizing, asignación, costes, universo y hashes) que pasa una **evaluación de cartera equivalente a GATE P6**, pre-registrada, y solo entonces va a A-07. Su código toca `advisor/`: antes de fusionarlo en `main` tiene que existir `t024/forward` (D-77) | PENDIENTE — diseño | A-06, T-023, `t024/forward` (D-77) | por escribir |
 
 **T-024 — Edge relativo al drift (D-71, D-72).** Es investigación nueva y no cambia P6: B2 y S2 siguen
 `NO PASA` y P7 sigue BLOQUEADO. Antes de tocar la selección, el sizing, el cash o la geometría, mide si las
 señales tienen ventaja frente al drift del propio activo, solo con sesiones posteriores al 2026-08-27.
+Ya **no es trabajo diario**: corre solo en la Pi, en paralelo al resto.
 - **Pre-registro y código congelados:** `dfcca0ef` y `1a697c3`. El contrato de captura con petición
   exacta `start`/`end` entró con el PR #46, sin cambiar ninguna regla metodológica.
 - **Acumulación forward:**
@@ -244,7 +287,27 @@ señales tienen ventaja frente al drift del propio activo, solo con sesiones pos
 - **Primer checkpoint: 2026-11-03**, con `end` 2026-10-26.
 - **Mirada 1:** cuando B2 y S2 cumplan `Q ≥ 120` y `W ≥ 26`. Previsiblemente hacia mediados de 2027, y
   como tarde en la mirada final con corte el 2027-08-27.
-| A-08 | Universo histórico (solo si aparece fuente de constituyentes) | OPCIONAL | — | — |
+- **Hace:** captura mensual → vintage congelado → segunda copia → hashes. **No hace:** operaciones,
+  desenlaces, D2 antes de la mirada ni cambios de estrategia.
+- **Su resultado desella los desenlaces de B2 y S2 en T-025** (D-73).
+
+### Línea S — Shadow trading y Superbot (velocidad «bot»; D-73)
+
+No espera a P7 ni a T-024. Todo lo que produce lleva la etiqueta **«SHADOW / PAPER — estrategia en
+investigación, no validada para capital real»**.
+
+| ID | Qué | Estado | Depende de | Ficha |
+|---|---|---|---|---|
+| S-01 | **T-025 Shadow/Paper Trading Forward diario.** `análisis → recomendación → orden simulada → ejecución simulada → cartera paper → seguimiento → cierre → resultado`, con reglas congeladas antes de cualquier desenlace. B2 y S2 tal como están en `politicas-finales.json`, sobre el contrato de sistema de P6 (100.000 EUR, 0,5 % de riesgo, 10 % máximo, 0,10 % + 5 pb, rechazo sin cash); C0 solo como control descriptivo y BH como benchmark. 100.000 EUR por libro, B2 y S2 en libros independientes. **Base `paper.db` aparte y paquete `paper/` fuera de `advisor/`** (D-75): ninguna posición paper puede confundirse con una manual. Durante el embargo de T-024 se ve la **información ex ante** de B2, S2 y C0 (señal, niveles, tamaño como fracción, ejecución simulada de entrada y rechazos de mercado) y quedan **sellados sus desenlaces** hasta que T-024 se resuelva (D-73, D-75, D-76). Sin ventas sintéticas: `DATA_LOSS / SUSPENDED` (D-75). Toda observación con desenlace consultado queda consumida por sesión y no puede ser holdout de P7. **No desbloquea P7, no es P10 y no valida B2 ni S2.** Es la capa paper del Superbot | **PRE-REGISTRO CONGELADO (2026-10-07)**, todas las OD cerradas (D-75, D-77, D-78, D-79); `T025_PREREG_SHA` = commit de congelación del PR #48. Sin código | GATE P6, T-024 congelado | **T-025** |
+| S-02 | **Dashboard shadow.** Dos zonas mientras dure el embargo de T-024: **visible ex ante** (qué habría comprado hoy, con qué niveles, qué fracción de la equity, si la apertura lo permitía y los rechazos de mercado con su motivo) y **sellada** (estado posterior, salidas, P&L, equity, cash derivado y métricas, sin ninguna cifra). Al desellar, cómo evoluciona y con qué resultado. Campos en T-025 §14 | PENDIENTE | S-01 | por escribir |
+| S-03 | **Superbot: convergencia con `trading-bot`.** El motor cuantitativo de intradia-bot más la capa de cartera de trading-bot. **Dashboard:** capital inicial, equity, cash, posiciones abiertas y cerradas, rentabilidad, drawdown, benchmark, recomendaciones actuales, B2/S2 y rechazos con motivo. **Paper broker automático:** señal → orden → entrada → posición → stop/objetivo → cierre → P&L, sin registro manual. **Historial reconstruible** desde `run_id` + SHA + config + datos + reglas | PENDIENTE — puede adelantarse en parte | S-01, S-02 | por escribir |
+
+### Línea P — Publicación (velocidad «paper»; D-73)
+
+| ID | Qué | Estado | Depende de | Ficha |
+|---|---|---|---|---|
+| P-01 | **PAPER-001 v1 — «From Trade-Level Edge to Portfolio-Level Underperformance».** ¿Por qué una estrategia con expectancy positiva, PF > 1 y robustez local puede no generar alfa de cartera? Evidencia de D-70: **B2** PF 1,3995, mean R 0,2478, DD −16,60 %, exceso CAGR −15,77 pp; **S2** PF 1,4044, mean R 0,2383, DD −11,23 %, exceso CAGR −18,72 pp; benchmark CAGR 33,80 %. Separa lo **confirmatorio** (P2–P6), lo **post hoc** (T-023) y lo **prospectivo** (T-024 y T-025). Declara la pérdida de los CSV de `071ddb2b…`: los resultados, hashes, commits y evidencia permanecen, pero el cálculo ya no se puede reproducir desde esos CSV. Entregables: manuscrito, tablas, figuras, metodología, discusión, limitaciones y apéndice de reproducibilidad. Puede salir como **preprint** antes de que termine T-024. _Condicionado al universo seleccionado en 2026._ | PENDIENTE — **ficha y plan creados** (2026-10-06); sin manuscrito | GATE P6, T-023 | **PAPER-001** |
+| P-02 | **PAPER-001 v2/final**, que incorpora T-024, T-025, P7 y P10 | BLOQUEADO | P-01, resultados forward | — |
 
 ### Línea B — Contexto externo (captura en paralelo; nada decide hasta GATE CONTEXT)
 
@@ -266,9 +329,9 @@ señales tienen ventaja frente al drift del propio activo, solo con sesiones pos
 
 | ID | Fase | Estado | Depende de |
 |---|---|---|---|
-| R-01 | Riesgo de cartera: límites diario/semanal, concentración, correlación, divisa → **GATE RISK** | BLOQUEADO(GATE P7) | A-06, A-07 |
-| V-01 | **P10 Forward Validation** con tag congelado, duración OD-08 → **GATE P10**. Orientación del propietario (2026-09-20): parar por tiempo **y** por señales cerradas (≥ 8 semanas y ≥ 100); medido sobre la cosecha, 100 señales piden 30-35 semanas, así que manda el número, no el calendario | BLOQUEADO(GATE P7, GATE PROD) | R-01, C-03..C-06 |
-| F-01 | Release final + paquete de revisión externa (`docs/gates.md`) | BLOQUEADO(GATE P10) | todo |
+| R-01 | Riesgo de cartera: riesgo máximo por operación, límites diario y semanal, concentración por activo, sector, región y divisa, correlación, posiciones simultáneas y exposición total → **GATE RISK**. La arquitectura puede diseñarse antes, en paralelo con S-03; el gate solo se cierra tras GATE P7 (D-73) | BLOQUEADO(GATE P7) | A-06, A-07 |
+| V-01 | **P10 Forward Validation** con tag congelado, duración OD-08 → **GATE P10**. Exige la política, la cartera y el riesgo finales, software estable y una configuración que no cambia durante P10; compara el resultado forward con lo que predijo P7. Orientación del propietario (2026-09-20): parar por tiempo **y** por señales cerradas (≥ 8 semanas y ≥ 100); medido sobre la cosecha, 100 señales piden 30-35 semanas, así que manda el número, no el calendario | BLOQUEADO(GATE P7, GATE PROD) | R-01, C-03..C-06 |
+| F-01 | Release final + paquete de revisión externa (`docs/gates.md`, `evidence/final-review/`) con GATE P7, PROD, RISK y P10 cruzados (y CONTEXT si el contexto demuestra valor) + PAPER-001 final (P-02). Es el Superbot terminado | BLOQUEADO(GATE P10) | todo |
 
 ### Trabajo manual del propietario (sin atajo)
 
@@ -297,26 +360,63 @@ flowchart LR
   T006 --> B00[B-00 contrato PIT]
   L0 --> A02[A-02 rehacer P2.3/P2.4/P2.5]
   T006 --> A02
-  A02 --> P2{GATE P2} --> A03[P3] --> P3{GATE P3} --> A04[P4] --> A05[P5] --> A06[P6] --> A07[P7] --> P7{GATE P7}
+  A02 --> P2{GATE P2} --> A03[P3] --> P3{GATE P3} --> A04[P4] --> A05[P5] --> A06[P6]
+  A06 --> T023[T-023 diagnóstico post hoc] --> T024[T-024 drift, prospectivo y en paralelo]
+  T023 --> A11[P6-bis] -->|candidata| EVC{evaluación de cartera} --> A07[P7] --> P7{GATE P7}
+  OD12[OD-12 línea de T-024] -.antes de tocar advisor.-> A11
+  T024 -.T1 de la última mirada.-> A07
+  A06 --> T025[T-025 shadow/paper, no es P7] --> S02[dashboard] --> S03[Superbot]
+  T024 -.desella B2/S2.-> T025
+  A06 --> PAP1[PAPER-001 v1]
   B00 --> B02[noticias] --> B06[Context Analyst] --> B07[shadow] --> B09[P9] --> CTX{GATE CONTEXT}
   T001 --> C03[C-03 tag/deploy/rollback] --> PROD{GATE PROD}
   T002 --> C04[C-04 alertas/timeouts] --> PROD
+  T002 --> C05[C-05 LLM] --> PROD
+  C03 --> C06[C-06 backups] --> PROD
   P7 --> R01[R-01 riesgo cartera] --> V01[P10 forward]
   PROD --> V01
   CTX -.solo si demuestra valor.-> V01
   V01 --> F01[release final]
+  S03 --> F01
+  PAP1 --> F01
 ```
 
 ---
 
 ## Qué hacer ahora, en este orden
 
-Actualizado el 2026-10-06. La lista anterior (OA-01 a T-013 y P3–P6) está terminada.
+Actualizado el 2026-10-06 con D-73 y D-74. La lista anterior (OA-01 a T-013 y P3–P6) está terminada.
 
-1. **Antes del 2026-11-21: declarar el checkpoint de diciembre** en `deploy/t024/calendario-checkpoints.json`,
-   con fuente oficial citada, y mover el worktree de la Pi a ese commit (los `EXECUTOR_PATHS` deben seguir
-   idénticos a `1a697c3`). Sin eso, desde el 21-nov la unidad sale con 3 cada día. Después, cada mes, con el
-   mismo plazo.
+| Orden | Trabajo | ¿Espera datos? |
+|---:|---|---|
+| 1 | **T-025: pre-registro** (S-01, D-74), con **todas las OD cerradas** el 2026-10-07 (D-75 a D-79) y el pre-registro **congelado** (`T025_PREREG_SHA`, PR #48). Falta que el propietario revise y fusione el PR | No |
+| 1b | **Crear `t024/forward`** desde el último commit compatible (D-77) y mover a ella el worktree de la Pi con el procedimiento de D-77. Antes del primer cambio en los `EXECUTOR_PATHS` de `main` y antes del 2026-11-21 | No |
+| 2 | **Implementar T-025** con autorización aparte (ficha §16) y desplegarlo en la Pi como tag, en un worktree y un venv propios por versión del motor (nunca en el checkout habitual ni en el de T-024) | No |
+| 3 | **PAPER-001 v1** (P-01): ficha y plan hechos; siguiente, el esqueleto del manuscrito | No |
+| 4 | **C-06 backups** | No |
+| 5 | **Diseñar P6-bis** (A-11): fichas y pre-registros por bloque. Su código toca `advisor/`: antes de fusionarlo tiene que existir `t024/forward` (D-77) | No |
+| 6 | Ejecutar P6-bis sobre una cosecha nueva **solo hasta el 2026-08-27**, con su `data_vintage_id` | No |
+| 7 | C-04 robustez | No |
+| 8 | C-05 LLM | No |
+| 9 | B-00 y línea de contexto | No |
+| 10 | **T-024: primer checkpoint el 2026-11-03** (corre solo) | Sí, ocurre solo |
+| 11 | T-025 acumula operaciones forward cada día | Sí, en paralelo |
+| 12 | Candidata de P6-bis | Según resultados |
+| 13 | P7 (A-07) | Requiere candidata y el `T1` de T-024 |
+| 14 | R-01 | Tras P7 (el diseño puede adelantarse) |
+| 15 | Integración final del Superbot y el dashboard (S-03) | Puede adelantarse en parte |
+| 16 | P10 (V-01) | Requiere el sistema congelado |
+| 17 | PAPER-001 final, revisión externa y release final (P-02, F-01) | Final |
+
+**Fechas que no se mueven (T-024):**
+0. **Antes de fusionar en `main` cualquier cambio en `advisor/`, `config.yaml`, `universe.yaml`,
+   `exchange_overrides.yaml`, `pyproject.toml` o `requirements.txt`: crear `t024/forward`** desde el último
+   commit compatible (D-77). Desde entonces T-024 se opera solo desde esa línea, y `main` no tiene que seguir
+   siendo compatible. Antes de cambiar el venv del bot en la Pi, T-024 necesita su propio venv (D-77, paso 7).
+1. **Antes del 2026-11-21: declarar el checkpoint de diciembre** en `deploy/t024/calendario-checkpoints.json`
+   **en la línea `t024/forward`** (PR contra ella, fuente oficial citada, revisión normal, `git diff --quiet`
+   y `verificar_identidad()`), y mover el worktree de la Pi a ese commit con el procedimiento de D-77. Sin eso,
+   desde el 21-nov la unidad sale con 3 cada día. Después, cada mes, con el mismo plazo.
 2. **2026-11-03:** primera congelación automática en la Pi.
    - Si sale `NO_APTA`, `ERROR_*`, `INTERRUMPIDO` o `PERDIDO`, decide el propietario: no hay reintento
      automático.
@@ -328,15 +428,16 @@ Actualizado el 2026-10-06. La lista anterior (OA-01 a T-013 y P3–P6) está ter
    4. `capturar` (solo conteos) y commit.
 4. **Mirada 1 de T-024**, cuando un checkpoint cumpla el umbral de capacidad para B2 y S2. Previsiblemente
    hacia mediados de 2027.
-5. Decisiones del propietario que siguen abiertas, sin bloquear T-024:
-   - OD-01, fundamentales (línea B, B-08);
-   - noticias (B-02);
-   - si se paga una fuente para las plazas europeas.
-6. Trabajo manual (sección «Trabajo manual del propietario»): ISIN, disponibilidad en Trade Republic y doble
-   símbolo de Xetra.
-7. R-01, V-01 (P10) y F-01 siguen BLOQUEADOS por GATE P7.
 
----
+**Decisiones del propietario que siguen abiertas**, sin bloquear T-024 ni T-025:
+- OD-01, fundamentales (línea B, B-08);
+- noticias (B-02);
+- si se paga una fuente para las plazas europeas.
+
+Trabajo manual: ver la sección «Trabajo manual del propietario» (ISIN, disponibilidad en Trade Republic y
+doble símbolo de Xetra).
+
+**Próximo paso concreto:** abrir T-025 y PAPER-001. T-024 sigue corriendo solo en la Pi.
 
 ## Hallazgos abiertos (FOLLOW_UP y OBSERVATION que no tienen ficha)
 
@@ -351,7 +452,13 @@ Actualizado el 2026-10-06. La lista anterior (OA-01 a T-013 y P3–P6) está ter
 - **El repositorio está en el Escritorio sincronizado con iCloud Drive.** iCloud reescribe permisos de
   directorios y genera duplicados `* 2.md`. La protección de datos no puede apoyarse en permisos mientras
   siga ahí. Sacarlo de la carpeta sincronizada es una decisión del propietario.
-- **Checkout de producción en la Pi:** los `manifest.json` de las cosechas forward aparecerán sin
+- **Identidad de T-024 frente a la evolución de `main` (OD-12, cerrada en D-77 el 2026-10-07):**
+  `verificar_identidad()` exige `EXECUTOR_PATHS` idénticos a `1a697c3`. Hoy `main` (`f80ab28`) lo cumple.
+  Decisión: línea dedicada `t024/forward`, todavía por crear, antes del primer cambio en esas rutas en
+  `main`. Contrato y procedimiento en D-77.
+- **El venv de la Pi lo comparten el bot y T-024:** la identidad de T-024 no cubre las versiones instaladas.
+  Antes de cualquier despliegue que cambie el venv del bot, T-024 necesita su propio venv (D-77, paso 7).
+- **Checkout habitual de la Pi:** los `manifest.json` de las cosechas forward aparecerán sin
   seguimiento en `/home/fer/intradia-bot/data/vintages/`. No afecta a `verificar-release`, que solo mira
   ficheros versionados.
 
@@ -396,6 +503,14 @@ correlaciones y límites agregados, declarados en el informe.
 
 **Validación final.** GATE P10 cruzado con configuración congelada y
 resultado comparado con P7.
+
+**Superbot (D-73).** Un único bot con el motor de intradia-bot y la capa de
+cartera de trading-bot: paper broker automático, dashboard, avisos e historial
+reconstruible desde `run_id` + SHA + config + datos + reglas. Toda operación
+lleva su etiqueta SHADOW/PAPER hasta GATE P10.
+
+**Publicación.** PAPER-001 final con lo confirmatorio, lo post hoc y lo
+prospectivo separados.
 
 **Operación.** `pytest`, `ruff`, `mypy` limpios en `main`; sin diferencias
 entre la Pi y el tag; `events.yaml` vigente; deuda técnica listada en el

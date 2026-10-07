@@ -1995,6 +1995,412 @@ pre-registro queda congelado en el commit que añade `evidence/2026-10-05-T-024-
 es **`T024_PREREG_SHA`**. El commit no puede contener su propio SHA: se identifica en el PR #44. T-024
 no está implementado y no se ha calculado ningún desenlace.
 
+### D-73 — 2026-10-06 — Reorientación: objetivo Superbot, tres velocidades y T-025 con desenlaces sellados
+Decisión del propietario, tomada el 2026-10-06 sobre su plan «Roadmap pendiente — Intradia Bot →
+Superbot» y sobre dos preguntas que se le hicieron en la misma sesión:
+- cómo resolver el choque entre un shadow con P&L visible y la ceguera de T-024: eligió **«desenlaces
+  de B2/S2 ocultos»**;
+- qué es el «iTrade Bot» de su plan: es **`trading-bot`**.
+
+No cambia ningún resultado, ningún pre-registro ni el código de la Pi.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Objetivo final.** Un único bot (el «Superbot») que:
+- analiza el universo y detecta oportunidades;
+- indica qué comprar, la entrada máxima, el stop, los objetivos, el RR y el tamaño;
+- controla el capital, las posiciones y el riesgo de cartera;
+- simula en paper trading hasta el cierre, con dashboard y avisos;
+- acumula resultados forward.
+
+El capital real solo se plantea después de P10. El motor cuantitativo es el de intradia-bot. La capa
+de cartera, paper trading y dashboard recoge la filosofía de `trading-bot`, y los dos proyectos
+convergen en S-03.
+
+**Tres velocidades.**
+- **Bot:** T-025 → paper trading → dashboard → Superbot. No espera a P7.
+- **Investigación:** T-024 + P6-bis → nueva candidata → evaluación de cartera → P7 → P10. Ningún gate
+  se rebaja.
+- **Publicación:** PAPER-001 v1 con P2–P6 y T-023; la v2/final incorpora T-024, T-025, P7 y P10.
+
+Un bot que funciona y simula operaciones **no** es un sistema con ventaja demostrada. Toda operación
+de T-025 lleva la etiqueta «SHADOW / PAPER — estrategia en investigación, no validada para capital
+real».
+
+**Decisiones.**
+1. **T-025 (Shadow Trading Forward) es la prioridad máxima.** B2 y S2 quedan congeladas tal como
+   están en `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`, y C0 solo como control
+   descriptivo; ninguna se optimiza con resultados del shadow. Lo que se persiste antes y después de
+   conocer el futuro lo fija la ficha `docs/tareas/T-025-shadow-paper-trading-forward.md`.
+2. **Desenlaces de B2 y S2 sellados hasta que T-024 se resuelva.** T-024 (D-72,
+   ficha §6.3 y §9) prohíbe mirar desenlaces de B2 y S2 posteriores al 2026-08-27 antes de su mirada,
+   y T-025 opera las mismas políticas en las mismas sesiones.
+   - De B2 y S2 solo se muestra lo que no depende de ningún desenlace.
+   - El resto se desella cuando T-024 tiene resultado (`POSITIVO`, `NO POSITIVO` o `NO EVALUABLE POR
+     MUESTRA`) **para B2 y para S2 a la vez**. Es la lectura literal de la opción elegida («hasta la
+     mirada de T-024»). En los ledgers de P6, todas las señales de S2 son también de B2, así que
+     desellar una antes que la otra revelaría la segunda. _(Corrección del 2026-10-06, revisión
+     independiente: una versión anterior desellaba cada política por separado.)_
+   - El texto de la opción elegida dejaba **C0 visible** por ser descriptiva en T-024. La ficha de
+     T-025 aporta un dato posterior (en P6 todas las señales de C0 son también de B2 y de S2, y C0
+     comparte con B2 el stop de 2,0·ATR) y lo vuelve a preguntar en OD-T25-4. **Hasta que se decida, rige lo elegido: C0 visible.**
+     _(Superado el 2026-10-07 por D-75: C0 queda sellado en desenlaces y P&L durante el mismo embargo.)_
+3. **Los desenlaces que se consultan en T-025 quedan consumidos para investigación** y no pueden ser
+   holdout virgen de P7. Es la regla del propietario fijada en D-74 §3, sin rebajas. P6-bis no usa
+   ningún desenlace de T-025. _(Corrección del 2026-10-06, revisión independiente: una versión anterior
+   de este punto limitaba «consumido» a lo que interviniera en el diseño o la selección. Contradecía la
+   regla del propietario y se retiró.)_ Como T-025 corre indefinidamente, P7 solo tendrá holdout si su
+   ventana no se consulta en T-025: eso se propone en OD-T25-9. _(Decidido el 2026-10-07 en D-75:
+   unidad = sesión y ventana de P7 sellada en todas las cohortes.)_
+4. **T-025 no toca T-024:** ni el worktree de la Pi, ni los `EXECUTOR_PATHS` de `1a697c3`, ni sus
+   cosechas.
+5. **PAPER-001** («From Trade-Level Edge to Portfolio-Level Underperformance») empieza en paralelo.
+   - Separa lo confirmatorio (P2–P6), lo post hoc (T-023) y lo prospectivo (T-024 y T-025).
+   - Declara la pérdida de los CSV de `071ddb2b…`.
+   - Puede salir como preprint antes de que termine T-024.
+6. **P6-bis** pregunta si se puede conservar la señal B2/S2 y mejorar su transformación en cartera.
+   Tiene tres bloques separados, cada uno con su pre-registro, sin cambiar a la vez la señal y la
+   cartera:
+   - (A) gestión de ganadores;
+   - (B) asignación de capital;
+   - (C) participación.
+7. **El resultado de P6-bis** es una de dos cosas:
+   - ninguna candidata: se vuelve a investigación y no se fuerza P7;
+   - una candidata congelada (config, código, entrada, salida, sizing, asignación, costes, universo y
+     hashes) que pasa una evaluación de cartera equivalente a P6 y entonces va a P7.
+8. **P7 no se elimina ni se rebaja.**
+9. **Ingeniería en paralelo:** C-06 (backups) con prioridad alta tras el incidente del 2026-10-06 y el
+   backup fuera del árbol que protege; después C-04 y C-05. Con C-03 a C-06 se puede cerrar GATE PROD.
+10. **La línea B no bloquea T-025.** El contexto se guarda en `context_shadow_decision`, separado de
+    `quant_decision`, y solo puede degradar una señal, nunca rescatarla.
+11. **R-01 puede diseñarse antes**, pero solo se cierra tras GATE P7.
+12. **T-025 se diseña como la capa paper del Superbot**, no como prototipo desechable.
+
+**Consecuencias de decisiones anteriores (no son decisiones nuevas):**
+- **Datos de P6-bis:** D-71 consume la cosecha hasta el 2026-08-27, y las sesiones posteriores
+  pertenecen a la ventana de T-024. Por eso P6-bis solo puede desarrollarse con sesiones hasta el
+  2026-08-27 inclusive, en una cosecha nueva con su `data_vintage_id`, porque los CSV de `071ddb2b…`
+  se perdieron. Esa evaluación de cartera es **desarrollo, no confirmación**: la confirmación es P7.
+- **Frontera de P7 (OD-T24-11 y la regla de consumo):** P7 empieza después de la congelación de su
+  candidata **y** del `T1` de la última mirada de T-024. Solo usa sesiones cuyos desenlaces no se
+  hayan consultado en T-025 (`paper_outcome_access`) ni hayan intervenido en T-024 o en P6-bis.
+
+**Lo que no cambia.**
+- P6 (B2 `NO PASA`, S2 `NO PASA`, salida `[]`).
+- El pre-registro y el código de T-024.
+- P7 BLOQUEADO.
+- La Pi: C0, Score v1 70/60, `v0.4.1`.
+
+### D-74 — 2026-10-06 — Apertura de T-025: diseño y pre-registro propuesto, con OD abiertas
+Registra la apertura formal de T-025 por encargo del propietario (2026-10-06). Separa lo que el
+propietario fijó en el encargo, lo que decide el agente por ser técnico y reversible, y lo que queda
+abierto. **No congela el pre-registro.**
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Fijado por el propietario en el encargo:**
+1. **Alcance de la primera entrega:** inspección, diseño, pre-registro, roadmap, decisiones, revisión
+   independiente y PR documental. Sin paper broker, sin descargas, sin abrir posiciones, sin observar
+   desenlaces, sin tocar la Pi y sin desplegar.
+2. **T-025 no desbloquea P7, no convierte B2/S2 en políticas validadas** y no se presenta como
+   sustituto de P7. T-024 tampoco.
+3. **La regla de contaminación:** «Toda observación cuyo desenlace se consulte durante T-025 queda
+   consumida para investigación y no podrá utilizarse posteriormente como holdout virgen de P7».
+4. **Reglas de modificación:**
+   - B2/S2 congeladas;
+   - el paper broker congelado por versión o tag;
+   - un cambio de política crea una `policy_version` nueva;
+   - un cambio de arquitectura relevante crea una cohorte nueva;
+   - no se mezclan versiones sin etiqueta;
+   - nunca se reescriben observaciones.
+5. **Punto de partida de capital, riesgo y costes:** las reglas de P6 (100.000 EUR; 0,5 % de la
+   equity causal; máximo del 10 %; long only; sin apalancamiento; rechazo completo sin cash; 0,10 % por
+   lado y 5 pb). Nada distinto se adopta sin decisión del propietario.
+6. **Terminología:** la Pi es un **entorno de desarrollo/integración**, no producción. La producción
+   real será el bot final cuando termine la validación. Los textos de estado actuales se corrigen; las
+   entradas históricas del decision log conservan su redacción y, en ellas, «producción» significa «la
+   configuración desplegada en la Pi».
+7. **PAPER-001:** solo ficha y plan; la pérdida de los CSV de `071ddb2b…` se declara y ese vintage no
+   se reconstruye ni se vuelve a descargar fingiendo que es el original.
+
+**Decisiones técnicas del agente (reversibles; las valida la revisión independiente):**
+- Ficha `docs/tareas/T-025-shadow-paper-trading-forward.md` y ficha
+  `docs/tareas/PAPER-001-trade-edge-vs-portfolio.md`.
+- Nombres y forma del contrato de persistencia (ficha §5).
+- La señal vinculante es la de la última pasada anterior a la apertura, conforme a D-50 (§7.1).
+- Las adaptaciones en vivo de §8, cada una declarada y con su test.
+- Idempotencia y concurrencia (§12).
+- MAE y MFE sobre barras diarias (§5).
+- **Base de precios de P6** (`get_raw_history`, `auto_adjust=False`, dividendos aparte) y no la caché
+  `validated_bar`, que está ajustada por dividendos (§3.3). No es una elección nueva: hace falta para no
+  cambiar B2 y S2.
+
+**Abierto (OWNER_DECISION_REQUIRED):**
+- OD-T25-1 a OD-T25-9, en la ficha §17;
+- **OD-12** (convivencia de T-024 con cambios en los `EXECUTOR_PATHS`), abajo.
+
+Mientras sigan abiertas, T-025 está `BLOQUEADA_POR_OWNER` para congelar. _(Cerradas el 2026-10-07:
+OD-T25-1..9 en D-75 y OD-12 en D-77.)_
+
+**Hallazgo registrado:** cualquier commit en `main` que toque `advisor/`, `config.yaml`,
+`universe.yaml`, `exchange_overrides.yaml`, `pyproject.toml` o `requirements.txt` hace que
+`verificar_identidad()` de T-024 falle sobre ese checkout (ficha de T-025 §3.8). Esta entrega no toca
+ninguno. `T024_CODE_SHA` sigue siendo válido.
+
+### D-75 — 2026-10-07 — T-025: el propietario cierra OD-T25-1 a OD-T25-9
+Decisiones del propietario sobre las OD de la ficha `docs/tareas/T-025-shadow-paper-trading-forward.md`
+§17, tomadas el 2026-10-07 antes de que exista código de T-025 y antes de observar ningún desenlace.
+**No congela el pre-registro**: falta la revisión final del propietario del PR #48.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+1. **OD-T25-1, arquitectura: separada.** `paper.db` independiente de `intradia.db`, con `PRAGMA
+   application_id`, esquema y migraciones propios; paquete raíz `paper/`, separado de `advisor/`;
+   comandos propios; ningún comando de posiciones manuales lee `paper.db`. Separación **por
+   construcción, no por filtros**. No se reutilizan `position` ni `position_review`.
+2. **OD-T25-2, capital: 100.000 EUR** iniciales por cohorte y libro, para la comparabilidad directa con
+   P6. B2 y S2 no comparten capital.
+3. **OD-T25-3, libros independientes**, como en P6: cada libro con sus 100.000 EUR, cash, equity,
+   posiciones, ledger, costes y resultados. Una operación de B2 no consume capital de S2 ni al revés.
+   C0 es otro control separado.
+4. **OD-T25-4, visibilidad (cambia la recomendación técnica A + E):** durante el embargo de T-024 se ve
+   la información **ex ante** de B2 y S2 (fecha y hora de la señal, activo, política, `entry_max`, stop,
+   objetivos, RR, tamaño solicitado, ejecución simulada de entrada, precio de entrada si se ejecutó,
+   rechazos de entrada y su motivo) y **no** sus desenlaces (estado posterior, salida, P&L, `net_R`,
+   MAE, MFE, duración, cash y equity derivados, PF, win rate, drawdown, CAGR, exceso, métricas
+   agregadas, progreso o frontera y **cualquier otro canal lateral identificado por la revisión**). Los
+   desenlaces se calculan y persisten, sellados para el propietario, el dashboard, la CLI normal,
+   Telegram, Claude, Codex y cualquier agente. **C0 queda también sellado** en desenlaces y P&L durante
+   el mismo embargo, por su solape con B2 y S2; su información ex ante puede guardarse y verse. Esto
+   sustituye la regla provisional «C0 visible» de D-73 §2. La exposición de T-024 se registra en D-76.
+   - **Interpretación técnica del agente, no parte de la decisión** _(ratificada por el propietario el
+     2026-10-07 en D-78)_ (las dos revisiones de la ronda 4 la consideran la
+     única lectura compatible con las dos listas): el tamaño en unidades o en
+     EUR revela la equity, y el resultado por libro (`FILLED`, `IGNORED_ALREADY_OPEN`,
+     `INSUFFICIENT_CASH`, `POSITION_TOO_SMALL`) revela el cash y si una posición anterior sigue abierta.
+     Por eso se muestran en su forma por política: tamaño solicitado como fracción de la equity y
+     comprobación de apertura (`PASS` con su precio efectivo, o el rechazo de mercado con su motivo).
+     Ficha §10.2.
+5. **OD-T25-5, barra de entrada ausente: A.** Espera hasta el cierre de la 5.ª sesión hábil posterior;
+   después, salto de P6; registro explícito; una barra posterior es tardía y no reescribe decisiones.
+6. **OD-T25-6, dividendo tardío: A.** Se registra al conocerse, se abona causalmente en la primera
+   sesión procesada posterior, marcado `late`, sin reescribir balances, tamaños ni decisiones.
+7. **OD-T25-7, activo sin datos: modificada; no se fabrica una venta.** Tras 20 sesiones hábiles
+   consecutivas sin datos suficientes, la posición pasa a `DATA_LOSS / SUSPENDED`: sin `exit_price`
+   sintético, sin P&L ficticio, sin usar el último cierre como ejecutable; capital bloqueado; alerta
+   operativa; caso identificado. Si vuelven datos válidos, se reanuda desde lo realmente observado, sin
+   reescribir el periodo perdido. Si la cohorte termina sin datos, la operación es
+   `NO_EVALUABLE_DATA_LOSS` y se informa aparte. Una salida real verificable (delisting, liquidación,
+   corporate action con precio verificable) sigue una regla específica y documentada (ficha §8.7), no
+   el fallback de 20 sesiones. Se retira la alternativa `EXIT_DATA_LOSS`.
+8. **OD-T25-8, cohortes: A con una precisión.** Un motor nuevo abre una cohorte nueva; la antigua sigue
+   bajo su motor y contrato congelados; no se migra en silencio ni se mezclan resultados. Un defecto
+   crítico que invalide materialmente una cohorte la congela como `ABORTED_INVALID_ENGINE`, con la
+   causa documentada; su historia no se corrige nunca y la versión corregida abre una cohorte nueva.
+9. **OD-T25-9, consumo y P7: A + C.** La unidad de consumo es la **sesión**, para cualquier política o
+   cohorte, sin usar `(política, sesión)` como escapatoria. Cuando exista una candidata válida para P7,
+   su ventana se fija antes de empezar y desde entonces **todas** las cohortes de T-025 quedan selladas
+   para esas sesiones; T-025 sigue funcionando internamente; tras la consulta única de P7 se registra
+   su consumo.
+
+**Contrato del sellado que se congela** (sin implementarlo ahora): tests que demuestren que, durante un
+embargo, ninguna consulta, API, comando CLI, mensaje de Telegram, dashboard, exportación ni métrica
+agregada devuelve desenlaces, y que fronteras, contadores y estados no son canales laterales; y una vía
+extraordinaria solo para recuperación o auditoría técnica, cuyo uso queda registrado como **ruptura del
+sellado** y consume las sesiones afectadas (ficha §10.4–§10.5).
+
+**Lo que no cambia:** B2, S2 y C0; P6; T-024 (ver D-76); P7 BLOQUEADO; la Pi.
+
+### D-76 — 2026-10-07 — T-024: visibilidad parcial ex ante del propietario, declarada antes de observar desenlaces
+Consecuencia de D-75 (OD-T25-4), registrada **antes de ejecutar T-025** y antes de observar ningún
+desenlace de la ventana forward. **No modifica el pre-registro de T-024** (`T024_PREREG_SHA
+dfcca0ef…`), que sigue congelado.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Qué cambia.** Cuando T-025 funcione, el propietario verá cada día las señales ex ante de B2, S2 y C0
+(activo, niveles, tamaño como fracción de la equity y comprobación de apertura) durante la ventana de
+T-024. Con esas señales y precios públicos podría intentar deducir a mano los resultados.
+
+**Qué conserva T-024, intacto:** pre-registro, código (`T024_CODE_SHA 1a697c3…`), métricas, criterios,
+calendario de miradas, ejecución automática, D2 y reglas de decisión. Ningún desenlace de B2, S2 ni C0
+se muestra hasta que T-024 se resuelve para B2 y S2 (D-73 §2, D-75).
+
+**Naturaleza de la ceguera, a partir de ahora:** **T-024 conserva su diseño confirmatorio
+pre-registrado, con visibilidad parcial ex ante del propietario declarada antes de observar
+desenlaces.** La ceguera humana deja de ser absoluta. Todo informe de T-024 (y PAPER-001 v2) lo cita.
+
+**Exposición previa, que ya existía y se declara aquí:** el informe diario de la Pi
+(`advisor/report/formatter.py`) envía por Telegram, desde antes de T-024, la entrada máxima, el stop y
+los objetivos de las recomendaciones OPERAR de C0 con contexto `legacy_v1` y serie ajustada por
+dividendos. No son las señales de P6 (contexto point-in-time, serie sin ajuste por dividendos), pero se
+solapan con ellas.
+
+**Riesgo residual declarado:** T-024 no tiene pasos discrecionales que dependan de desenlaces, pero sí
+decisiones humanas (qué hacer ante un checkpoint `NO_APTA`, `ERROR_*`, `INTERRUMPIDO` o `PERDIDO`, las
+declaraciones mensuales del calendario o abandonar T-024). Sus reglas ya están fijadas (sin reintento
+automático, sin descargas retrospectivas), y desde hoy se toman con esta exposición declarada. Cualquier
+ruptura del sellado de T-025 (vía extraordinaria) que afecte a B2, S2 o C0 durante el embargo se
+registra en una D-nn propia como pérdida adicional de ceguera de T-024.
+Las alertas de dato por activo de T-025 (por ejemplo, 20 sesiones sin datos), cruzadas con una señal
+`PASS` visible, permiten sospechar una posición suspendida sin confirmarla: es la misma inferencia
+exógena que permiten las señales y los precios públicos, no un dato de libro, y se declara aquí.
+
+### D-77 — 2026-10-07 — OD-12 cerrada: T-024 vive en la línea Git dedicada `t024/forward`
+Decisión del propietario. T-024 tendrá una **línea Git dedicada y congelada**, independiente de la
+evolución de `main`, para que `main` evolucione (T-025, P6-bis, C-04, C-05…) y T-024 siga ejecutándose
+exactamente con sus `EXECUTOR_PATHS` congelados. **Esta entrega no crea la rama ni toca la Pi:** fija el
+contrato y el procedimiento.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Nombre:** `t024/forward`. Sigue la convención de prefijos del repositorio (`research/…`, `docs/…`).
+
+**Contrato de la línea, mientras T-024 esté vivo:**
+1. Se cumple siempre `git diff --quiet 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0 HEAD -- advisor
+   config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt`.
+2. **Nunca** se fusiona en ella un cambio que modifique `advisor/`, `config.yaml`, `universe.yaml`,
+   `exchange_overrides.yaml`, `pyproject.toml` o `requirements.txt`. En cuanto `main` toque alguna de
+   esas rutas, `main` no se vuelve a fusionar en `t024/forward`; lo que haga falta se trae con commits
+   propios o `cherry-pick` que no las toquen.
+3. Solo recibe los cambios operativos estrictamente necesarios fuera de esas rutas: el calendario de
+   T-024 (`deploy/t024/calendario-checkpoints.json`), su evidencia (`evidence/T-024-forward/`), su
+   documentación, sus artefactos de captura y correcciones de `deploy/t024/` que no cambien la identidad
+   del ejecutor.
+4. **No cambian** el sidecar de `T024_CODE_SHA` ni el campo `t024_code_sha` del calendario.
+5. Cada cambio entra por PR contra `t024/forward`, con revisión normal, sin squash, sin rebase y sin
+   force-push, y antes de fusionarlo se ejecuta y se anota en el PR el `git diff --quiet` del punto 1 y
+   `verificar_identidad()`, que tiene que devolver exactamente `1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0`.
+6. La evidencia de T-024 llega a `main` fusionando `t024/forward` en `main` (merge normal, en ese
+   sentido y nunca al revés una vez que `main` sea incompatible), o con un PR solo de evidencia.
+7. La fase B del PC (`traer_cosecha`, `registrar`, `capturar`) y la mirada se ejecutan en un worktree
+   del PC sobre `t024/forward`, preferiblemente fuera de la carpeta sincronizada con iCloud (sus
+   duplicados `* 2` sin seguimiento dentro de `advisor/` harían fallar `tree_dirty`).
+
+**Último commit compatible.** Es el último commit de `main` cuyo diff de los `EXECUTOR_PATHS` contra
+`1a697c3` está vacío. Al 2026-10-07 es `main = f80ab2876f7a7cc2e001b285e66fa061c0d7a8dc` (merge del PR
+#47); la cabeza del PR #48 también lo es, porque solo cambia `docs/` y `evidence/`. Si #48 se fusiona en
+`main` antes de crear la línea, el último compatible pasa a ser ese merge. Sea cual sea, se comprueba
+con el `git diff --quiet` del punto 1 en el momento de crear la rama, y su SHA se anota en la evidencia.
+
+**Procedimiento de creación (futuro; no se ejecuta en esta entrega):**
+1. **Crear `t024/forward`** en GitHub desde el último commit compatible, **antes** de fusionar en
+   `main` el primer cambio en los `EXECUTOR_PATHS` y, en todo caso, antes de la declaración de diciembre.
+   Se recomienda protegerla como `main` (sin force-push ni borrado; OA-02).
+2. **Verificar** en el PC, sobre la rama: el `git diff --quiet` del punto 1 del contrato y
+   `verificar_identidad()` = `1a697c3…`.
+3. **Mover el worktree de la Pi de forma controlada**, fuera de la ventana del timer (12:00 Canarias) y
+   nunca un día de checkpoint: comprobar que `/home/fer/intradia-t024` está limpio; `git -C
+   /home/fer/intradia-bot fetch origin`; `git -C /home/fer/intradia-t024 checkout --detach <SHA de
+   t024/forward>` (desacoplado al SHA exacto verificado, como hoy). La ruta del worktree no cambia, así
+   que la unidad systemd instalada tampoco.
+4. **Comprobar** en la Pi: `git diff --quiet 1a697c3… HEAD -- <EXECUTOR_PATHS>`; `verificar_identidad()`
+   con el intérprete del timer; `systemctl list-timers intradia-t024-checkpoint.timer`; y `python
+   deploy/t024/checkpoint.py estado --artefactos /home/fer/t024-forward`.
+5. **Prueba sin descarga:** `checkpoint.py estado` con `--hoy` en un día que no es checkpoint, y
+   `python -m advisor.research.t024_forward peticion …`, que solo calcula la petición. Nunca `ejecutar`
+   un día de checkpoint como prueba.
+6. **`main` queda libre** para evolucionar; el checkout habitual de la Pi (`/home/fer/intradia-bot`)
+   puede seguir a `main` y sus tags.
+7. **Entorno de Python propio para T-024** antes del primer despliegue en la Pi que cambie
+   `requirements.txt` o el venv del bot: hoy la unidad de T-024 usa el intérprete del venv del bot, y
+   `verificar_identidad()` comprueba ficheros, no las versiones instaladas. Un venv dedicado, instalado
+   desde el `requirements.txt` de `t024/forward`, y la reinstalación de la unidad con ese intérprete
+   (`deploy/t024/instalar.sh`) se hacen con el mismo procedimiento controlado.
+
+**Calendario de diciembre.** La declaración del checkpoint de diciembre entra en `t024/forward` antes del
+**2026-11-21**: un PR contra la rama que solo cambia `deploy/t024/calendario-checkpoints.json`, con la
+fuente oficial citada (calendario laboral de Canarias para 2026, como la de noviembre), revisión normal y
+los dos chequeos del punto 5 del contrato. Después se mueve el worktree de la Pi a ese commit con los
+pasos 3–5. No requiere que `main` siga siendo compatible con T-024. Cada mes, el mismo procedimiento con
+el mismo plazo.
+
+**Lo que no cambia:** el pre-registro y el código de T-024, `T024_CODE_SHA`, el calendario ya declarado,
+la Pi y su worktree (hasta ejecutar el procedimiento).
+
+### D-78 — 2026-10-07 — T-025: OD-T25-10 y OD-T25-11 cerradas; visibilidad estricta y plazos ratificados
+Decisiones del propietario tomadas el 2026-10-07, antes de que exista código de T-025 y sin haber
+observado ningún desenlace. Detalle operativo en `docs/tareas/T-025-shadow-paper-trading-forward.md`
+(§7.1, §8.7, §10.2, §10.3, §10.7, §13 y §17).
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+1. **OD-T25-10, ventana de P7 fijada y nunca consultada: A con salvaguardas estrictas.**
+   - Una D-nn cierra formalmente la ventana abandonada.
+   - Tiene que demostrarse que hubo **0 accesos** a desenlaces de esas sesiones y que ninguna fila de
+     `paper_outcome_access` las consume.
+   - Mientras se quieran conservar como candidatas a holdout, **permanecen selladas**: ni dashboard, ni
+     CLI, ni Telegram, ni agentes.
+   - Una candidata futura solo puede reutilizarlas si se definió y congeló sin haber visto esos
+     desenlaces. _(Precisado el 2026-10-07 por D-79: solo si estaba completamente congelada antes de la
+     primera sesión de la ventana; sin excepción a GATE P7.)_
+   - **`VIRGEN_REUTILIZABLE`** si y solo si: la ventana se abandonó, no hubo ninguna consulta de
+     desenlaces, permaneció sellada y existe evidencia verificable. Con cualquier acceso, directo o
+     indirecto: **`CONSUMIDA`**, y ya no puede ser holdout virgen.
+   - No B (quemaría sesiones nunca observadas) ni C (sellado indefinido sin necesidad).
+2. **OD-T25-11, cohorte viva cuyo entorno no puede seguir igual: A con fallback obligatorio a B.**
+   - Puede continuar tras actualizar exclusivamente una dependencia o el entorno solo si **antes** se
+     demuestra equivalencia objetiva: código económico, configuración y hashes de política sin cambios;
+     replay sobre todas las observaciones guardadas relevantes que reproduce byte a byte el ledger;
+     señales, niveles, sizing, órdenes y fills, salidas, cash y equity, acciones corporativas y FX
+     históricos idénticos; interpretación de los datos del proveedor equivalente; versión nueva del
+     entorno registrada.
+   - **`environment_epoch`:** una cohorte puede tener varias épocas; el cambio nunca se oculta; cada
+     época se identifica por versiones y hashes; la transición requiere una D-nn; la equivalencia queda
+     como evidencia. La equivalencia sobre el pasado no demuestra el comportamiento futuro del
+     proveedor: la época nueva es un tramo causal nuevo, etiquetado.
+   - Si cualquier comprobación falla: no continúa con el entorno nuevo y pasa a **`ENGINE_UNRUNNABLE`**
+     desde el último evento válido; posiciones abiertas `NO_EVALUABLE`; sin salidas fabricadas, sin
+     reescribir el histórico, sin P&L inventado, con toda la historia conservada; se abre una cohorte
+     nueva bajo el entorno nuevo.
+   - C solo como estado temporal durante la investigación técnica (`ENVIRONMENT_INVESTIGATION`).
+3. **Ratificación de la visibilidad durante el embargo** (la interpretación estricta de la ronda 4, que
+   D-75 dejó pendiente). Visible ex ante para B2, S2 y C0: fecha y hora, activo, política, `entry_max`,
+   stop, objetivos, RR, tamaño solicitado **solo como fracción de la equity**, comprobaciones puramente
+   de mercado, precio efectivo teórico de entrada si las supera y rechazo de mercado independiente del
+   estado del libro. **No** se muestra: tamaño en EUR, unidades si permiten reconstruir la equity,
+   `FILLED` si depende del cash o de la posición previa, `INSUFFICIENT_CASH`, `IGNORED_ALREADY_OPEN`,
+   estado de la posición previa, cash, equity, posiciones abiertas o cerradas, ni nada que permita
+   deducir un desenlace previo. Se distingue **`MARKET_PASS`** (visible) de **`FILLED`** (interno del
+   libro, sellado).
+4. **Ratificación de los plazos de 5 y 20 sesiones.** Solo avanzan cuando el motor estaba operativo,
+   correspondía pedir la barra, la pidió realmente y el proveedor no entregó una barra válida
+   (`PROVIDER_DATA_MISSING`). Se distingue de `ENGINE_DOWNTIME` y de `SIGNAL_NOT_EVALUATED`. Una caída de
+   la Pi no consume ningún plazo ni se interpreta como ausencia del proveedor. Las señales no evaluadas
+   por caída quedan `SIGNAL_NOT_EVALUATED` y no se reconstruyen. Las posiciones abiertas antes de la
+   caída se reconstruyen causalmente al volver con las barras realmente disponibles, marcadas como
+   procesamiento tardío, sin reescribir decisiones anteriores y resolviendo toda ambigüedad de forma
+   conservadora. Con tests específicos (ficha §16).
+5. **Congelación:** `T025_PREREG_SHA` no se congela hasta que OD-T25-10 y OD-T25-11 estén cerradas y la
+   documentación sea coherente con ellas, y solo si una revisión independiente final termina con
+   **0 BLOCKER y 0 IMPORTANTE**.
+
+**Lo que no cambia:** B2, S2 y C0; P6; T-024 y `T024_CODE_SHA`; P7 BLOQUEADO; la Pi.
+
+### D-79 — 2026-10-07 — T-025: OD-T25-12 cerrada; ninguna excepción a GATE P7 para reutilizar una ventana
+Decisión del propietario sobre la última OD de T-025, abierta por la revisión final (ronda 5). Precisa
+D-78 punto 1. **No cambia ningún requisito de GATE P7.**
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Decisión: alternativa A.**
+1. Una ventana `VIRGEN_REUTILIZABLE` solo puede usarse como holdout de P7 si la candidata que va a
+   evaluarse estaba **completamente congelada antes de la primera sesión de esa ventana**. Como mínimo:
+   política, geometría, entrada, salida, sizing, arquitectura de cartera, costes, universo aplicable,
+   configuración, y el código y la identidad que exija el pre-registro de P7.
+2. Si la candidata se congela después de que la ventana haya empezado o terminado: sus desenlaces pueden
+   seguir siendo informacionalmente vírgenes, pero la ventana **no es elegible** como holdout de P7 para
+   esa candidata. No se modifica GATE P7, no se crea ninguna excepción retrospectiva y P7 usa una ventana
+   futura posterior a la congelación de la candidata.
+3. Una ventana `VIRGEN_REUTILIZABLE` puede conservarse sellada para una candidata que ya cumpliera la
+   condición del punto 1.
+4. Si deja de tener utilidad, una D-nn puede liberarla; al liberarla y consultar sus desenlaces queda
+   consumida.
+
+Con esta decisión, **todas las OD de T-025 (OD-T25-1..12) quedan cerradas** (D-75, D-78 y D-79).
+Ficha §10.7 y §17; `docs/gates.md`, GATE P7.
+
+**Congelación (2026-10-07).** La revisión final de coherencia (`revisor` y Codex) terminó con 0 BLOCKER
+y 0 IMPORTANTE, como exige D-78 §5. **El pre-registro de T-025 queda congelado: `T025_PREREG_SHA` = HEAD
+del commit de congelación** que añade `evidence/2026-10-07-T-025-prereg-final/` (se identifica en el PR
+#48). Desde entonces solo cambia mediante una D-nn que declare la enmienda. T-025 no está implementado
+ni ejecutado.
+
+**Lo que no cambia:** GATE P7 y su requisito 1; B2, S2 y C0; T-024 y `T024_CODE_SHA`; la Pi.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
@@ -2182,6 +2588,66 @@ demás**.
 - **Bloquea:** A-03 (P3, score v2). No bloquea nada más.
 - **Respuesta del propietario, 2026-09-21:** el RR **sale del score como
   dimensión de puntuación**. Registrada en **D-43**, que es el texto que manda.
+
+---
+
+### OD-12 — Cómo convive T-024 con cambios en los `EXECUTOR_PATHS` · **CERRADA el 2026-10-07 en D-77**: línea dedicada `t024/forward` (alternativa a)
+- **Por qué existe:** `verificar_identidad()` de T-024 exige
+  `git diff --quiet 1a697c3 HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml
+  pyproject.toml requirements.txt` y un árbol limpio. La fase A de la Pi y la fase B del PC
+  (`t024_forward registrar` y `capturar`) la llaman. Hoy `main` cumple: comprobado el 2026-10-06. El
+  primer commit en `main` que toque esas rutas, ya sea de T-025, P6-bis, C-04 o C-05, dejará T-024
+  inoperable desde `main`. Además, la declaración mensual del calendario
+  (`deploy/t024/calendario-checkpoints.json`, la de diciembre antes del 2026-11-21) exige mover el
+  worktree de la Pi a un commit con esas rutas idénticas a `1a697c3`.
+- **Pregunta:** ¿cómo se sigue operando T-024 hasta su mirada final (corte 2027-08-27, más la cosecha
+  decisiva) mientras el resto del proyecto cambia el código?
+- **Alternativas:**
+  - (a) **Línea dedicada de T-024** _(elegida y concretada por D-77: desde el último commit compatible, y
+    `main` solo se fusiona en ella mientras siga siendo compatible)_: una rama `t024/forward` desde `4170bb4` y un worktree propio en el
+    PC. Las declaraciones de calendario, la fase B y la mirada se hacen ahí. La evidencia llega a
+    `main` por PR solo de evidencia, y nunca se fusiona `main` en esa línea.
+  - (b) **Congelar los `EXECUTOR_PATHS` de `main`** hasta que T-024 termine, a finales de 2027.
+  - (c) **Escribir todo el código nuevo fuera de los `EXECUTOR_PATHS`.**
+- **Consecuencia:**
+  - (a) `main` evoluciona sin riesgo para T-024, a cambio de mantener dos líneas y de cuidar que la
+    evidencia no se mezcle.
+  - (b) bloquea P6-bis, C-04, C-05 y cualquier cambio de `advisor/` durante más de un año.
+  - (c) no es viable para C-04, C-05 ni P6-bis, que tocan `advisor/`, y empuja duplicados contra
+    INV-06.
+- **Recomendación técnica:** (a), abierta **antes** del primer commit que toque esas rutas, y
+  **antes del 2026-11-21** si alguna tarea va a fusionarse en `main` antes de la declaración de
+  diciembre. T-025 (OD-T25-1 A) no las toca, pero las demás líneas sí.
+- **Bloquea:** fusionar en `main` cualquier cambio en los `EXECUTOR_PATHS`. No bloquea esta entrega
+  documental.
+- **Decisión del propietario (2026-10-07, D-77):** (a), línea `t024/forward`, con su contrato, su
+  procedimiento de creación y el plan del calendario de diciembre. `main` deja de estar obligado a ser
+  compatible con T-024; lo que bloquea ahora es **crear la línea** antes del primer cambio en los
+  `EXECUTOR_PATHS` de `main`.
+
+### OD-T25-1 a OD-T25-12 — Decisiones de T-025 · **CERRADAS el 2026-10-07** (OD-T25-1..9 en D-75; OD-T25-10 y OD-T25-11 en D-78; OD-T25-12 en D-79)
+Están en `docs/tareas/T-025-shadow-paper-trading-forward.md` §17, con el formato de esta sección:
+1. arquitectura (base `paper.db` y paquete fuera de `advisor/`);
+2. capital inicial;
+3. libros de B2 y S2;
+4. visibilidad de C0 mientras T-024 no se resuelve (reabre en parte D-73 §2);
+5. barra de entrada ausente;
+6. dividendos tardíos;
+7. activo sin datos de forma prolongada;
+8. cohortes y versiones del motor;
+9. alcance del consumo y ventana sellada de P7.
+
+La revisión de la ronda 4 abrió **OD-T25-10** (estado de las sesiones de una ventana de P7 fijada y
+nunca consultada) y su confirmación **OD-T25-11** (una cohorte viva cuyo entorno de Python ya no puede
+seguir igual). **Las dos se cerraron el 2026-10-07 en D-78**, que además ratifica la visibilidad
+estricta y los plazos de 5 y 20 sesiones, y condiciona la congelación a una revisión final limpia.
+La revisión final (ronda 5) abrió **OD-T25-12** (reutilizar una ventana de P7 abandonada frente al
+requisito 1 de GATE P7), **cerrada el 2026-10-07 en D-79** (alternativa A, sin excepción a GATE P7).
+Ninguna OD de T-025 queda abierta.
+
+**Bloqueaban** la congelación del pre-registro de T-025. Decisiones en D-75 (con D-76 para la
+visibilidad de T-024) y texto completo en la ficha §17. OD-T25-7 se cerró con una regla distinta de las
+dos alternativas: `DATA_LOSS / SUSPENDED` sin venta sintética.
 
 ---
 
