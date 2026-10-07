@@ -861,3 +861,42 @@ def test_late_processing_tras_una_caida_de_la_cohorte(tmp_path: Path) -> None:
     b2 = _cohort(store, "B2")
     assert store.rows("SELECT 1 FROM paper_ledger WHERE cohort_id = ? AND row_json LIKE '%\"late_processing\":1%'", (b2,))
     assert replay(store, UNIVERSE, b2).match
+
+
+def test_hueco_real_con_forma_de_split_queda_bloqueado_por_la_regla_del_8_6(tmp_path: Path) -> None:
+    """Regresión explícita de la regla elegida (§8.6): con una sola barra, un hueco real de −33 % no se
+    distingue de un split no publicado; sin split observado nunca se desbloquea y acaba en DATA_LOSS. Es la
+    consecuencia declarada de no adivinar el ratio ni mezclar escalas."""
+
+    gap_day = date(2026, 3, 18)
+    data = frames()
+    tstb = data["TSTB"]
+    after = [ts.date() >= gap_day for ts in tstb.index]
+    for column in ("Open", "High", "Low", "Close"):
+        tstb.loc[after, column] = tstb.loc[after, column] * (2 / 3)
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    run_passes(store, FakeProvider(data, clock), clock, passes_between(START, date(2026, 4, 17)))
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert info.missing is not None and info.missing.data_loss_since == gap_day
+    assert info.sessions[-1] < gap_day
+
+
+def test_bloqueo_por_solape_se_resuelve_con_un_split_posterior_a_la_ultima_vigente(tmp_path: Path) -> None:
+    from paper.ingest import unresolved_scale_mismatch
+
+    store = make_store(tmp_path)
+    now = datetime(2026, 3, 30, tzinfo=UTC)
+    with store.transaction():
+        for day in ("2026-03-16", "2026-03-17"):
+            store.conn.execute("INSERT INTO paper_bar_observation VALUES ('TSTB', ?, ?, 10, 10, 10, 10, 0, ?, 'p', 'r', 0)",
+                               (day, day + "T00:00:00-04:00", "2026-03-18T00:00:00+00:00"))
+        store.conn.execute("INSERT INTO paper_data_alert VALUES ('TSTB', 'SCALE_CHANGE_UNEXPLAINED', '2026-03-18', ?)",
+                           ("2026-03-21T00:00:00+00:00",))
+    assert unresolved_scale_mismatch(store, "TSTB", as_of=now.isoformat()) == date(2026, 3, 18)
+    with store.transaction():
+        store.conn.execute("INSERT INTO paper_corporate_action (data_symbol, kind, ex_date, amount, ratio, currency, "
+                           "observed_at, provider) VALUES ('TSTB', 'SPLIT', '2026-03-20', 0, 2, 'USD', ?, 'yfinance')",
+                           ("2026-03-25T00:00:00+00:00",))
+    assert unresolved_scale_mismatch(store, "TSTB", as_of=now.isoformat()) is None

@@ -325,6 +325,8 @@ class Ingestor:
             )
             # Una revisión distinta, o la confirmación del proveedor de un split manual (desde entonces su serie
             # ya viene reajustada), se registran sin cambiar la primera observación.
+            if manual is not None and kind == "SPLIT" and abs(float(first["ratio"]) - value) > 1e-9:
+                self._alert(symbol, "SCALE_CHANGE_UNEXPLAINED", day)  # el proveedor no confirma el ratio manual
             if manual is not None or (float(first["amount"]), float(first["ratio"])) != (row["amount"], row["ratio"]):
                 self.store.insert_first(
                     "paper_corporate_action_revision",
@@ -345,8 +347,9 @@ def unresolved_scale_mismatch(store: PaperStore, symbol: str, *, as_of: str) -> 
     """Primera sesión de un ``SCALE_MISMATCH`` sin resolver del activo, o ``None`` (§8.6).
 
     Un cambio de escala detectado en la sesión ``d`` queda resuelto solo cuando hay un ``SPLIT`` observado
-    (del proveedor, o manual con fuente oficial verificable y D-nn) con fecha ex en ``(última sesión vigente
-    anterior a d, d]``. Mientras no lo esté, ninguna barra de ``d`` en adelante entra en la serie.
+    (del proveedor, o manual con fuente oficial verificable y D-nn) con fecha ex posterior a la última sesión
+    vigente anterior a ``d`` (la del solape puede detectarse antes de su fecha ex, si faltan sesiones). Mientras
+    no lo esté, ninguna barra de ``d`` en adelante entra en la serie.
     """
 
     splits = [date.fromisoformat(r["ex_date"]) for r in store.rows(
@@ -360,10 +363,10 @@ def unresolved_scale_mismatch(store: PaperStore, symbol: str, *, as_of: str) -> 
         day = date.fromisoformat(row["session_date"])
         before = store.one(
             "SELECT MAX(session_date) AS m FROM paper_bar_observation WHERE data_symbol = ? AND scale_doubtful = 0 "
-            "AND session_date < ?", (symbol, day.isoformat()),
+            "AND session_date < ? AND observed_at <= ?", (symbol, day.isoformat(), as_of),
         )
         previous = date.fromisoformat(before["m"]) if before is not None and before["m"] else date.min
-        if not any(previous < ex <= day for ex in splits):
+        if not any(previous < ex for ex in splits):
             unresolved.append(day)
     return min(unresolved) if unresolved else None
 
