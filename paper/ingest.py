@@ -227,17 +227,20 @@ class Ingestor:
                     received.add(day.isoformat())
             return received
         vigente = _vigente(self.store, symbol)
-        doubtful_from, doubtful_day = self._scale_doubtful(symbol, rows, vigente, actions)
         for day, bar in actions:
             for column, action_kind in (("Dividends", "DIVIDEND"), ("Stock Splits", "SPLIT")):
                 value = float(bar.get(column, 0.0) or 0.0)
                 if value > 0 and math.isfinite(value):
                     self._corporate_action(symbol, action_kind, day, value, currency)
+        self._scale_doubtful(symbol, rows, vigente, actions)
+        blocked_from = unresolved_scale_mismatch(self.store, symbol, as_of=self.observed_at)
         for day, stamp, bar in rows:
             values = [float(bar[c]) for c in ("Open", "High", "Low", "Close")]
             if not all(math.isfinite(v) for v in values) or day.isoformat() in vigente:
                 continue
-            doubtful = (doubtful_from is not None and day >= doubtful_from) or day == doubtful_day
+            # §8.6: desde la primera barra en otra escala sin split observado, ninguna barra posterior entra
+            # (cuenta como dato ausente) hasta que llega el split del proveedor o uno manual con D-nn.
+            doubtful = blocked_from is not None and day >= blocked_from
             any_row = self.store.one(
                 "SELECT 1 FROM paper_bar_observation WHERE data_symbol = ? AND session_date = ?", (symbol, day.isoformat()))
             if doubtful and any_row is not None:
@@ -253,25 +256,30 @@ class Ingestor:
         return received
 
     def _scale_doubtful(self, symbol: str, rows: Sequence[Tuple[date, pd.Timestamp, Any]], vigente: Dict[str, Any],
-                        actions: Sequence[Tuple[date, Any]] = ()) -> Tuple[Optional[date], Optional[date]]:
-        """Primera sesión de esta respuesta en escala dudosa (§3.3, §8.6), o ``None``.
+                        actions: Sequence[Tuple[date, Any]] = ()) -> Optional[date]:
+        """Registra un cambio de escala sin split observado (``SCALE_MISMATCH``, §3.3, §8.6) y devuelve su
+        primera sesión, o ``None``. Nunca se adivina el factor.
 
         1. **Solape.** Cada barra ya guardada se compara con la nueva multiplicada por los splits con fecha ex
-           posterior que la guardada todavía no reflejaba. Solo un cambio de escala real (más del 20 %) que
-           ningún split explica hace dudosa la respuesta entera; una revisión menor del cierre no es un cambio
-           de escala (manda la primera observación).
+           posterior que la guardada todavía no reflejaba. Un cambio de escala real (más del 20 %) en la mayoría
+           del solape que ningún split explica: la escala de la respuesta no es la guardada.
         2. **Salto de split no publicado.** Entre barras consecutivas de la misma respuesta, una apertura que
-           salta en un factor de split (±1 %) sin un split observado en esa sesión hace dudosa **solo esa
-           barra**: cuenta como dato ausente (``SCALE_MISMATCH``). Si el split llega, la barra entra con su
-           ajuste; si no, a las 5 sesiones se declara ausente (salto de P6) y la posición sale a la apertura
-           siguiente: un hueco real nunca se esconde.
+           salta en un factor de split (±1 %) sin un split observado en esa sesión.
+
+        El bloqueo vive en ``paper_data_alert`` y se resuelve solo con un ``SPLIT`` (:func:`unresolved_scale_mismatch`).
+        Una revisión menor de un cierre no es un cambio de escala (manda la primera observación).
         """
 
-        known = [(date.fromisoformat(r["ex_date"]), float(r["ratio"]), r["observed_at"]) for r in self.store.rows(
-            "SELECT ex_date, ratio, observed_at FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'SPLIT'", (symbol,))]
+        from paper.inputs import _splits
+
+        rows_known = self.store.rows(
+            "SELECT ex_date FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'SPLIT' AND observed_at <= ?",
+            (symbol, self.observed_at))
+        # Solo el proveedor reajusta su propio histórico (un split manual, desde que el proveedor lo confirma).
+        known = _splits(self.store, symbol, datetime.fromisoformat(self.observed_at), provider_only=True)
         new_splits = [(day, float(bar.get("Stock Splits", 0.0) or 0.0)) for day, bar in actions
                       if float(bar.get("Stock Splits", 0.0) or 0.0) > 0]
-        split_days = {d for d, _r, _o in known} | {d for d, _r in new_splits}
+        split_days = {date.fromisoformat(r["ex_date"]) for r in rows_known} | {d for d, _r in new_splits}
         overlap = 0
         rescaled = 0
         for day, _stamp, bar in rows:
@@ -283,16 +291,13 @@ class Ingestor:
             for ex_date, ratio, observed in known:
                 if ex_date > day and observed > old["observed_at"]:
                     expected *= ratio
-            for ex_date, ratio in new_splits:
-                if ex_date > day and not any(k[0] == ex_date for k in known):
-                    expected *= ratio
             overlap += 1
             if abs(float(old["close"]) / close / expected - 1.0) > RESCALE_THRESHOLD:
                 rescaled += 1
-        if overlap and rescaled * 2 >= overlap:
-            self._alert(symbol, "SCALE_CHANGE_UNEXPLAINED", rows[-1][0])
-            new_days = [day for day, _s, _b in rows if day.isoformat() not in vigente]
-            return (min(new_days), None) if new_days else (None, None)
+        new_days = [day for day, _s, _b in rows if day.isoformat() not in vigente]
+        if overlap and rescaled * 2 >= overlap and new_days:
+            self._alert(symbol, "SCALE_CHANGE_UNEXPLAINED", min(new_days))
+            return min(new_days)
         previous: Optional[float] = None
         for day, _stamp, bar in rows:
             close, opening = float(bar["Close"]), float(bar["Open"])
@@ -300,9 +305,9 @@ class Ingestor:
                 jump = opening / previous
                 if day not in split_days and any(abs(jump / f - 1.0) <= SPLIT_LIKE_TOLERANCE for f in SPLIT_LIKE):
                     self._alert(symbol, "SCALE_CHANGE_UNEXPLAINED", day)
-                    return None, day
+                    return day
             previous = close
-        return None, None
+        return None
 
     def _corporate_action(self, symbol: str, kind: str, day: date, value: float, currency: str) -> None:
         row = {"data_symbol": symbol, "kind": kind, "ex_date": day.isoformat(),
@@ -314,7 +319,13 @@ class Ingestor:
                 (symbol, kind, day.isoformat()),
             )
             assert first is not None
-            if (float(first["amount"]), float(first["ratio"])) != (row["amount"], row["ratio"]):
+            manual = self.store.one(
+                "SELECT 1 FROM paper_corporate_action WHERE data_symbol = ? AND kind = ? AND ex_date = ? AND provider = 'manual'",
+                (symbol, kind, day.isoformat()),
+            )
+            # Una revisión distinta, o la confirmación del proveedor de un split manual (desde entonces su serie
+            # ya viene reajustada), se registran sin cambiar la primera observación.
+            if manual is not None or (float(first["amount"]), float(first["ratio"])) != (row["amount"], row["ratio"]):
                 self.store.insert_first(
                     "paper_corporate_action_revision",
                     {"data_symbol": symbol, "kind": kind, "ex_date": day.isoformat(), "amount": row["amount"],
@@ -328,3 +339,44 @@ class Ingestor:
             ("object", "kind", "session_date"),
         ):
             self.report.alerts += 1
+
+
+def unresolved_scale_mismatch(store: PaperStore, symbol: str, *, as_of: str) -> Optional[date]:
+    """Primera sesión de un ``SCALE_MISMATCH`` sin resolver del activo, o ``None`` (§8.6).
+
+    Un cambio de escala detectado en la sesión ``d`` queda resuelto solo cuando hay un ``SPLIT`` observado
+    (del proveedor, o manual con fuente oficial verificable y D-nn) con fecha ex en ``(última sesión vigente
+    anterior a d, d]``. Mientras no lo esté, ninguna barra de ``d`` en adelante entra en la serie.
+    """
+
+    splits = [date.fromisoformat(r["ex_date"]) for r in store.rows(
+        "SELECT ex_date FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'SPLIT' AND observed_at <= ?",
+        (symbol, as_of))]
+    unresolved: List[date] = []
+    for row in store.rows(
+        "SELECT session_date FROM paper_data_alert WHERE object = ? AND kind = 'SCALE_CHANGE_UNEXPLAINED' AND detected_at <= ?",
+        (symbol, as_of),
+    ):
+        day = date.fromisoformat(row["session_date"])
+        before = store.one(
+            "SELECT MAX(session_date) AS m FROM paper_bar_observation WHERE data_symbol = ? AND scale_doubtful = 0 "
+            "AND session_date < ?", (symbol, day.isoformat()),
+        )
+        previous = date.fromisoformat(before["m"]) if before is not None and before["m"] else date.min
+        if not any(previous < ex <= day for ex in splits):
+            unresolved.append(day)
+    return min(unresolved) if unresolved else None
+
+
+def register_manual_split(store: PaperStore, symbol: str, *, ex_date: date, ratio: float, currency: str,
+                          source_url: str, source_sha256: str, decision_ref: str, now: datetime) -> bool:
+    """Split manual con fuente oficial verificable y D-nn (§8.6): resuelve un ``SCALE_MISMATCH`` sin reescribir
+    nada; se aplica causalmente desde que se registra (``late`` si la frontera ya pasó la fecha ex)."""
+
+    if not (ratio > 0 and math.isfinite(ratio)) or not source_url or not source_sha256 or not decision_ref:
+        raise ValueError("un split manual exige ratio, fuente oficial, su sha256 y una D-nn")
+    return store.insert_first("paper_corporate_action", {
+        "data_symbol": symbol, "kind": "SPLIT", "ex_date": ex_date.isoformat(), "amount": 0.0, "ratio": ratio,
+        "currency": currency, "observed_at": now.isoformat(), "provider": "manual", "terminal_kind": "",
+        "source_url": source_url, "source_sha256": source_sha256, "decision_ref": decision_ref,
+    }, ("data_symbol", "kind", "ex_date"))

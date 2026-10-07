@@ -133,14 +133,26 @@ def trailing_gap_start(expected: Sequence[date], absent: Sequence[date]) -> Opti
     return start
 
 
-def _splits(store: PaperStore, symbol: str, cutoff: datetime) -> List[Tuple[date, float, str]]:
-    return [
-        (date.fromisoformat(r["ex_date"]), float(r["ratio"]), r["observed_at"])
-        for r in store.rows(
-            "SELECT ex_date, ratio, observed_at FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'SPLIT' "
-            "AND observed_at <= ? ORDER BY ex_date", (symbol, cutoff.isoformat()),
-        )
-    ]
+def _splits(store: PaperStore, symbol: str, cutoff: datetime, *, provider_only: bool = False) -> List[Tuple[date, float, str]]:
+    """Splits observados hasta el corte. ``provider_only``: solo los que el proveedor aplica a su serie (un split
+    manual con D-nn reescala la posición y la vista de señal, pero no cambia las barras que sirve el proveedor)."""
+
+    out = []
+    for r in store.rows(
+        "SELECT ex_date, ratio, observed_at, provider FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'SPLIT' "
+        "AND observed_at <= ? ORDER BY ex_date", (symbol, cutoff.isoformat()),
+    ):
+        observed = r["observed_at"]
+        if provider_only and r["provider"] == "manual":
+            confirmed = store.one(
+                "SELECT MIN(observed_at) AS m FROM paper_corporate_action_revision WHERE data_symbol = ? AND kind = 'SPLIT' "
+                "AND ex_date = ? AND ratio > 0 AND observed_at <= ?", (symbol, r["ex_date"], cutoff.isoformat()),
+            )
+            if confirmed is None or not confirmed["m"]:
+                continue
+            observed = confirmed["m"]
+        out.append((date.fromisoformat(r["ex_date"]), float(r["ratio"]), observed))
+    return out
 
 
 def exec_factor(session: date, observed_at: str, splits: Sequence[Tuple[date, float, str]]) -> float:
@@ -163,6 +175,7 @@ def series_info(store: PaperStore, asset: PaperAsset, start: date, cutoff: datet
     ):
         first.setdefault(row["session_date"], row)
     splits = _splits(store, symbol, cutoff)
+    provider_splits = _splits(store, symbol, cutoff, provider_only=True)
     expected = [d for d in sessions(asset.market, start, cutoff.date()) if closed_by(asset.market, d, cutoff, settlement)]
     absent = [d for d in expected if d.isoformat() not in first]
     info = missing_info(store, symbol, asset.market, absent, cutoff, settlement, downtime)
@@ -187,7 +200,7 @@ def series_info(store: PaperStore, asset: PaperAsset, start: date, cutoff: datet
         anchor = expected[-1] if expected else (last_session or start - timedelta(days=1))
         horizon = open_close(asset.market, next_session(asset.market, anchor))[0]
     days = tuple(date.fromisoformat(r["session_date"]) for r in chosen)
-    factors = tuple(exec_factor(d, r["observed_at"], splits) for d, r in zip(days, chosen))
+    factors = tuple(exec_factor(d, r["observed_at"], provider_splits) for d, r in zip(days, chosen))
     opens, closes = [], []
     for d in days:
         o, c = open_close(asset.market, d)
@@ -214,7 +227,7 @@ def series_info(store: PaperStore, asset: PaperAsset, start: date, cutoff: datet
         ex = date.fromisoformat(r["ex_date"])
         i = index_of.get(ex, first_index_on_or_after(ex))
         if i is not None:
-            dividends[i] = dividends.get(i, 0.0) + float(r["amount"]) * exec_factor(ex, r["observed_at"], splits)
+            dividends[i] = dividends.get(i, 0.0) + float(r["amount"]) * exec_factor(ex, r["observed_at"], provider_splits)
     terminal = None
     term = store.one(
         "SELECT ex_date, amount FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'TERMINAL' "

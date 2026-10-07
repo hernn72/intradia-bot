@@ -90,13 +90,14 @@ def close_series(store: PaperStore, symbol: str, cutoff: datetime, *, context: b
         ):
             first.setdefault(r["session_date"], r)
         rows = [first[k] for k in sorted(first)]
-        splits = [(date.fromisoformat(r["ex_date"]), float(r["ratio"]), r["observed_at"]) for r in store.rows(
-            "SELECT ex_date, ratio, observed_at FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'SPLIT' AND observed_at <= ?",
-            (symbol, cutoff.isoformat()))]
+        from paper.inputs import _splits
+
+        splits = _splits(store, symbol, cutoff)
+        provider_splits = _splits(store, symbol, cutoff, provider_only=True)
         values = []
         for r in rows:
             day = date.fromisoformat(r["session_date"])
-            factor = exec_factor(day, r["observed_at"], splits)
+            factor = exec_factor(day, r["observed_at"], provider_splits)
             for ex_date, ratio, _obs in splits:
                 if ex_date > day:
                     factor /= ratio

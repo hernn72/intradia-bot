@@ -12,7 +12,7 @@ import sqlite3
 from contextlib import redirect_stdout
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pytest
 
@@ -732,22 +732,106 @@ def test_el_compromiso_cambia_en_cada_ejecucion_aunque_no_haya_filas_nuevas(flow
     assert len({r["commitment_sha256"] for r in rows}) == len(rows)
 
 
-def test_hueco_real_con_forma_de_split_no_mata_el_activo_ni_esconde_la_perdida(tmp_path: Path) -> None:
-    gap_day = date(2026, 3, 18)
-    data = frames()
-    tz_frame = data["TSTB"]
-    after = [ts.date() >= gap_day for ts in tz_frame.index]
-    for column in ("Open", "High", "Low", "Close"):
-        tz_frame.loc[after, column] = tz_frame.loc[after, column] * (2 / 3)  # caída real del −33 %, sin split
+def _hold_tstb(asset: Any, info: Any, frame: Any, j: int, env: Any, resolver: Any, benchmark: Any, analysis_ts: Any):
+    """Evaluador de prueba: OPERAR siempre en TSTB con niveles anchos, para tener una posición abierta."""
+
+    out = fake_evaluator(asset, info, frame, j, env, resolver, benchmark, analysis_ts)
+    if asset.symbol != "TSTB":
+        return {**out, "operar": 0, "setup_radar": "VIGILAR", "setup_accion": "ESPERAR"}
+    close = float(frame["Close"].iloc[j])
+    return {**out, "operar": 1, "setup_radar": "OPERAR", "setup_accion": "COMPRAR", "stop": close * 0.6,
+            "target2": close * 1.9, "entry_max": close * 1.01}
+
+
+def _run_held(store: PaperStore, provider: FakeProvider, clock: Clock, first: date, last: date) -> None:
+    from paper.runner import run_pass
+
+    for pass_ts in passes_between(first, last):
+        clock.current = max(clock.current, pass_ts + timedelta(minutes=2))
+        run_pass(store, UNIVERSE, provider, pass_ts=pass_ts, clock=clock, code_sha="c" * 40, environment=ENV,
+                 envs=ENVS, identity_ok=lambda _sha: True, evaluator=_hold_tstb, lock_wait_seconds=2.0)
+
+
+def _tstb_rows(store: PaperStore, policy: str, since: date) -> List[Dict[str, Any]]:
+    rows = store.rows("SELECT l.row_json FROM paper_ledger l JOIN paper_cohort c ON c.cohort_id = l.cohort_id "
+                      "WHERE c.policy_id = ? ORDER BY l.seq", (policy,))
+    out = [json.loads(r["row_json"]) for r in rows]
+    return [r for r in out if r["asset"] == "TSTB" and r["session_date"] and r["session_date"] >= since.isoformat()]
+
+
+@pytest.mark.parametrize("resolution", ["proveedor", "manual", "manual_y_proveedor"])
+def test_split_no_publicado_bloquea_la_escala_y_se_reanuda_con_el_split_oficial(tmp_path: Path, resolution: str) -> None:
+    from paper.ingest import register_manual_split
+
+    ex = date(2026, 3, 18)
     store = make_store(tmp_path)
     clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
-    run_passes(store, FakeProvider(data, clock), clock, passes_between(START, date(2026, 4, 17)))
+    published = {"proveedor": datetime(2026, 3, 24, 12, tzinfo=UTC), "manual": datetime(2027, 1, 1, tzinfo=UTC),
+                 "manual_y_proveedor": datetime(2026, 3, 27, 12, tzinfo=UTC)}[resolution]
+    provider = FakeProvider(frames(splits={"TSTB": {ex: 2.0}}), clock, splits={"TSTB": (ex, 2.0)},
+                            split_published_at={"TSTB": published})
+    # Sin publicar, el proveedor sirve la barra ex y las siguientes en la escala nueva y el histórico sin reajustar.
+    _run_held(store, provider, clock, START, date(2026, 3, 13))
+    b2 = _cohort(store, "B2")
+    held_before = [r for r in _tstb_rows(store, "B2", START) if r["event_type"] == "ENTRY"]
+    assert held_before, "B2 tiene que tener TSTB abierta antes del split"
+    _run_held(store, provider, clock, date(2026, 3, 16), date(2026, 3, 23))
+
+    alerts = store.rows("SELECT session_date FROM paper_data_alert WHERE object = 'TSTB' AND kind = 'SCALE_CHANGE_UNEXPLAINED'")
+    assert [a["session_date"] for a in alerts] == [ex.isoformat()], "la primera barra sospechosa abre SCALE_MISMATCH"
     now = clock()
     info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
-    assert info.missing is not None and info.missing.data_loss_since is None
-    assert info.sessions[-1] > date(2026, 4, 10), "el activo sigue vivo después del hueco"
-    assert gap_day in info.missing.declared, "la barra del salto, sin split, se declara ausente (salto de P6)"
-    assert not store.rows("SELECT * FROM paper_data_alert WHERE object = 'TSTB' AND kind = 'NO_DATA_20_SESSIONS'")
+    assert info.sessions[-1] < ex, "ninguna barra en la escala nueva entra mientras no hay split"
+    assert not store.rows("SELECT 1 FROM paper_bar_observation WHERE data_symbol = 'TSTB' AND session_date >= ? AND scale_doubtful = 0",
+                          (ex.isoformat(),))
+    blocked = [r for r in _tstb_rows(store, "B2", ex) if r["event_type"] in ("EXIT", "SPLIT_ADJUST", "DIVIDEND")]
+    assert blocked == [], "ni stop, ni objetivo, ni P&L mientras dura el SCALE_MISMATCH"
+    assert not [o for o in store.rows("SELECT position_id, exit_ts_utc FROM paper_trade_outcome WHERE cohort_id = ?", (b2,))
+                if o["exit_ts_utc"] >= ex.isoformat()]
+    ledger_before = [r["row_json"] for r in store.rows("SELECT row_json FROM paper_ledger WHERE cohort_id = ? ORDER BY seq", (b2,))]
+
+    if resolution in ("manual", "manual_y_proveedor"):
+        with store.transaction():
+            register_manual_split(store, "TSTB", ex_date=ex, ratio=2.0, currency="USD",
+                                  source_url="https://example.invalid/aviso-oficial", source_sha256="f" * 64,
+                                  decision_ref="D-nn", now=clock())
+    _run_held(store, provider, clock, date(2026, 3, 24), date(2026, 4, 3))
+    ledger_after = [r["row_json"] for r in store.rows("SELECT row_json FROM paper_ledger WHERE cohort_id = ? ORDER BY seq", (b2,))]
+    assert ledger_after[: len(ledger_before)] == ledger_before, "reanudar no reescribe la historia"
+    resumed = _tstb_rows(store, "B2", ex)
+    adjust = [r for r in resumed if r["event_type"] == "SPLIT_ADJUST"]
+    assert len(adjust) == 1 and adjust[0]["units_after"] == pytest.approx(2 * adjust[0]["units_before"])
+    assert not [r for r in resumed if r["event_type"] == "EXIT" and r["reason"] == "stop"], "sin stop ficticio"
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert info.sessions[-1] > ex
+    assert [a["session_date"] for a in store.rows(
+        "SELECT session_date FROM paper_data_alert WHERE object = 'TSTB' AND kind = 'SCALE_CHANGE_UNEXPLAINED'")] == [ex.isoformat()]
+    assert replay(store, UNIVERSE, b2).match
+
+
+def test_split_nunca_publicado_acaba_en_data_loss_y_no_evaluable(tmp_path: Path) -> None:
+    from paper.environment import set_state
+
+    ex = date(2026, 3, 18)
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(splits={"TSTB": {ex: 2.0}}), clock, splits={"TSTB": (ex, 2.0)},
+                            split_published_at={"TSTB": datetime(2027, 1, 1, tzinfo=UTC)})
+    _run_held(store, provider, clock, START, date(2026, 4, 24))
+    b2 = _cohort(store, "B2")
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert info.missing is not None and info.missing.data_loss_since == ex
+    events = {r["event_type"] for r in store.rows("SELECT event_type FROM paper_position_event WHERE cohort_id = ?", (b2,))}
+    assert "DATA_LOSS_SUSPENDED" in events
+    assert not [r for r in _tstb_rows(store, "B2", ex) if r["event_type"] == "EXIT"]
+    with store.transaction():
+        set_state(store, b2, "CLOSING", at=clock(), reason="cierre ordinario", decision_ref="D-nn")
+    _run_held(store, provider, clock, date(2026, 4, 27), date(2026, 5, 15))
+    events = {r["event_type"] for r in store.rows("SELECT event_type FROM paper_position_event WHERE cohort_id = ?", (b2,))}
+    assert "NO_EVALUABLE_DATA_LOSS" in events
+    assert not [r for r in _tstb_rows(store, "B2", ex) if r["event_type"] == "EXIT"]
 
 
 def test_cierre_de_cohorte_no_aparece_como_caida_visible(tmp_path: Path) -> None:
