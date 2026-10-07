@@ -38,10 +38,12 @@ from paper.visibility import (
 )
 from tests.paper_fixtures import (
     ENV,
+    ENVS,
     START,
     UNIVERSE,
     Clock,
     FakeProvider,
+    fake_evaluator,
     frames,
     make_store,
     passes_between,
@@ -99,11 +101,10 @@ def test_reconstruccion_byte_a_byte_de_todas_las_cohortes(flow) -> None:
 def test_una_pasada_repetida_no_duplica_nada(tmp_path: Path) -> None:
     store, clock, provider, _reports = _flow(tmp_path, last=date(2026, 3, 13))
     before = store.table_counts()
-    last_pass = passes_between(START, date(2026, 3, 13))[-1]
-    run_passes(store, provider, clock, [last_pass])
-    after = store.table_counts()
-    for table in ("paper_ledger", "paper_signal_evaluation", "paper_open_check", "paper_position", "paper_trade_outcome"):
-        assert after[table] == before[table], table
+    passes = passes_between(START, date(2026, 3, 13))
+    again = run_passes(store, provider, clock, [passes[-1], passes[5]])  # la última y una anterior ya hechas
+    assert {r.status for r in again} == {"ALREADY_DONE"}
+    assert store.table_counts() == before
     with pytest.raises(DivergenceError):
         row = dict(store.one("SELECT * FROM paper_open_check LIMIT 1"))
         row["entry_effective"] = row["entry_effective"] * 2
@@ -225,21 +226,29 @@ def test_dos_libros_con_desenlaces_distintos_dan_la_misma_salida_visible(tmp_pat
     a_dir, b_dir = tmp_path / "a", tmp_path / "b"
     a_dir.mkdir()
     b_dir.mkdir()
-    store_a = _flow(a_dir, last=date(2026, 3, 20))[0]
-    store_b = _flow(b_dir, last=date(2026, 3, 20))[0]
-    b2 = _cohort(store_b, "B2")
-    # El libro B tiene desenlaces, cash y estados distintos: nada de eso puede asomar en la salida visible.
-    store_b.conn.execute("INSERT INTO paper_entry_decision VALUES (?, 'X|swing|2026-03-10', 'INSUFFICIENT_CASH', '2026-03-11T08:00:00Z', 99999)", (b2,))
-    store_b.conn.execute("INSERT INTO paper_equity_snapshot VALUES (?, '2026-12-31', 99, 0, 1, 2, 3, 0, 4, '{}', 'x')", (b2,))
-    store_b.conn.execute("INSERT INTO paper_ledger VALUES (?, 99999, 99, 0, 'EXIT', '2026-12-31T00:00:00Z', 's', 'p', '{}', 'x')", (b2,))
+    store_a = _flow(a_dir, last=date(2026, 3, 27))[0]
+    # Mismas aperturas y cierres (mismas señales y comprobaciones de apertura), mínimos intradía más bajos:
+    # los stops saltan distinto, así que los desenlaces, el cash y la equity del libro B son otros.
+    deeper = frames()
+    for symbol in ("TSTA.DE", "TSTB", "TSTC.HK"):
+        deeper[symbol]["Low"] = deeper[symbol]["Low"] * 0.93
+    store_b = make_store(b_dir)
+    clock_b = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    run_passes(store_b, FakeProvider(deeper, clock_b), clock_b, passes_between(START, date(2026, 3, 27)))
+    b2a, b2b = _cohort(store_a, "B2"), _cohort(store_b, "B2")
+    outcomes_a = [r["trade_json"] for r in store_a.rows("SELECT trade_json FROM paper_trade_outcome WHERE cohort_id = ?", (b2a,))]
+    outcomes_b = [r["trade_json"] for r in store_b.rows("SELECT trade_json FROM paper_trade_outcome WHERE cohort_id = ?", (b2b,))]
+    assert outcomes_a != outcomes_b, "los dos libros tienen que tener desenlaces distintos"
     assert _visible(store_a) == _visible(store_b)
-    for command in (("status",), ("signals",), ("telegram",)):
+    for command in (("signals",), ("telegram",)):
         text_a, text_b = _cli(a_dir / "paper.db", *command), _cli(b_dir / "paper.db", *command)
-        if command != ("status",):
-            assert text_a == text_b
+        assert text_a == text_b
         assert text_a.startswith(LABEL) or text_a.startswith("🧪")
         for word in FORBIDDEN_VISIBLE:
             assert word not in text_a, (command, word)
+    status = _cli(a_dir / "paper.db", "status")
+    for word in FORBIDDEN_VISIBLE:
+        assert word not in status, word
 
 
 def test_market_pass_visible_y_filled_sellado(flow) -> None:
@@ -339,6 +348,11 @@ def test_caida_de_la_pi_no_consume_plazos_y_las_senales_quedan_sin_evaluar(tmp_p
     provider = FakeProvider(frames(), clock)
     all_passes = passes_between(START, date(2026, 3, 27))
     down = {p for p in all_passes if date(2026, 3, 10) <= p.date() <= date(2026, 3, 18)}
+    # Mientras la Pi está caída, el proveedor tampoco sirve TSTB; al volver la Pi, la primera petición aún no
+    # trae esas barras (llegan dos días después): ni la caída ni esa primera petición consumen el plazo.
+    resume = datetime(2026, 3, 21, tzinfo=UTC)
+    for day in (date(2026, 3, d) for d in range(10, 19)):
+        provider.delays[("TSTB", day)] = resume
     reports = run_passes(store, provider, clock, all_passes, skip=down)
     assert all(r.status == "OK" for r in reports)
     assert store.rows("SELECT * FROM paper_engine_downtime WHERE subcause = 'SIN_EJECUCION'")
@@ -373,8 +387,11 @@ def test_fetch_failure_es_caida_del_motor_y_no_avanza_plazos(tmp_path: Path) -> 
     passes = passes_between(START, date(2026, 3, 20))
     run_passes(store, provider, clock, passes[:8])
     provider.down = True
+    progress_before = store.table_counts()["paper_cohort_progress"]
     failed = run_passes(store, provider, clock, passes[8:30])
     assert {r.status for r in failed} == {"FETCH_FAILURE"}
+    assert sum(r.evaluations for r in failed) > 0, "FETCH_FAILURE no impide confirmar evaluaciones (§5, §7.1)"
+    assert store.table_counts()["paper_cohort_progress"] == progress_before, "con FETCH_FAILURE no avanzan los libros"
     assert store.rows("SELECT * FROM paper_engine_downtime WHERE subcause = 'FETCH_FAILURE'")
     assert not store.rows("SELECT * FROM paper_bar_request WHERE result != 'OBTAINED'")
     provider.down = False
@@ -395,11 +412,14 @@ def test_cambio_de_entorno_investigacion_equivalencia_y_epoca_nueva(tmp_path: Pa
     assert set(reports[0].cohorts.values()) == {"ENVIRONMENT_INVESTIGATION"}
     b2 = _cohort(store, "B2")
     ledger_before = store.table_counts()["paper_ledger"]
+    evals_before = store.table_counts()["paper_signal_evaluation"]
     run_passes(store, provider, clock, passes_between(date(2026, 3, 17), date(2026, 3, 17)), env=env2)
     assert store.table_counts()["paper_ledger"] == ledger_before
+    assert store.table_counts()["paper_signal_evaluation"] == evals_before, "en investigación no se evalúa (§13)"
     for policy in ("B2", "S2", "C0", "BH"):
         cohort = _cohort(store, policy)
-        result = equivalence_check(store, UNIVERSE, cohort, contract_ok=True, interpretation_ok=True)
+        result = equivalence_check(store, UNIVERSE, cohort, contract_ok=True, interpretation_ok=True, envs=ENVS,
+                                   evaluator=fake_evaluator)
         assert result.passed
         resolve_investigation(store, cohort, env2, passed=True, decision_ref="D-nn", code_sha="c" * 40, now=clock(),
                               first_scheduled_pass="", commitment=result.commitment)
@@ -411,10 +431,13 @@ def test_cambio_de_entorno_investigacion_equivalencia_y_epoca_nueva(tmp_path: Pa
 def test_equivalencia_fallida_lleva_a_engine_unrunnable_sin_salidas(tmp_path: Path) -> None:
     store, clock, provider, _r = _flow(tmp_path, last=date(2026, 3, 20))
     b2 = _cohort(store, "B2")
-    open_before = store.rows("SELECT COUNT(*) AS n FROM paper_position WHERE cohort_id = ?", (b2,))[0]["n"]
+    opened = {r["position_id"] for r in store.rows("SELECT position_id FROM paper_position WHERE cohort_id = ?", (b2,))}
+    closed = {r["position_id"] for r in store.rows("SELECT position_id FROM paper_trade_outcome WHERE cohort_id = ?", (b2,))}
+    still_open = opened - closed
     env2 = Environment(ENV.python_version, ("pandas==9.9.9",), ENV.requirements_sha256)
     run_passes(store, provider, clock, passes_between(date(2026, 3, 23), date(2026, 3, 23)), env=env2)
-    result = equivalence_check(store, UNIVERSE, b2, contract_ok=True, interpretation_ok=False)
+    result = equivalence_check(store, UNIVERSE, b2, contract_ok=True, interpretation_ok=False, envs=ENVS,
+                               evaluator=fake_evaluator)
     assert not result.passed
     resolve_investigation(store, b2, env2, passed=False, decision_ref="D-nn", code_sha="c" * 40, now=clock(),
                           first_scheduled_pass="", commitment=result.commitment)
@@ -423,9 +446,10 @@ def test_equivalencia_fallida_lleva_a_engine_unrunnable_sin_salidas(tmp_path: Pa
     assert cohort_state(store, b2) == "ENGINE_UNRUNNABLE"
     exits_after = len(store.rows("SELECT * FROM paper_ledger WHERE cohort_id = ? AND event_type = 'EXIT'", (b2,)))
     assert exits_after == exits_before
-    events = {r["event_type"] for r in store.rows("SELECT event_type FROM paper_position_event WHERE cohort_id = ?", (b2,))}
-    if open_before:
-        assert "NO_EVALUABLE_ENGINE_UNRUNNABLE" in events or "EXIT" in events
+    assert still_open, "el escenario necesita posiciones abiertas"
+    flagged = {r["position_id"] for r in store.rows(
+        "SELECT position_id FROM paper_position_event WHERE cohort_id = ? AND event_type = 'NO_EVALUABLE_ENGINE_UNRUNNABLE'", (b2,))}
+    assert flagged == still_open
 
 
 # ---------------------------------------------------------------------------- acciones corporativas
@@ -475,3 +499,234 @@ def test_cli_status_y_audit(flow, monkeypatch: pytest.MonkeyPatch) -> None:
     assert all("detalle" not in item for item in payload if item["cohort"] in ("B2", "S2", "C0"))
     assert re.search(r'"state": "ACTIVE"', _cli(db, "status"))
 
+
+
+# ---------------------------------------------------------------------------- ronda de revisión del código
+
+
+def test_revision_menor_de_un_cierre_no_mata_el_activo(tmp_path: Path) -> None:
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    provider.revisions[("TSTB", date(2026, 3, 12))] = (datetime(2026, 3, 13, tzinfo=UTC), 1.0002)
+    run_passes(store, provider, clock, passes_between(START, date(2026, 4, 10)))
+    assert not store.rows("SELECT * FROM paper_bar_observation WHERE scale_doubtful = 1")
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert info.missing is not None and not info.missing.declared and info.missing.data_loss_since is None
+
+
+def test_split_publicado_tarde_no_bloquea_ni_rompe_la_escala(tmp_path: Path) -> None:
+    ex = date(2026, 3, 16)
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(splits={"TSTB": {ex: 2.0}}), clock, splits={"TSTB": (ex, 2.0)},
+                            split_published_at={"TSTB": datetime(2026, 3, 18, 12, tzinfo=UTC)})
+    reports = run_passes(store, provider, clock, passes_between(START, date(2026, 3, 27)))
+    assert {r.status for r in reports} == {"OK"}, "una divergencia nunca bloquea las pasadas siguientes"
+    assert store.rows("SELECT * FROM paper_data_alert WHERE object = 'TSTB' AND kind = 'SCALE_CHANGE_UNEXPLAINED'")
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    i = info.sessions.index(ex)
+    assert info.view.splits.get(i) == 2.0
+    for policy in ("B2", "S2", "BH"):
+        assert replay(store, UNIVERSE, _cohort(store, policy)).match
+
+
+def test_fila_del_proveedor_en_festivo_se_descarta_con_alerta(tmp_path: Path) -> None:
+    from zoneinfo import ZoneInfo
+
+    import pandas as pd
+
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 30, tzinfo=UTC))
+    good_friday = pd.Timestamp(datetime(2026, 4, 3, tzinfo=ZoneInfo("Europe/Berlin")))
+    extra = pd.DataFrame([{"Open": 5000.0, "High": 5010.0, "Low": 4990.0, "Close": 5000.0, "Volume": 0.0,
+                           "Dividends": 0.0, "Stock Splits": 0.0}], index=[good_friday])
+    provider = FakeProvider(frames(), clock, extra_rows={"^STOXX50E": extra})
+    reports = run_passes(store, provider, clock, passes_between(date(2026, 3, 30), date(2026, 4, 10)))
+    assert {r.status for r in reports} == {"OK"}
+    assert store.rows("SELECT * FROM paper_data_alert WHERE kind = 'NON_SESSION_ROW' AND object = '^STOXX50E'")
+
+
+def test_caida_tras_escribir_los_libros_no_reutiliza_run_seq(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import paper.runner as runner
+
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    passes = passes_between(START, date(2026, 3, 20))
+    run_passes(store, provider, clock, passes[:10])
+    original = runner._finish
+    monkeypatch.setattr(runner, "_finish", lambda *a, **k: (_ for _ in ()).throw(SystemExit("corte de luz")))
+    with pytest.raises(SystemExit):
+        run_passes(store, provider, clock, passes[10:11])
+    monkeypatch.setattr(runner, "_finish", original)
+    reports = run_passes(store, provider, clock, passes[11:])
+    assert {r.status for r in reports} == {"OK"}
+    seqs = [r["run_seq"] for r in store.rows("SELECT run_seq FROM paper_run_start ORDER BY run_seq")]
+    assert seqs == sorted(set(seqs))
+    for policy in ("B2", "S2", "C0", "BH"):
+        assert replay(store, UNIVERSE, _cohort(store, policy)).match
+
+
+def test_lote_cortado_a_mitad_se_reanuda_igual_que_una_pasada_limpia(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import paper.runner as runner
+
+    clean = _flow(tmp_path / "limpio", last=date(2026, 3, 20))[0] if (tmp_path / "limpio").mkdir() is None else None
+    assert clean is not None
+    (tmp_path / "corte").mkdir()
+    store = make_store(tmp_path / "corte")
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    passes = passes_between(START, date(2026, 3, 20))
+    run_passes(store, provider, clock, passes[:12])
+    original = runner.persist_progress
+
+    def broken(*args: Any, **kwargs: Any) -> str:
+        raise RuntimeError("corte a mitad de la transacción del libro")
+
+    monkeypatch.setattr(runner, "persist_progress", broken)
+    run_passes(store, provider, clock, passes[12:13])
+    monkeypatch.setattr(runner, "persist_progress", original)
+    run_passes(store, provider, clock, passes[13:])
+    for policy in ("B2", "S2", "C0", "BH"):
+        a = [r["row_json"] for r in clean.rows("SELECT row_json FROM paper_ledger l JOIN paper_cohort c ON c.cohort_id = l.cohort_id "
+                                               "WHERE c.policy_id = ? ORDER BY seq", (policy,))]
+        b = [json.loads(r["row_json"]) for r in store.rows("SELECT row_json FROM paper_ledger l JOIN paper_cohort c ON c.cohort_id = l.cohort_id "
+                                                           "WHERE c.policy_id = ? ORDER BY seq", (policy,))]
+        drop = ("late_processing",)
+        assert [{k: v for k, v in json.loads(x).items() if k not in drop} for x in a] == [
+            {k: v for k, v in y.items() if k not in drop} for y in b], policy
+
+
+def test_identity_mismatch_no_evalua_y_deja_senales_sin_evaluar_por_caida(tmp_path: Path) -> None:
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    passes = passes_between(START, date(2026, 3, 13))
+    run_passes(store, provider, clock, passes[:8])
+    before = store.table_counts()["paper_signal_evaluation"]
+    reports = run_passes(store, provider, clock, passes[8:], identity_ok=lambda _sha: False)
+    assert {v for r in reports for v in r.cohorts.values()} == {"IDENTITY_MISMATCH"}
+    assert store.table_counts()["paper_signal_evaluation"] == before
+    causes = {r["cause"] for r in store.rows("SELECT cause FROM paper_signal_not_evaluated")}
+    assert causes == {"ENGINE_DOWNTIME"}
+
+
+def test_aborted_invalid_engine_congela_la_cohorte(tmp_path: Path) -> None:
+    from paper.environment import set_state
+
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    passes = passes_between(START, date(2026, 3, 20))
+    run_passes(store, provider, clock, passes[:10])
+    b2 = _cohort(store, "B2")
+    with store.transaction():
+        set_state(store, b2, "ABORTED_INVALID_ENGINE", at=clock(), reason="defecto crítico", decision_ref="D-nn")
+    ledger = len(store.rows("SELECT * FROM paper_ledger WHERE cohort_id = ?", (b2,)))
+    evals = len(store.rows("SELECT * FROM paper_signal_evaluation WHERE cohort_id = ?", (b2,)))
+    run_passes(store, provider, clock, passes[10:])
+    assert len(store.rows("SELECT * FROM paper_ledger WHERE cohort_id = ?", (b2,))) == ledger
+    assert len(store.rows("SELECT * FROM paper_signal_evaluation WHERE cohort_id = ?", (b2,))) == evals
+
+
+def test_closed_no_se_publica_durante_el_sellado(tmp_path: Path) -> None:
+    from paper.environment import set_state
+
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    run_passes(store, provider, clock, passes_between(START, date(2026, 3, 13)))
+    b2 = _cohort(store, "B2")
+    with store.transaction():
+        set_state(store, b2, "CLOSING", at=clock(), reason="cierre ordinario", decision_ref="D-nn")
+    run_passes(store, provider, clock, passes_between(date(2026, 3, 16), date(2026, 3, 27)))
+    assert store.rows("SELECT * FROM paper_cohort_event WHERE cohort_id = ? AND state = 'CLOSED'", (b2,))
+    state = next(c for c in cohort_states(store) if c["cohort_id"] == b2)["state"]
+    assert state == "CLOSING", "CLOSED es un instante que depende de los libros: no se publica sellado"
+    with store.transaction():
+        close_window(store, window_id="EMBARGO_T024", closure="EMBARGO_LIFTED", decision_ref="D-nn", now=clock())
+    assert next(c for c in cohort_states(store) if c["cohort_id"] == b2)["state"] == "CLOSED"
+
+
+def test_valor_de_referencia_desconocido_falla_cerrado(tmp_path: Path) -> None:
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    passes = passes_between(START, date(2026, 3, 13))
+    run_passes(store, provider, clock, passes[:6])
+    store.conn.execute("INSERT INTO paper_ref_corporate_action_kind(value) VALUES ('MERGER')")
+    store.conn.execute("INSERT INTO paper_corporate_action (data_symbol, kind, ex_date, amount, ratio, currency, "
+                       "observed_at, provider) VALUES ('TSTB', 'MERGER', '2026-03-10', 0, 0, 'USD', ?, 'futuro')",
+                       (clock().isoformat(),))
+    reports = run_passes(store, provider, clock, passes[6:7])
+    assert reports[0].status == "ERROR"
+    codes = {r["code"] for r in store.rows("SELECT code FROM paper_run_diagnostic")}
+    assert "UnknownReferenceValue" in codes
+
+
+def test_interrupcion_del_sellado_deja_la_ventana_consumida(tmp_path: Path) -> None:
+    store = make_store(tmp_path)
+    now = datetime(2026, 3, 2, tzinfo=UTC)
+    with store.transaction():
+        open_window(store, window_id="P7-C", kind="P7_WINDOW", cohorts=[], sessions_from=date(2026, 4, 1),
+                    sessions_to=date(2026, 4, 30), decision_ref="D-x", now=now)
+        row = dict(store.one("SELECT * FROM paper_seal_window WHERE window_id = 'P7-C'"))
+        store.insert("paper_seal_window", {**row, "revision": 2, "seal_still_active": 0}, ("window_id", "revision"))
+        store.insert("paper_seal_window", {**row, "revision": 3, "seal_still_active": 1}, ("window_id", "revision"))
+        evidence = close_window(store, window_id="P7-C", closure="P7_ABANDONED", decision_ref="D-y", now=now)
+    assert evidence["sessions_status"] == "CONSUMIDA"
+
+
+def test_d21_la_barra_europea_guardada_la_vispera_hace_vinculante_la_pasada_de_las_07(tmp_path: Path) -> None:
+    from paper.inputs import bindings
+    from paper.universe import binding_pass
+
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    # Patrón de D-21: por la mañana el proveedor no sirve la sesión europea anterior (vuelve por la tarde).
+    passes = passes_between(START, date(2026, 3, 20))
+    for p in passes:
+        provider.delays.clear()
+        if p.hour < 9:
+            previous = p.date() - timedelta(days=3 if p.weekday() == 0 else 1)
+            provider.delays[("TSTA.DE", previous)] = p + timedelta(hours=8)
+        run_passes(store, provider, clock, [p])
+    assert store.rows("SELECT * FROM paper_signal_evaluation WHERE symbol = 'TSTA.DE' AND pass_scheduled_ts LIKE '%T07:00:00%'")
+    found = [b for b in bindings(store, _cohort(store, "B2"), UNIVERSE, clock()) if b.asset == "TSTA.DE" and b.final]
+    assert found
+    for b in found:
+        assert b.pass_ts == binding_pass("XETRA", b.signal_session, b.entry_session, UNIVERSE.settlement_minutes)
+
+
+def test_el_contexto_pit_del_flujo_sale_de_los_cierres_guardados(flow) -> None:
+    store = flow[0]
+    flags = {json.loads(r["context_json"])["calculable"] for r in store.rows("SELECT context_json FROM paper_signal_evaluation")}
+    assert True in flags
+
+
+def test_caida_de_25_sesiones_y_primera_peticion_sin_barra_no_declara(tmp_path: Path) -> None:
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(), clock)
+    passes = passes_between(START, date(2026, 4, 24))
+    down = {p for p in passes if date(2026, 3, 9) <= p.date() <= date(2026, 4, 10)}
+    for day in (date(2026, 3, 9) + timedelta(days=k) for k in range(40)):
+        provider.delays[("TSTC.HK", day)] = datetime(2026, 4, 15, tzinfo=UTC)
+    run_passes(store, provider, clock, passes, skip=down)
+    now = datetime(2026, 4, 14, 23, tzinfo=UTC)
+    info = series_info(store, UNIVERSE.assets[2], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert info.missing is not None and not info.missing.declared and info.missing.data_loss_since is None
+
+
+def test_el_compromiso_cambia_en_cada_ejecucion_aunque_no_haya_filas_nuevas(flow) -> None:
+    store = flow[0]
+    b2 = _cohort(store, "B2")
+    rows = store.rows("SELECT c.commitment_sha256, s.run_seq FROM paper_seal_commitment c JOIN paper_run_start s "
+                      "ON s.paper_run_id = c.paper_run_id WHERE c.cohort_id = ? ORDER BY s.run_seq", (b2,))
+    quiet = [r for r in rows if not store.rows("SELECT 1 FROM paper_ledger WHERE cohort_id = ? AND run_seq = ?", (b2, r["run_seq"]))]
+    assert len(quiet) >= 2
+    assert len({r["commitment_sha256"] for r in rows}) == len(rows)

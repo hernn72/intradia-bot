@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import random
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -70,6 +71,13 @@ class FakeProvider:
     down: bool = False
     calls: List[Tuple[str, str, str]] = field(default_factory=list)
     splits: Dict[str, Tuple[date, float]] = field(default_factory=dict)
+    # Retrasos del proveedor: (símbolo, sesión) → instante desde el que se sirve. Antes, no está.
+    delays: Dict[Tuple[str, date], datetime] = field(default_factory=dict)
+    # Revisiones: (símbolo, sesión) → factor del cierre desde un instante.
+    revisions: Dict[Tuple[str, date], Tuple[datetime, float]] = field(default_factory=dict)
+    # Split publicado tarde: el reajuste del histórico y la columna llegan desde un instante.
+    split_published_at: Dict[str, datetime] = field(default_factory=dict)
+    extra_rows: Dict[str, pd.DataFrame] = field(default_factory=dict)
 
     def get_raw_history(self, symbol: str, period: str = "1y", interval: str = "1d", *, drop_na: bool = True,
                         start: Optional[str] = None, end: Optional[str] = None) -> pd.DataFrame:
@@ -82,8 +90,16 @@ class FakeProvider:
         assert start is not None and end is not None
         lo, hi = date.fromisoformat(start), date.fromisoformat(end)
         out = frame[[lo <= ts.date() < hi for ts in frame.index]].copy()
+        if symbol in self.extra_rows:
+            out = pd.concat([out, self.extra_rows[symbol]]).sort_index()
+        now = self.now()
+        out = out[[not ((symbol, ts.date()) in self.delays and now < self.delays[(symbol, ts.date())]) for ts in out.index]]
+        for (sym, day), (since, factor) in self.revisions.items():
+            if sym == symbol and now >= since:
+                out.loc[[ts.date() == day for ts in out.index], "Close"] *= factor
         split = self.splits.get(symbol)
-        if split is not None and self.now().date() >= split[0]:
+        published = self.split_published_at.get(symbol)
+        if split is not None and now.date() >= split[0] and (published is None or now >= published):
             # Como yfinance: una vez ocurrido el split, la serie anterior a la fecha ex llega reajustada.
             ex_date, ratio = split
             before = [ts.date() < ex_date for ts in out.index]
@@ -119,17 +135,24 @@ def fake_evaluator(asset: PaperAsset, info: Any, frame: pd.DataFrame, j: int, en
 
     close = float(frame["Close"].iloc[j])
     day = info.sessions[j]
+    resolved = resolver.resolve(analysis_ts)  # el contexto PIT sale de los cierres guardados
     operar = int((day.toordinal() + len(asset.symbol)) % 3 == 0)
     stop_pct = {"B2": 0.04, "S2": 0.03, "C0": 0.04}[env.policy_id]
     return {
         "reference_price": close, "entry_max": close * 1.01, "stop": close * (1 - stop_pct), "target1": close * 1.03,
         "target2": close * 1.08, "target3": close * 1.12, "rr_at_reference": 2.0, "risk_fraction": stop_pct,
         "score": 75.0, "setup_radar": "OPERAR" if operar else "VIGILAR", "setup_accion": "COMPRAR" if operar else "ESPERAR",
-        "operar": operar, "context_json": "{}", "reasons": "",
+        "operar": operar, "context_json": json.dumps({"calculable": bool(resolved.calculable)}), "reasons": "",
     }
 
 
-ENVS = {p: PolicyEnv(p, None, {}, None, 1.5) for p in ("B2", "S2", "C0")}
+def _market_context() -> Any:
+    from advisor.config import load_config
+
+    return load_config(Path(__file__).resolve().parents[1] / "config.yaml").market_context
+
+
+ENVS = {p: PolicyEnv(p, None, {}, _market_context(), 1.5) for p in ("B2", "S2", "C0")}
 
 
 @dataclass

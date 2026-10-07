@@ -357,3 +357,63 @@ def test_late_processing_marca_lo_procesado_tras_una_caida() -> None:
 def test_requested_weight_no_depende_de_equity_ni_fx() -> None:
     assert requested_weight(100.0, 95.0) == pytest.approx(0.1)
     assert requested_weight(100.0, 50.0) == pytest.approx(0.01)
+
+
+def test_estado_json_ida_y_vuelta_reproduce_el_mismo_avance() -> None:
+    import json
+
+    from paper.engine_v1 import engine_from_state, engine_to_state
+
+    syn = build(seed=11)
+    spec = EngineSpec(policy_id="B2", system_sha256="x" * 64, risk_pct=2.0, max_position_pct=25.0)
+    cuts = _cuts(syn)
+    straight = Engine(spec)
+    rows_a: List[Dict[str, Any]] = []
+    for cut in cuts:
+        rows_a.extend(straight.advance(view_at(syn, cut)).rows)
+    restored = Engine(spec)
+    rows_b: List[Dict[str, Any]] = []
+    for k, cut in enumerate(cuts):
+        rows_b.extend(restored.advance(view_at(syn, cut)).rows)
+        if k % 9 == 0:
+            text = json.dumps(engine_to_state(restored), sort_keys=True, allow_nan=False)
+            restored = engine_from_state(spec, json.loads(text))
+    assert rows_a == rows_b
+
+
+def test_dividendo_conocido_entre_la_apertura_y_el_cierre_ex_no_se_pierde() -> None:
+    d = _days(5)
+    bars = [(d[i], 100, 101, 99, 100) for i in range(5)]
+    signal = _signal("X", d[0], 0, 95, 120, 101)
+    engine = Engine(EngineSpec("B2", "h" * 64))
+    # La frontera se para dentro de la sesión ex (d[2]): su apertura ya está procesada, su cierre no.
+    engine.advance(_view(_series("X", bars), [signal], datetime.combine(d[2], time(12), UTC)))
+    units = engine.positions["X"].units
+    result = engine.advance(_view(_series("X", bars, dividends={2: 1.0}), [signal], datetime(2027, 1, 1, tzinfo=UTC)))
+    divs = [r for r in result.rows if r["event_type"] == "DIVIDEND"]
+    assert len(divs) == 1 and divs[0]["late"] == 1 and divs[0]["dividend_base"] == pytest.approx(units)
+
+
+def test_mae_y_mfe_en_la_misma_escala_a_traves_de_un_split() -> None:
+    d = _days(8)
+    bars = [(d[0], 100, 101, 99, 100), (d[1], 100, 104, 97, 100), (d[2], 100, 103, 98, 100),
+            (d[3], 50, 51.5, 49, 50), (d[4], 50, 52, 49.5, 51), (d[5], 51, 60.5, 50, 60)]
+    signal = _signal("X", d[0], 0, 90, 120, 101)
+    engine = Engine(EngineSpec("B2", "h" * 64))
+    result = engine.advance(_view(_series("X", bars, splits={3: 2.0}), [signal], datetime(2027, 1, 1, tzinfo=UTC)))
+    outcome = result.outcomes[0]
+    entry = outcome.trade.entry_eff  # en la escala nueva tras el split
+    units = outcome.trade.units
+    risk = outcome.trade.risk_local
+    assert outcome.mae_R == pytest.approx((97 / 2 - entry) * units / risk)
+    assert outcome.mfe_R == pytest.approx((60.5 - entry) * units / risk)
+
+
+def test_contrasplit_reescala_al_reves_sin_disparar_salidas() -> None:
+    d = _days(5)
+    bars = [(d[0], 10, 10.1, 9.9, 10), (d[1], 10, 10.1, 9.9, 10), (d[2], 20, 20.2, 19.8, 20), (d[3], 20, 20.2, 19.8, 20)]
+    signal = _signal("X", d[0], 0, 9.5, 12, 10.1)
+    engine = Engine(EngineSpec("B2", "h" * 64))
+    result = engine.advance(_view(_series("X", bars, splits={2: 0.5}), [signal], datetime(2027, 1, 1, tzinfo=UTC)))
+    assert [r["event_type"] for r in result.rows if r["event_type"] in ("SPLIT_ADJUST", "EXIT")] == ["SPLIT_ADJUST"]
+    assert engine.positions["X"].stop == pytest.approx(19.0) and engine.positions["X"].target2 == pytest.approx(24.0)
