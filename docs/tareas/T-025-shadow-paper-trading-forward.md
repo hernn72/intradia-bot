@@ -1,9 +1,12 @@
 # T-025 — Shadow/Paper Trading Forward diario: B2 y S2 operando en el tiempo, sin dinero real (S-01)
 
-Estado: **PRE-REGISTRO PROPUESTO, OD CERRADAS, SIN CONGELAR.** El propietario cerró OD-T25-1 a
+Estado: **PRE-REGISTRO PROPUESTO, SIN CONGELAR; OD-T25-1..9 Y OD-12 CERRADAS, OD-T25-10 Y OD-T25-11
+ABIERTAS.** El propietario cerró OD-T25-1 a
 OD-T25-9 (§17, D-75) y OD-12 (D-77) el 2026-10-07, y declaró la visibilidad parcial ex ante de T-024
-(D-76). La ronda 4 abrió **OD-T25-10** (ventana de P7 nunca consultada), menor y con la regla más
-estricta como provisional. Falta su revisión final del PR y la congelación de `T025_PREREG_SHA`; la implementación
+(D-76). La ronda 4 abrió **OD-T25-10** (ventana de P7 nunca consultada) y **OD-T25-11** (dependencia
+que obliga a cambiar el entorno de una cohorte viva), las dos con la regla más estricta como
+provisional. **Si la congelación de `T025_PREREG_SHA` espera a esas dos decisiones lo decide el
+propietario**; ninguna bloquea la revisión del PR. Falta su revisión final del PR y la congelación de `T025_PREREG_SHA`; la implementación
 necesita autorización aparte. No hay código, ni tablas, ni paper broker. No se ha descargado ningún
 dato forward ni observado ningún desenlace. B2, S2 y C0 no cambian. La Pi no se ha tocado.
 
@@ -130,13 +133,17 @@ Hay dos caminos de precios, y **tienen bases de ajuste distintas**:
   Si se usaran tal cual, la serie mezclaría dos escalas: SMA200 partida, ATR disparado y niveles
   falsos. Por eso la serie que recibe `build_snapshot_series` es una **vista derivada**, sin reescribir
   ninguna fila: cada barra vigente se divide por el producto de los ratios de los `SPLIT` **que todavía
-  no reflejaba cuando se observó**, es decir, los de fecha ex posterior a su sesión **y** cuya apertura
-  ex es posterior al `observed_at` de la barra. `get_raw_history` ya devuelve ajustados los splits
+  no reflejaba cuando se observó**, es decir, los de fecha ex posterior a su sesión **y** cuyo propio
+  `observed_at` (el instante en que el split apareció en los datos del proveedor, que es cuando este
+  reajusta la serie) es posterior al `observed_at` de la barra. Si el solape con barras ya guardadas
+  (`paper_bar_rescale`) contradice esa escala, la barra es de **escala dudosa**: no entra en la vista de
+  señal y, para una posición, cuenta como dato ausente (§8.6). `get_raw_history` ya devuelve ajustados los splits
   ocurridos antes de la descarga (`market_data.py:109`), y P6 no los volvía a dividir
   (`vintage.build_views`: `signal = execution.copy()`). Así el histórico de calentamiento y una barra
   tardía de una sesión anterior al split, que llegan ya en la escala nueva, no se ajustan dos veces.
-  `scale_anchor` de una barra es el producto de los ratios de los splits con apertura ex ≤ su
-  `observed_at`. El resultado es la misma vista ajustada por todos los splits conocidos con la que P6
+  `scale_anchor` de una barra es el producto de los ratios de los splits con `observed_at` ≤ el suyo.
+  _(Precisión de la ronda 4b: la apertura ex no sirve como sustituto, porque el proveedor puede
+  reajustar con retraso.)_ El resultado es la misma vista ajustada por todos los splits conocidos con la que P6
   calculaba (`signal_prices`, T-022 §10.5). _(Corrección de la ronda 4: la regla anterior ajustaba dos
   veces las barras observadas después del split.)_ Las fills y salidas usan las barras de la escala
   vigente en su sesión, coherentes con las unidades tras `SPLIT_ADJUST` (§8.6).
@@ -283,7 +290,9 @@ Reglas generales:
   idempotencia (§12) compara ese hash, no la fila entera.
 - Los precios se guardan en divisa local y en EUR (`*_local`, `*_eur`), con el FX y su
   `fx_timestamp_available`.
-- Los booleanos y los estados son textos de lista cerrada con `CHECK`.
+- Los booleanos y los estados son textos de lista cerrada, validados con una clave foránea a tablas de
+  referencia append-only (`PRAGMA foreign_keys = ON`) y no con `CHECK`: así añadir un estado es una
+  migración aditiva (una fila nueva) y no obliga a reconstruir tablas (§12).
 
 | Tabla | Una fila por | Campos mínimos | Unicidad / idempotencia |
 |---|---|---|---|
@@ -298,7 +307,7 @@ Reglas generales:
 | `paper_bar_rescale` | cambio de escala detectado en la serie | `data_symbol`, `factor`, `effective_session`, `explained_by` (`SPLIT` con su id, o `UNEXPLAINED`), `detected_at` | `(data_symbol, effective_session)` |
 | `paper_fx_quote` | barra FX usada | `fx_pair`, `bar_timestamp`, `timestamp_available` (= marca + 24 h), `rate`, `provider`, `observed_at` | `(fx_pair, bar_timestamp)`; manda la primera observada |
 | `paper_context_observation` | cierre de contexto usado | serie (`^VIX`, `^STOXX50E`, Asia), marca, cierre de `get_raw_history` (`auto_adjust=False`), `observed_at`, `provider` | `(serie, marca)`; manda la primera observada |
-| `paper_signal_evaluation` | (cohorte, activo, sesión `t`, pasada) | `signal_id` (`stable_signal_id`), `instrument_id`, `symbol`, `data_symbol`, `market`, `signal_session_date`, `pass_scheduled_ts`, `analysis_timestamp`, `bar_t_observation_id`, `reference_price` (cierre de `t`), `entry_max`, `stop`, `target1`, `target2`, `target3`, `rr_at_reference`, `risk_fraction`, `score`, `score_model_version`, `setup_radar`, `setup_accion`, `operar` (sí/no), `context_snapshot_json`, `data_quality` y frescura, `reasons`, `input_observation_ids`, `analysis_timestamp` (hora programada, PIT), `decision_ts` (fin de la ejecución original, < apertura), `max_input_observed_at` (≤ `decision_ts`; ver §7.1), `source_recommendation_id` (solo enlace) | `(cohort_id, signal_id, pass_scheduled_ts)` y `(cohort_id, instrument_id, signal_session_date, pass_scheduled_ts)` |
+| `paper_signal_evaluation` | (cohorte, activo, sesión `t`, pasada) | `signal_id` (`stable_signal_id`), `instrument_id`, `symbol`, `data_symbol`, `market`, `signal_session_date`, `pass_scheduled_ts`, `analysis_timestamp`, `bar_t_observation_id`, `reference_price` (cierre de `t`), `entry_max`, `stop`, `target1`, `target2`, `target3`, `rr_at_reference`, `risk_fraction`, `score`, `score_model_version`, `setup_radar`, `setup_accion`, `operar` (sí/no), `context_snapshot_json`, `data_quality` y frescura, `reasons`, `input_observation_ids`, `analysis_timestamp` (hora programada, PIT), `decision_ts` (commit de la transacción de evaluaciones de la pasada, previa a los libros, < apertura; §7.1), `max_input_observed_at` (≤ `decision_ts`; ver §7.1), `source_recommendation_id` (solo enlace) | `(cohort_id, signal_id, pass_scheduled_ts)` y `(cohort_id, instrument_id, signal_session_date, pass_scheduled_ts)` |
 | `paper_open_check` | señal vinculante OPERAR, **por política y sin depender del libro** | `policy_id`, `signal_id`, `instrument_id`, `signal_session_date`, `entry_session`, `bar_observation_id`, `open_market`, `entry_effective`, `check` (`PASS` o `DATA_NOT_EXECUTABLE`/`INVALID_STOP`/`INVALID_TARGET`/`ABOVE_MAX_ENTRY`/`RR_TOO_LOW`), `requested_weight` (tamaño solicitado como fracción de la equity: `min(0,005 · entry_effective / (entry_effective − stop), 0,10)`, que no depende de la equity ni del FX; solo con `PASS`) | `(policy_id, t025_code_sha, signal_id)`: dos versiones del motor no comparten fila (ronda 4). Se calcula para toda señal vinculante OPERAR, haya o no posición, como los «ejecutables» de T-024 §6.3. Es la **única** fuente visible de una cohorte embargada sobre la apertura (§10) |
 | `paper_signal_disposition` | señal vinculante OPERAR en un libro, en la fase `SIGNAL` (cierre de `t`, P6 §7.6) | `cohort_id`, `signal_id`, `event_ts_utc` (= `analysis_timestamp`), `disposition` (`ORDER` o `IGNORED_ALREADY_OPEN`), `open_position_id` si se ignora | `(cohort_id, signal_id)` |
 | `paper_order` | disposición `ORDER` | `order_id`, `cohort_id`, `signal_id`, `binding_evaluation_id`, `target_session` (primera sesión de calendario > `t`), `order_type = OPEN_NEXT_BAR_WITH_MAX` | `(cohort_id, signal_id)`. Como en P6, no hay orden para una señal ignorada |
@@ -391,6 +400,10 @@ entera: se declara como cota.
   regla PIT de P6). Además, `decision_ts` es estrictamente anterior a la apertura de la sesión de
   entrada. Repetir la evaluación más tarde no puede incorporar observaciones posteriores a su
   `decision_ts` original. No basta con la hora de escritura de la fila.
+- **La frescura y la calidad del dato** de la evaluación se calculan sobre la serie guardada
+  (`observed_at ≤ decision_ts`), no sobre la descarga de esa pasada: si no, la pasada de las 07:00
+  marcaría `STALE` a los europeos cuya barra se guardó a las 21:00 y el veto de D-21 anularía la
+  definición de «observada» (ronda 4b).
 - **Señal vinculante (D-50):** la evaluación de la **última pasada programada cuya hora es anterior a
   la apertura de la sesión de entrada**, cuya transacción de evaluaciones se confirmó antes de esa
   apertura y que tenía observada la barra `t`. **«Observada»** = presente en `paper_bar_observation`
@@ -524,7 +537,9 @@ se comprueba entrada a entrada en ese orden.
      hubo **al menos una ejecución completa que pidió ese activo y no obtuvo la barra**. Una caída de la
      Pi no hace correr ningún plazo: al volver, las barras que sirve el proveedor no son tardías y se
      procesan en orden, con las salidas que tocaron (un stop tocado durante la caída sale en su
-     sesión). Lo mismo rige para la barra de entrada de §7.2;
+     sesión). Lo mismo rige para la barra de entrada de §7.2. Tras una caída larga, la primera
+     ejecución que pide la barra y no la obtiene cuenta de golpe todas las sesiones posteriores a `s`
+     ya cerradas: el proveedor ya tuvo esos días;
    - pasado el límite, la sesión se declara sin barra y el libro sigue, como P6: la posición conserva
      su última valoración (`mark_price` = último cierre validado, la semántica de
      `p6_sim.CLOSE_VALUATION`) y las barras ausentes no cuentan para las 40 del tiempo máximo;
@@ -785,7 +800,14 @@ valoradas en los mismos τ. `excess` frente a BH se calcula como en P6 §15.
   valor por defecto; nunca se cambia ni se borra una restricción, una columna o una tabla), y cada
   motor acepta un `user_version` mayor que el suyo si el registro de migraciones declara compatibles
   todas las intermedias. Un test comprueba que el motor N lee y escribe sin cambio de comportamiento
-  sobre el esquema N+k. Una migración no aditiva exige un `paper.db` nuevo y cohortes nuevas.
+  sobre el esquema N+k; ese test vive en la CI de la versión N+k, que saca el `t025_code_sha` de N. Una
+  migración no aditiva exige un fichero nuevo y cohortes nuevas.
+- **Registro único de sellado y consumo (ronda 4b):** aunque exista más de un fichero `paper*.db`,
+  `paper_seal_window`, `paper_outcome_access`, `paper_seal_commitment` y `paper_seal_nonce` viven solo
+  en el `paper.db` original, que actúa como registro global para todos los ficheros. La capa de
+  visibilidad abre todos los `paper*.db` declarados en ese registro, aplica a todos las mismas ventanas
+  y registra en él todo acceso; se niega a abrir un `paper*.db` no declarado. Una ventana de P7 o el
+  embargo sellan así todas las cohortes de todos los ficheros. Test con dos ficheros.
 - **Transacción por instante τ (lote):** todos los eventos de una cohorte con el mismo `event_ts_utc`
   y la misma fase (un lote de entradas, las salidas de una apertura) se escriben en **una**
   transacción, con sus filas de ledger, posición y evento. Si la ejecución se corta, el lote entra
@@ -838,6 +860,11 @@ valoradas en los mismos τ. `excess` frente a BH se calcula como en P6 §15.
   `requirements.txt` no fija versiones exactas (ronda 4). No se migra en silencio y nunca se mezclan resultados de cohortes.
   Mientras una cohorte no se puede procesar (por ejemplo, porque falta su worktree), pierde sus señales
   como `SIGNAL_NOT_EVALUATED`, y eso se declara.
+- **Dependencia que obliga a cambiar el entorno de una cohorte viva** (por ejemplo, `yfinance` deja de
+  funcionar sin actualizarse): la cohorte queda en `IDENTITY_MISMATCH` permanente, con sus posiciones
+  sin procesar, sin llegar a `DATA_LOSS_SUSPENDED` (ninguna ejecución corre) y sin poder cerrarse.
+  **Qué hacer es OD-T25-11, abierta** (§17): amplía OD-T25-8. Mientras no se decida rige lo más
+  estricto: la cohorte no corre con otro entorno y su estado se declara (ronda 4b).
 - **Cierre ordinario:** el propietario puede cerrar una cohorte (`CLOSING` en `paper_cohort_event`).
   - En `CLOSING` se cancelan las órdenes pendientes y no se crea ninguna nueva.
   - Sus posiciones salen con `EXIT_COHORT_CLOSED` en la apertura siguiente de cada activo; una posición
@@ -845,7 +872,10 @@ valoradas en los mismos τ. `excess` frente a BH se calcula como en P6 §15.
   - Un abono (dividendo tardío) posterior a `CLOSED` se registra enlazado a su posición y fuera de la
     equity final.
   - **Mientras rija un sellado, solo es visible `CLOSING`;** el instante de `CLOSED` depende de las
-    barras de las posiciones abiertas y se publica al desellar (ronda 4).
+    barras de las posiciones abiertas y se publica al desellar (ronda 4). Para que no se deduzca de
+    otra señal, la cohorte deja de evaluar señales y de escribir `paper_open_check` en el instante
+    visible de `CLOSING`, y sigue escribiendo su compromiso con nonce en cada ejecución hasta desellar,
+    también después de `CLOSED` (ronda 4b; cubierto por el test de §10.5).
 - **Defecto crítico (precisión del propietario):** si se descubre un defecto que invalida materialmente
   la ejecución de una cohorte, esa cohorte **no sigue ejecutándose como si nada**:
   - se congela y se declara `ABORTED_INVALID_ENGINE` en `paper_cohort_event`, con la causa
@@ -958,7 +988,7 @@ Nada de esto se hace en esta entrega.
    - el contexto sale de `PointInTimeContextResolver` sobre cierres guardados sin ajuste por
      dividendos;
    - repetir la ejecución de una pasada después de otra posterior da las mismas entradas (acotadas a
-     `observed_at` ≤ fin de la ejecución original);
+     `observed_at` ≤ `decision_ts`, el commit de las evaluaciones de la pasada original);
    - `paper_open_check` se escribe para toda señal vinculante OPERAR, haya o no posición;
    - una orden pendiente sobre una barra aún no observada detiene la frontera;
    - un lote cortado a mitad se reanuda con el mismo sizing que una pasada limpia;
@@ -1006,7 +1036,7 @@ Nada de esto se hace en esta entrega.
    recomendaciones de C0 de la Pi solo como contraste descriptivo, y ese contraste queda etiquetado por
    versión. Antes de desplegar se registra en una D-nn.
 
-## 17. Decisiones del propietario (OD-T25) — OD-T25-1..9 CERRADAS el 2026-10-07 (D-75); OD-T25-10 abierta en la ronda 4
+## 17. Decisiones del propietario (OD-T25) — OD-T25-1..9 CERRADAS el 2026-10-07 (D-75); OD-T25-10 y OD-T25-11 abiertas en la ronda 4
 
 Formato de `docs/decision-log.md`. Se conservan la pregunta y las alternativas que se presentaron; manda
 la decisión. Ya no bloquean la congelación: falta la revisión final del propietario.
@@ -1128,6 +1158,23 @@ la decisión. Ya no bloquean la congelación: falta la revisión final del propi
 - **Bloquea:** solo el cierre de una ventana de P7 sin consulta. No hay ninguna ventana fijada; no
   bloquea la implementación de T-025. El propietario decide si la cierra antes de congelar.
 
+### OD-T25-11 — Una cohorte viva cuyo entorno ya no puede seguir igual · **ABIERTA desde el 2026-10-07** (ronda 4b)
+- **Por qué existe:** §13 congela por cohorte el commit y las versiones instaladas, y `requirements.txt`
+  no fija versiones. Si el proveedor cambia su API y obliga a actualizar `yfinance` (u otra
+  dependencia), una cohorte viva queda en `IDENTITY_MISMATCH` permanente: sus posiciones no procesan
+  stops ni salidas por tiempo, no llegan a `DATA_LOSS_SUSPENDED` y la cohorte no se puede cerrar. Con un
+  embargo de 7 a 13 meses es plausible.
+- **Alternativas:** (A) admitir una actualización **solo de dependencias** si la reconstrucción byte a
+  byte (§12) sobre las observaciones guardadas reproduce el ledger de la cohorte, registrada en una D-nn
+  y en el manifiesto; si no lo reproduce, (B); (B) un estado terminal `ENGINE_UNRUNNABLE` desde el último
+  evento procesado, con las posiciones abiertas `NO_EVALUABLE` y sin salidas sintéticas, y una cohorte
+  nueva con el entorno nuevo; (C) mantener la cohorte en pausa indefinida.
+- **Consecuencia:** A mantiene la continuidad con una prueba objetiva de que nada cambió en lo ya
+  calculado, pero no garantiza que la dependencia nueva descargue igual en el futuro; B es la más fiel al
+  «motor congelado» de D-75 y corta la serie; C deja capital y posiciones en un limbo.
+- **Mientras no se decida:** rige C, sin correr nunca con otro entorno.
+- **Bloquea:** solo el primer despliegue con un entorno distinto mientras haya una cohorte viva.
+
 ## 18. Riesgos y limitaciones
 
 - **Sellado procedimental** (§10.4): no es criptográfico.
@@ -1230,7 +1277,7 @@ P10) y la ficha de PAPER-001 (visibilidad parcial de T-024).
   - línea base de §0.
 - **Pendiente:** la revisión final del propietario, con la ratificación de la interpretación de §10.2
   (tamaño como fracción y ejecución por política) y de cómo corren los plazos de 5 y 20 sesiones (§8.7),
-  y la decisión de OD-T25-10; la congelación de `T025_PREREG_SHA`, la creación de
+  y las decisiones de OD-T25-10 y OD-T25-11 (y si la congelación las espera); la congelación de `T025_PREREG_SHA`, la creación de
   `t024/forward` (D-77, antes del primer cambio en los `EXECUTOR_PATHS` de `main` y antes del
   2026-11-21) y, con autorización aparte, la implementación (§16).
 - **Hallazgos:**
@@ -1336,3 +1383,17 @@ verificó contra el repositorio antes de corregirlo.
 El `revisor` confirma además, sin defecto: la interpretación de §10.2; que P7 siempre puede reservar una
 ventana futura; sizing y lotes sin look-ahead; idempotencia y doble apertura; FX; dividendo y split en
 la misma base; sin caché C-09; `T024_CODE_SHA` intacto; y que no queda texto heredado contradictorio.
+
+**Ronda 4b (confirmación, 2026-10-07, sobre `264f845`).** Codex: sus hallazgos resueltos; 0 BLOCKER,
+0 IMPORTANTE; un MENOR nuevo (texto heredado de `decision_ts` en §5 y §16), corregido. `revisor`: los
+IMPORTANTES y MENORES de la ronda 4 resueltos; hallazgos nuevos introducidos por las correcciones:
+
+| Hallazgo | Clase | Corrección |
+|---|---|---|
+| Una dependencia que obliga a cambiar el entorno deja una cohorte viva inejecutable y sin salida | IMPORTANTE (revisor) | **Exige decisión del propietario** (amplía OD-T25-8): **OD-T25-11, abierta**; provisional, la más estricta (§13, §17) |
+| Una migración no aditiva crea otro fichero, y el sellado y el consumo eran por fichero | IMPORTANTE (revisor) | Estados con tablas de referencia (migración aditiva); registro único de sellado y consumo para todos los `paper*.db`; test con dos ficheros (§5, §12) |
+| `CLOSED` deducible de otras señales | MENOR (revisor) | Deja de evaluar en `CLOSING`; compromiso con nonce hasta desellar (§13) |
+| La apertura ex como sustituto del reajuste del proveedor | MENOR (revisor) | `observed_at` del propio split y escala dudosa fuera de la vista (§3.3) |
+| Frescura calculada sobre la descarga anulaba «observada»; texto de `decision_ts` en §5 | MENOR (revisor, Codex) | Frescura y calidad sobre la serie guardada (§7.1); §5 y §16 corregidos |
+| Estado de la ficha frente a OD-T25-10 | MENOR (revisor) | Estado explícito: OD-T25-10 y OD-T25-11 abiertas; si la congelación las espera lo decide el propietario |
+| Test N/N+k solo en la CI de N+k; caída larga cuenta de golpe | OBSERVACIÓN | Redactados (§12, §8.7) |

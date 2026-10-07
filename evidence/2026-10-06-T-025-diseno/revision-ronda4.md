@@ -78,3 +78,28 @@ es la única lectura compatible con las dos listas.
   intacto.
 
 Recuento del `revisor`: BLOCKER 0 · IMPORTANTE 4 · MENOR 9 · OBSERVACIÓN 6.
+
+## Ronda 4b — confirmación sobre `264f845`
+
+**Codex:** sus 2 IMPORTANTES y 2 MENORES, resueltos (cita `deploy/t024/README.md:115`, runbook `:132`,
+README `:30`, runbook `:68`, roadmap `:23` y `:36`, ficha `:620` y `:893`). Sin BLOCKER ni IMPORTANTE
+nuevo en §3.3, §7.1, §7.2/§8.7, §8.6, §12, §13, §15 y §10.7, ni look-ahead ni canal lateral nuevo;
+contrasta `_process_entries` y `OPEN_EXIT` con `p6_sim.py`. MENOR nuevo: §5 (`paper_signal_evaluation`) y
+el test de §16 seguían diciendo «fin de la ejecución original» para `decision_ts` (**corregido**).
+Recuento: BLOCKER 0 · IMPORTANTE 0 · MENOR 2 (ese y OD-T25-10) · OBSERVACIÓN 0.
+
+**`revisor`:** los 4 IMPORTANTES y los 8 MENORES corregibles de la ronda 4, resueltos; MENOR-8 pasa a
+OD-T25-10. Nuevos:
+- **IMPORTANTE N-1** — si una dependencia obliga a cambiar el venv de una cohorte viva, queda en
+  `IDENTITY_MISMATCH` permanente, sin procesar stops, sin llegar a `DATA_LOSS_SUSPENDED` y sin poder
+  cerrarse. **Exige decisión del propietario** (amplía OD-T25-8): **OD-T25-11, abierta**.
+- **IMPORTANTE N-2** — una migración no aditiva (probable con `CHECK`) crea un segundo fichero, y el
+  sellado y el consumo eran por fichero: una `P7_WINDOW` no sellaría las cohortes del otro. **Corregido**
+  (tablas de referencia; registro único para todos los `paper*.db`; test).
+- **MENOR N-3** `CLOSED` deducible (**corregido**); **N-4** apertura ex como sustituto del reajuste
+  (**corregido**); **N-5** frescura sobre la descarga y texto de `decision_ts` (**corregido**); **N-6**
+  estado de la ficha frente a OD-T25-10 (**corregido**; si la congelación espera, lo decide el
+  propietario).
+- **Observaciones:** test N/N+k en la CI de N+k y caída larga contada de golpe (**redactadas**).
+
+Recuento del `revisor` sobre `264f845`: BLOCKER 0 · IMPORTANTE 2 · MENOR 4 · OBSERVACIÓN 2.

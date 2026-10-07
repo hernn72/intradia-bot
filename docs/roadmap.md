@@ -389,7 +389,7 @@ Actualizado el 2026-10-06 con D-73 y D-74. La lista anterior (OA-01 a T-013 y P3
 
 | Orden | Trabajo | ¿Espera datos? |
 |---:|---|---|
-| 1 | **T-025: diseño y pre-registro propuesto** (S-01, D-74), con **OD-T25-1..9 y OD-12 cerradas** el 2026-10-07 (D-75, D-76, D-77), en el PR #48. Falta la revisión final del propietario (con OD-T25-10, abierta en la ronda 4) y la congelación de `T025_PREREG_SHA` | No |
+| 1 | **T-025: diseño y pre-registro propuesto** (S-01, D-74), con **OD-T25-1..9 y OD-12 cerradas** el 2026-10-07 (D-75, D-76, D-77), en el PR #48. Falta la revisión final del propietario (con OD-T25-10 y OD-T25-11, abiertas en la ronda 4) y la congelación de `T025_PREREG_SHA` | No |
 | 1b | **Crear `t024/forward`** desde el último commit compatible (D-77) y mover a ella el worktree de la Pi con el procedimiento de D-77. Antes del primer cambio en los `EXECUTOR_PATHS` de `main` y antes del 2026-11-21 | No |
 | 2 | **Implementar T-025** con autorización aparte (ficha §16) y desplegarlo en la Pi como tag, en un worktree y un venv propios por versión del motor (nunca en el checkout habitual ni en el de T-024) | No |
 | 3 | **PAPER-001 v1** (P-01): ficha y plan hechos; siguiente, el esqueleto del manuscrito | No |

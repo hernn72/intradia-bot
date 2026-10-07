@@ -2551,7 +2551,10 @@ Están en `docs/tareas/T-025-shadow-paper-trading-forward.md` §17, con el forma
 
 La revisión de la ronda 4 abrió **OD-T25-10** (estado de las sesiones de una ventana de P7 fijada y
 nunca consultada), **ABIERTA desde el 2026-10-07**, en la ficha §17; mientras no se decida, la ventana
-sigue sellada.
+sigue sellada. La confirmación de la ronda 4 (4b) abrió **OD-T25-11** (una cohorte viva cuyo entorno de
+Python ya no puede seguir igual), **ABIERTA desde el 2026-10-07**, que amplía OD-T25-8; mientras no se
+decida, la cohorte no corre con otro entorno. El propietario decide si la congelación espera a OD-T25-10
+y OD-T25-11.
 
 **Bloqueaban** la congelación del pre-registro de T-025. Decisiones en D-75 (con D-76 para la
 visibilidad de T-024) y texto completo en la ficha §17. OD-T25-7 se cerró con una regla distinta de las
