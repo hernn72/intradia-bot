@@ -20,7 +20,22 @@ detalle operativo de cada tarea: eso vive en `docs/tareas/` y el método en
 
 ---
 
-## Estado verificado — 2026-09-16
+## Estado verificado — 2026-10-06
+
+Comprobado contra el repositorio, la CI y la Pi el 2026-10-06.
+
+| Qué | Valor |
+|---|---|
+| Rama / HEAD | **`main` en `4170bb4`** (merge del PR #46, T-024 contrato de captura forward + Pi 24/7). CI de `main` verde (3.12 y 3.13) |
+| Tests / lint / tipos | 1430 pasan y 20 se saltan: 19 necesitan los CSV de `071ddb2b…`, perdidos el 2026-10-06, y 1 requiere `realpath -m` de GNU y corre en CI. `ruff check .` y `mypy advisor` limpios (79 ficheros). Python 3.12.13 |
+| Universo | 126 instrumentos, **93 analizables** |
+| Laboratorio | GATE P2–P6 cruzados. **P6: B2 y S2 `NO PASA`, salida `[]` (D-70); P7 BLOQUEADO.** T-023 (diagnóstico post-P6) hecho. **T-024** (edge relativo al drift, D-71/D-72) en **acumulación forward**: `T024_PREREG_SHA` `dfcca0ef…`, `T024_CODE_SHA` `1a697c3…` |
+| Producción (Pi) | Sin cambios: tag **`v0.4.1` = `8b2dddb`**, esquema v7, Score v1 con 70/60 y política C0. Timers `intradia-bot` e `intradia-bot-event` activos. `intradia.db` y sus 21 copias pasan `quick_check` |
+| Captura forward T-024 (Pi) | Worktree dedicado `/home/fer/intradia-t024` en `4170bb4`, separado del checkout de producción. `/etc/intradia-bot/t024.env`. Timer **`intradia-t024-checkpoint.timer`** habilitado (diario a las 12:00 Atlantic/Canary). **Primera congelación real automática: 2026-11-03.** Probado sin red: la unidad sale con 0 y «sin checkpoint hoy». Runbook: `docs/tareas/T-024-runbook-checkpoint.md` y `deploy/t024/README.md` |
+| Cosecha de desarrollo | `071ddb2b…`: **manifiesto versionado intacto; sus 126 CSV se perdieron en el portátil el 2026-10-06** y no se recrearán (`evidence/2026-10-06-incidente-perdida-vintage/`). P6/T-023 conservan su evidencia, pero ya no son reproducibles desde los datos originales |
+| Backups | `~/intradia-backups/2026-10-06/` (portátil, fuera del repo y de iCloud): árbol completo y bases de la Pi verificadas |
+
+## Estado verificado — 2026-09-16 (histórico)
 
 Comprobado directamente contra el repositorio y ejecutando el sistema, no
 leído en documentos:
@@ -217,6 +232,18 @@ Mientras esté abierta, **nada** de la línea A recalibra. Detalle en
 | A-05 | P5 Regiones robustas → **GATE P5** | **ACEPTADA — GATE P5 CRUZADO** el 2026-10-03 (D-67 y D-68). P5 se ejecutó una sola vez (`P5_CODE_SHA` `6c7f913`, `P5_RUN_HEAD_SHA` `282b1ce`, evidencia `86ddd5b`). **B2 y S2 ROBUSTA**: 13/13 vecinos ACEPTABLES, 6/6 LOCRO con IC95 > 0, 71/71 comparaciones, 0 confirmatorias nuevas. **Políticas candidatas `[B2, S2]`** con su config completa y su hash (`evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`). Ninguna se activa: producción sigue en C0. _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._ | A-04 | **T-021** |
 | A-06 | P6 Sistema completo con exceso sobre buy-and-hold del universo → **GATE P6** | **ACEPTADA — GATE P6 CRUZADO** el 2026-10-05 (D-70). P6 se ejecutó una sola vez (`P6_PREREG_SHA` `03f04a4`, `P6_CODE_SHA` `bc0636d`, `P6_RUN_HEAD_SHA` `353876d`, evidencia `0771989`). **B2 `NO PASA` y S2 `NO PASA`; salida `[]`.** Las dos cumplen N ≥ 100, PF local > 1, R medio local > 0 y DD ≥ −25 %, y fallan solo el exceso de CAGR sobre el buy-and-hold del universo (B2 −15,77 pp; S2 −18,72 pp; benchmark CAGR 33,80 %). C0, la sensibilidad de 10 pb y el puente de todas las barras son descriptivos y no cambian la salida. El gate exige la medición completa y reproducible, no un resultado favorable. Cierre en `evidence/2026-10-05-T-022-p6-cierre/`. Producción no cambia: sigue en C0. _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._ | A-05 | **T-022** |
 | A-07 | P7 Walk-forward + holdout (ventanas fijadas antes en el decision log) → **GATE P7** | **BLOQUEADO — sin supervivientes de P6** (D-70, salida `[]`). No iniciado y sin ninguna candidata. Cualquier corrección de selección de señales, prioridad, sizing, uso del cash, geometría o benchmark es investigación nueva, con ficha y pre-registro propios, y no cambia la etiqueta de P6 | A-06 | por escribir |
+
+**T-024 — Edge relativo al drift (D-71, D-72).** Es investigación nueva y no cambia P6: B2 y S2 siguen
+`NO PASA` y P7 sigue BLOQUEADO. Antes de tocar la selección, el sizing, el cash o la geometría, mide si las
+señales tienen ventaja frente al drift del propio activo, solo con sesiones posteriores al 2026-08-27.
+- **Pre-registro y código congelados:** `dfcca0ef` y `1a697c3`. El contrato de captura con petición
+  exacta `start`/`end` entró con el PR #46, sin cambiar ninguna regla metodológica.
+- **Acumulación forward:**
+  - **fase A (Pi):** el primer día hábil de cada mes, la Pi congela la cosecha y para;
+  - **fase B (PC):** el PC la copia, la registra y cuenta solo `Q_p`/`W_p`, sin desenlaces.
+- **Primer checkpoint: 2026-11-03**, con `end` 2026-10-26.
+- **Mirada 1:** cuando B2 y S2 cumplan `Q ≥ 120` y `W ≥ 26`. Previsiblemente hacia mediados de 2027, y
+  como tarde en la mirada final con corte el 2027-08-27.
 | A-08 | Universo histórico (solo si aparece fuente de constituyentes) | OPCIONAL | — | — |
 
 ### Línea B — Contexto externo (captura en paralelo; nada decide hasta GATE CONTEXT)
@@ -284,29 +311,49 @@ flowchart LR
 
 ## Qué hacer ahora, en este orden
 
-1. **OA-01** (propietario): merge de `fix/execution-data-quality` en `main`.
-2. **T-001** CI — Codex.
-3. **T-002** migraciones + manifiesto — Codex → Opus.
-4. En paralelo: **T-003** calendarios (Codex → Opus) y **T-006** universe
-   vintage (Codex → Opus).
-5. **T-004** causa de los huecos — Opus.
-6. **T-005** calidad + códigos — Opus → Codex → Opus.
-7. **T-007..T-010** PR 4 y PR 5 (Opus escribe las fichas con la plantilla al
-   cerrar T-005; Codex implementa; Opus revisa) → **GATE L0**.
-8. **T-011** C-03 despliegue por tag; OA-04: desplegar `v0.2.0` en la Pi y
-   verificar allí.
-9. **T-012** A-01 histórico de frescura de la Pi → OD-02 con cifra.
-10. **B-00** contrato point-in-time — Opus (puede empezar tras T-006, en
-    paralelo con 5–8).
-11. **T-013** A-02 rehacer P2.3/P2.4/P2.5 → **GATE P2** (revisión
-    independiente obligatoria).
-12. P3 → P4 → P5 → P6 → P7, cada uno con su gate; línea B capturando datos;
-    C-04..C-06 cuando C-03 esté.
-13. R-01, luego V-01 (P10), luego F-01.
+Actualizado el 2026-10-06. La lista anterior (OA-01 a T-013 y P3–P6) está terminada.
+
+1. **Antes del 2026-11-21: declarar el checkpoint de diciembre** en `deploy/t024/calendario-checkpoints.json`,
+   con fuente oficial citada, y mover el worktree de la Pi a ese commit (los `EXECUTOR_PATHS` deben seguir
+   idénticos a `1a697c3`). Sin eso, desde el 21-nov la unidad sale con 3 cada día. Después, cada mes, con el
+   mismo plazo.
+2. **2026-11-03:** primera congelación automática en la Pi.
+   - Si sale `NO_APTA`, `ERROR_*`, `INTERRUMPIDO` o `PERDIDO`, decide el propietario: no hay reintento
+     automático.
+   - Estado: `python deploy/t024/checkpoint.py estado --artefactos /home/fer/t024-forward`, en el worktree.
+3. **Tras cada checkpoint, en el PC (fase B):**
+   1. `deploy/t024/traer_cosecha.py copiar`;
+   2. `registrar` y commit solo de evidencia;
+   3. árbol limpio;
+   4. `capturar` (solo conteos) y commit.
+4. **Mirada 1 de T-024**, cuando un checkpoint cumpla el umbral de capacidad para B2 y S2. Previsiblemente
+   hacia mediados de 2027.
+5. Decisiones del propietario que siguen abiertas, sin bloquear T-024:
+   - OD-01, fundamentales (línea B, B-08);
+   - noticias (B-02);
+   - si se paga una fuente para las plazas europeas.
+6. Trabajo manual (sección «Trabajo manual del propietario»): ISIN, disponibilidad en Trade Republic y doble
+   símbolo de Xetra.
+7. R-01, V-01 (P10) y F-01 siguen BLOQUEADOS por GATE P7.
 
 ---
 
 ## Hallazgos abiertos (FOLLOW_UP y OBSERVATION que no tienen ficha)
+
+- **Incidente 2026-10-06** (`evidence/2026-10-06-incidente-perdida-vintage/`):
+  - se perdieron los CSV de `071ddb2b…` en el portátil y no se recrearán;
+  - P6/T-023 pierden la reproducibilidad desde los datos originales.
+
+  Medidas:
+  - guarda de borrado en `deploy/t024/borrado_seguro.py`;
+  - red de tests en `tests/red_borrado.py`;
+  - segunda copia de cada cosecha forward fuera del checkout.
+- **El repositorio está en el Escritorio sincronizado con iCloud Drive.** iCloud reescribe permisos de
+  directorios y genera duplicados `* 2.md`. La protección de datos no puede apoyarse en permisos mientras
+  siga ahí. Sacarlo de la carpeta sincronizada es una decisión del propietario.
+- **Checkout de producción en la Pi:** los `manifest.json` de las cosechas forward aparecerán sin
+  seguimiento en `/home/fer/intradia-bot/data/vintages/`. No afecta a `verificar-release`, que solo mira
+  ficheros versionados.
 
 Triados en T-010 (2026-09-18): de los trece que había, 4 cerrados, 6 con ficha
 (C-04, T-014, T-017) y 3 convertidos en notas de fase. Detalle en
