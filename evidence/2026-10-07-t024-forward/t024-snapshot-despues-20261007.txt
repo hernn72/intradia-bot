@@ -1,0 +1,13 @@
+fecha: 2026-10-07T12:02:25+01:00
+== /home/fer/t024-forward
+.lock	0	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+logs/checkpoint.log	120	a1f7066e21482125c0a6e907960f1789ddce7a4031f6e8349e90ee8de733972d
+logs/systemd.log	120	a1f7066e21482125c0a6e907960f1789ddce7a4031f6e8349e90ee8de733972d
+dirs: /home/fer/t024-forward /home/fer/t024-forward/logs 
+== /home/fer/intradia-bot/data/vintages
+071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841/manifest.json	87684	a0278509734f8d06997adb111af9a551cd0e23fbff1f5cdd106e0c95ad7dfc46
+dirs: /home/fer/intradia-bot/data/vintages /home/fer/intradia-bot/data/vintages/071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841 
+== intradia-bot HEAD 8b2dddb8fd66423d9550df496d1a2a85abd066b6
+?? intradia.db.rollback-20260918-144036
+?? logs/
+== intradia-t024 HEAD b21e7cc66337f617b6a2fb9c26a2d9b663209a83
