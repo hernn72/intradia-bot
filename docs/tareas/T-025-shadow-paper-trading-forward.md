@@ -300,7 +300,7 @@ Reglas generales:
 | `paper_environment_epoch` | entorno de ejecución de una cohorte (OD-T25-11, D-78) | `cohort_id`, `epoch_no` (1, 2…), `epoch_code_sha` (commit con el mismo código económico que `t025_code_sha`), `python_version`, `installed_packages_sha256` (lista canónica `paquete==versión` del venv) y la lista, `provider_versions`, `requirements_sha256`, `started_at`, `first_scheduled_pass` (primera pasada programada de la época, que no depende de ningún libro; nunca el primer evento de un libro, que delataría la frontera), `decision_ref` (D-nn de la transición; vacío en la época 1), `equivalence_evidence_sha256` (vacío en la época 1) | `(cohort_id, epoch_no)`. Visible: depende solo del entorno. Toda fila de hechos posterior lleva su `epoch_no` |
 | `paper_run` | ejecución de T-025 | `paper_run_id`, `source_run_id` (pasada de `intradia.db`), manifiesto completo (como `RunManifest`), `paper_schema_version`, `engine_version`, `started_at`, `finished_at`, `status` (lista cerrada y genérica: `OK`, `ERROR`, `IDENTITY_MISMATCH`, `LOCKED`), `inputs_sha256` | `paper_run_id`. El diagnóstico detallado de un error que dependa de un libro va a `paper_run_diagnostic`, sellada (§10) |
 | `paper_run_diagnostic` | detalle de un fallo o una espera de un libro | `paper_run_id`, `cohort_id`, `code` (`ERROR_DIVERGENCIA`, identidad contable, FX ausente para un evento…), `detail_json` | `(paper_run_id, cohort_id, code)`. **Sellada** en una cohorte sellada |
-| `paper_bar_request` | petición real de una barra por una ejecución | `paper_run_id`, `data_symbol` (o `fx_pair` o serie de contexto), `session_date`, `due` (sí: la sesión estaba cerrada y liquidada en ese instante), `requested_at`, `result` (`OBTAINED`, `PROVIDER_DATA_MISSING` o `FETCH_FAILURE`) | `(paper_run_id, objeto, session_date)`. Es la **única** fuente de los plazos de 5 y 20 sesiones (§8.7). **`PROVIDER_DATA_MISSING`** solo cuando la petición se completó y el proveedor respondió con datos válidos que no traen esa sesión; **`FETCH_FAILURE`** cuando hubo error de transporte, DNS o librería, una excepción, o la ejecución recibió una respuesta vacía para **todos** los objetos pedidos (con `yfinance` no se distingue de un fallo de red: `market_data.py:135`). `FETCH_FAILURE` es un fallo del motor o del entorno, cuenta como `ENGINE_DOWNTIME` y no avanza ningún plazo (ronda 5). Todas las peticiones se hacen en la fase de datos, antes de procesar ningún libro, con un conjunto fijo para todo el universo (barras de los activos, FX y contexto de las sesiones `due` sin barra vigente), así que ni el conjunto ni su momento dependen de un libro (ronda 5). Visible |
+| `paper_bar_request` | petición real de una barra por una ejecución | `paper_run_id`, `data_symbol` (o `fx_pair` o serie de contexto), `session_date`, `due` (sí: la sesión estaba cerrada y liquidada en ese instante), `requested_at`, `result` (`OBTAINED`, `PROVIDER_DATA_MISSING` o `FETCH_FAILURE`) | `(paper_run_id, objeto, session_date)`. Es la **única** fuente de los plazos de 5 y 20 sesiones (§8.7). Clasificación (ronda 5, precisada en la confirmación): (1) cada ejecución pide primero un **conjunto testigo fijo** (`^VIX` y `EURUSD=X`, con una ventana que incluye sesiones ya guardadas); si el testigo da error o cero filas, toda la ejecución es **`FETCH_FAILURE`** (con `yfinance` una respuesta vacía no se distingue de un fallo de red: `market_data.py:135`); (2) con el testigo correcto, la petición de cada objeto también abarca sesiones ya guardadas: si trae filas pero no la sesión `s`, o cero filas para ese objeto, es **`PROVIDER_DATA_MISSING`**; si da un error de transporte, DNS o librería distinto de la respuesta vacía, es `FETCH_FAILURE` de ese objeto. `FETCH_FAILURE` es un fallo del motor o del entorno, cuenta como `ENGINE_DOWNTIME` y no avanza ningún plazo, y **no impide** confirmar las evaluaciones hechas con barras ya guardadas (§7.1): la pasada de las 07:00 sigue siendo vinculante con la barra europea guardada la víspera. Todas las peticiones se hacen en la fase de datos, antes de procesar ningún libro, con un conjunto fijo para todo el universo (barras de los activos, FX y contexto de las sesiones `due` sin barra vigente), así que ni el conjunto ni su momento dependen de un libro (ronda 5). Visible |
 | `paper_engine_downtime` | intervalo sin ejecución útil del motor | `scope` (todo el motor o una cohorte), `from_scheduled_pass`, `to_scheduled_pass`, `cause` (`ENGINE_DOWNTIME`, con subcausa: Pi caída, unidad fallida, worktree ausente, `FETCH_FAILURE`, `paper_run` en `ERROR`, `LOCKED` o `IDENTITY_MISMATCH` sin evaluaciones confirmadas, `ENVIRONMENT_INVESTIGATION`), `detected_at` | `(scope, from_scheduled_pass)`. Se deriva del calendario de pasadas programadas frente a `paper_run` y `paper_bar_request`. Visible: no depende de ningún libro |
 | `paper_cohort_progress` | (cohorte, ejecución) | `frontier_ts_utc`, `stalled_on` (activos que bloquean la frontera), recuentos de `late`, `DATA_GAP`, `SCALE_MISMATCH` y `DATA_LOSS_SUSPENDED` | `(cohort_id, paper_run_id)`. **Sellada** en una cohorte sellada: la frontera y los bloqueos delatan qué posiciones hay |
 | `paper_data_alert` | aviso operativo **a nivel de dato**, nunca de libro | `data_symbol` o `fx_pair` o serie de contexto, `kind` (`BAR_MISSING`, `ENTRY_BAR_DECLARED_MISSING`, `NO_DATA_20_SESSIONS`, `DATA_RESUMED`, `FX_MISSING`, `SCALE_CHANGE_UNEXPLAINED`, `LATE_BAR`, `LATE_DIVIDEND`), `session_date`, `detected_at` | `(objeto, kind, session_date)`. Se calcula para **todo** el universo, haya o no posición u orden, así que no delata ningún libro. Visible (§10) |
@@ -943,15 +943,17 @@ valoradas en los mismos τ. `excess` frente a BH se calcula como en P6 §15.
        corporativas aplicadas y el FX usado;
      - **la interpretación de los datos del proveedor sigue siendo equivalente** (criterio fijado
        antes, ronda 5; se mide la interpretación, no la identidad de los datos, que el proveedor revisa):
-       - si el entorno anterior todavía descarga, los dos entornos piden **la misma** petición (tramo
-         reciente ya guardado de todo el universo, con FX y contexto) y su normalización tiene que ser
-         idéntica byte a byte;
+       - si el entorno anterior todavía funciona, se guarda **una sola** respuesta cruda del proveedor
+         (tramo reciente ya guardado de todo el universo, con FX y contexto) y los dos entornos la
+         normalizan: el resultado tiene que ser idéntico byte a byte. Dos descargas separadas podrían
+         recibir revisiones distintas;
        - si ya no descarga, el entorno nuevo pide ese tramo y se comprueban **invariantes de
          interpretación** frente a lo guardado: columnas y tipos, zona horaria y asignación de sesiones,
          escala tras la regla de splits de §3.3, unidades y base de `Dividends` y `Stock Splits`, divisa
          y moneda de cotización, y que las barras coincidan salvo diferencias de valor **aisladas y
-         explicadas**: un factor igual al ratio de un split observado, o una barra dentro del margen de
-         barra provisional de D-21 (las dos últimas sesiones europeas). Esas diferencias se registran como
+         explicadas**: un factor igual al ratio de un split observado, una barra dentro del margen de
+         barra provisional de D-21 (las dos últimas sesiones europeas), o una acción corporativa nueva
+         que el motor registraría como `late` (§8.5, §8.6; ronda 5). Esas diferencias se registran como
          revisiones y no hacen fallar; cualquier otra diferencia, o un invariante roto, es `FAIL`;
        - es una comprobación de datos de mercado, no de libros;
      - la versión nueva del entorno queda registrada (`paper_environment_epoch`).
@@ -1148,7 +1150,11 @@ Nada de esto se hace en esta entrega.
      20 (`ENGINE_DOWNTIME`), tampoco cuando la primera petición tras volver no trae la barra: las
      sesiones cerradas durante la caída nunca cuentan; un error de red, de DNS o de librería, o una
      respuesta vacía para todo el universo, es `FETCH_FAILURE` y no avanza ningún plazo; una barra
-     ausente al volver hace esperar a la orden (§7.2), no la rechaza; una orden pendiente en
+     ausente al volver hace esperar a la orden (§7.2), no la rechaza; una pasada que solo pide barras
+     europeas retrasadas, con el testigo correcto, registra `PROVIDER_DATA_MISSING` y no
+     `FETCH_FAILURE`, y sigue confirmando evaluaciones con las barras guardadas; un testigo vacío marca
+     la ejecución entera como `FETCH_FAILURE`; un dividendo tardío en el tramo de la prueba de
+     equivalencia no la hace fallar; una orden pendiente en
      `ENGINE_UNRUNNABLE` se cancela; las señales de esos días quedan `SIGNAL_NOT_EVALUATED` con causa
      `ENGINE_DOWNTIME` y no se reconstruyen; una posición abierta antes de la caída se procesa al volver
      con las barras reales, `late_processing = sí`, sin reescribir decisiones anteriores, y un stop tocado
@@ -1607,4 +1613,16 @@ Detalle en `evidence/2026-10-06-T-025-diseno/revision-ronda5.md`.
 | Texto sin D-78 | MENOR | §0, §16, criterios y actualización documental |
 | `paper_bar_request` podía filtrar tiempos | MENOR | Peticiones en la fase de datos, conjunto fijo del universo (§5); test de §10.5 |
 | Bit `PASS`/`FAIL` dependiente del libro; el replay debe repetir la secuencia de `paper_run` | OBSERVACIÓN | Declarado (§13, §18); escrito (§13) |
+
+**Confirmación de la ronda 5 (`revisor`, sobre `2ac2c97`).** I-1 a I-4, M-1 a M-6 y las dos
+observaciones, resueltos; OD-T25-12 recoge I-5 y su provisional no abre defecto. Las correcciones
+abrieron dos IMPORTANTES, corregidos en el commit siguiente:
+- **N-1:** «vacía para todos los objetos pedidos» dependía del conjunto de cada pasada; una pasada que
+  solo pedía barras europeas retrasadas habría sido `FETCH_FAILURE` y la barra nunca habría contado.
+  **Corrección:** conjunto testigo fijo (`^VIX`, `EURUSD=X`), peticiones que abarcan sesiones guardadas,
+  `FETCH_FAILURE` sin impedir confirmar evaluaciones (§5); test.
+- **N-2:** un dividendo tardío en el tramo de la prueba de equivalencia daba `FAIL`. **Corrección:**
+  acción corporativa `late` como diferencia explicada; con el entorno viejo, una sola respuesta cruda
+  normalizada por los dos (§13); test.
+- **MENOR:** `gates.md` decía «solo con sesiones futuras» sin remitir a la excepción. **Corregido.**
 

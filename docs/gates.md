@@ -322,7 +322,8 @@ pre-registro propios, que no cambia la etiqueta de P6.
 - **Frontera temporal:** P7 empieza después de la congelación de la candidata **y** del `T1` de la
   última mirada de T-024 (OD-T24-11). Solo usa sesiones sin desenlace consultado en T-025 (unidad de
   consumo: **la sesión**, para cualquier política o cohorte; D-75, OD-T25-9) y que no hayan intervenido
-  en T-024 ni en P6-bis.
+  en T-024 ni en P6-bis. La ventana se fija solo con sesiones futuras, salvo la reutilización de una
+  ventana `VIRGEN_REUTILIZABLE` (abajo, sujeta a OD-T25-12).
 - **Ventana de P7 (D-75, OD-T25-9 C):** se fija antes de empezar P7, solo con sesiones futuras. Desde
   ese momento **todas** las cohortes de T-025 quedan selladas para esas sesiones, y también todo lo
   acumulado que las incluya, hasta la consulta única del holdout, que se registra como consumo

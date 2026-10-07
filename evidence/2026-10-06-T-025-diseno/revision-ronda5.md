@@ -47,3 +47,21 @@ de los demás documentos.
   de `paper_run` (**escrito**).
 
 Recuento del `revisor` sobre `6d57afa`: BLOCKER 0 · IMPORTANTE 5 · MENOR 6 · OBSERVACIÓN 2.
+
+## Confirmación del `revisor` sobre `2ac2c97`
+
+I-1 a I-4, M-1 a M-6, O-1 y O-2 resueltos; OD-T25-12 recoge I-5 y su provisional (candidata congelada
+antes de la primera sesión de la ventana) cumple GATE P7 sin abrir defecto. Nuevos:
+- **IMPORTANTE N-1** — `FETCH_FAILURE` por «respuesta vacía para todos los objetos pedidos» dependía del
+  conjunto de cada pasada (a veces solo barras europeas retrasadas, D-21): una barra que faltaba de
+  verdad nunca habría contado para los plazos, y quedaba ambiguo si esa pasada confirmaba evaluaciones.
+  **Corregido** (testigo fijo; peticiones sobre sesiones guardadas; `FETCH_FAILURE` no impide confirmar).
+- **IMPORTANTE N-2** — un dividendo tardío en el tramo de la prueba de equivalencia daba `FAIL` y
+  `ENGINE_UNRUNNABLE`. **Corregido** (acción corporativa `late` como diferencia explicada; una sola
+  respuesta cruda para los dos entornos).
+- **MENOR** — `gates.md:326` sin remitir a la excepción. **Corregido.**
+- **OBSERVACIÓN** — una caída de red en la primera pasada tras un cierre alarga el plazo una sesión, en
+  sentido conservador.
+
+Recuento sobre `2ac2c97`: BLOCKER 0 · IMPORTANTE 2 · MENOR 1 · OBSERVACIÓN 1, más OD-T25-12 (decisión del
+propietario, no defecto).
