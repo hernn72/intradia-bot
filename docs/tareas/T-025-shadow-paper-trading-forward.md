@@ -1,11 +1,11 @@
 # T-025 — Shadow/Paper Trading Forward diario: B2 y S2 operando en el tiempo, sin dinero real (S-01)
 
-Estado: **PRE-REGISTRO PROPUESTO, TODAS LAS OD CERRADAS, PENDIENTE DE LA REVISIÓN FINAL Y DE LA
-CONGELACIÓN.** El propietario cerró OD-T25-1 a OD-T25-9 (§17, D-75) y OD-12 (D-77), declaró la
+Estado: **PRE-REGISTRO PROPUESTO, SIN CONGELAR: OD-T25-12 ABIERTA (revisión final, ronda 5).** El propietario cerró OD-T25-1 a OD-T25-9 (§17, D-75) y OD-12 (D-77), declaró la
 visibilidad parcial ex ante de T-024 (D-76) y, en D-78, cerró OD-T25-10 y OD-T25-11 y ratificó la
 visibilidad estricta (`MARKET_PASS` frente a `FILLED`) y los plazos de 5 y 20 sesiones. Por su decisión,
 `T025_PREREG_SHA` solo se congela si la revisión independiente final termina con 0 BLOCKER y 0
-IMPORTANTE. La implementación necesita autorización aparte. No hay código, ni tablas, ni paper broker.
+IMPORTANTE. La revisión final (ronda 5) encontró que reutilizar una ventana de P7 abandonada choca con
+GATE P7: es **OD-T25-12**, abierta, y la congelación espera a ella. La implementación necesita autorización aparte. No hay código, ni tablas, ni paper broker.
 No se ha descargado ningún dato forward ni observado ningún desenlace. B2, S2 y C0 no cambian. La Pi
 no se ha tocado.
 
@@ -26,7 +26,7 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 | | |
 |---|---|
 | Base | `main = f80ab2876f7a7cc2e001b285e66fa061c0d7a8dc` (merge normal del PR #47, 2026-10-07, que solo cambió `docs/roadmap.md`). La rama nació de `0918cb3`, la cabeza del PR #47, que es ancestro de ese merge |
-| Decisiones | D-70 (P6 `[]`), D-71 y D-72 (T-024), **D-73** (reorientación y sellado de T-025), **D-74** (apertura de T-025), **D-75** (cierre de OD-T25-1..9), **D-76** (visibilidad parcial ex ante de T-024), **D-77** (OD-12: línea `t024/forward`) |
+| Decisiones | D-70 (P6 `[]`), D-71 y D-72 (T-024), **D-73** (reorientación y sellado de T-025), **D-74** (apertura de T-025), **D-75** (cierre de OD-T25-1..9), **D-76** (visibilidad parcial ex ante de T-024), **D-77** (OD-12: línea `t024/forward`), **D-78** (OD-T25-10 y OD-T25-11; ratificación de visibilidad y plazos) |
 | Políticas | `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json` (`sha256 fa027058…9fd9f6b`; esquema `intradia.p5.politicas_finales.v1`; `p5_prereg_sha a7c3d238…`) |
 | B2 | `policy_sha256 d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9`; `advisor_config_hash c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760`; sistema P6 primario `system_sha256 010977688a180cc63d22111f2dcb520c937ba39bb63fbb88082c30a061724026` |
 | S2 | `policy_sha256 e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11`; `advisor_config_hash 8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb`; `system_sha256 824a1dff2d1bf1e6d89b842b9606887cec5eed28f3b76448f947dfbb28d39a69` |
@@ -296,12 +296,12 @@ Reglas generales:
 | Tabla | Una fila por | Campos mínimos | Unicidad / idempotencia |
 |---|---|---|---|
 | `paper_cohort` | libro (B2, S2, C0, BH) y versión | `cohort_id`, `book_kind = 'PAPER'` (CHECK), `policy_id`, `policy_sha256`, `advisor_config_hash`, `p6_system_sha256` de referencia, `t025_system_sha256` (§13), `engine_version`, `t025_prereg_sha`, `t025_code_sha` (commit completo que la ejecuta, §13), `release_tag`, `capital_inicial_eur` (= 100.000, D-75), `base_currency`, `asset_list_sha256`, `universe_vintage_id`, `start_session_rule`, `start_ts_utc`, `seal_rule` (embargo T-024 y ventanas P7, §10), `label`, `created_at` | `cohort_id` = sha256 canónico de su contrato |
-| `paper_cohort_event` | cambio de estado de una cohorte | `cohort_id`, `state` (`ACTIVE`, `ENVIRONMENT_INVESTIGATION`, `CLOSING`, `CLOSED`, `ENGINE_UNRUNNABLE`, `ABORTED_INVALID_ENGINE`), `event_ts_utc`, `reason`, `decision_ref` (D-nn) | `(cohort_id, state)`. El estado vigente es el último; `ENGINE_UNRUNNABLE` y `ABORTED_INVALID_ENGINE` son terminales (§13). Visible, salvo `CLOSED` mientras rija un sellado (§13) |
-| `paper_environment_epoch` | entorno de ejecución de una cohorte (OD-T25-11, D-78) | `cohort_id`, `epoch_no` (1, 2…), `epoch_code_sha` (commit con el mismo código económico que `t025_code_sha`), `python_version`, `installed_packages_sha256` (lista canónica `paquete==versión` del venv) y la lista, `provider_versions`, `requirements_sha256`, `started_at`, `first_event_ts_utc`, `decision_ref` (D-nn de la transición; vacío en la época 1), `equivalence_evidence_sha256` (vacío en la época 1) | `(cohort_id, epoch_no)`. Visible: depende solo del entorno. Toda fila de hechos posterior lleva su `epoch_no` |
+| `paper_cohort_event` | cambio de estado de una cohorte | `cohort_id`, `state` (`ACTIVE`, `ENVIRONMENT_INVESTIGATION`, `CLOSING`, `CLOSED`, `ENGINE_UNRUNNABLE`, `ABORTED_INVALID_ENGINE`), `event_ts_utc`, `reason`, `decision_ref` (D-nn) | `(cohort_id, state)`. El `event_ts_utc` visible es siempre un instante administrativo (la pasada programada o la D-nn que cambia el estado), nunca el de un evento de libro (ronda 5). El estado vigente es el último; `ENGINE_UNRUNNABLE` y `ABORTED_INVALID_ENGINE` son terminales (§13). Visible, salvo `CLOSED` mientras rija un sellado (§13) |
+| `paper_environment_epoch` | entorno de ejecución de una cohorte (OD-T25-11, D-78) | `cohort_id`, `epoch_no` (1, 2…), `epoch_code_sha` (commit con el mismo código económico que `t025_code_sha`), `python_version`, `installed_packages_sha256` (lista canónica `paquete==versión` del venv) y la lista, `provider_versions`, `requirements_sha256`, `started_at`, `first_scheduled_pass` (primera pasada programada de la época, que no depende de ningún libro; nunca el primer evento de un libro, que delataría la frontera), `decision_ref` (D-nn de la transición; vacío en la época 1), `equivalence_evidence_sha256` (vacío en la época 1) | `(cohort_id, epoch_no)`. Visible: depende solo del entorno. Toda fila de hechos posterior lleva su `epoch_no` |
 | `paper_run` | ejecución de T-025 | `paper_run_id`, `source_run_id` (pasada de `intradia.db`), manifiesto completo (como `RunManifest`), `paper_schema_version`, `engine_version`, `started_at`, `finished_at`, `status` (lista cerrada y genérica: `OK`, `ERROR`, `IDENTITY_MISMATCH`, `LOCKED`), `inputs_sha256` | `paper_run_id`. El diagnóstico detallado de un error que dependa de un libro va a `paper_run_diagnostic`, sellada (§10) |
 | `paper_run_diagnostic` | detalle de un fallo o una espera de un libro | `paper_run_id`, `cohort_id`, `code` (`ERROR_DIVERGENCIA`, identidad contable, FX ausente para un evento…), `detail_json` | `(paper_run_id, cohort_id, code)`. **Sellada** en una cohorte sellada |
-| `paper_bar_request` | petición real de una barra por una ejecución | `paper_run_id`, `data_symbol` (o `fx_pair` o serie de contexto), `session_date`, `due` (sí: la sesión estaba cerrada y liquidada en ese instante), `requested_at`, `result` (`OBTAINED` o `PROVIDER_DATA_MISSING`) | `(paper_run_id, objeto, session_date)`. Es la **única** fuente de los plazos de 5 y 20 sesiones (§8.7). Se escribe para todo el universo, haya o no posición: visible |
-| `paper_engine_downtime` | intervalo sin ejecución del motor | `scope` (todo el motor o una cohorte), `from_scheduled_pass`, `to_scheduled_pass`, `cause` (`ENGINE_DOWNTIME`: Pi caída, unidad fallida, worktree ausente, `ENVIRONMENT_INVESTIGATION`), `detected_at` | `(scope, from_scheduled_pass)`. Se deriva del calendario de pasadas programadas frente a `paper_run`. Visible: no depende de ningún libro |
+| `paper_bar_request` | petición real de una barra por una ejecución | `paper_run_id`, `data_symbol` (o `fx_pair` o serie de contexto), `session_date`, `due` (sí: la sesión estaba cerrada y liquidada en ese instante), `requested_at`, `result` (`OBTAINED`, `PROVIDER_DATA_MISSING` o `FETCH_FAILURE`) | `(paper_run_id, objeto, session_date)`. Es la **única** fuente de los plazos de 5 y 20 sesiones (§8.7). **`PROVIDER_DATA_MISSING`** solo cuando la petición se completó y el proveedor respondió con datos válidos que no traen esa sesión; **`FETCH_FAILURE`** cuando hubo error de transporte, DNS o librería, una excepción, o la ejecución recibió una respuesta vacía para **todos** los objetos pedidos (con `yfinance` no se distingue de un fallo de red: `market_data.py:135`). `FETCH_FAILURE` es un fallo del motor o del entorno, cuenta como `ENGINE_DOWNTIME` y no avanza ningún plazo (ronda 5). Todas las peticiones se hacen en la fase de datos, antes de procesar ningún libro, con un conjunto fijo para todo el universo (barras de los activos, FX y contexto de las sesiones `due` sin barra vigente), así que ni el conjunto ni su momento dependen de un libro (ronda 5). Visible |
+| `paper_engine_downtime` | intervalo sin ejecución útil del motor | `scope` (todo el motor o una cohorte), `from_scheduled_pass`, `to_scheduled_pass`, `cause` (`ENGINE_DOWNTIME`, con subcausa: Pi caída, unidad fallida, worktree ausente, `FETCH_FAILURE`, `paper_run` en `ERROR`, `LOCKED` o `IDENTITY_MISMATCH` sin evaluaciones confirmadas, `ENVIRONMENT_INVESTIGATION`), `detected_at` | `(scope, from_scheduled_pass)`. Se deriva del calendario de pasadas programadas frente a `paper_run` y `paper_bar_request`. Visible: no depende de ningún libro |
 | `paper_cohort_progress` | (cohorte, ejecución) | `frontier_ts_utc`, `stalled_on` (activos que bloquean la frontera), recuentos de `late`, `DATA_GAP`, `SCALE_MISMATCH` y `DATA_LOSS_SUSPENDED` | `(cohort_id, paper_run_id)`. **Sellada** en una cohorte sellada: la frontera y los bloqueos delatan qué posiciones hay |
 | `paper_data_alert` | aviso operativo **a nivel de dato**, nunca de libro | `data_symbol` o `fx_pair` o serie de contexto, `kind` (`BAR_MISSING`, `ENTRY_BAR_DECLARED_MISSING`, `NO_DATA_20_SESSIONS`, `DATA_RESUMED`, `FX_MISSING`, `SCALE_CHANGE_UNEXPLAINED`, `LATE_BAR`, `LATE_DIVIDEND`), `session_date`, `detected_at` | `(objeto, kind, session_date)`. Se calcula para **todo** el universo, haya o no posición u orden, así que no delata ningún libro. Visible (§10) |
 | `paper_bar_observation` | barra de sesión cerrada usada | `data_symbol`, `market`, `session_date`, `bar_timestamp` crudo (INV-13), OHLCV de `get_raw_history` (`auto_adjust=False`), `observed_at`, `provider`, `provider_version`, `request` (`start`/`end` o `period`), `scale_anchor` | `(data_symbol, session_date, observed_at)`; la vigente para una sesión es la primera observada |
@@ -430,10 +430,11 @@ entera: se declara como cota.
 - **Ninguna señal se crea después de la apertura.** Si no hubo ninguna pasada con la barra `t` antes de
   la apertura, el caso se cuenta como `SIGNAL_NOT_EVALUATED` y no hay orden. No se rellena hacia atrás
   ni se reconstruye la recomendación retroactivamente. Su causa se registra y se distingue (D-78):
-  - `ENGINE_DOWNTIME`: el motor no estaba operativo (`paper_engine_downtime`: Pi caída, unidad fallida,
-    worktree ausente o cohorte en `ENVIRONMENT_INVESTIGATION`);
-  - `PROVIDER_DATA_MISSING`: el motor corrió, pidió la barra `t` y el proveedor no la entregó
-    (`paper_bar_request`).
+  - `ENGINE_DOWNTIME`: el motor no estaba operativo o no confirmó la evaluación (`paper_engine_downtime`:
+    Pi caída, unidad fallida, worktree ausente, `FETCH_FAILURE`, `paper_run` en `ERROR`, `LOCKED` o
+    `IDENTITY_MISMATCH`, o cohorte en `ENVIRONMENT_INVESTIGATION`);
+  - `PROVIDER_DATA_MISSING`: el motor corrió, la petición de la barra `t` se completó y el proveedor no
+    la traía (`paper_bar_request`).
 - `signal_id = stable_signal_id(symbol, "swing", bar_timestamp_t)`: el mismo para las tres políticas,
   como en P6.
 
@@ -544,9 +545,12 @@ se comprueba entrada a entrada en ese orden.
      decir, el motor estaba operativo, correspondía pedir la barra (`due`: la sesión estaba cerrada y
      liquidada), la pidió realmente y el proveedor no entregó una barra válida. `ENGINE_DOWNTIME` y
      `SIGNAL_NOT_EVALUATED` **no** cuentan y nunca se interpretan como ausencia del proveedor. Lo mismo
-     rige para la barra de entrada de §7.2. Tras una caída larga, la primera ejecución que pide la barra y
-     no la obtiene cuenta todas las sesiones ya cerradas posteriores a `s`, porque el proveedor ya tuvo
-     esos días y no la sirve;
+     rige para la barra de entrada de §7.2. **Una sesión `s'` solo cuenta para el plazo si cerró
+     mientras el motor estaba operativo** (ningún `ENGINE_DOWNTIME` cubre el tramo entre su cierre y la
+     primera pasada programada posterior) **y** una petición `due` posterior a su cierre dio
+     `PROVIDER_DATA_MISSING`. Las sesiones que cerraron durante una caída no cuentan nunca, aunque
+     después el proveedor siga sin servir la barra: tras una caída, los plazos empiezan a contar en la
+     recuperación (ronda 5; corrige la regla de la ronda 4b, que contaba de golpe y contradecía D-78);
    - **recuperación tras una caída de la Pi (ratificado en D-78):**
      - las señales no evaluadas quedan `SIGNAL_NOT_EVALUATED` (`ENGINE_DOWNTIME`) y no se reconstruyen;
      - lo que ya estaba en marcha antes de la caída (posiciones abiertas y órdenes cuya señal vinculante
@@ -556,8 +560,9 @@ se comprueba entrada a entrada en ese orden.
      - cada evento así procesado lleva `late_processing = sí` (su `computed_at` es posterior a la
        recuperación), y ninguna decisión anterior a la caída se reescribe;
      - **toda ambigüedad se resuelve de forma conservadora**, en el sentido menos favorable al libro: stop
-       antes que objetivo; una entrada cuya comprobación de mercado no se puede establecer con barras
-       válidas no se ejecuta (`DATA_NOT_EXECUTABLE`); un dividendo o un split dudoso no se aplica hasta
+       antes que objetivo; una entrada cuya barra de apertura está presente pero no es válida (apertura no
+       finita o ≤ 0) o es de escala dudosa no se ejecuta (`DATA_NOT_EXECUTABLE`); si la barra **falta**,
+       rige la espera de §7.2; un dividendo o un split dudoso no se aplica hasta
        que esté observado, y entonces `late`;
    - pasado el límite, la sesión se declara sin barra y el libro sigue, como P6: la posición conserva
      su última valoración (`mark_price` = último cierre validado, la semántica de
@@ -745,8 +750,10 @@ y datos sintéticos con posiciones abiertas, cerradas, `DATA_LOSS_SUSPENDED` y r
 - el dashboard no los recibe;
 - las exportaciones normales no los incluyen;
 - ninguna métrica agregada se calcula sobre filas selladas;
-- las fronteras, los contadores, los estados, las alertas, `paper_run.status` y el compromiso no
-  funcionan como canales laterales: dos libros sintéticos con desenlaces distintos y las mismas señales
+- las fronteras, los contadores, los estados, las alertas, `paper_run.status`, `paper_bar_request`
+  (conjunto y momento de las peticiones), `paper_engine_downtime`, `paper_environment_epoch`, los
+  instantes de `paper_cohort_event` y el compromiso no funcionan como canales laterales (con la única
+  excepción declarada del bit `PASS`/`FAIL` de una prueba de equivalencia, §13): dos libros sintéticos con desenlaces distintos y las mismas señales
   producen **exactamente la misma salida visible**, byte a byte;
 - la vía extraordinaria escribe su `paper_outcome_access` antes de devolver filas, y sin esa escritura
   no devuelve nada.
@@ -808,6 +815,11 @@ y datos sintéticos con posiciones abiertas, cerradas, `DATA_LOSS_SUSPENDED` y r
     agentes, mientras se quiera conservar como candidata a holdout. Una candidata futura solo puede
     reutilizarla si se definió y congeló sin haber visto esos desenlaces; su pre-registro cita la D-nn y
     la evidencia;
+  - **pendiente, OD-T25-12 (abierta en la ronda 5):** GATE P7 exige la configuración congelada **antes**
+    de cada ventana y una frontera solo con sesiones futuras; una candidata congelada **después** de que
+    ocurrieran las sesiones de la ventana reutilizada choca con esa regla. Hasta que el propietario
+    decida, rige la lectura compatible con los dos textos, la más estricta: **solo puede reutilizar una
+    ventana `VIRGEN_REUTILIZABLE` una candidata congelada antes de la primera sesión de esa ventana**;
   - **`CONSUMIDA`** si hubo cualquier acceso, directo o indirecto, o falta la evidencia: ya no puede ser
     holdout virgen;
   - levantar después el sellado de una ventana `VIRGEN_REUTILIZABLE` exige otra D-nn, y consultar sus
@@ -929,25 +941,42 @@ valoradas en los mismos τ. `excess` frente a BH se calcula como en P6 §15.
      - el replay reproduce **byte a byte** el ledger previo y, fila a fila, las evaluaciones de señal,
        los niveles, el sizing, las órdenes y los fills, las salidas, el cash y la equity, las acciones
        corporativas aplicadas y el FX usado;
-     - **la interpretación de los datos del proveedor sigue siendo equivalente:** el entorno nuevo
-       vuelve a pedir un tramo reciente ya guardado (barras, acciones corporativas, FX y contexto de las
-       últimas 20 sesiones de todo el universo; nunca sesiones sin guardar) y su normalización coincide
-       con las observaciones guardadas, salvo diferencias que ya constasen como revisiones observadas
-       con el entorno anterior. Es una comprobación de datos de mercado, no de libros;
+     - **la interpretación de los datos del proveedor sigue siendo equivalente** (criterio fijado
+       antes, ronda 5; se mide la interpretación, no la identidad de los datos, que el proveedor revisa):
+       - si el entorno anterior todavía descarga, los dos entornos piden **la misma** petición (tramo
+         reciente ya guardado de todo el universo, con FX y contexto) y su normalización tiene que ser
+         idéntica byte a byte;
+       - si ya no descarga, el entorno nuevo pide ese tramo y se comprueban **invariantes de
+         interpretación** frente a lo guardado: columnas y tipos, zona horaria y asignación de sesiones,
+         escala tras la regla de splits de §3.3, unidades y base de `Dividends` y `Stock Splits`, divisa
+         y moneda de cotización, y que las barras coincidan salvo diferencias de valor **aisladas y
+         explicadas**: un factor igual al ratio de un split observado, o una barra dentro del margen de
+         barra provisional de D-21 (las dos últimas sesiones europeas). Esas diferencias se registran como
+         revisiones y no hacen fallar; cualquier otra diferencia, o un invariante roto, es `FAIL`;
+       - es una comprobación de datos de mercado, no de libros;
      - la versión nueva del entorno queda registrada (`paper_environment_epoch`).
-  3. **Si todo coincide:** una D-nn aprueba la transición, con la evidencia (hashes del ledger antes y
-     después del replay, lista de comprobaciones y sus resultados; ningún desenlace sellado en claro) y
+  3. **Si todo coincide:** una D-nn aprueba la transición, con la evidencia (lista de comprobaciones y
+     sus resultados; de las filas selladas, **solo compromisos con nonce** como los de
+     `paper_seal_commitment`, nunca un hash determinista, que permitiría confirmar una reconstrucción
+     hecha a mano; los hashes deterministas van a `paper_run_diagnostic`, sellado) y
      abre la época `n + 1`. **La equivalencia sobre el pasado no demuestra que el proveedor vaya a
      responder igual en el futuro:** la época nueva es un **tramo causal nuevo**, etiquetado en toda
      métrica, y las posiciones abiertas siguen con las reglas de recuperación tras una caída (§8.7).
      El cambio nunca se oculta: cada fila de hechos lleva su `epoch_no`.
   4. **Si cualquier comprobación falla:** la cohorte **no** continúa con el entorno nuevo y pasa a
-     **`ENGINE_UNRUNNABLE`** desde su último evento válido: las posiciones abiertas quedan
+     **`ENGINE_UNRUNNABLE`** desde su último evento válido (dato sellado en `paper_run_diagnostic`; el
+     instante visible es el de la D-nn): las órdenes pendientes se cancelan
+     (`CANCELLED_ENGINE_UNRUNNABLE`, sin fill y fuera de las métricas) y las posiciones abiertas quedan
      `NO_EVALUABLE_ENGINE_UNRUNNABLE`, sin salidas fabricadas, sin P&L inventado y sin reescribir el
      histórico, que se conserva entero; las métricas por operación las excluyen y las publican aparte.
      Se abre una **cohorte nueva** bajo el entorno nuevo, que arranca plana según §6.
-  Durante un sellado, el resultado de la prueba solo es visible como `PASS`/`FAIL` y los hashes; el
-  detalle que dependa de un libro es `paper_run_diagnostic`, sellado.
+  Durante un sellado, el resultado de la prueba solo es visible como `PASS`/`FAIL` y los compromisos con
+  nonce; el detalle que dependa de un libro es `paper_run_diagnostic`, sellado. **Canal residual
+  declarado (ronda 5):** el `PASS`/`FAIL`, y el `ENGINE_UNRUNNABLE` que lo sigue, es un bit que puede
+  depender de por qué ruta pasó un libro (por ejemplo, un dividendo con posición abierta). Es inevitable
+  con D-78, se declara aquí y en §18, y queda fuera de la igualdad byte a byte de §10.5.
+  **El replay** repite la secuencia registrada de `paper_run`, con el `decision_ts` y el corte de
+  `observed_at` de cada ejecución, para que los eventos `late` y `late_processing` se reproduzcan igual.
 - **Cierre ordinario:** el propietario puede cerrar una cohorte (`CLOSING` en `paper_cohort_event`).
   - En `CLOSING` se cancelan las órdenes pendientes y no se crea ninguna nueva.
   - Sus posiciones salen con `EXIT_COHORT_CLOSED` en la apertura siguiente de cada activo; una posición
@@ -1064,8 +1093,8 @@ Los campos salen de §5. Frente al registro por señal de GATE P10, hay tres dif
 
 Nada de esto se hace en esta entrega.
 
-1. Revisión final del propietario de este PR y congelación de `T025_PREREG_SHA` (las OD-T25 y OD-12
-   ya están cerradas: D-75, D-76, D-77).
+1. Decisión de OD-T25-12, revisión independiente final con 0 BLOCKER y 0 IMPORTANTE y congelación de
+   `T025_PREREG_SHA` (D-78 §5; el resto de OD, cerradas en D-75, D-76, D-77 y D-78).
 2. `paper/`: almacén y migraciones de `paper.db`, motor incremental `engine_v1`, capa de visibilidad,
    CLI y mensaje de Telegram.
 3. **Tests obligatorios, con datos sintéticos:**
@@ -1116,7 +1145,11 @@ Nada de esto se hace en esta entrega.
      detiene sin escribir, no lo ignora; dos worktrees concurrentes: el segundo espera el lock;
    - `CLOSING` cancela las órdenes pendientes; `CLOSED` no se publica durante un sellado;
    - **plazos y caídas (D-78):** una caída de 7 sesiones y otra de 25 no avanzan los plazos de 5 ni de
-     20 (`ENGINE_DOWNTIME`); las señales de esos días quedan `SIGNAL_NOT_EVALUATED` con causa
+     20 (`ENGINE_DOWNTIME`), tampoco cuando la primera petición tras volver no trae la barra: las
+     sesiones cerradas durante la caída nunca cuentan; un error de red, de DNS o de librería, o una
+     respuesta vacía para todo el universo, es `FETCH_FAILURE` y no avanza ningún plazo; una barra
+     ausente al volver hace esperar a la orden (§7.2), no la rechaza; una orden pendiente en
+     `ENGINE_UNRUNNABLE` se cancela; las señales de esos días quedan `SIGNAL_NOT_EVALUATED` con causa
      `ENGINE_DOWNTIME` y no se reconstruyen; una posición abierta antes de la caída se procesa al volver
      con las barras reales, `late_processing = sí`, sin reescribir decisiones anteriores, y un stop tocado
      durante la caída sale en su sesión; stop y objetivo ambiguos → stop; `PROVIDER_DATA_MISSING` con el
@@ -1148,7 +1181,7 @@ Nada de esto se hace en esta entrega.
    recomendaciones de C0 de la Pi solo como contraste descriptivo, y ese contraste queda etiquetado por
    versión. Antes de desplegar se registra en una D-nn.
 
-## 17. Decisiones del propietario (OD-T25) — todas CERRADAS el 2026-10-07 (OD-T25-1..9 en D-75; OD-T25-10 y OD-T25-11 en D-78)
+## 17. Decisiones del propietario (OD-T25) — OD-T25-1..11 CERRADAS el 2026-10-07 (D-75, D-78); OD-T25-12 ABIERTA (ronda 5)
 
 Formato de `docs/decision-log.md`. Se conservan la pregunta y las alternativas que se presentaron; manda
 la decisión. Ya no bloquean la congelación: falta la revisión final del propietario.
@@ -1292,6 +1325,29 @@ la decisión. Ya no bloquean la congelación: falta la revisión final del propi
   una cohorte nueva bajo el entorno nuevo. C solo como estado temporal durante la investigación técnica
   (`ENVIRONMENT_INVESTIGATION`). Regla operativa en §13.
 
+### OD-T25-12 — Reutilizar una ventana de P7 abandonada frente a GATE P7 · **ABIERTA desde el 2026-10-07** (ronda 5)
+- **Por qué existe:** D-78 (OD-T25-10) permite que una candidata futura reutilice las sesiones de una
+  ventana `VIRGEN_REUTILIZABLE` «si se definió y congeló sin haber visto esos desenlaces». GATE P7 exige
+  «configuración congelada antes de cada ventana» (requisito 1) y una ventana «solo con sesiones
+  futuras». Una candidata congelada **después** de que ocurrieran las sesiones de la ventana cumple D-78
+  y no cumple GATE P7. Además, «sin haber visto» solo se demuestra con `paper_outcome_access`: durante la
+  ventana la información ex ante fue visible y los precios son públicos (D-76).
+- **Alternativas:**
+  - (A) **solo una candidata congelada antes de la primera sesión de la ventana** puede reutilizarla.
+    Cumple los dos textos sin excepción. En la práctica, solo sirve para una candidata que ya estaba
+    congelada cuando la ventana empezó (por ejemplo, una segunda candidata preparada en paralelo);
+  - (B) **excepción explícita a GATE P7** para ventanas `VIRGEN_REUTILIZABLE`, con salvaguardas: los
+    datos de desarrollo de la candidata, de cualquier fuente, terminan antes de la primera sesión de la
+    ventana; su pre-registro declara la exposición ex ante y la de precios públicos de esas sesiones; se
+    registra en una D-nn y en GATE P7;
+  - (C) otra.
+- **Consecuencia:** A es la más estricta y hace casi inútil la reutilización; B la hace útil, pero el
+  holdout lo evalúa una candidata diseñada cuando esas sesiones ya eran pasado (con precios públicos
+  observables), y GATE P7 pasa a tener una excepción.
+- **Mientras no se decida:** rige A (§10.7).
+- **Bloquea:** la congelación de `T025_PREREG_SHA` (instrucción del propietario: si aparece una decisión
+  nueva, no se congela).
+
 ## 18. Riesgos y limitaciones
 
 - **Sellado procedimental** (§10.4): no es criptográfico.
@@ -1306,6 +1362,8 @@ la decisión. Ya no bloquean la congelación: falta la revisión final del propi
 - **Cambios de entorno** (D-78): una época nueva prueba la equivalencia sobre el pasado, no sobre el
   futuro, y una prueba fallida termina la cohorte en `ENGINE_UNRUNNABLE` con sus posiciones abiertas
   `NO_EVALUABLE`. Con un embargo largo y un proveedor inestable puede ocurrir.
+- **Bit residual de la prueba de equivalencia** (§13): su `PASS`/`FAIL` puede depender de la ruta de
+  un libro; se declara y queda fuera de la igualdad byte a byte de §10.5.
 - **Caídas del motor** (D-78): no consumen plazos, pero hacen perder señales (`SIGNAL_NOT_EVALUATED`) y
   procesar tarde las posiciones abiertas.
 - **Cohortes antiguas y su worktree** (§13): mantener varias cohortes vivas exige un worktree por
@@ -1349,8 +1407,10 @@ implementación:
 
 - La ficha recorre todos los apartados del encargo (§1–§17) y no queda ninguna regla sin fijar ni sin
   marcar como OD.
-- Ninguna OD se da por cerrada sin una decisión del propietario. Las OD-T25-1..9 y OD-12 se cierran
-  con su decisión literal (D-75, D-77), y la ficha no conserva texto incompatible con ellas.
+- Ninguna OD se da por cerrada sin una decisión del propietario. Las OD-T25-1..11 y OD-12 se cierran
+  con su decisión literal (D-75, D-77, D-78), y la ficha no conserva texto incompatible con ellas.
+- La congelación exige además OD-T25-12 cerrada y una revisión final con 0 BLOCKER y 0 IMPORTANTE
+  (D-78 §5).
 - El roadmap, el decision log y `docs/gates.md` son coherentes con esta ficha.
 - La revisión independiente queda sin BLOCKER ni IMPORTANTE abiertos.
 - `pytest`, `ruff` y `mypy` dan lo mismo que la línea base, y no cambia ningún fichero de los
@@ -1381,7 +1441,7 @@ trading forward`, más commits separados para el roadmap y las decisiones.
 ## Actualización documental requerida
 
 `docs/roadmap.md` (S-01, S-02, Línea S, presupuesto de datos, orden y fechas de T-024),
-`docs/decision-log.md` (D-73 a D-77, OD-12 y las OD-T25 cerradas), `docs/gates.md` (GATE P7 y GATE
+`docs/decision-log.md` (D-73 a D-78, OD-12, las OD-T25 y OD-T25-12), `docs/gates.md` (GATE P7 y GATE
 P10) y la ficha de PAPER-001 (visibilidad parcial de T-024).
 
 ## Handoff al siguiente agente
@@ -1397,8 +1457,8 @@ P10) y la ficha de PAPER-001 (visibilidad parcial de T-024).
     declarado en D-76;
   - hashes de §0 leídos de `politicas-finales.json` y de `system-hashes.json`;
   - línea base de §0.
-- **Pendiente:** la revisión independiente final y, si queda limpia, la congelación de
-  `T025_PREREG_SHA` (D-78); la creación de
+- **Pendiente:** la decisión del propietario sobre OD-T25-12, una confirmación de la revisión final y,
+  si queda con 0 BLOCKER y 0 IMPORTANTE, la congelación de `T025_PREREG_SHA` (D-78 §5); la creación de
   `t024/forward` (D-77, antes del primer cambio en los `EXECUTOR_PATHS` de `main` y antes del
   2026-11-21) y, con autorización aparte, la implementación (§16).
 - **Hallazgos:**
@@ -1525,3 +1585,26 @@ BLOCKER 0 · IMPORTANTE 0 · MENOR 0.** Una observación (el motor N falla cerra
 referencia desconocido), incorporada al test de §16. Quedan decisiones del propietario: OD-T25-10,
 OD-T25-11, si la congelación las espera, y ratificar §10.2 y los plazos de §8.7. _(Todas resueltas por el propietario
 el 2026-10-07 en D-78.)_
+
+**Ronda 5 — revisión independiente final (2026-10-07, sobre `6d57afa`, tras D-78).** Estado completo,
+no solo el diff. Codex y el subagente `revisor`, de solo lectura, sin contexto de rondas anteriores.
+Detalle en `evidence/2026-10-06-T-025-diseno/revision-ronda5.md`.
+- **Codex:** 0 BLOCKER, 0 IMPORTANTE, 2 MENORES (roadmap y PAPER-001 sin D-78), corregidos. Advierte que
+  fue una sola pasada de lectura.
+- **`revisor`:** 0 BLOCKER, 5 IMPORTANTES, 6 MENORES, 2 OBSERVACIONES:
+
+| Hallazgo | Clase | Corrección |
+|---|---|---|
+| Un fallo de red o de librería contaba como `PROVIDER_DATA_MISSING` y consumía plazos | IMPORTANTE | `FETCH_FAILURE` = `ENGINE_DOWNTIME`; `PROVIDER_DATA_MISSING` solo con respuesta válida sin esa sesión (§5, §7.1); test |
+| «Una caída larga se cuenta de golpe» contradecía D-78 | IMPORTANTE | Solo cuentan sesiones cerradas con el motor operativo; los plazos empiezan en la recuperación (§8.7); test |
+| `first_event_ts_utc` y el instante de `ENGINE_UNRUNNABLE` delataban la frontera | IMPORTANTE | Primera pasada programada de la época; instantes visibles administrativos; «último evento válido» sellado (§5, §13); test de §10.5 ampliado |
+| La equivalencia medía identidad de datos, no interpretación: un split o una barra provisional daba `FAIL` | IMPORTANTE | Comparación entre entornos si el viejo descarga; si no, invariantes de interpretación y diferencias aisladas explicadas (split observado, barra provisional de D-21), criterio fijado antes (§13) |
+| Reutilizar una ventana de P7 abandonada choca con el requisito 1 de GATE P7 | IMPORTANTE | **Exige decisión del propietario: OD-T25-12, abierta**; provisional, la lectura más estricta (§10.7, §17, `gates.md`). **Bloquea la congelación** |
+| Hashes deterministas del ledger en la evidencia visible | MENOR | Solo compromisos con nonce (§13) |
+| Causas de `SIGNAL_NOT_EVALUATED` incompletas | MENOR | `ERROR`, `LOCKED`, `IDENTITY_MISMATCH` y `FETCH_FAILURE` dentro de `ENGINE_DOWNTIME` (§5, §7.1) |
+| `DATA_NOT_EXECUTABLE` frente a la espera de 5 sesiones | MENOR | `DATA_NOT_EXECUTABLE` solo con barra presente e inválida; si falta, §7.2 (§8.7) |
+| Órdenes pendientes en `ENGINE_UNRUNNABLE` | MENOR | `CANCELLED_ENGINE_UNRUNNABLE` (§13) |
+| Texto sin D-78 | MENOR | §0, §16, criterios y actualización documental |
+| `paper_bar_request` podía filtrar tiempos | MENOR | Peticiones en la fase de datos, conjunto fijo del universo (§5); test de §10.5 |
+| Bit `PASS`/`FAIL` dependiente del libro; el replay debe repetir la secuencia de `paper_run` | OBSERVACIÓN | Declarado (§13, §18); escrito (§13) |
+

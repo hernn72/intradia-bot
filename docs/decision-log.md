@@ -2610,6 +2610,10 @@ La revisión de la ronda 4 abrió **OD-T25-10** (estado de las sesiones de una v
 nunca consultada) y su confirmación **OD-T25-11** (una cohorte viva cuyo entorno de Python ya no puede
 seguir igual). **Las dos se cerraron el 2026-10-07 en D-78**, que además ratifica la visibilidad
 estricta y los plazos de 5 y 20 sesiones, y condiciona la congelación a una revisión final limpia.
+La revisión final (ronda 5) abrió **OD-T25-12** (reutilizar una ventana de P7 abandonada frente al
+requisito 1 de GATE P7), **ABIERTA desde el 2026-10-07**, en la ficha §17; mientras no se decida solo
+puede reutilizarla una candidata congelada antes de la primera sesión de la ventana. **Bloquea la
+congelación de `T025_PREREG_SHA`.**
 
 **Bloqueaban** la congelación del pre-registro de T-025. Decisiones en D-75 (con D-76 para la
 visibilidad de T-024) y texto completo en la ficha §17. OD-T25-7 se cerró con una regla distinta de las

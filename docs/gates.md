@@ -333,7 +333,10 @@ pre-registro propios, que no cambia la etiqueta de P6.
   `VIRGEN_REUTILIZABLE` solo si se demuestran 0 accesos a desenlaces en `paper_outcome_access`, sellado
   ininterrumpido y evidencia verificable, y entonces **sigue sellada** mientras se conserve. Una
   candidata posterior solo puede reutilizarla si se definió y congeló sin ver esos desenlaces. Con
-  cualquier acceso, directo o indirecto, es `CONSUMIDA`.
+  cualquier acceso, directo o indirecto, es `CONSUMIDA`. **Choca con el requisito 1 de abajo**
+  (configuración congelada antes de cada ventana) si la candidata se congela después de las sesiones
+  reutilizadas: es **OD-T25-12, abierta**. Mientras no se decida, solo puede reutilizarla una candidata
+  congelada antes de la primera sesión de esa ventana.
 - Toda observación cuyo desenlace se consulte durante T-025 queda consumida y no puede ser holdout
   virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10.6).
 

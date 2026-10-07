@@ -30,7 +30,7 @@ o S2.
 |---|---|---|
 | **Confirmatorio** | P2 (A-02, D-42/D-43), P3 (T-019, D-61/D-62: NO CONCLUYENTE), P4 (T-020, D-64/D-65), P5 (T-021, D-67/D-68: B2 y S2 ROBUSTAS), **P6 (T-022, D-70)** | Cada fase con su pre-registro, su ejecución única y su gate. P6: B2 PF 1,3995, mean_R_local 0,2478, max DD −16,60 %, CAGR 18,03 %, exceso −15,77 pp; S2 PF 1,4044, mean_R_local 0,2383, max DD −11,23 %, CAGR 15,08 %, exceso −18,72 pp; benchmark CAGR 33,80 %, max DD −26,22 % (D-70) |
 | **Post hoc** | T-023 (`evidence/2026-10-05-T-023-diagnostico-post-p6/`) | Dónde se abre la brecha (2023–2025), participación (exposición media B2 0,8371, S2 0,6054, C0 0,5313), saturación de cash de B2, rechazos `ABOVE_MAX_ENTRY` de S2, puente de todas las barras. Etiquetas `OBSERVADO` / `COMPATIBLE_CON` / `NO_IDENTIFICABLE`, que el paper conserva |
-| **Prospectivo, sin resultado** | T-024 (D-71/D-72, D-76), T-025 (D-73/D-74, D-75) | Solo el diseño y el calendario. Ningún número. La v1 dice explícitamente que no hay resultado forward. T-024 se describe como **diseño confirmatorio pre-registrado con visibilidad parcial ex ante del propietario, declarada antes de observar desenlaces** (D-76) |
+| **Prospectivo, sin resultado** | T-024 (D-71/D-72, D-76), T-025 (D-73/D-74, D-75, D-78) | Solo el diseño y el calendario. Ningún número. La v1 dice explícitamente que no hay resultado forward. T-024 se describe como **diseño confirmatorio pre-registrado con visibilidad parcial ex ante del propietario, declarada antes de observar desenlaces** (D-76) |
 
 Ninguna cifra post hoc se presenta como confirmatoria, y ninguna afirmación causal sale de T-023.
 
