@@ -65,6 +65,12 @@ desplegar el wrapper sin cambiar el ejecutor metodológico. La unidad systemd no
 calcula explícitamente la fecha en Canarias y la congelación ve el mismo entorno que una ejecución manual
 con el venv.
 
+> **Condición de D-77 (2026-10-07):** usar el venv del bot es un estado transitorio. Antes del primer
+> despliegue en la Pi que cambie `requirements.txt` o el venv del bot, T-024 tiene que tener su propio
+> venv, instalado desde el `requirements.txt` de `t024/forward`, y la unidad reinstalada con ese
+> intérprete: `verificar_identidad()` comprueba ficheros, no versiones instaladas. Desde D-77, T-024 se
+> opera desde la línea `t024/forward`.
+
 ```sh
 git -C /home/fer/intradia-bot fetch origin
 git -C /home/fer/intradia-bot worktree add --detach /home/fer/intradia-t024 <SHA de main tras fusionar #46>
@@ -123,7 +129,10 @@ Política de fallos:
   petición. Si no coincide, el estado es `ERROR_IDENTIDAD` y no se descarga nada. Así, un worktree movido a
   otro commit no puede gastar el único intento automático con otra identidad.
 - El instalador lee el mismo valor. `traer_cosecha verificar` exige que coincida con el sidecar.
-- Cambiar `T024_CODE_SHA` exige actualizar también este campo, de forma explícita.
+- **`T024_CODE_SHA` y `t024_code_sha` no se cambian mientras T-024 esté vivo** (D-77). Cualquier cambio
+  exigiría una decisión nueva del propietario y ya no sería la línea congelada `t024/forward`.
+  _(Texto anterior al 2026-10-07: «cambiar `T024_CODE_SHA` exige actualizar también este campo»; retirado
+  por D-77.)_
 
 ## Fase B manual en el PC
 
