@@ -320,12 +320,17 @@ pre-registro propios, que no cambia la etiqueta de P6.
 - **T-024 y T-025 no son P7 ni lo sustituyen.** Ninguno de los dos aporta candidatas ni datos de
   holdout.
 - **Frontera temporal:** P7 empieza después de la congelación de la candidata **y** del `T1` de la
-  última mirada de T-024 (OD-T24-11). Solo usa sesiones sin desenlace consultado en T-025 (la unidad de consumo
-  la fija OD-T25-9; mientras tanto rige la lectura más estricta, por sesión) y que no hayan intervenido
-  en T-024 ni en P6-bis. Para que esa ventana exista mientras T-025 corre, se propone
-  sellarla en T-025 para todas las cohortes hasta la consulta única de P7 (OD-T25-9).
+  última mirada de T-024 (OD-T24-11). Solo usa sesiones sin desenlace consultado en T-025 (unidad de
+  consumo: **la sesión**, para cualquier política o cohorte; D-75, OD-T25-9) y que no hayan intervenido
+  en T-024 ni en P6-bis.
+- **Ventana de P7 (D-75, OD-T25-9 C):** se fija antes de empezar P7, solo con sesiones futuras. Desde
+  ese momento **todas** las cohortes de T-025 quedan selladas para esas sesiones, y también todo lo
+  acumulado que las incluya, hasta la consulta única del holdout, que se registra como consumo
+  (`paper_outcome_access`, `P7_HOLDOUT_QUERY`). T-025 sigue funcionando internamente (ficha §10.7).
+- **Exposición ex ante:** durante la ventana de P7 la información ex ante de T-025 sigue visible, como
+  durante el embargo de T-024 (D-76). El pre-registro de P7 tiene que declararla.
 - Toda observación cuyo desenlace se consulte durante T-025 queda consumida y no puede ser holdout
-  virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10).
+  virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10.6).
 
 Requisitos:
 
