@@ -2170,8 +2170,8 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
    Telegram, Claude, Codex y cualquier agente. **C0 queda también sellado** en desenlaces y P&L durante
    el mismo embargo, por su solape con B2 y S2; su información ex ante puede guardarse y verse. Esto
    sustituye la regla provisional «C0 visible» de D-73 §2. La exposición de T-024 se registra en D-76.
-   - **Interpretación técnica del agente, no parte de la decisión; pendiente de ratificación del
-     propietario en la revisión final del PR #48** (las dos revisiones de la ronda 4 la consideran la
+   - **Interpretación técnica del agente, no parte de la decisión** _(ratificada por el propietario el
+     2026-10-07 en D-78)_ (las dos revisiones de la ronda 4 la consideran la
      única lectura compatible con las dos listas): el tamaño en unidades o en
      EUR revela la equity, y el resultado por libro (`FILLED`, `IGNORED_ALREADY_OPEN`,
      `INSUFFICIENT_CASH`, `POSITION_TOO_SMALL`) revela el cash y si una posición anterior sigue abierta.
@@ -2312,6 +2312,63 @@ el mismo plazo.
 
 **Lo que no cambia:** el pre-registro y el código de T-024, `T024_CODE_SHA`, el calendario ya declarado,
 la Pi y su worktree (hasta ejecutar el procedimiento).
+
+### D-78 — 2026-10-07 — T-025: OD-T25-10 y OD-T25-11 cerradas; visibilidad estricta y plazos ratificados
+Decisiones del propietario tomadas el 2026-10-07, antes de que exista código de T-025 y sin haber
+observado ningún desenlace. Detalle operativo en `docs/tareas/T-025-shadow-paper-trading-forward.md`
+(§7.1, §8.7, §10.2, §10.3, §10.7, §13 y §17).
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+1. **OD-T25-10, ventana de P7 fijada y nunca consultada: A con salvaguardas estrictas.**
+   - Una D-nn cierra formalmente la ventana abandonada.
+   - Tiene que demostrarse que hubo **0 accesos** a desenlaces de esas sesiones y que ninguna fila de
+     `paper_outcome_access` las consume.
+   - Mientras se quieran conservar como candidatas a holdout, **permanecen selladas**: ni dashboard, ni
+     CLI, ni Telegram, ni agentes.
+   - Una candidata futura solo puede reutilizarlas si se definió y congeló sin haber visto esos
+     desenlaces.
+   - **`VIRGEN_REUTILIZABLE`** si y solo si: la ventana se abandonó, no hubo ninguna consulta de
+     desenlaces, permaneció sellada y existe evidencia verificable. Con cualquier acceso, directo o
+     indirecto: **`CONSUMIDA`**, y ya no puede ser holdout virgen.
+   - No B (quemaría sesiones nunca observadas) ni C (sellado indefinido sin necesidad).
+2. **OD-T25-11, cohorte viva cuyo entorno no puede seguir igual: A con fallback obligatorio a B.**
+   - Puede continuar tras actualizar exclusivamente una dependencia o el entorno solo si **antes** se
+     demuestra equivalencia objetiva: código económico, configuración y hashes de política sin cambios;
+     replay sobre todas las observaciones guardadas relevantes que reproduce byte a byte el ledger;
+     señales, niveles, sizing, órdenes y fills, salidas, cash y equity, acciones corporativas y FX
+     históricos idénticos; interpretación de los datos del proveedor equivalente; versión nueva del
+     entorno registrada.
+   - **`environment_epoch`:** una cohorte puede tener varias épocas; el cambio nunca se oculta; cada
+     época se identifica por versiones y hashes; la transición requiere una D-nn; la equivalencia queda
+     como evidencia. La equivalencia sobre el pasado no demuestra el comportamiento futuro del
+     proveedor: la época nueva es un tramo causal nuevo, etiquetado.
+   - Si cualquier comprobación falla: no continúa con el entorno nuevo y pasa a **`ENGINE_UNRUNNABLE`**
+     desde el último evento válido; posiciones abiertas `NO_EVALUABLE`; sin salidas fabricadas, sin
+     reescribir el histórico, sin P&L inventado, con toda la historia conservada; se abre una cohorte
+     nueva bajo el entorno nuevo.
+   - C solo como estado temporal durante la investigación técnica (`ENVIRONMENT_INVESTIGATION`).
+3. **Ratificación de la visibilidad durante el embargo** (la interpretación estricta de la ronda 4, que
+   D-75 dejó pendiente). Visible ex ante para B2, S2 y C0: fecha y hora, activo, política, `entry_max`,
+   stop, objetivos, RR, tamaño solicitado **solo como fracción de la equity**, comprobaciones puramente
+   de mercado, precio efectivo teórico de entrada si las supera y rechazo de mercado independiente del
+   estado del libro. **No** se muestra: tamaño en EUR, unidades si permiten reconstruir la equity,
+   `FILLED` si depende del cash o de la posición previa, `INSUFFICIENT_CASH`, `IGNORED_ALREADY_OPEN`,
+   estado de la posición previa, cash, equity, posiciones abiertas o cerradas, ni nada que permita
+   deducir un desenlace previo. Se distingue **`MARKET_PASS`** (visible) de **`FILLED`** (interno del
+   libro, sellado).
+4. **Ratificación de los plazos de 5 y 20 sesiones.** Solo avanzan cuando el motor estaba operativo,
+   correspondía pedir la barra, la pidió realmente y el proveedor no entregó una barra válida
+   (`PROVIDER_DATA_MISSING`). Se distingue de `ENGINE_DOWNTIME` y de `SIGNAL_NOT_EVALUATED`. Una caída de
+   la Pi no consume ningún plazo ni se interpreta como ausencia del proveedor. Las señales no evaluadas
+   por caída quedan `SIGNAL_NOT_EVALUATED` y no se reconstruyen. Las posiciones abiertas antes de la
+   caída se reconstruyen causalmente al volver con las barras realmente disponibles, marcadas como
+   procesamiento tardío, sin reescribir decisiones anteriores y resolviendo toda ambigüedad de forma
+   conservadora. Con tests específicos (ficha §16).
+5. **Congelación:** `T025_PREREG_SHA` no se congela hasta que OD-T25-10 y OD-T25-11 estén cerradas y la
+   documentación sea coherente con ellas, y solo si una revisión independiente final termina con
+   **0 BLOCKER y 0 IMPORTANTE**.
+
+**Lo que no cambia:** B2, S2 y C0; P6; T-024 y `T024_CODE_SHA`; P7 BLOQUEADO; la Pi.
 
 ## OWNER_DECISION_REQUIRED
 
@@ -2550,11 +2607,9 @@ Están en `docs/tareas/T-025-shadow-paper-trading-forward.md` §17, con el forma
 9. alcance del consumo y ventana sellada de P7.
 
 La revisión de la ronda 4 abrió **OD-T25-10** (estado de las sesiones de una ventana de P7 fijada y
-nunca consultada), **ABIERTA desde el 2026-10-07**, en la ficha §17; mientras no se decida, la ventana
-sigue sellada. La confirmación de la ronda 4 (4b) abrió **OD-T25-11** (una cohorte viva cuyo entorno de
-Python ya no puede seguir igual), **ABIERTA desde el 2026-10-07**, que amplía OD-T25-8; mientras no se
-decida, la cohorte no corre con otro entorno. El propietario decide si la congelación espera a OD-T25-10
-y OD-T25-11.
+nunca consultada) y su confirmación **OD-T25-11** (una cohorte viva cuyo entorno de Python ya no puede
+seguir igual). **Las dos se cerraron el 2026-10-07 en D-78**, que además ratifica la visibilidad
+estricta y los plazos de 5 y 20 sesiones, y condiciona la congelación a una revisión final limpia.
 
 **Bloqueaban** la congelación del pre-registro de T-025. Decisiones en D-75 (con D-76 para la
 visibilidad de T-024) y texto completo en la ficha §17. OD-T25-7 se cerró con una regla distinta de las
