@@ -288,6 +288,8 @@ class Engine:
         self.awaiting_outcome: List[PaperPosition] = []
         self.applied_splits: Set[Tuple[str, int]] = set()
         self.caught_up: Set[Tuple[str, str]] = set()
+        # D-80: dividendos de una barra liberada, con derecho fijado en su apertura y abono en su CLOSE_DIVIDEND.
+        self.catchup_dividends: List[Tuple[PaperPosition, float, float, datetime, str]] = []
         self.bh_eve_units: Dict[Tuple[str, int], float] = {}
         self.bh_dividend_settled: Dict[Tuple[str, int], bool] = {}
         self.bh_late_done: Set[Tuple[str, int]] = set()
@@ -525,6 +527,7 @@ class Engine:
         abonar (P6 abona al cierre ex el derecho de una posición que salió en la apertura ex)."""
 
         owed = {id(held) for entries in self.entitlements.values() for held, _dividend in entries}
+        owed.update(id(held) for held, *_rest in self.catchup_dividends)
         waiting: List[PaperPosition] = []
         for position in self.awaiting_outcome:
             if id(position) in owed:
@@ -677,8 +680,10 @@ class Engine:
         """D-80: barras bloqueadas por ``SCALE_MISMATCH`` que ya se habían declarado ausentes y que el propietario
         liberó como hueco real. Cada una se recorre cuando la frontera alcanza su apertura (nunca antes), en orden y
         con sus precios reales: split y dividendo de esa fecha ex, hueco bajo el stop, objetivo, toque intradía y
-        tiempo, como en ``_open_exit`` y ``_close_exit``. Las filas van ``late`` y con ``late_processing``; no se
-        reescribe ninguna decisión anterior (ni se reabre una orden saltada)."""
+        tiempo, como en ``_open_exit`` y ``_close_exit``. El dividendo fija su derecho en la apertura y se abona
+        cuando la frontera alcanza el ``CLOSE_DIVIDEND`` de esa sesión, nunca antes: no financia entradas de su
+        apertura. Las filas van ``late`` y con ``late_processing``; no se reescribe ninguna decisión anterior (ni
+        se reabre una orden saltada)."""
 
         for held in sorted(self.positions.values(), key=lambda item: item.position_id):
             series = self.view.assets[held.asset]
@@ -693,7 +698,7 @@ class Engine:
                     continue
                 opened = (held.asset, f"{session}@open")
                 if opened not in self.caught_up:
-                    # Apertura: split y dividendo de la fecha ex, y salida por hueco (como ``_open_exit``).
+                    # Apertura: split y derecho al dividendo de la fecha ex, y salida por hueco (como ``_open_exit``).
                     self.caught_up.add(opened)
                     if held.suspended:
                         held.suspended = False
@@ -702,7 +707,7 @@ class Engine:
                         self._rescale(held, bar.split, event.at, event.phase, session, late=True, force_late_processing=True)
                         held.split_carried *= bar.split
                     if bar.dividend > 0:
-                        self._credit(held, bar.dividend, held.units, event, late=True, session=session, force_late_processing=True)
+                        self.catchup_dividends.append((held, bar.dividend, held.units, bar.close_utc, session))
                         held.dividend_carried += bar.dividend
                     held.extra_bars += 1
                     gap: Optional[float] = None
@@ -731,8 +736,27 @@ class Engine:
                     exit_price, reason = bar.close, EXIT_TIME
                 if exit_price is not None:
                     self._catchup_exit(held, event, series, session, exit_price, reason)
+                    self._catchup_dividends(event, held, session)
                     break
+                self._catchup_dividends(event, held, session)
                 held.mark_price = bar.close
+        self._catchup_dividends(event)
+
+    def _catchup_dividends(self, event: _Event, held: Optional[PaperPosition] = None, session: str = "") -> None:
+        """Abona los dividendos D-80 cuyo ``CLOSE_DIVIDEND`` ya ha alcanzado la frontera (los de ``held`` en
+        ``session``, o todos), con las unidades de la apertura ex: el derecho sigue aunque la posición haya
+        salido en esa sesión."""
+
+        now = (event.at, PHASE_RANK[event.phase])
+        waiting: List[Tuple[PaperPosition, float, float, datetime, str]] = []
+        for entry in self.catchup_dividends:
+            owner, dividend, units, close_utc, ex_session = entry
+            selected = held is None or (owner is held and ex_session == session)
+            if selected and (close_utc, PHASE_RANK[CLOSE_DIVIDEND]) <= now:
+                self._credit(owner, dividend, units, event, late=True, session=ex_session, force_late_processing=True)
+            else:
+                waiting.append(entry)
+        self.catchup_dividends = waiting
 
     @staticmethod
     def _catchup_bars(held: PaperPosition, series: AssetView, session: date) -> int:
@@ -1196,6 +1220,8 @@ def engine_to_state(engine: Engine) -> Dict[str, Any]:
     for entries in [*engine.entitlements.values(), *engine.eve_units.values()]:
         for position, _value in entries:
             registry[position.position_id] = position
+    for position, *_rest in engine.catchup_dividends:
+        registry[position.position_id] = position
 
     def pairs(mapping: Mapping[Tuple[str, int], List[Tuple[PaperPosition, float]]]) -> List[Any]:
         return [[asset, index, [[p.position_id, v] for p, v in entries]] for (asset, index), entries in sorted(mapping.items())]
@@ -1220,6 +1246,7 @@ def engine_to_state(engine: Engine) -> Dict[str, Any]:
         "seen_signals": sorted(engine.seen_signals),
         "applied_splits": sorted([a, i] for a, i in engine.applied_splits),
         "caught_up": sorted([a, d] for a, d in engine.caught_up),
+        "catchup_dividends": [[p.position_id, v, u, at.isoformat(), s] for p, v, u, at, s in engine.catchup_dividends],
         "bh_eve_units": [[a, i, v] for (a, i), v in sorted(engine.bh_eve_units.items())],
         "bh_dividend_settled": [[a, i, v] for (a, i), v in sorted(engine.bh_dividend_settled.items())],
         "bh_late_done": sorted([a, i] for a, i in engine.bh_late_done),
@@ -1254,6 +1281,8 @@ def engine_from_state(spec: EngineSpec, state: Mapping[str, Any]) -> Engine:
     engine.seen_signals = set(state["seen_signals"])
     engine.applied_splits = {(a, int(i)) for a, i in state["applied_splits"]}
     engine.caught_up = {(a, d) for a, d in state.get("caught_up", [])}
+    engine.catchup_dividends = [(registry[pid], float(v), float(u), datetime.fromisoformat(at), str(s))
+                                for pid, v, u, at, s in state.get("catchup_dividends", [])]
     engine.bh_eve_units = {(a, int(i)): float(v) for a, i, v in state["bh_eve_units"]}
     engine.bh_dividend_settled = {(a, int(i)): bool(v) for a, i, v in state["bh_dividend_settled"]}
     engine.bh_late_done = {(a, int(i)) for a, i in state["bh_late_done"]}

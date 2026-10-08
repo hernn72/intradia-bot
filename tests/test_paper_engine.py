@@ -9,6 +9,7 @@ import pytest
 
 from advisor.research.p6_sim import (
     LEDGER_COLUMNS,
+    PHASE_RANK,
     FxTable,
     Signal,
     SimSpec,
@@ -495,6 +496,110 @@ def test_dividendo_con_fecha_ex_en_el_catch_up_se_abona_una_sola_vez() -> None:
     held = engine.positions["X"]
     assert credits[0]["market_price"] == 2.0 and held.dividends_local == pytest.approx(held.units * 2.0)
     assert held.dividend_carried == 0.0
+
+
+def test_dividendo_del_catch_up_se_abona_en_su_close_dividend_y_no_financia_la_apertura() -> None:
+    """D-80 con el orden de fases de P6 (OPEN_EXIT < OPEN_ENTRY < CLOSE_EXIT < CLOSE_DIVIDEND < CLOSE_VALUATION):
+    el dividendo de la barra liberada no está en el cash de su apertura, así que no financia la entrada de Z en
+    esa misma apertura (que sí cabría con él), y se abona una sola vez en el cierre de la sesión."""
+
+    d = _days(14)
+    bar = CatchupBar(d[3], datetime.combine(d[3], time(8), UTC), datetime.combine(d[3], time(16, 30), UTC),
+                     100.0, 101.0, 99.0, 100.0, dividend=1.0)
+    flat = [(d[i], 100, 101, 99, 100) for i in range(14)]
+    signals = (_signal("X", d[0], 0, 1, 1000, 101), _signal("Z", d[2], 2, 1, 1000, 101))
+    spec = EngineSpec("B2", "h" * 64, risk_pct=100.0, max_position_pct=50.0)
+
+    def view(assets):
+        return EngineView(assets={a.meta.symbol: a for a in assets}, fx=FxTable({}), signals=signals, start=d[0],
+                          snapshot_days=tuple(d), limit=datetime.combine(d[13], time(6), UTC))
+
+    engine = Engine(spec)
+    z = _series("Z", flat[:12], horizon=datetime.combine(d[12], time(8), UTC))
+    engine.advance(view([_series("X", flat[:3], horizon=datetime.combine(d[3], time(8), UTC)), z]))
+    x = _series("X", flat[:3] + flat[9:12], dividends={3: 1.0}, horizon=datetime.combine(d[12], time(8), UTC))
+    released = AssetView(**{**x.__dict__, "catchup": (bar,)})
+    assert released.catchup[0].dividend == 1.0, "la barra liberada trae dividendo"
+    result = engine.advance(view([released, z]))
+    rows = result.rows
+
+    held = engine.positions["X"]
+    dividend_eur = held.units * bar.dividend
+    rejected = [r for r in rows if r["asset"] == "Z" and r["event_type"] == "ENTRY_REJECTED"]
+    assert len(rejected) == 1 and rejected[0]["reason"] == "INSUFFICIENT_CASH"
+    assert rejected[0]["session_date"] == str(d[3]) and rejected[0]["fase"] == "OPEN_ENTRY"
+    cash_at_open = rejected[0]["cash_before"]
+    required = float(rejected[0]["cash_requerido_base"])
+    assert cash_at_open < required < cash_at_open + dividend_eur, "el dividendo la habría financiado"
+    assert cash_at_open == pytest.approx(spec.capital - held.units * held.entry_eff * (1 + spec.fee_rate))
+    assert not [r for r in rows if r["asset"] == "Z" and r["event_type"] == "ENTRY"]
+
+    credits = _x(rows, "DIVIDEND")
+    assert len(credits) == 1, "una sola vez: la barra vigente d9 no lo repite"
+    credit = credits[0]
+    assert credit["session_date"] == str(d[3]) and credit["fase"] == "CLOSE_DIVIDEND"
+    assert credit["late"] == 1 and credit["late_processing"] == 1
+    assert datetime.fromisoformat(credit["timestamp_utc"].replace("Z", "+00:00")) >= bar.close_utc
+    assert credit["seq"] > rejected[0]["seq"]
+    assert credit["dividend_base"] == pytest.approx(dividend_eur)
+    assert credit["cash_after"] - credit["cash_before"] == pytest.approx(dividend_eur)
+    assert held.dividends_local == pytest.approx(dividend_eur) and held.dividend_carried == 0.0
+    assert engine.catchup_dividends == []
+    assert not [r for r in rows if r["event_type"] == "DIVIDEND" and r["asset"] != "X"]
+
+    order = [(datetime.fromisoformat(r["timestamp_utc"].replace("Z", "+00:00")), PHASE_RANK[r["fase"]]) for r in rows]
+    assert [r["seq"] for r in rows] == sorted(r["seq"] for r in rows)
+    assert order == sorted(order), "ledger en el orden de fases de P6"
+    events = [e for e in result.position_events if e["event_type"] == "DIVIDEND_CREDIT"]
+    assert len(events) == 1 and events[0]["late"] == 1 and events[0]["late_processing"] == 1
+
+
+def test_dividendo_del_catch_up_pendiente_sobrevive_al_estado_y_a_la_salida_por_hueco() -> None:
+    """D-80: la frontera se detiene entre la apertura y el cierre de la sesión liberada. X sale por hueco en esa
+    apertura; su derecho al dividendo queda pendiente (persistido en el estado), se abona en el CLOSE_DIVIDEND y
+    el desenlace de X espera a ese abono."""
+
+    import json
+
+    from paper.engine_v1 import engine_from_state, engine_to_state
+
+    d = _days(14)
+    bar = CatchupBar(d[3], datetime.combine(d[3], time(8), UTC), datetime.combine(d[3], time(16, 30), UTC),
+                     85.0, 86.0, 84.0, 85.0, dividend=1.0)
+    flat = [(d[i], 100, 101, 99, 100) for i in range(14)]
+    signals = (_signal("X", d[0], 0, 90, 130, 101),)
+    spec = EngineSpec("B2", "h" * 64)
+    z = _series("Z", flat[:12], horizon=datetime.combine(d[12], time(8), UTC))
+
+    def view(assets, limit):
+        return EngineView(assets={a.meta.symbol: a for a in assets}, fx=FxTable({}), signals=signals, start=d[0],
+                          snapshot_days=tuple(d), limit=limit)
+
+    engine = Engine(spec)
+    engine.advance(view([_series("X", flat[:3], horizon=datetime.combine(d[3], time(8), UTC)), z],
+                        datetime.combine(d[13], time(6), UTC)))
+    x = _series("X", flat[:3] + flat[9:12], dividends={3: 1.0}, horizon=datetime.combine(d[12], time(8), UTC))
+    released = [AssetView(**{**x.__dict__, "catchup": (bar,)}), z]
+
+    midday = engine.advance(view(released, datetime.combine(d[3], time(12), UTC)))
+    exits = _x(midday.rows, "EXIT")
+    assert len(exits) == 1 and exits[0]["fase"] == "OPEN_EXIT" and exits[0]["market_price"] == 85.0
+    assert not _x(midday.rows, "DIVIDEND") and midday.outcomes == []
+    closed = exits[0]
+    assert len(engine.catchup_dividends) == 1
+
+    engine = engine_from_state(spec, json.loads(json.dumps(engine_to_state(engine), sort_keys=True, allow_nan=False)))
+    assert len(engine.catchup_dividends) == 1
+    rest = engine.advance(view(released, datetime.combine(d[13], time(6), UTC)))
+    credits = _x(rest.rows, "DIVIDEND")
+    assert len(credits) == 1 and credits[0]["fase"] == "CLOSE_DIVIDEND" and credits[0]["session_date"] == str(d[3])
+    assert credits[0]["late"] == 1 and credits[0]["late_processing"] == 1
+    assert datetime.fromisoformat(credits[0]["timestamp_utc"].replace("Z", "+00:00")) >= bar.close_utc
+    assert credits[0]["dividend_base"] == pytest.approx(closed["units_before"] * 1.0)
+    assert credits[0]["units_after"] == 0.0
+    assert engine.catchup_dividends == []
+    assert len(rest.outcomes) == 1
+    assert rest.outcomes[0].trade.dividends_eur == pytest.approx(credits[0]["dividend_base"])
 
 
 def test_catch_up_no_usa_el_minimo_ni_el_cierre_antes_del_cierre_de_la_sesion() -> None:
