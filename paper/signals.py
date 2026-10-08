@@ -83,12 +83,9 @@ def close_series(store: PaperStore, symbol: str, cutoff: datetime, *, context: b
             (symbol, cutoff.isoformat()),
         )
     else:
-        first: Dict[str, Any] = {}
-        for r in store.rows(
-            "SELECT session_date, bar_timestamp, close, observed_at FROM paper_bar_observation WHERE data_symbol = ? "
-            "AND scale_doubtful = 0 AND observed_at <= ? ORDER BY session_date, observed_at", (symbol, cutoff.isoformat()),
-        ):
-            first.setdefault(r["session_date"], r)
+        from paper.ingest import usable_bars
+
+        first: Dict[str, Any] = {day: bar.row for day, bar in usable_bars(store, symbol, as_of=cutoff.isoformat()).items()}
         rows = [first[k] for k in sorted(first)]
         from paper.inputs import _splits
 

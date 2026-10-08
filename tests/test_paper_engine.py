@@ -27,6 +27,7 @@ from paper.engine_v1 import (
     STOP_HORIZON,
     AssetMeta,
     AssetView,
+    CatchupBar,
     Engine,
     EngineSpec,
     EngineView,
@@ -417,3 +418,94 @@ def test_contrasplit_reescala_al_reves_sin_disparar_salidas() -> None:
     result = engine.advance(_view(_series("X", bars, splits={2: 0.5}), [signal], datetime(2027, 1, 1, tzinfo=UTC)))
     assert [r["event_type"] for r in result.rows if r["event_type"] in ("SPLIT_ADJUST", "EXIT")] == ["SPLIT_ADJUST"]
     assert engine.positions["X"].stop == pytest.approx(19.0) and engine.positions["X"].target2 == pytest.approx(24.0)
+
+
+# ---------------------------------------------------------------------------- D-80: catch-up de un hueco real
+
+
+def _catchup_case(bar: CatchupBar, *, splits=None, dividends=None, other: bool = False, scale: float = 1.0):
+    """X entra en d1 y su frontera se detiene en d3 (``SCALE_MISMATCH``); d3 se declara ausente y se libera como
+    hueco real (``bar``); vuelve la serie normal en d9. Con ``other``, Y también tiene posición y la frontera
+    la detiene Y en la apertura de d2, antes de la sesión liberada."""
+
+    d = _days(14)
+    flat = [(d[i], 100, 101, 99, 100) for i in range(14)]
+    signals = [_signal("X", d[0], 0, 95, 130, 101)] + ([_signal("Y", d[0], 0, 95, 130, 101)] if other else [])
+    limit = datetime.combine(d[13], time(6), UTC)
+
+    def view(assets):
+        return EngineView(assets={a.meta.symbol: a for a in assets}, fx=FxTable({}), signals=tuple(signals), start=d[0],
+                          snapshot_days=tuple(d), limit=limit)
+
+    engine = Engine(EngineSpec("B2", "h" * 64))
+    first = [_series("X", flat[:3], horizon=datetime.combine(d[3], time(8), UTC))]
+    if other:
+        first.append(_series("Y", flat[:2], horizon=datetime.combine(d[2], time(8), UTC)))
+    engine.advance(view(first))
+    later = [(day, *(price / scale for price in prices)) for day, *prices in flat[9:12]]
+    x = _series("X", flat[:3] + later, splits=splits, dividends=dividends, horizon=datetime.combine(d[12], time(8), UTC))
+    second = [AssetView(**{**x.__dict__, "catchup": (bar,)})]
+    if other:
+        second.append(_series("Y", flat[:12], horizon=datetime.combine(d[12], time(8), UTC)))
+    return d, engine, engine.advance(view(second))
+
+
+def _x(rows, kind):
+    return [r for r in rows if r["asset"] == "X" and r["event_type"] == kind]
+
+
+def test_catch_up_espera_a_que_la_frontera_alcance_la_sesion_liberada() -> None:
+    """D-80: con la frontera detenida por otro activo antes de la sesión liberada, la barra vigente anterior de X se
+    procesa primero y la del hueco solo cuando la frontera llega a su apertura."""
+
+    d = _days(14)
+    bar = CatchupBar(d[3], datetime.combine(d[3], time(8), UTC), datetime.combine(d[3], time(16, 30), UTC), 50.0, 51.0, 49.0, 50.0)
+    _d, _engine, result = _catchup_case(bar, other=True)
+    exits = _x(result.rows, "EXIT")
+    assert len(exits) == 1
+    exit_row = exits[0]
+    assert exit_row["session_date"] == str(d[3]) and exit_row["reason"] == "stop" and exit_row["market_price"] == 50.0
+    assert datetime.fromisoformat(exit_row["timestamp_utc"].replace("Z", "+00:00")) >= bar.open_utc
+    assert exit_row["late_processing"] == 1
+    snapshot_rows = [r for r in result.rows if r["event_type"] != "EXIT" and r["session_date"] == str(d[2]) and r["asset"] == "X"]
+    assert all(r["seq"] < exit_row["seq"] for r in snapshot_rows), "la barra d2 de X va antes que el hueco"
+    events = [e for e in result.position_events if e["event_type"] == "EXIT"]
+    assert events and events[0]["late"] == 1 and events[0]["late_processing"] == 1
+
+
+def test_split_con_fecha_ex_en_el_catch_up_se_aplica_una_sola_vez() -> None:
+    d = _days(14)
+    bar = CatchupBar(d[3], datetime.combine(d[3], time(8), UTC), datetime.combine(d[3], time(16, 30), UTC), 50.0, 50.5, 49.5, 50.0, split=2.0)
+    _d, engine, result = _catchup_case(bar, splits={3: 2.0}, scale=2.0)
+    assert not _x(result.rows, "EXIT"), "en la escala nueva el stop es 47.5: sin stop ficticio"
+    adjusts = _x(result.rows, "SPLIT_ADJUST")
+    assert len(adjusts) == 1 and adjusts[0]["session_date"] == str(d[3]) and adjusts[0]["late_processing"] == 1
+    assert len([e for e in result.position_events if e["event_type"] == "SPLIT_ADJUST"]) == 1
+    held = engine.positions["X"]
+    assert held.stop == pytest.approx(47.5) and held.units == pytest.approx(adjusts[0]["units_before"] * 2)
+    assert held.split_carried == 1.0
+
+
+def test_dividendo_con_fecha_ex_en_el_catch_up_se_abona_una_sola_vez() -> None:
+    d = _days(14)
+    bar = CatchupBar(d[3], datetime.combine(d[3], time(8), UTC), datetime.combine(d[3], time(16, 30), UTC), 100.0, 101.0, 99.0, 100.0, dividend=2.0)
+    _d, engine, result = _catchup_case(bar, dividends={3: 2.0})
+    credits = _x(result.rows, "DIVIDEND")
+    assert len(credits) == 1 and credits[0]["session_date"] == str(d[3]) and credits[0]["late_processing"] == 1
+    held = engine.positions["X"]
+    assert credits[0]["market_price"] == 2.0 and held.dividends_local == pytest.approx(held.units * 2.0)
+    assert held.dividend_carried == 0.0
+
+
+def test_catch_up_no_usa_el_minimo_ni_el_cierre_antes_del_cierre_de_la_sesion() -> None:
+    """D-80: con la frontera detenida antes de la sesión liberada, el toque intradía del stop se procesa en su
+    cierre, no en su apertura (así el cash que libera no está disponible en esa apertura)."""
+
+    d = _days(14)
+    bar = CatchupBar(d[3], datetime.combine(d[3], time(8), UTC), datetime.combine(d[3], time(16, 30), UTC),
+                     100.0, 100.5, 90.0, 92.0)
+    _d, _engine, result = _catchup_case(bar, other=True)
+    exits = _x(result.rows, "EXIT")
+    assert len(exits) == 1 and exits[0]["reason"] == "stop" and exits[0]["market_price"] == 95.0
+    assert datetime.fromisoformat(exits[0]["timestamp_utc"].replace("Z", "+00:00")) >= bar.close_utc
+    assert exits[0]["fase"] == "CLOSE_EXIT" and exits[0]["late_processing"] == 1

@@ -7,6 +7,7 @@ Las salidas llevan la etiqueta SHADOW / PAPER.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -67,6 +68,12 @@ def build_parser() -> argparse.ArgumentParser:
     breaker.add_argument("--who", required=True)
     breaker.add_argument("--purpose", required=True)
     breaker.add_argument("--i-understand-this-breaks-the-seal", dest="confirm", action="store_true")
+    gap = sub.add_parser("real-gap-confirmed", help="D-80: el propietario confirma un hueco real (NO_SPLIT) en un SCALE_MISMATCH")
+    gap.add_argument("--symbol", required=True, help="data_symbol del activo")
+    gap.add_argument("--session", type=date.fromisoformat, required=True, help="sesión exacta del SCALE_MISMATCH")
+    gap.add_argument("--source-url", required=True, help="fuente verificable del precio real")
+    gap.add_argument("--evidence", type=Path, required=True, help="fichero de evidencia; se registra su sha256")
+    gap.add_argument("--decision", required=True, help="D-nn del propietario")
     return parser
 
 
@@ -150,5 +157,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         except SealedError as exc:
             print(f"{LABEL}\n{exc}", file=sys.stderr)
             return 5
+        return 0
+    if args.cmd == "real-gap-confirmed":
+        from paper.ingest import register_real_gap
+
+        try:
+            digest = hashlib.sha256(args.evidence.read_bytes()).hexdigest()
+            with store.transaction():
+                created = register_real_gap(store, args.symbol, session_date=args.session, source_url=args.source_url,
+                                            evidence_sha256=digest, decision_ref=args.decision, now=_now())
+        except (OSError, ValueError) as exc:
+            print(f"{LABEL}\n{exc}", file=sys.stderr)
+            return 6
+        _print({"activo": args.symbol, "sesion": args.session.isoformat(), "resolucion": "REAL_GAP_CONFIRMED",
+                "evidence_sha256": digest, "decision": args.decision, "registrada": created})
         return 0
     return 1

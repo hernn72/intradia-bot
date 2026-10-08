@@ -36,6 +36,7 @@ REFERENCE_DOMAINS: Dict[str, Tuple[str, ...]] = {
     "sessions_status": ("", "CONSUMIDA", "VIRGEN_REUTILIZABLE"),
     "access_kind": ("NORMAL", "SEAL_BREAK_AUDIT", "P7_HOLDOUT_QUERY"),
     "signal_cause": ("", "ENGINE_DOWNTIME", "PROVIDER_DATA_MISSING"),
+    "scale_resolution": ("REAL_GAP_CONFIRMED",),
 }
 
 # (tabla, columna, dominio)
@@ -55,6 +56,7 @@ REFERENCE_COLUMNS: Sequence[Tuple[str, str, str]] = (
     ("paper_seal_window", "sessions_status", "sessions_status"),
     ("paper_outcome_access", "access_kind", "access_kind"),
     ("paper_signal_not_evaluated", "cause", "signal_cause"),
+    ("paper_scale_resolution", "resolution", "scale_resolution"),
 )
 
 
@@ -201,6 +203,16 @@ FACT_TABLES: Dict[str, str] = {
         source_sha256 TEXT NOT NULL DEFAULT '',
         decision_ref TEXT NOT NULL DEFAULT '',
         PRIMARY KEY (data_symbol, kind, ex_date)
+    """,
+    "paper_scale_resolution": f"""
+        data_symbol TEXT NOT NULL,
+        session_date TEXT NOT NULL,
+        resolution TEXT NOT NULL {_ref('paper_scale_resolution', 'resolution')},
+        source_url TEXT NOT NULL CHECK (source_url != ''),
+        evidence_sha256 TEXT NOT NULL CHECK (length(evidence_sha256) = 64),
+        decision_ref TEXT NOT NULL CHECK (decision_ref != ''),
+        observed_at TEXT NOT NULL,
+        PRIMARY KEY (data_symbol, session_date)
     """,
     "paper_corporate_action_revision": """
         data_symbol TEXT NOT NULL,

@@ -125,6 +125,29 @@ class AssetMeta:
     sector: str = ""
 
 
+def _forced(late_processing: bool) -> Dict[str, int]:
+    """``late_processing`` forzado en ``paper_position_event`` para lo que se recorre en la frontera (D-80)."""
+
+    return {"late_processing": 1} if late_processing else {}
+
+
+@dataclass(frozen=True)
+class CatchupBar:
+    """D-80: sesión declarada ausente por ``SCALE_MISMATCH`` y liberada después como hueco real confirmado, en la
+    escala de su sesión. ``split`` y ``dividend`` son los de su fecha ex: la serie los asigna a la barra vigente
+    siguiente, y una posición que ya los recibió aquí solo recibe allí el resto."""
+
+    session: date
+    open_utc: datetime
+    close_utc: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    split: float = 1.0
+    dividend: float = 0.0
+
+
 @dataclass(frozen=True)
 class AssetView:
     """Serie vigente y contigua de un activo en la escala de ejecución de cada sesión (§3.3).
@@ -148,6 +171,7 @@ class AssetView:
     horizon: Optional[datetime] = None
     data_loss: bool = False
     terminal: Optional[Tuple[datetime, float]] = None
+    catchup: Tuple[CatchupBar, ...] = ()
 
     def __post_init__(self) -> None:
         n = len(self.session_dates)
@@ -189,6 +213,10 @@ class PaperPosition(Position):
     split_factor: float = 1.0
     suspended: bool = False
     non_evaluable: str = ""
+    extra_bars: int = 0
+    exit_session: str = ""
+    split_carried: float = 1.0
+    dividend_carried: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -197,6 +225,7 @@ class Outcome:
     mae_R: float
     mfe_R: float
     late_dividends_eur: float = 0.0
+    exit_session: str = ""
 
 
 @dataclass
@@ -258,6 +287,7 @@ class Engine:
         self.seen_signals: Set[str] = set()
         self.awaiting_outcome: List[PaperPosition] = []
         self.applied_splits: Set[Tuple[str, int]] = set()
+        self.caught_up: Set[Tuple[str, str]] = set()
         self.bh_eve_units: Dict[Tuple[str, int], float] = {}
         self.bh_dividend_settled: Dict[Tuple[str, int], bool] = {}
         self.bh_late_done: Set[Tuple[str, int]] = set()
@@ -299,7 +329,8 @@ class Engine:
         late_before = self.view.late_before
         return int(late_before is not None and at < late_before)
 
-    def write(self, at: datetime, phase: str, event_type: str, *, late: bool = False, **fields: Any) -> None:
+    def write(self, at: datetime, phase: str, event_type: str, *, late: bool = False, force_late_processing: bool = False,
+              **fields: Any) -> None:
         self.seq += 1
         row: Dict[str, Any] = dict.fromkeys(ROW_COLUMNS, "")
         row.update(
@@ -313,7 +344,7 @@ class Engine:
                 "receivable_after": 0.0,
                 "equity_after": self.equity(at),
                 "late": int(late),
-                "late_processing": self._late_processing(at),
+                "late_processing": 1 if force_late_processing else self._late_processing(at),
             }
         )
         row.update(fields)
@@ -507,6 +538,7 @@ class Engine:
     def _before_event(self, event: _Event) -> None:
         if self.spec.kind == KIND_POLICY:
             self._late_splits(event)
+            self._catchup(event)
             self._terminal_exits(event)
         closing_at = self.view.closing_at
         if closing_at is not None and event.at >= closing_at and not self.cancelled_closing:
@@ -641,6 +673,78 @@ class Engine:
             )
             self.position_event(at, OPEN_ENTRY, held, EV_OPEN, units_after=units, effective_price=eff)
 
+    def _catchup(self, event: _Event) -> None:
+        """D-80: barras bloqueadas por ``SCALE_MISMATCH`` que ya se habían declarado ausentes y que el propietario
+        liberó como hueco real. Cada una se recorre cuando la frontera alcanza su apertura (nunca antes), en orden y
+        con sus precios reales: split y dividendo de esa fecha ex, hueco bajo el stop, objetivo, toque intradía y
+        tiempo, como en ``_open_exit`` y ``_close_exit``. Las filas van ``late`` y con ``late_processing``; no se
+        reescribe ninguna decisión anterior (ni se reabre una orden saltada)."""
+
+        for held in sorted(self.positions.values(), key=lambda item: item.position_id):
+            series = self.view.assets[held.asset]
+            if not series.catchup or held.non_evaluable:
+                continue
+            entry_day = series.session_dates[held.entry_index] if held.entry_index < len(series.session_dates) else None
+            for bar in series.catchup:
+                if bar.open_utc > event.at:
+                    break
+                session = bar.session.isoformat()
+                if (held.asset, session) in self.caught_up or (entry_day is not None and bar.session <= entry_day):
+                    continue
+                opened = (held.asset, f"{session}@open")
+                if opened not in self.caught_up:
+                    # Apertura: split y dividendo de la fecha ex, y salida por hueco (como ``_open_exit``).
+                    self.caught_up.add(opened)
+                    if held.suspended:
+                        held.suspended = False
+                        self.position_event(event.at, event.phase, held, EV_DATA_RESUMED, late=1, late_processing=1)
+                    if bar.split != 1.0:
+                        self._rescale(held, bar.split, event.at, event.phase, session, late=True, force_late_processing=True)
+                        held.split_carried *= bar.split
+                    if bar.dividend > 0:
+                        self._credit(held, bar.dividend, held.units, event, late=True, session=session, force_late_processing=True)
+                        held.dividend_carried += bar.dividend
+                    held.extra_bars += 1
+                    gap: Optional[float] = None
+                    if bar.open <= held.stop:
+                        gap, reason = bar.open, EXIT_STOP
+                    elif bar.open >= held.target2 and bar.low > held.stop:
+                        gap, reason = bar.open, EXIT_TARGET
+                    if gap is not None:
+                        held.min_low = min(held.min_low, bar.low)
+                        held.max_high = max(held.max_high, bar.high)
+                        self._catchup_exit(held, event, series, session, gap, reason)
+                        break
+                if bar.close_utc > event.at:
+                    break
+                # Cierre: toque intradía y tiempo (como ``_close_exit``), solo cuando la frontera ha pasado el cierre.
+                self.caught_up.add((held.asset, session))
+                held.min_low = min(held.min_low, bar.low)
+                held.max_high = max(held.max_high, bar.high)
+                exit_price: Optional[float] = None
+                reason = ""
+                if bar.low <= held.stop:
+                    exit_price, reason = held.stop, EXIT_STOP
+                elif bar.high >= held.target2:
+                    exit_price, reason = held.target2, EXIT_TARGET
+                elif self._catchup_bars(held, series, bar.session) >= self.spec.max_hold_bars:
+                    exit_price, reason = bar.close, EXIT_TIME
+                if exit_price is not None:
+                    self._catchup_exit(held, event, series, session, exit_price, reason)
+                    break
+                held.mark_price = bar.close
+
+    @staticmethod
+    def _catchup_bars(held: PaperPosition, series: AssetView, session: date) -> int:
+        normal = sum(1 for i in range(held.entry_index + 1, len(series.session_dates)) if series.session_dates[i] < session)
+        return normal + held.extra_bars
+
+    def _catchup_exit(self, held: PaperPosition, event: _Event, series: AssetView, session: str, price: float,
+                      reason: str) -> None:
+        self._exit(held, event.at, event.phase, len(series.session_dates) - 1, price, reason, late=True,
+                   session_override=session, bars_held=self._catchup_bars(held, series, date.fromisoformat(session)),
+                   force_late_processing=True)
+
     def _late_splits(self, event: _Event) -> None:
         """Un split observado después de procesar su apertura ex se aplica en la frontera, marcado ``late``,
         sin reescribir nada (§8.6, §12). Lo normal es que la barra ex espere al split (escala dudosa en la
@@ -663,6 +767,15 @@ class Engine:
         if ratio is None or held.entry_index >= event.index or (event.asset, event.index) in self.applied_splits:
             return
         self.applied_splits.add((event.asset, event.index))
+        ratio /= held.split_carried
+        held.split_carried = 1.0
+        if ratio != 1.0:
+            self._rescale(held, ratio, event.at, event.phase if late else OPEN_EXIT, str(series.session_dates[event.index]),
+                          late=late)
+
+    def _rescale(self, held: PaperPosition, ratio: float, at: datetime, phase: str, session: str, *, late: bool,
+                 force_late_processing: bool = False) -> None:
+        series = self.view.assets[held.asset]
         before = held.units
         held.units *= ratio
         for name in ("stop", "target2", "entry_eff", "market_entry", "mark_price"):
@@ -671,13 +784,13 @@ class Engine:
         held.max_high /= ratio
         held.split_factor *= ratio
         self.write(
-            event.at, event.phase if late else OPEN_EXIT, "SPLIT_ADJUST", late=late, market=series.meta.market, asset=event.asset,
-            session_date=str(series.session_dates[event.index]), signal_id=held.signal_id, position_id=held.position_id,
+            at, phase, "SPLIT_ADJUST", late=late, force_late_processing=force_late_processing, market=series.meta.market,
+            asset=held.asset, session_date=session, signal_id=held.signal_id, position_id=held.position_id,
             cash_before=self.cash, cash_after=self.cash, units_before=before, units_after=held.units,
             currency=held.currency, reason=f"SPLIT_{ratio:g}", stop=held.stop, target2=held.target2,
         )
-        self.position_event(event.at, OPEN_EXIT, held, EV_SPLIT_ADJUST, units_before=before, units_after=held.units, ratio=ratio,
-                            late=int(late))
+        self.position_event(at, OPEN_EXIT, held, EV_SPLIT_ADJUST, units_before=before, units_after=held.units, ratio=ratio,
+                            late=int(late), **_forced(force_late_processing))
 
     def _track_range(self, held: PaperPosition, series: AssetView, i: int) -> None:
         held.min_low = min(held.min_low, series.low[i])
@@ -697,6 +810,12 @@ class Engine:
             return
         self.eve_units.setdefault((event.asset, i), []).append((held, held.units))
         dividend = series.dividends.get(i, 0.0)
+        if held.dividend_carried:
+            # D-80: parte (o todo) de este dividendo tenía su fecha ex en una sesión de catch-up ya abonada.
+            dividend = 0.0 if math.isclose(dividend, held.dividend_carried) else dividend - held.dividend_carried
+            held.dividend_carried = 0.0
+            if dividend <= 0:
+                self.late_dividends_done.add((event.asset, i))
         if dividend > 0:
             self.entitlements.setdefault((event.asset, i), []).append((held, dividend))
         bar_open, bar_low = series.open[i], series.low[i]
@@ -724,7 +843,7 @@ class Engine:
             self._exit(held, event.at, CLOSE_EXIT, i, held.stop, EXIT_STOP)
         elif series.high[i] >= held.target2:
             self._exit(held, event.at, CLOSE_EXIT, i, held.target2, EXIT_TARGET)
-        elif i - held.entry_index >= self.spec.max_hold_bars:
+        elif i - held.entry_index + held.extra_bars >= self.spec.max_hold_bars:
             self._exit(held, event.at, CLOSE_EXIT, i, series.close[i], EXIT_TIME)
 
     def _terminal_exits(self, event: _Event) -> None:
@@ -742,7 +861,8 @@ class Engine:
             self._exit(held, event.at, event.phase, index, series.terminal[1], EXIT_CORPORATE_ACTION, slippage=False, late=late)
 
     def _exit(self, position: PaperPosition, at: datetime, phase: str, index: int, market_price: float, reason: str,
-              *, slippage: bool = True, late: bool = False) -> None:
+              *, slippage: bool = True, late: bool = False, session_override: str = "", bars_held: Optional[int] = None,
+              force_late_processing: bool = False) -> None:
         series = self.view.assets[position.asset]
         quote = self.view.fx.quote(position.currency, at)
         eff = market_price * (1.0 - self.spec.slip) if slippage else market_price
@@ -756,7 +876,8 @@ class Engine:
         self.slippage += slip_eur
         pnl_bruto = position.units * (eff * quote.rate_to_eur - position.entry_eff * position.fx_entry)
         position.exit_ts = at
-        position.exit_index = index
+        position.exit_index = position.entry_index + bars_held if bars_held is not None else index + position.extra_bars
+        position.exit_session = session_override
         position.exit_reason = reason
         position.market_exit = market_price
         position.exit_eff = eff
@@ -768,14 +889,16 @@ class Engine:
         self.closed.append(position)
         self.count(f"salida_{reason}")
         self.write(
-            at, phase, "EXIT", late=late, market=series.meta.market, asset=position.asset, session_date=str(series.session_dates[index]),
+            at, phase, "EXIT", late=late, force_late_processing=force_late_processing, market=series.meta.market,
+            asset=position.asset, session_date=session_override or str(series.session_dates[index]),
             signal_id=position.signal_id, position_id=position.position_id, cash_before=cash_before, cash_after=self.cash,
             units_before=position.units, units_after=0.0, market_price=market_price, effective_price=eff,
             currency=position.currency, fx_pair=quote.pair, fx_rate=quote.rate_to_eur,
             fx_timestamp_available=utc_iso(quote.available_at), notional_base=gross_eur, fee_base=fee_eur,
             slippage_base=slip_eur, realized_pnl_base=pnl_bruto - position.fee_entry_eur - fee_eur, reason=reason,
         )
-        self.position_event(at, phase, position, EV_EXIT, reason=reason, effective_price=eff)
+        self.position_event(at, phase, position, EV_EXIT, reason=reason, effective_price=eff,
+                            **({"late": 1, **_forced(True)} if force_late_processing else {}))
         self.awaiting_outcome.append(position)
 
     def _dividend(self, event: _Event) -> None:
@@ -810,8 +933,9 @@ class Engine:
                 # Mismo valor económico que en su fecha ex: unidades y precio en la escala de aquella sesión.
                 self._credit(held, dividend, units, event, late=True)
 
-    def _credit(self, held: PaperPosition, dividend: float, units: float, event: _Event, *, late: bool) -> None:
-        series = self.view.assets[event.asset]
+    def _credit(self, held: PaperPosition, dividend: float, units: float, event: _Event, *, late: bool, session: str = "",
+                force_late_processing: bool = False) -> None:
+        series = self.view.assets[held.asset]
         quote = self.view.fx.quote(held.currency, event.at)
         amount_local = units * dividend
         amount_eur = amount_local * quote.rate_to_eur
@@ -822,14 +946,16 @@ class Engine:
         held.dividends_eur += amount_eur
         self.count("dividendos_abonados")
         self.write(
-            event.at, CLOSE_DIVIDEND, "DIVIDEND", late=late, market=series.meta.market, asset=event.asset,
-            session_date=str(series.session_dates[event.index]), signal_id=held.signal_id,
+            event.at, CLOSE_DIVIDEND, "DIVIDEND", late=late, force_late_processing=force_late_processing,
+            market=series.meta.market, asset=held.asset,
+            session_date=session or str(series.session_dates[event.index]), signal_id=held.signal_id,
             position_id=held.position_id, cash_before=cash_before, cash_after=self.cash, units_before=held.units,
-            units_after=held.units if event.asset in self.positions else 0.0, market_price=dividend,
+            units_after=held.units if held.asset in self.positions else 0.0, market_price=dividend,
             currency=held.currency, fx_pair=quote.pair, fx_rate=quote.rate_to_eur,
             fx_timestamp_available=utc_iso(quote.available_at), dividend_base=amount_eur, reason="DIVIDENDO_BRUTO",
         )
-        self.position_event(event.at, CLOSE_DIVIDEND, held, EV_DIVIDEND_CREDIT, late=int(late), dividend_eur=amount_eur)
+        self.position_event(event.at, CLOSE_DIVIDEND, held, EV_DIVIDEND_CREDIT, late=int(late), dividend_eur=amount_eur,
+                            **_forced(force_late_processing))
 
     def _snapshot(self, day: date, at: datetime) -> None:
         by_region: Dict[str, float] = {}
@@ -1013,7 +1139,7 @@ def outcome_of(position: PaperPosition) -> Outcome:
     risk_local = trade.risk_local
     mae = (position.min_low - position.entry_eff) * position.units / risk_local if math.isfinite(position.min_low) else 0.0
     mfe = (position.max_high - position.entry_eff) * position.units / risk_local if math.isfinite(position.max_high) else 0.0
-    return Outcome(trade=trade, mae_R=mae, mfe_R=mfe)
+    return Outcome(trade=trade, mae_R=mae, mfe_R=mfe, exit_session=position.exit_session)
 
 
 # ---------------------------------------------------------------------------- estado persistible (JSON, sin pickle)
@@ -1093,6 +1219,7 @@ def engine_to_state(engine: Engine) -> Dict[str, Any]:
         "late_dividends_done": sorted([a, i] for a, i in engine.late_dividends_done),
         "seen_signals": sorted(engine.seen_signals),
         "applied_splits": sorted([a, i] for a, i in engine.applied_splits),
+        "caught_up": sorted([a, d] for a, d in engine.caught_up),
         "bh_eve_units": [[a, i, v] for (a, i), v in sorted(engine.bh_eve_units.items())],
         "bh_dividend_settled": [[a, i, v] for (a, i), v in sorted(engine.bh_dividend_settled.items())],
         "bh_late_done": sorted([a, i] for a, i in engine.bh_late_done),
@@ -1126,6 +1253,7 @@ def engine_from_state(spec: EngineSpec, state: Mapping[str, Any]) -> Engine:
     engine.late_dividends_done = {(a, int(i)) for a, i in state["late_dividends_done"]}
     engine.seen_signals = set(state["seen_signals"])
     engine.applied_splits = {(a, int(i)) for a, i in state["applied_splits"]}
+    engine.caught_up = {(a, d) for a, d in state.get("caught_up", [])}
     engine.bh_eve_units = {(a, int(i)): float(v) for a, i, v in state["bh_eve_units"]}
     engine.bh_dividend_settled = {(a, int(i)): bool(v) for a, i, v in state["bh_dividend_settled"]}
     engine.bh_late_done = {(a, int(i)) for a, i in state["bh_late_done"]}

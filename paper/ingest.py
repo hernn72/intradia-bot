@@ -15,6 +15,7 @@ Toda petición se hace aquí, antes de procesar ningún libro, y con un conjunto
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Protocol, Sequence, Set, Tuple
@@ -67,13 +68,56 @@ def _session_of(timestamp: pd.Timestamp, market: str) -> date:
     return day
 
 
-def _vigente(store: PaperStore, symbol: str) -> Dict[str, Any]:
-    out: Dict[str, Any] = {}
+def _vigente(store: PaperStore, symbol: str, as_of: str) -> Dict[str, Any]:
+    return {day: bar.row for day, bar in usable_bars(store, symbol, as_of=as_of).items()}
+
+
+@dataclass(frozen=True)
+class UsableBar:
+    row: Any
+    available_at: str  # desde cuándo puede usarse: ``observed_at``, o la resolución D-80 que la liberó
+    released: bool = False
+
+
+def usable_bars(store: PaperStore, symbol: str, *, as_of: str) -> Dict[str, UsableBar]:
+    """Primera barra utilizable de cada sesión hasta ``as_of``: las coherentes (``scale_doubtful = 0``) y las
+    bloqueadas por un ``SCALE_MISMATCH`` que el propietario liberó como hueco real (D-80).
+
+    Una barra dudosa de la sesión ``d`` se libera si la última alerta de escala en o antes de ``d`` tiene una
+    resolución ``REAL_GAP_CONFIRMED`` y no queda ningún bloqueo anterior sin resolver. Solo es utilizable desde
+    la resolución (nunca antes): su precio es real, pero se supo que lo era al registrarla.
+    """
+
+    out: Dict[str, UsableBar] = {}
     for row in store.rows(
-        "SELECT * FROM paper_bar_observation WHERE data_symbol = ? AND scale_doubtful = 0 ORDER BY session_date, observed_at",
-        (symbol,),
+        "SELECT * FROM paper_bar_observation WHERE data_symbol = ? AND scale_doubtful = 0 AND observed_at <= ? "
+        "ORDER BY session_date, observed_at", (symbol, as_of),
     ):
-        out.setdefault(row["session_date"], row)
+        if row["session_date"] not in out:
+            out[row["session_date"]] = UsableBar(row, row["observed_at"])
+    resolutions = {r["session_date"]: r["observed_at"] for r in store.rows(
+        "SELECT session_date, observed_at FROM paper_scale_resolution WHERE data_symbol = ? "
+        "AND resolution = 'REAL_GAP_CONFIRMED' AND observed_at <= ?", (symbol, as_of))}
+    if not resolutions:
+        return out
+    alerts = sorted(r["session_date"] for r in store.rows(
+        "SELECT session_date FROM paper_data_alert WHERE object = ? AND kind = 'SCALE_CHANGE_UNEXPLAINED' AND detected_at <= ?",
+        (symbol, as_of)))
+    blocked = unresolved_scale_mismatch(store, symbol, as_of=as_of)
+    for row in store.rows(
+        "SELECT * FROM paper_bar_observation WHERE data_symbol = ? AND scale_doubtful = 1 AND observed_at <= ? "
+        "ORDER BY session_date, observed_at", (symbol, as_of),
+    ):
+        day = row["session_date"]
+        if blocked is not None and day >= blocked.isoformat():
+            continue
+        governing = [a for a in alerts if a <= day]
+        if not governing or governing[-1] not in resolutions:
+            continue
+        available = max(row["observed_at"], resolutions[governing[-1]])
+        current = out.get(day)
+        if current is None or available < current.available_at:
+            out[day] = UsableBar(row, available, released=True)
     return out
 
 
@@ -127,7 +171,7 @@ class Ingestor:
 
     def _known_sessions(self, symbol: str, kind: str) -> Set[str]:
         if kind == "bar":
-            return set(_vigente(self.store, symbol))
+            return set(_vigente(self.store, symbol, self.observed_at))
         if kind == "context":
             return {r["bar_timestamp"] for r in self.store.rows("SELECT bar_timestamp FROM paper_context_observation WHERE series = ?", (symbol,))}
         return {r["session_date"] for r in self.store.rows("SELECT session_date FROM paper_fx_quote WHERE fx_pair = ?", (symbol,))}
@@ -226,7 +270,7 @@ class Ingestor:
                     )
                     received.add(day.isoformat())
             return received
-        vigente = _vigente(self.store, symbol)
+        vigente = _vigente(self.store, symbol, self.observed_at)
         for day, bar in actions:
             for column, action_kind in (("Dividends", "DIVIDEND"), ("Stock Splits", "SPLIT")):
                 value = float(bar.get(column, 0.0) or 0.0)
@@ -346,7 +390,8 @@ class Ingestor:
 def unresolved_scale_mismatch(store: PaperStore, symbol: str, *, as_of: str) -> Optional[date]:
     """Primera sesión de un ``SCALE_MISMATCH`` sin resolver del activo, o ``None`` (§8.6).
 
-    Un cambio de escala detectado en la sesión ``d`` queda resuelto solo cuando hay un ``SPLIT`` observado
+    Un cambio de escala detectado en la sesión ``d`` queda resuelto solo con una resolución manual
+    ``REAL_GAP_CONFIRMED`` de esa sesión exacta (D-80), o con un ``SPLIT`` observado
     (del proveedor, o manual con fuente oficial verificable y D-nn) con fecha ex posterior a la última sesión
     vigente anterior a ``d`` (la del solape puede detectarse antes de su fecha ex, si faltan sesiones). Mientras
     no lo esté, ninguna barra de ``d`` en adelante entra en la serie.
@@ -355,11 +400,16 @@ def unresolved_scale_mismatch(store: PaperStore, symbol: str, *, as_of: str) -> 
     splits = [date.fromisoformat(r["ex_date"]) for r in store.rows(
         "SELECT ex_date FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'SPLIT' AND observed_at <= ?",
         (symbol, as_of))]
+    gaps = {r["session_date"] for r in store.rows(
+        "SELECT session_date FROM paper_scale_resolution WHERE data_symbol = ? AND resolution = 'REAL_GAP_CONFIRMED' "
+        "AND observed_at <= ?", (symbol, as_of))}
     unresolved: List[date] = []
     for row in store.rows(
         "SELECT session_date FROM paper_data_alert WHERE object = ? AND kind = 'SCALE_CHANGE_UNEXPLAINED' AND detected_at <= ?",
         (symbol, as_of),
     ):
+        if row["session_date"] in gaps:
+            continue  # D-80: hueco real confirmado por el propietario para esa sesión exacta
         day = date.fromisoformat(row["session_date"])
         before = store.one(
             "SELECT MAX(session_date) AS m FROM paper_bar_observation WHERE data_symbol = ? AND scale_doubtful = 0 "
@@ -383,3 +433,25 @@ def register_manual_split(store: PaperStore, symbol: str, *, ex_date: date, rati
         "currency": currency, "observed_at": now.isoformat(), "provider": "manual", "terminal_kind": "",
         "source_url": source_url, "source_sha256": source_sha256, "decision_ref": decision_ref,
     }, ("data_symbol", "kind", "ex_date"))
+
+
+def register_real_gap(store: PaperStore, symbol: str, *, session_date: date, source_url: str, evidence_sha256: str,
+                      decision_ref: str, now: datetime) -> bool:
+    """``REAL_GAP_CONFIRMED / NO_SPLIT`` (D-80): el propietario confirma que el salto de escala de esa sesión es un
+    hueco real de precio y no un split. Libera el ``SCALE_MISMATCH`` de esa sesión exacta; nunca se infiere.
+
+    Exige que exista el ``SCALE_MISMATCH`` de esa sesión, una fuente verificable, el sha256 de la evidencia y la
+    D-nn. Append-only: no se puede retirar ni cambiar.
+    """
+
+    if (not source_url.strip() or re.fullmatch(r"[0-9a-f]{64}", evidence_sha256) is None
+            or re.fullmatch(r"D-\d+", decision_ref) is None):
+        raise ValueError("REAL_GAP_CONFIRMED exige fuente verificable, sha256 de la evidencia y D-nn (D-80)")
+    if store.one("SELECT 1 FROM paper_data_alert WHERE object = ? AND kind = 'SCALE_CHANGE_UNEXPLAINED' AND session_date = ?",
+                 (symbol, session_date.isoformat())) is None:
+        raise ValueError(f"{symbol} {session_date}: no hay SCALE_MISMATCH en esa sesión exacta")
+    return store.insert_first("paper_scale_resolution", {
+        "data_symbol": symbol, "session_date": session_date.isoformat(), "resolution": "REAL_GAP_CONFIRMED",
+        "source_url": source_url, "evidence_sha256": evidence_sha256, "decision_ref": decision_ref,
+        "observed_at": now.isoformat(),
+    }, ("data_symbol", "session_date"))

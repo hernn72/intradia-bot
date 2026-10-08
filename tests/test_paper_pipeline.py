@@ -5,6 +5,7 @@ Sin red: proveedor falso determinista y calendarios reales de tres plazas del un
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import re
@@ -900,3 +901,146 @@ def test_bloqueo_por_solape_se_resuelve_con_un_split_posterior_a_la_ultima_vigen
                            "observed_at, provider) VALUES ('TSTB', 'SPLIT', '2026-03-20', 0, 2, 'USD', ?, 'yfinance')",
                            ("2026-03-25T00:00:00+00:00",))
     assert unresolved_scale_mismatch(store, "TSTB", as_of=now.isoformat()) is None
+
+
+GAP_DAY = date(2026, 3, 18)
+GAP_URL = "https://example.invalid/fuente-del-hueco"
+
+
+def _gap_frames(factor: float = 0.5) -> Dict[str, Any]:
+    """TSTB cae un 50 % en la apertura de ``GAP_DAY`` y se queda ahí: hueco real con forma de split 2:1."""
+
+    data = frames()
+    tstb = data["TSTB"]
+    after = [stamp.date() >= GAP_DAY for stamp in tstb.index]
+    for column in ("Open", "High", "Low", "Close"):
+        tstb.loc[after, column] = tstb.loc[after, column] * factor
+    return data
+
+
+def _b2_ledger(store: PaperStore, b2: str) -> List[str]:
+    return [r["row_json"] for r in store.rows("SELECT row_json FROM paper_ledger WHERE cohort_id = ? ORDER BY seq", (b2,))]
+
+
+def test_hueco_real_ambiguo_sin_resolucion_sigue_bloqueado_y_acaba_no_evaluable(tmp_path: Path) -> None:
+    """D-80 (1): sin ``REAL_GAP_CONFIRMED`` el hueco con forma de split nunca se libera solo:
+    SCALE_MISMATCH → DATA_LOSS_SUSPENDED → NO_EVALUABLE_DATA_LOSS, sin stop ni P&L desde esas barras."""
+
+    from paper.environment import set_state
+    from paper.ingest import unresolved_scale_mismatch
+
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(_gap_frames(), clock)
+    _run_held(store, provider, clock, START, date(2026, 4, 24))
+    b2 = _cohort(store, "B2")
+    assert [r for r in _tstb_rows(store, "B2", START) if r["event_type"] == "ENTRY"]
+    assert unresolved_scale_mismatch(store, "TSTB", as_of=clock().isoformat()) == GAP_DAY
+    assert not store.rows("SELECT 1 FROM paper_scale_resolution"), "la resolución nunca se infiere"
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert info.missing is not None and info.missing.data_loss_since == GAP_DAY and not info.view.catchup
+    events = {r["event_type"] for r in store.rows("SELECT event_type FROM paper_position_event WHERE cohort_id = ?", (b2,))}
+    assert "DATA_LOSS_SUSPENDED" in events
+    with store.transaction():
+        set_state(store, b2, "CLOSING", at=clock(), reason="cierre ordinario", decision_ref="D-nn")
+    _run_held(store, provider, clock, date(2026, 4, 27), date(2026, 5, 15))
+    events = {r["event_type"] for r in store.rows("SELECT event_type FROM paper_position_event WHERE cohort_id = ?", (b2,))}
+    assert "NO_EVALUABLE_DATA_LOSS" in events
+    assert not [r for r in _tstb_rows(store, "B2", GAP_DAY) if r["event_type"] == "EXIT"]
+    assert replay(store, UNIVERSE, b2).match
+
+
+@pytest.mark.parametrize("moment", ["antes_de_declarar", "despues_de_declarar"])
+def test_real_gap_confirmed_libera_y_procesa_causalmente_las_barras_bloqueadas(tmp_path: Path, moment: str) -> None:
+    """D-80 (2): con la resolución manual, las barras bloqueadas cuentan como precios reales desde que se registra:
+    el hueco bajo el stop cierra al precio de apertura del hueco, sin reescribir nada anterior. Si la sesión ya se
+    había declarado ausente, se recorre en la frontera, marcada ``late`` y ``late_processing``."""
+
+    from paper.ingest import register_real_gap, unresolved_scale_mismatch
+
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    data = _gap_frames()
+    provider = FakeProvider(data, clock)
+    blocked_until = {"antes_de_declarar": date(2026, 3, 20), "despues_de_declarar": date(2026, 4, 1)}[moment]
+    _run_held(store, provider, clock, START, blocked_until)
+    b2 = _cohort(store, "B2")
+    assert [r for r in _tstb_rows(store, "B2", START) if r["event_type"] == "ENTRY"]
+    assert not [r for r in _tstb_rows(store, "B2", GAP_DAY) if r["event_type"] == "EXIT"], "bloqueado sin resolución"
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert (GAP_DAY in info.missing.declared) == (moment == "despues_de_declarar")  # type: ignore[union-attr]
+    before = _b2_ledger(store, b2)
+
+    resolved_at = clock()
+    with store.transaction():
+        assert register_real_gap(store, "TSTB", session_date=GAP_DAY, source_url=GAP_URL, evidence_sha256="e" * 64,
+                                 decision_ref="D-80", now=resolved_at)
+    assert unresolved_scale_mismatch(store, "TSTB", as_of=resolved_at.isoformat()) is None
+    _run_held(store, provider, clock, blocked_until + timedelta(days=3), blocked_until + timedelta(days=14))
+
+    after = _b2_ledger(store, b2)
+    assert after[: len(before)] == before, "no se reescribe ninguna decisión anterior"
+    exits = [r for r in _tstb_rows(store, "B2", GAP_DAY) if r["event_type"] == "EXIT"]
+    assert len(exits) == 1
+    exit_row = exits[0]
+    assert exit_row["reason"] == "stop" and exit_row["session_date"] == GAP_DAY.isoformat()
+    assert exit_row["seq"] > max((json.loads(r)["seq"] for r in before), default=0), "solo tras la resolución"
+    gap_open = float(data["TSTB"].loc[[s.date() == GAP_DAY for s in data["TSTB"].index], "Open"].iloc[0])
+    assert exit_row["market_price"] == pytest.approx(gap_open), "el stop se ejecuta al precio real del hueco"
+    late = moment == "despues_de_declarar"
+    assert (exit_row["late"], exit_row["late_processing"]) == ((1, 1) if late else (0, 0))
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert info.missing is not None and info.missing.data_loss_since is None
+    assert info.sessions[-1] > GAP_DAY and (GAP_DAY in info.sessions) == (not late)
+    outcome = store.one("SELECT exit_session FROM paper_trade_outcome WHERE cohort_id = ? AND position_id = ?",
+                        (b2, exit_row["position_id"]))
+    assert outcome is not None and outcome["exit_session"] == GAP_DAY.isoformat()
+    assert replay(store, UNIVERSE, b2).match
+
+
+def test_split_real_no_publicado_no_se_libera_como_hueco_sin_resolucion_explicita(tmp_path: Path) -> None:
+    """D-80 (3): un split real que el proveedor no publica tiene la misma forma que un hueco; nada lo libera
+    como hueco salvo la resolución manual, que exige fuente, sha256, D-nn y el SCALE_MISMATCH de esa sesión exacta."""
+
+    from paper.ingest import register_real_gap, unresolved_scale_mismatch
+
+    ex = date(2026, 3, 18)
+    store = make_store(tmp_path)
+    clock = Clock(datetime(2026, 3, 2, tzinfo=UTC))
+    provider = FakeProvider(frames(splits={"TSTB": {ex: 2.0}}), clock, splits={"TSTB": (ex, 2.0)},
+                            split_published_at={"TSTB": datetime(2027, 1, 1, tzinfo=UTC)})
+    _run_held(store, provider, clock, START, date(2026, 4, 3))
+    assert unresolved_scale_mismatch(store, "TSTB", as_of=clock().isoformat()) == ex
+    assert not store.rows("SELECT 1 FROM paper_scale_resolution")
+    now = clock()
+    info = series_info(store, UNIVERSE.assets[1], START, now, UNIVERSE.settlement_minutes, Downtime(store, now))
+    assert info.sessions[-1] < ex and not info.view.catchup
+    assert not [r for r in _tstb_rows(store, "B2", ex) if r["event_type"] == "EXIT"]
+
+    good = {"session_date": ex, "source_url": GAP_URL, "evidence_sha256": "e" * 64, "decision_ref": "D-80", "now": clock()}
+    for wrong in ({"source_url": " "}, {"evidence_sha256": "e" * 10}, {"evidence_sha256": "E" * 64},
+                  {"decision_ref": ""}, {"decision_ref": "propietario"},
+                  {"session_date": ex + timedelta(days=1)}):
+        with pytest.raises(ValueError):
+            register_real_gap(store, "TSTB", **{**good, **wrong})  # type: ignore[arg-type]
+    assert not store.rows("SELECT 1 FROM paper_scale_resolution")
+    assert unresolved_scale_mismatch(store, "TSTB", as_of=clock().isoformat()) == ex
+
+    evidence = tmp_path / "evidencia-hueco.txt"
+    evidence.write_text("captura de la fuente oficial")
+    command = ["real-gap-confirmed", "--symbol", "TSTB", "--session", ex.isoformat(), "--source-url", GAP_URL,
+               "--evidence", str(evidence)]
+    assert cli_main(["--db", str(tmp_path / "paper.db"), *command, "--decision", "D80"]) == 6
+    assert not store.rows("SELECT 1 FROM paper_scale_resolution")
+    assert '"registrada": true' in _cli(tmp_path / "paper.db", *command, "--decision", "D-80")
+    stored = store.one("SELECT * FROM paper_scale_resolution")
+    assert stored is not None and stored["evidence_sha256"] == hashlib.sha256(evidence.read_bytes()).hexdigest()
+    assert (stored["data_symbol"], stored["session_date"], stored["resolution"]) == ("TSTB", ex.isoformat(), "REAL_GAP_CONFIRMED")
+    with pytest.raises(sqlite3.Error), store.transaction():
+        store.conn.execute("DELETE FROM paper_scale_resolution")
+    with pytest.raises(sqlite3.Error), store.transaction():
+        store.conn.execute("UPDATE paper_scale_resolution SET decision_ref = 'D-99'")
+    assert store.one("SELECT decision_ref FROM paper_scale_resolution")["decision_ref"] == "D-80"

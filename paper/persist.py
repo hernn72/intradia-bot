@@ -111,7 +111,7 @@ def persist_advance(store: PaperStore, cohort_id: str, run_seq: int, epoch_no: i
         fact = {
             "cohort_id": cohort_id, "position_id": trade.position_id, "run_seq": run_seq, "epoch_no": epoch_no,
             "entry_session": _session_of_ts(engine, trade.asset, trade.entry_ts),
-            "exit_session": _session_of_ts(engine, trade.asset, trade.exit_ts),
+            "exit_session": outcome.exit_session or _session_of_ts(engine, trade.asset, trade.exit_ts),
             "exit_ts_utc": trade.exit_ts, "exit_reason": trade.exit_reason, "trade_json": canonical(asdict(trade)),
             "mae_R": outcome.mae_R, "mfe_R": outcome.mfe_R,
         }

@@ -25,7 +25,7 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from advisor.research.p6_sim import FxTable, Signal
 from paper.contract import CohortContract
-from paper.engine_v1 import AssetMeta, AssetView, EngineView
+from paper.engine_v1 import AssetMeta, AssetView, CatchupBar, EngineView
 from paper.store import PaperStore
 from paper.universe import (
     FX_MARKET,
@@ -165,33 +165,44 @@ def exec_factor(session: date, observed_at: str, splits: Sequence[Tuple[date, fl
     return factor
 
 
+def _catchup_bar(market: str, day: date, row: sqlite3.Row, provider_splits: Sequence[Tuple[date, float, str]],
+                 split: float, dividend: float) -> CatchupBar:
+    f = exec_factor(day, row["observed_at"], provider_splits)
+    return CatchupBar(day, *open_close(market, day), float(row["open"]) * f, float(row["high"]) * f, float(row["low"]) * f,
+                      float(row["close"]) * f, split=split, dividend=dividend)
+
+
 def series_info(store: PaperStore, asset: PaperAsset, start: date, cutoff: datetime, settlement: int,
                 downtime: Downtime) -> SeriesInfo:
+    from paper.ingest import usable_bars
+
     symbol = asset.data_symbol
-    first: Dict[str, sqlite3.Row] = {}
-    for row in store.rows(
-        "SELECT * FROM paper_bar_observation WHERE data_symbol = ? AND scale_doubtful = 0 AND observed_at <= ? "
-        "ORDER BY session_date, observed_at", (symbol, cutoff.isoformat()),
-    ):
-        first.setdefault(row["session_date"], row)
+    usable = usable_bars(store, symbol, as_of=cutoff.isoformat())
+    first: Dict[str, sqlite3.Row] = {day: bar.row for day, bar in usable.items()}
+    available = {day: bar.available_at for day, bar in usable.items()}
     splits = _splits(store, symbol, cutoff)
     provider_splits = _splits(store, symbol, cutoff, provider_only=True)
     expected = [d for d in sessions(asset.market, start, cutoff.date()) if closed_by(asset.market, d, cutoff, settlement)]
     absent = [d for d in expected if d.isoformat() not in first]
-    info = missing_info(store, symbol, asset.market, absent, cutoff, settlement, downtime)
+    # Una sesión liberada por D-80 estuvo ausente hasta la resolución: su declaración (si llegó) no se deshace.
+    was_absent = sorted(set(absent) | {d for d in expected if d.isoformat() in usable and usable[d.isoformat()].released})
+    info = missing_info(store, symbol, asset.market, was_absent, cutoff, settlement, downtime)
     gap = trailing_gap_start(expected, absent)
     if gap is not None and info.counts.get(gap, 0) >= DATA_LOSS_AFTER:
         info = MissingInfo(info.declared, info.counts, gap)
     chosen: List[sqlite3.Row] = [row for day, row in sorted(first.items()) if date.fromisoformat(day) < start]
     horizon: Optional[datetime] = None
     last_session: Optional[date] = None
+    catchup: List[Tuple[date, sqlite3.Row]] = []
     for day in expected:
         found = first.get(day.isoformat())
         declared_at = info.declared.get(day)
-        if found is not None and (declared_at is None or ts(found["observed_at"]) < declared_at):
+        if found is not None and (declared_at is None or ts(available[day.isoformat()]) < declared_at):
             chosen.append(found)
             last_session = day
         elif declared_at is not None:
+            if found is not None and usable[day.isoformat()].released:
+                catchup.append((day, found))  # D-80: liberada después de declararse ausente
             continue
         else:
             horizon = open_close(asset.market, day)[0]
@@ -214,20 +225,38 @@ def series_info(store: PaperStore, asset: PaperAsset, start: date, cutoff: datet
                 return i
         return None
 
+    # D-80: una fecha ex cuya primera sesión con barra es de catch-up se aplica allí a la posición (y se descuenta
+    # en la barra vigente siguiente, a la que la serie la sigue asignando para entradas y benchmark).
+    catchup_days = [day for day, _row in catchup]
+    merged = sorted([*days, *catchup_days])
+
+    def catchup_day_of(ex: date) -> Optional[date]:
+        first = next((d for d in merged if d >= ex), None)
+        return first if first is not None and first in catchup_days else None
+
     split_map: Dict[int, float] = {}
+    catchup_split: Dict[date, float] = {}
     for ex_date, ratio, _obs in splits:
         i = first_index_on_or_after(ex_date)
         if i is not None:
             split_map[i] = split_map.get(i, 1.0) * ratio
+        on = catchup_day_of(ex_date)
+        if on is not None:
+            catchup_split[on] = catchup_split.get(on, 1.0) * ratio
     dividends: Dict[int, float] = {}
+    catchup_dividend: Dict[date, float] = {}
     for r in store.rows(
         "SELECT ex_date, amount, observed_at FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'DIVIDEND' "
         "AND observed_at <= ?", (symbol, cutoff.isoformat()),
     ):
         ex = date.fromisoformat(r["ex_date"])
         i = index_of.get(ex, first_index_on_or_after(ex))
+        amount = float(r["amount"]) * exec_factor(ex, r["observed_at"], provider_splits)
         if i is not None:
-            dividends[i] = dividends.get(i, 0.0) + float(r["amount"]) * exec_factor(ex, r["observed_at"], provider_splits)
+            dividends[i] = dividends.get(i, 0.0) + amount
+        on = catchup_day_of(ex)
+        if on is not None:
+            catchup_dividend[on] = catchup_dividend.get(on, 0.0) + amount
     terminal = None
     term = store.one(
         "SELECT ex_date, amount FROM paper_corporate_action WHERE data_symbol = ? AND kind = 'TERMINAL' "
@@ -248,10 +277,12 @@ def series_info(store: PaperStore, asset: PaperAsset, start: date, cutoff: datet
         close=tuple(float(r["close"]) * f for r, f in zip(chosen, factors)),
         dividends=dividends, splits=split_map, horizon=horizon, data_loss=info.data_loss_since is not None,
         terminal=terminal,
+        catchup=tuple(_catchup_bar(asset.market, day, r, provider_splits, catchup_split.get(day, 1.0), catchup_dividend.get(day, 0.0))
+                      for day, r in catchup),
     )
     return SeriesInfo(
         view=view, sessions=days, bar_timestamps=tuple(r["bar_timestamp"] for r in chosen),
-        observed_at=tuple(r["observed_at"] for r in chosen), exec_factor=factors, splits=splits, missing=info,
+        observed_at=tuple(available[r["session_date"]] for r in chosen), exec_factor=factors, splits=splits, missing=info,
     )
 
 
