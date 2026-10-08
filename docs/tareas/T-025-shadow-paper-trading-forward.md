@@ -537,6 +537,11 @@ se comprueba entrada a entrada en ese orden.
      de activo; si llega cuando la frontera ya pasó la fecha ex, se aplica en la frontera marcado `late`
      y las barras bloqueadas no se reprocesan. Nunca se adivina el factor, y un dividendo nunca se
      interpreta como split.
+     _(Enmendado el 2026-10-08 por D-80: una resolución manual append-only `REAL_GAP_CONFIRMED / NO_SPLIT`
+     del activo y la sesión exactos, con fuente verificable, sha256 de la evidencia y D-nn, libera el
+     `SCALE_MISMATCH` como hueco real; las barras bloqueadas se procesan entonces causalmente, desde la
+     resolución, como precios reales, `late` y `late_processing` en la frontera si ya se habían declarado
+     ausentes, sin reescribir decisiones. Nunca se infiere.)_
 7. **Datos ausentes, `DATA_LOSS` y eventos terminales (OD-T25-7, modificada y cerrada en D-75):**
    - mientras falte la barra de un activo **con posición o con orden pendiente** en el libro, el libro
      no procesa eventos posteriores a esa sesión, hasta el límite de §7.2. Así una entrada no queda

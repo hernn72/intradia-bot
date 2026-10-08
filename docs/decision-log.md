@@ -2401,6 +2401,41 @@ ni ejecutado.
 
 **Lo que no cambia:** GATE P7 y su requisito 1; B2, S2 y C0; T-024 y `T024_CODE_SHA`; la Pi.
 
+### D-80 — 2026-10-08 — T-025: enmienda de §8.6; un hueco real ambiguo solo se libera con `REAL_GAP_CONFIRMED`
+Decisión del propietario sobre el último IMPORTANTE del PR #50. **Enmienda explícita del pre-registro
+congelado** (`T025_PREREG_SHA = c6fdc42`), limitada a resolver una ambigüedad operativa de §8.6: un hueco
+real de precio con forma de split es indistinguible de un split que el proveedor no publica.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Decisión.**
+1. **Regla por defecto, sin cambios:** cambio de escala ambiguo sin `SPLIT` observado → `SCALE_MISMATCH`
+   → bloqueo. Sin resolución sigue vigente `SCALE_MISMATCH` → `DATA_LOSS_SUSPENDED` →
+   `NO_EVALUABLE_DATA_LOSS` (§7.2, §8.6, §8.7).
+2. **No se implementa** ninguna heurística (por ejemplo, «la escala de la mayoría del histórico»).
+3. **Nueva resolución manual explícita `REAL_GAP_CONFIRMED / NO_SPLIT`**, que nunca se infiere:
+   - registro append-only (`paper_scale_resolution`; ni `UPDATE` ni `DELETE`);
+   - activo y sesión exactos, y solo si existe el `SCALE_MISMATCH` de esa sesión;
+   - fuente verificable, sha256 de la evidencia y la D-nn del propietario que la autoriza.
+   Se registra con `python -m paper --db <paper.db> real-gap-confirmed --symbol <s> --session <d>
+   --source-url <url> --evidence <fichero> --decision D-nn`, que calcula el sha256 del fichero.
+4. **Con la resolución:** se libera el `SCALE_MISMATCH` de esa sesión; las barras bloqueadas se tratan como
+   precios reales **solo desde el momento de la resolución** (nunca antes) y se procesan causalmente, en
+   orden. Las sesiones ya declaradas ausentes se recorren en la frontera, cada una cuando la frontera alcanza
+   su apertura, marcadas `late` y `late_processing`; el split y el dividendo de esa fecha ex, el hueco bajo el
+   stop, el objetivo, el toque intradía y el tiempo se aplican igual que en `OPEN_EXIT` y `CLOSE_EXIT`, y el
+   P&L sale de esos precios. No se reescribe ninguna decisión tomada ni se
+   reabre una orden saltada.
+5. **Un split real no publicado** no se libera como hueco salvo con esta resolución explícita. Si después se
+   observa el `SPLIT`, rige §8.6 tal como estaba.
+
+Ficha §8.6 (anotada). Implementación y tests en el PR #50:
+1. hueco real ambiguo sin resolución → permanece bloqueado y acaba `NO_EVALUABLE_DATA_LOSS`;
+2. `REAL_GAP_CONFIRMED` desbloquea y procesa causalmente (antes y después de la declaración de ausencia);
+3. un split real no publicado no se libera sin la resolución, que exige fuente, sha256, D-nn y sesión exacta.
+
+**Lo que no cambia:** B2, S2 y C0; las reglas económicas; el consumo y el sellado; P7 BLOQUEADO; T-024 y
+`T024_CODE_SHA`; la Pi. No hay cohorte real ni despliegue.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
