@@ -220,7 +220,8 @@ def test_una_apertura_que_ya_no_cabe_se_rechaza_en_el_fill(tmp_path: Path) -> No
     order = rows(store, "SELECT * FROM orders")[0]
     assert order["status"] == "REJECTED"
     assert store.cash_eur() == pytest.approx(10_000)
-    assert rows(store, "SELECT kind FROM notifications ORDER BY id")[-1]["kind"] == "RECHAZO"
+    # Un rechazo no es una operación: queda en orders y en el dashboard, no en Telegram.
+    assert rows(store, "SELECT COUNT(*) FROM notifications")[0][0] == 0
 
 
 def test_orden_de_compra_caduca_sin_barra(tmp_path: Path) -> None:
@@ -345,7 +346,9 @@ def test_split_reescala_la_posicion_sin_perdida_ficticia(tmp_path: Path) -> None
     assert position["quantity"] == pytest.approx(entry_units * 2)
     assert position["stop"] == pytest.approx(48.5)
     assert position["entry_price_native"] == pytest.approx(100 * 1.00075 / 2)
-    assert rows(store, "SELECT kind FROM notifications ORDER BY id")[-1]["kind"] == "SPLIT"
+    # El split no se avisa: el único mensaje es el de la compra.
+    [message] = rows(store, "SELECT text FROM notifications")
+    assert "COMPRAR" in message["text"] and "SPLIT" not in message["text"]
 
 
 def test_europa_retrasada_respecto_a_eeuu_sigue_comprando(tmp_path: Path) -> None:

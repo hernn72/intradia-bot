@@ -2,7 +2,8 @@
 
 Comandos:
 - ``init``: crea la cartera (capital, fecha de inicio) y congela la configuración.
-- ``run``: descarga barras cerradas, ejecuta el ciclo completo y encola avisos.
+- ``run``: descarga barras cerradas, ejecuta el ciclo completo y encola el aviso
+  de operaciones (solo si el paper compró, vendió o tocó un objetivo).
 - ``status``: resumen de cartera en texto.
 - ``dashboard``: sirve el dashboard por HTTP o lo escribe a un fichero HTML.
 - ``telegram``: envía los avisos pendientes o un mensaje de prueba.
@@ -23,7 +24,7 @@ from typing import Iterator, List, Optional
 
 from superbot import LABEL, notify
 from superbot.config import SuperbotConfig
-from superbot.store import SuperbotStore, utcnow_iso
+from superbot.store import SuperbotStore
 
 DEFAULT_DB = Path("data/superbot/superbot.db")
 
@@ -94,13 +95,6 @@ def cmd_run(args: argparse.Namespace) -> int:
             loaded = load_series(assets, provider, config, now)
             fx = FxHistory(provider, {s.currency for s in loaded.series.values()}, config.history_period)
             result = PaperEngine(store).process(loaded.series, fx, run_id, now.date())
-            if result.bars:
-                with store.transaction() as conn:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO notifications (key, created_at, kind, text, status) "
-                        "VALUES (?, ?, 'RESUMEN', ?, 'PENDING')",
-                        (f"summary:{run_id}", utcnow_iso(), notify.summary_text(store)),
-                    )
             detail = "; ".join(f"{s}: {e}" for s, e in sorted(loaded.errors.items()))[:4000]
             store.finish_run(run_id, "OK", len(loaded.series), len(loaded.errors), result.bars, detail)
         except BaseException as exc:
@@ -146,7 +140,7 @@ def cmd_telegram(args: argparse.Namespace) -> int:
         print("Telegram sin configurar (SUPERBOT_TELEGRAM_BOT_TOKEN/CHAT_ID o TELEGRAM_BOT_TOKEN/CHAT_ID).")
         return 1
     if args.prueba:
-        ok = notifier.send_message(f"{notify.HEADER}\nMensaje de prueba.")
+        ok = notifier.send_message(f"{notify.TELEGRAM_HEADER}\n\nMensaje de prueba.")
         print("enviado" if ok else "fallo al enviar")
         return 0 if ok else 1
     db_path = _db_path(args)

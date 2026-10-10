@@ -276,6 +276,12 @@ La base va en `data/superbot/superbot.db` o en `$SUPERBOT_DB`. Telegram usa
 `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`. Plantillas systemd sin instalar en
 `deploy/superbot/`.
 
+Telegram recibe un solo mensaje por ejecución y solo si el paper hizo algo:
+compras y ventas ya ejecutadas (🟢 COMPRAR, 🔴 VENDER con su motivo: STOP,
+trailing o señal de salida) y objetivos tocados (🎯 OBJETIVO), más un resumen
+breve de cartera. Señales, órdenes pendientes, rechazos, splits e indicadores
+se quedan en `superbot.db` y en el dashboard.
+
 ## Qué se reutiliza de trading-bot
 
 Cuatro módulos se copiaron porque no tenían ninguna dependencia del resto de
