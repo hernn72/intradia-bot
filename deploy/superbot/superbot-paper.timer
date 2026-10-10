@@ -1,0 +1,14 @@
+[Unit]
+Description=Superbot - ciclo paper tras los cierres
+
+[Timer]
+# Tras el cierre europeo (y asiático) y tras el cierre americano. Solo se usan
+# barras cerradas y cada símbolo avanza desde su última barra procesada, así
+# que una ejecución perdida se recupera en la siguiente sin duplicar nada.
+OnCalendar=Mon..Fri 18:15 Europe/Madrid
+OnCalendar=Mon..Fri 22:45 Europe/Madrid
+Persistent=true
+Unit=superbot-paper.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Superbot - paper visible (PAPER OPERACIONAL / NO VALIDADA PARA CAPITAL REAL)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@SUPERBOT_USER@
+WorkingDirectory=@SUPERBOT_DIR@
+EnvironmentFile=-@SUPERBOT_ENV_FILE@
+Environment=SUPERBOT_DB=@SUPERBOT_DB@
+# Descarga ~90 históricos con medio segundo entre peticiones.
+TimeoutStartSec=1800
+StandardOutput=append:@SUPERBOT_LOG@
+StandardError=append:@SUPERBOT_LOG@
+ExecStart=@SUPERBOT_PYTHON@ -m superbot run --telegram

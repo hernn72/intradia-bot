@@ -44,5 +44,8 @@ jobs:
       - name: Run mypy (paper, T-025)
         run: mypy paper
 
+      - name: Run mypy (superbot, paper visible)
+        run: mypy superbot
+
       - name: Run pytest
         run: python -m pytest -q --durations=10

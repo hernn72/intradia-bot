@@ -244,6 +244,38 @@ El flujo de análisis está separado por pureza: `snapshot`, `levels`,
 `scoring` y `opportunity` no hacen I/O y se prueban sin red; solo `analyzer`,
 `overview` y `market_context` descargan datos.
 
+## Superbot: paper visible
+
+> **PAPER OPERACIONAL / NO VALIDADA PARA CAPITAL REAL.**
+
+`superbot/` simula una cartera completa —cash, órdenes, fills, posiciones,
+stops, objetivos, P&L, equity— con dashboard y avisos por Telegram. Es
+operacional y está **separado del laboratorio**: base propia (`superbot.db`),
+no importa `paper/` (T-025) ni `advisor.research`, no lee `paper.db` ni
+`intradia.db`, y no usa B2/S2/C0 ni la puntuación del asesor.
+
+La estrategia es la de tendencia de `trading-bot` (iTrade Bot) con su
+configuración tras el incidente de julio: SMA50/200 + RSI 45-80, salida por
+rotura confirmada (2 cierres bajo SMA50 − 2 %) o RSI > 90, stop inicial 5 % y
+trailing 3·ATR, riesgo 1,25 %, techo 25 %, 6 posiciones, compras ordenadas por
+momentum y costes de Trade Republic. Los objetivos T1/T2 (2R y 4R) solo avisan.
+Barras diarias cerradas; las órdenes se ejecutan en la apertura siguiente.
+
+```bash
+python -m superbot init --capital 10000              # cartera nueva (hoy)
+python -m superbot init --start 2026-07-01           # arranque retrospectivo, marcado como tal
+python -m superbot run --telegram                    # ciclo completo + avisos
+python -m superbot status                            # resumen en texto
+python -m superbot dashboard                         # http://127.0.0.1:8765/
+python -m superbot dashboard --output dashboard.html # HTML estático
+python -m superbot telegram --prueba
+```
+
+La base va en `data/superbot/superbot.db` o en `$SUPERBOT_DB`. Telegram usa
+`SUPERBOT_TELEGRAM_BOT_TOKEN`/`SUPERBOT_TELEGRAM_CHAT_ID` y, si no existen,
+`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`. Plantillas systemd sin instalar en
+`deploy/superbot/`.
+
 ## Qué se reutiliza de trading-bot
 
 Cuatro módulos se copiaron porque no tenían ninguna dependencia del resto de
