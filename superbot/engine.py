@@ -62,6 +62,7 @@ class ProcessResult:
     bars: int = 0
     dates: List[date] = field(default_factory=list)
     events: List[str] = field(default_factory=list)
+    operations: List[str] = field(default_factory=list)
 
 
 def buy_price(price: float, costs: CostParams) -> float:
@@ -144,7 +145,20 @@ class PaperEngine:
                     self._snapshot(ctx)
                 result.bars += len(symbols)
                 result.dates.append(session)
+            if result.operations:
+                conn.execute(
+                    "INSERT OR IGNORE INTO notifications (key, created_at, kind, text, status) "
+                    "VALUES (?, ?, 'OPERACIONES', ?, 'PENDING')",
+                    (f"run:{run_id}", utcnow_iso(),
+                     notify.operations_message(result.operations, self._portfolio_text(conn))),
+                )
         return result
+
+    def _portfolio_text(self, conn: sqlite3.Connection) -> str:
+        positions = conn.execute("SELECT * FROM positions WHERE status = 'OPEN'").fetchall()
+        invested = sum(float(p["quantity"]) * float(p["last_close"]) * float(p["last_fx"]) for p in positions)
+        cash = self._cash(conn)
+        return notify.portfolio_block(cash + invested, cash, len(positions), self.config.initial_capital_eur)
 
     def _expire_buys(self, conn: sqlite3.Connection, today: date) -> None:
         """Caduca las compras pendientes por calendario, tenga o no barras el símbolo.
@@ -206,8 +220,7 @@ class PaperEngine:
             "last_close = last_close / ? WHERE id = ?",
             (ratio, ratio, ratio, ratio, ratio, ratio, ratio, position["id"]),
         )
-        ctx.emit(f"split:{position['id']}:{ctx.session.isoformat()}", "SPLIT",
-                 notify.split_text(symbol, ctx.series[symbol].name, ratio, ctx.session))
+        ctx.emit(f"SPLIT {symbol} factor {ratio:g}")
 
     def _fill_sell(self, ctx: _Session, symbol: str) -> None:
         for order in self._pending(ctx.conn, symbol, "SELL", ctx.session):
@@ -274,11 +287,11 @@ class PaperEngine:
             )
             self._resolve(ctx, order["id"], "FILLED", "ejecutada en la apertura")
             position = ctx.conn.execute("SELECT * FROM positions WHERE id = ?", (position_id,)).fetchone()
-            ctx.emit(f"entry:{position_id}", "ENTRADA", notify.entry_text(dict(position), self._cash(ctx.conn)))
+            ctx.emit(f"COMPRA {symbol} {units} uds", notify.buy_block(dict(position)))
 
     def _reject(self, ctx: _Session, order: sqlite3.Row, detail: str) -> None:
         self._resolve(ctx, order["id"], "REJECTED", detail)
-        ctx.emit(f"reject:{order['id']}", "RECHAZO", notify.reject_text(order["symbol"], ctx.session, detail))
+        ctx.emit(f"ORDEN RECHAZADA {order['symbol']}: {detail}")
 
     def _close(self, ctx: _Session, position: sqlite3.Row, price: float, fx_rate: float, kind: str,
                order_id: Optional[int], reason: str) -> None:
@@ -302,7 +315,9 @@ class PaperEngine:
             (ctx.session.isoformat(), price, fx_rate, reason, net, pnl, pnl_pct, position["id"]),
         )
         closed = ctx.conn.execute("SELECT * FROM positions WHERE id = ?", (position["id"],)).fetchone()
-        ctx.emit(f"exit:{position['id']}", "SALIDA", notify.exit_text(dict(closed), self._cash(ctx.conn)))
+        trailed = kind == "STOP" and float(position["stop"]) > float(position["initial_stop"])
+        ctx.emit(f"VENTA {position['symbol']} ({kind}): {reason}",
+                 notify.sell_block(dict(closed), "TRAILING" if trailed else kind))
 
     def _manage_position(self, ctx: _Session, symbol: str) -> None:
         position = self._open_position(ctx.conn, symbol)
@@ -326,8 +341,8 @@ class PaperEngine:
         for column, label in (("t1_hit_date", "target1"), ("t2_hit_date", "target2")):
             if position[column] is None and high >= float(position[label]):
                 updates[column] = ctx.session.isoformat()
-                ctx.emit(f"{label}:{position['id']}", "OBJETIVO",
-                         notify.target_text(dict(position), "T1" if label == "target1" else "T2", ctx.session))
+                name = "T1" if label == "target1" else "T2"
+                ctx.emit(f"{name} TOCADO {symbol}", notify.target_block(dict(position), name))
         atr_value = row.get("atr")
         new_stop = trailed_stop(stop, close, float(atr_value) if pd.notna(atr_value) else None, cfg.strategy)
         updates.update(stop=new_stop, last_date=ctx.session.isoformat(), last_close=close, last_fx=fx_rate)
@@ -353,11 +368,9 @@ class PaperEngine:
                 return None
             close = ctx.series[symbol].frame["Close"].loc[: ctx.session]
             return _BuyCandidate(symbol, signal.reason, momentum_score(close, self.config.strategy))
-        bars = ctx.series[symbol]
         order_id = self._place_order(ctx, symbol, "SELL", signal.reason, None)
         if order_id is not None:
-            ctx.emit(f"order:{order_id}", "ORDEN",
-                     notify.sell_signal_text(symbol, bars.name, ctx.session, float(row["Close"]), signal.reason))
+            ctx.emit(f"ORDEN VENTA {symbol}: {signal.reason}")
         return None
 
     def _has_pending(self, ctx: _Session, symbol: str, side: str) -> bool:
@@ -391,15 +404,9 @@ class PaperEngine:
         )
         for candidate in ranked[: max(slots, 0)]:
             symbol = candidate.symbol
-            row = ctx.row(symbol)
             order_id = self._place_order(ctx, symbol, "BUY", candidate.reason, candidate.momentum)
-            if order_id is None:
-                continue
-            bars = ctx.series[symbol]
-            ctx.emit(f"order:{order_id}", "ORDEN",
-                     notify.buy_signal_text(symbol, bars.name, bars.currency, ctx.session, float(row["Close"]),
-                                            candidate.reason, self.config, self._cash(ctx.conn),
-                                            ctx.fx_rate(symbol)))
+            if order_id is not None:
+                ctx.emit(f"ORDEN COMPRA {symbol}: {candidate.reason}")
 
     def _budget(self, cash: float) -> float:
         cfg = self.config
@@ -489,12 +496,9 @@ class _Session:
     def fx_rate(self, symbol: str) -> Optional[float]:
         return self.fx.rate(self.series[symbol].currency, self.session)
 
-    def emit(self, key: str, kind: str, text: str) -> None:
-        lines = text.splitlines()
-        self.result.events.append(f"{self.session} {lines[1] if len(lines) > 1 else lines[0]}")
-        if not self.notify_events:
-            return
-        self.conn.execute(
-            "INSERT OR IGNORE INTO notifications (key, created_at, kind, text, status) VALUES (?, ?, ?, ?, 'PENDING')",
-            (key, utcnow_iso(), kind, text),
-        )
+    def emit(self, line: str, telegram_block: Optional[str] = None) -> None:
+        """Anota el evento en el log de la ejecución; las operaciones recientes van además a Telegram."""
+
+        self.result.events.append(f"{self.session} {line}")
+        if telegram_block is not None and self.notify_events:
+            self.result.operations.append(telegram_block)

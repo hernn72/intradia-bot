@@ -62,8 +62,10 @@ def test_init_run_status_y_dashboard(tmp_path: Path, fake_provider: None, capsys
     assert run[0] == "OK" and run[1] > 0
     assert conn.execute("SELECT COUNT(*) FROM fills").fetchone()[0] > 0
     assert conn.execute("SELECT COUNT(*) FROM equity_snapshots").fetchone()[0] > 30
-    # Sin Telegram configurado el resumen queda SKIPPED, no PENDING para siempre.
-    assert conn.execute("SELECT status FROM notifications WHERE kind = 'RESUMEN'").fetchone()[0] == "SKIPPED"
+    # Sin Telegram configurado los avisos quedan SKIPPED, no PENDING para siempre;
+    # y no hay resumen suelto: solo mensajes de operaciones.
+    statuses = conn.execute("SELECT kind, status FROM notifications").fetchall()
+    assert all(row == ("OPERACIONES", "SKIPPED") for row in statuses)
     cash = conn.execute("SELECT 10000 + COALESCE(SUM(cash_delta_eur), 0) FROM fills").fetchone()[0]
     assert cash >= 0
 

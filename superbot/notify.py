@@ -1,7 +1,10 @@
 """Textos de aviso y envío por Telegram de la bandeja ``notifications``.
 
-Los avisos se encolan dentro de la misma transacción que el evento que
-describen (clave única por evento), y se envían después. Si Telegram falla, el
+Telegram recibe un único mensaje por ejecución con las operaciones que hizo el
+paper (compras y ventas ejecutadas, objetivos tocados) y un resumen breve de
+cartera; si no hubo ninguna, no hay mensaje. El mensaje se encola dentro de la
+misma transacción que las operaciones (clave única por ejecución) y se envía
+después. Si Telegram falla, el
 aviso queda ``FAILED`` y la cartera no se ve afectada; ``flush`` no reenvía lo
 ya enviado.
 """
@@ -10,106 +13,107 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List
 
 from advisor.telegram.notifier import TelegramNotifier
 from superbot import LABEL
-from superbot.config import SuperbotConfig
 from superbot.store import SuperbotStore
 
 logger = logging.getLogger(__name__)
 
 HEADER = f"🧪 SUPERBOT — {LABEL}"
+TELEGRAM_HEADER = "🧪 SUPERBOT\nPAPER OPERACIONAL — NO VALIDADA PARA CAPITAL REAL"
+CURRENCY_SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£", "CHF": "CHF", "JPY": "¥"}
+
+EXIT_REASONS = {
+    "STOP": "STOP",
+    "TRAILING": "STOP (trailing)",
+    "GAP_STOP": "STOP (abrió por debajo del stop)",
+    "SIGNAL_EXIT": "señal de salida",
+}
+
+
+def _es(value: float, decimals: int = 2) -> str:
+    return f"{value:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _pct(value: float, decimals: int) -> str:
+    return ("+" if value >= 0 else "") + f"{_es(value, decimals)} %"
 
 
 def _eur(value: float) -> str:
-    return f"{value:,.2f} EUR".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{_es(value)} EUR"
 
 
 def _px(value: float, currency: str) -> str:
     return f"{value:,.2f} {currency}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _money(value: float, currency: str = "EUR", decimals: int = 2) -> str:
+    return f"{_es(value, decimals)} {CURRENCY_SYMBOLS.get(currency, currency)}"
+
+
 def _sign(value: float) -> str:
     return ("+" if value >= 0 else "") + _eur(value)
 
 
-def buy_signal_text(symbol: str, name: str, currency: str, session: date, close: float, reason: str,
-                    config: SuperbotConfig, cash: float, fx_rate: Optional[float]) -> str:
-    params = config.strategy
-    stop = close * (1 - params.stop_loss_pct)
-    risk = close - stop
-    budget = min(cash * config.sizing.max_risk_pct_per_trade / params.stop_loss_pct,
-                 cash * config.sizing.max_position_pct)
-    units = int(budget // (close * fx_rate)) if fx_rate else 0
-    return "\n".join([
-        HEADER,
-        f"🟢 ORDEN DE COMPRA PAPER — {symbol} ({name})",
-        f"Señal al cierre del {session.isoformat()}: {reason}",
-        f"Cierre: {_px(close, currency)} · se ejecuta en la próxima apertura",
-        f"Stop inicial ≈ {_px(stop, currency)} (−{params.stop_loss_pct:.0%}) · trailing {params.atr_multiplier:g}·ATR",
-        f"T1 ≈ {_px(close + params.target1_r * risk, currency)} · T2 ≈ {_px(close + params.target2_r * risk, currency)}",
-        f"Unidades estimadas ≈ {units} · presupuesto ≈ {_eur(budget)}",
-    ])
+# --- Telegram: solo lo que hizo el paper -------------------------------------
+#
+# Cada bloque describe una operación ya ejecutada (fill de compra o de venta) o
+# un objetivo tocado; las señales y órdenes pendientes, rechazos, splits e
+# indicadores se quedan en superbot.db y en el dashboard.
 
 
-def sell_signal_text(symbol: str, name: str, session: date, close: float, reason: str) -> str:
-    return "\n".join([
-        HEADER,
-        f"🔴 ORDEN DE VENTA PAPER — {symbol} ({name})",
-        f"Señal al cierre del {session.isoformat()}: {reason}",
-        "Se ejecuta en la próxima apertura.",
-    ])
-
-
-def entry_text(position: Dict[str, Any], cash: float) -> str:
+def buy_block(position: Dict[str, Any]) -> str:
     cur = position["currency"]
     return "\n".join([
-        HEADER,
-        f"✅ COMPRA EJECUTADA — {position['symbol']} ({position['name']})",
-        f"{position['entry_date']}: {position['quantity']:g} uds a {_px(position['entry_price_native'], cur)}",
-        f"Coste total {_eur(position['cost_eur'])} (comisión incluida)",
-        f"Stop {_px(position['stop'], cur)} · T1 {_px(position['target1'], cur)} · T2 {_px(position['target2'], cur)}",
-        f"Cash restante {_eur(cash)}",
+        "🟢 COMPRAR",
+        f"- {position['symbol']}",
+        f"- Entrada aprox.: {_money(position['entry_price_native'], cur)}",
+        f"- Cantidad: {position['quantity']:g}",
+        f"- Inversión: {_money(position['cost_eur'])}",
+        f"- Stop: {_money(position['stop'], cur)}",
+        f"- T1: {_money(position['target1'], cur)}",
+        f"- T2: {_money(position['target2'], cur)}",
     ])
 
 
-def exit_text(position: Dict[str, Any], cash: float) -> str:
+def sell_block(position: Dict[str, Any], kind: str) -> str:
     pnl = float(position["pnl_eur"])
-    icon = "💰" if pnl >= 0 else "🔻"
     return "\n".join([
-        HEADER,
-        f"{icon} POSICIÓN CERRADA — {position['symbol']} ({position['name']})",
-        f"{position['exit_date']}: {position['quantity']:g} uds a "
-        f"{_px(position['exit_price_native'], position['currency'])}",
-        f"Motivo: {position['exit_reason']}",
-        f"P&L realizado {_sign(pnl)} ({float(position['pnl_pct']):+.2%})",
-        f"Cash {_eur(cash)}",
+        "🔴 VENDER",
+        f"- {position['symbol']}",
+        f"- Cantidad: {position['quantity']:g}",
+        f"- Precio aprox.: {_money(position['exit_price_native'], position['currency'])}",
+        f"- Motivo: {EXIT_REASONS[kind]}",
+        f"- Resultado de la operación: {'+' if pnl >= 0 else ''}{_money(pnl)} "
+        f"({_pct(float(position['pnl_pct']) * 100, 1)})",
     ])
 
 
-def target_text(position: Dict[str, Any], label: str, session: date) -> str:
+def target_block(position: Dict[str, Any], label: str) -> str:
     level = position["target1"] if label == "T1" else position["target2"]
     return "\n".join([
-        HEADER,
-        f"🎯 {label} TOCADO — {position['symbol']} ({position['name']})",
-        f"{session.isoformat()}: máximo ≥ {_px(level, position['currency'])}. Aviso: la posición sigue abierta "
-        "con el trailing stop.",
+        "🎯 OBJETIVO",
+        f"- {position['symbol']}",
+        f"- {label} alcanzado: {_money(level, position['currency'])}",
+        "- Posición continúa abierta.",
     ])
 
 
-def split_text(symbol: str, name: str, ratio: float, session: date) -> str:
+def portfolio_block(equity: float, cash: float, open_positions: int, initial_capital: float) -> str:
+    total = (equity / initial_capital - 1) * 100
     return "\n".join([
-        HEADER,
-        f"✂️ SPLIT — {symbol} ({name})",
-        f"{session.isoformat()}: factor {ratio:g}. Unidades, entrada, stop y objetivos reescalados; "
-        "el coste y el P&L no cambian.",
+        "Cartera",
+        f"- Capital/equity: {_money(equity, decimals=0)}",
+        f"- Cash: {_money(cash, decimals=0)}",
+        f"- Posiciones abiertas: {open_positions}",
+        f"- Rentabilidad: {_pct(total, 2)}",
     ])
 
 
-def reject_text(symbol: str, session: date, detail: str) -> str:
-    return "\n".join([HEADER, f"⚪ ORDEN RECHAZADA — {symbol}", f"{session.isoformat()}: {detail}"])
+def operations_message(blocks: List[str], portfolio: str) -> str:
+    return "\n\n".join([TELEGRAM_HEADER, *blocks, portfolio])
 
 
 def summary_text(store: SuperbotStore) -> str:
