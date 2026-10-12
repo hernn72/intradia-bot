@@ -1,0 +1,15 @@
+[Unit]
+Description=Intradia T-025 - pasadas programadas (D-50: lun-vie 07:00, 08:30, 14:30, 21:00 Europe/London)
+
+[Timer]
+OnCalendar=Mon..Fri 07:00 Europe/London
+OnCalendar=Mon..Fri 08:30 Europe/London
+OnCalendar=Mon..Fri 14:30 Europe/London
+OnCalendar=Mon..Fri 21:00 Europe/London
+AccuracySec=1s
+# Una pasada que llega tarde no es vinculante; nunca se recupera hacia atrás.
+Persistent=false
+Unit=intradia-t025-paper.service
+
+[Install]
+WantedBy=timers.target

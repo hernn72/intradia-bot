@@ -1,0 +1,8 @@
+🧪 SHADOW / PAPER — estrategia en investigación, no validada para capital real
+B2-P6 · TSLA · sesión 2026-10-09: entrada máx 191.46, stop 180.73, obj2 207.55, RR 1.50 → pendiente de la apertura
+B2-P6 · V · sesión 2026-10-09: entrada máx 191.46, stop 180.73, obj2 207.55, RR 1.50 → pendiente de la apertura
+C0-P6 · PLTR · sesión 2026-10-09: entrada máx 191.46, stop 180.73, obj2 207.55, RR 1.50 → pendiente de la apertura
+C0-P6 · SAP.DE · sesión 2026-10-09: entrada máx 191.46, stop 180.73, obj2 207.55, RR 1.50 → MARKET_PASS a 190.10 (2026-10-12), tamaño 8.9 % de la equity
+S2-P6 · PLTR · sesión 2026-10-09: entrada máx 191.46, stop 180.73, obj2 207.55, RR 1.50 → rechazo de mercado: GAP_ABOVE_ENTRY_MAX
+S2-P6 · SAP.DE · sesión 2026-10-09: entrada máx 191.46, stop 180.73, obj2 207.55, RR 1.50 → MARKET_PASS a 190.10 (2026-10-12), tamaño 8.9 % de la equity
+Desenlaces sellados hasta que T-024 se resuelva (D-73, D-75).
