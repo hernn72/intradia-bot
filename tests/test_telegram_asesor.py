@@ -364,3 +364,18 @@ class TestPasadaEventoConTelegram:
             EventCalendar([self._evento()]), [asset_eur], db, horizonte="swing", today=self.HOY
         )
         assert repeticion.claimed_event_ids == [event_id]
+
+
+def test_linea_de_evento_larga_no_hace_que_telegram_rechace_el_aviso() -> None:
+    from advisor.main import _event_telegram
+    from advisor.telegram.notifier import TELEGRAM_MAX_CHARS
+
+    aviso = "📊 ASESOR — OPORTUNIDADES\n\n🟢 SAP.DE\n\n1 oportunidad detectada."
+    pocos = [MarketEvent(fecha=date(2026, 10, 12), tipo=TIPO_BANCO_CENTRAL, alcance=ALCANCE_GLOBAL,
+                         titulo="Decisión de tipos del BCE", fuente="banco central")]
+    assert _event_telegram(pocos, aviso).startswith("Pasada por evento: 2026-10-12 Decisión de tipos del BCE")
+
+    muchos = [replace(pocos[0], titulo=f"Evento {i} " + "x" * 120) for i in range(60)]
+    texto = _event_telegram(muchos, aviso)
+    assert len(texto) <= TELEGRAM_MAX_CHARS
+    assert texto == f"Pasada por evento: 60 eventos hoy (detalle en el informe)\n\n{aviso}"
