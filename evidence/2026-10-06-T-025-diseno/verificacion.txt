@@ -1,0 +1,34 @@
+HEAD e880d5953a0de6fe7a6fb821b1f0a293adf4e199 — 2026-10-07T09:56:33Z (ronda 5, tras D-78; sin congelar por OD-T25-12)
+$ python -m pytest -q
+1430 passed, 20 skipped, 3 warnings in 120.26s (0:02:00)
+$ ruff check .
+All checks passed!
+$ mypy advisor
+Success: no issues found in 79 source files
+$ git diff --quiet 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0 HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt
+exit 0
+$ verificar_identidad()
+1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0
+
+--- verificaciones anteriores ---
+HEAD 19e52146e3a6e89d70d452187b6f7c4c679c7090 — 2026-10-07T09:09:46Z (ronda 4, tras D-75..D-77)
+$ python -m pytest -q
+1430 passed, 20 skipped, 3 warnings in 118.25s (0:01:58)
+$ ruff check .
+All checks passed!
+$ mypy advisor
+Success: no issues found in 79 source files
+$ git diff --quiet 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0 HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt
+exit 0
+$ python -c "from advisor.research.t024_decision import verificar_identidad; print(verificar_identidad())"
+1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0
+
+--- verificación anterior (2026-10-06) ---
+HEAD 88ec6af — 2026-10-06T16:43:17Z
+$ python -m pytest -q
+1430 passed, 20 skipped, 3 warnings in 118.44s (0:01:58)
+$ ruff check .
+All checks passed!
+$ mypy advisor
+Success: no issues found in 79 source files
+EXECUTOR_PATHS idénticos a 1a697c3 (git diff --quiet 1a697c3 HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt)

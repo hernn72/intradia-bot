@@ -1,0 +1,17 @@
+[Unit]
+Description=Intradia T-025 - pasada shadow/paper (v0.5.0, engine_v1; worktree y venv propios)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=fer
+WorkingDirectory=/home/fer/intradia-t025
+Environment=PYTHONDONTWRITEBYTECODE=1
+# Solo TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID y T025_TELEGRAM_SEND (0600, fuera del repo).
+# 3000 s = espera máxima del lock de paper.db (1200 s) + margen sobre la primera pasada medida (156 s).
+EnvironmentFile=/home/fer/t025-forward/t025.env
+TimeoutStartSec=3000
+StandardOutput=append:/home/fer/t025-forward/logs/paper.log
+StandardError=append:/home/fer/t025-forward/logs/paper.log
+ExecStart=/home/fer/t025-forward/bin/t025-pasada.sh

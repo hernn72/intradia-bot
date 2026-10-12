@@ -1,0 +1,23 @@
+# Determinismo (fixture sintético synthetic_market, dos corridas)
+{
+  "corridas": [
+    {
+      "ledger_sha256": "acde46ead4546cfd53e45207c105a8d698f755dd8612e54ec24976cb83aa2d3b",
+      "serie_sha256": "c08a576ef617674aded898de879fb7561ae57c0eae93cc442d7e14b06501f072",
+      "metricas_sha256": "b4802b066760e976dcaa11d60d8dbdbf2b52ea5ddc9cfb078436bc02dc401e14",
+      "benchmark_ledger_sha256": "35ef591d63a1402026c4c49824fa157f15de5db36004c176f197a0d82e3d39e5",
+      "operaciones": 7
+    },
+    {
+      "ledger_sha256": "acde46ead4546cfd53e45207c105a8d698f755dd8612e54ec24976cb83aa2d3b",
+      "serie_sha256": "c08a576ef617674aded898de879fb7561ae57c0eae93cc442d7e14b06501f072",
+      "metricas_sha256": "b4802b066760e976dcaa11d60d8dbdbf2b52ea5ddc9cfb078436bc02dc401e14",
+      "benchmark_ledger_sha256": "35ef591d63a1402026c4c49824fa157f15de5db36004c176f197a0d82e3d39e5",
+      "operaciones": 7
+    }
+  ],
+  "identico": true,
+  "datos": "sintéticos (synthetic_market)"
+}
+
+idéntico byte a byte (ledger, serie diaria, métricas, ledger del benchmark): True

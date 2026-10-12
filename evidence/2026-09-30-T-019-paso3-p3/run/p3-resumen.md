@@ -1,0 +1,80 @@
+# P3 — resultado de la ejecución confirmatoria única
+
+- preregistro_sha: `8b2dddb8fd66423d9550df496d1a2a85abd066b6`
+- executor_sha: `87309da148772f834fd49c3f2357692e48ed9273`
+- git_dirty: `False`
+- data_vintage_id: `071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841`
+- universe_vintage_id: `237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19`
+- config_hash: `89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387`
+- score_model_version: `2.0`
+- cost_pct: `0.2`
+- seed: `20260830`
+- label: `condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)`
+- inicio: 2026-09-30T17:58:03.136526+00:00
+- fin: 2026-09-30T18:01:28.058824+00:00
+
+_condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)_
+
+## swing (confirmatorio)
+- n 94094, bloques 19, horizonte válido sí
+- primario global: 0.1549 R, IC95 [0.0569, 0.2558], 19 bloques
+- cortes p20/p40/p60/p80: [28.0, 39.6, 49.6, 57.6] (OK; 817 valores distintos)
+- **Δ Q5−Q1: -0.2895 R, IC95 [-0.4098, -0.1658], anchura 0.2440, 19 bloques** (excluidos ninguno)
+- **veredicto_ordenacion: NO CONCLUYENTE** ['anchura IC95 0.2440 > 0.2']
+- SUFICIENTE alcanzable: no (menos de 25 bloques)
+
+| quintil | n | primario | IC95 | capacidad | expectancy agrupada | PF |
+|---|---|---|---|---|---|---|
+| Q1 | 18281 | 0.3430 | [0.2374, 0.4445] | INSUFICIENTE (no concluyente) | 0.2841 | 1.4331 |
+| Q2 | 18738 | 0.1584 | [0.0651, 0.2547] | LIMITADA | 0.1446 | 1.2457 |
+| Q3 | 19404 | 0.0666 | [-0.0524, 0.1815] | INSUFICIENTE (no concluyente) | 0.0886 | 1.1505 |
+| Q4 | 17199 | 0.0342 | [-0.1082, 0.1698] | INSUFICIENTE (no concluyente) | 0.1093 | 1.1894 |
+| Q5 | 20447 | 0.0535 | [-0.0753, 0.1828] | INSUFICIENTE (no concluyente) | 0.1218 | 1.2128 |
+
+Contrastes adyacentes: Q2−Q1 -0.1846 [-0.2579, -0.1052]; Q3−Q2 -0.0917 [-0.1605, -0.0308]; Q4−Q3 -0.0324 [-0.1038, 0.0474]; Q5−Q4 0.0192 [-0.0461, 0.0965]
+
+Regiones (primario | Δ Q5−Q1): ASIA 0.1232 | -0.2761; EMERGING_MARKETS 0.2015 | -1.4664; EUROPA 0.1188 | -0.4174; GLOBAL 0.2335 | -1.0508; USA 0.1897 | -0.3023
+Intra-activo (Q4∪Q5 − Q1∪Q2): -0.7512 R, IC95 [-0.8150, -0.6720], 19 bloques, CALCULADO; pares calculables 1512, excluidos 178, bloques sin activos ninguno
+Ablación sin catalizador: Δ Q5−Q1 -0.3828 [-0.6091, -0.1910], 19 bloques, cortes OK, veredicto NO CONCLUYENTE (descriptiva)
+Ablación sin tecnico: Δ Q5−Q1 -0.2960 [-0.4394, -0.1591], 19 bloques, cortes OK, veredicto NO CONCLUYENTE (descriptiva)
+Ablación sin contexto: Δ Q5−Q1 -0.2432 [-0.3729, -0.1247], 19 bloques, cortes OK, veredicto NO CONCLUYENTE (descriptiva)
+
+### Calibración swing (Bonferroni m=20, 0.9975, 20000 remuestreos)
+- candidatos p50..p90: [43.6, 49.6, 53.6, 57.6, 63.6]; distintos [43.6, 49.6, 53.6, 57.6, 63.6]; colapsos ninguno
+- c=43.6 (p50): n 49056, capacidad INSUFICIENTE no concluyente, Bonf. primario [-0.1415, 0.2280], Bonf. contraste [-0.3439, -0.0503], PF 1.1842 → no cumple {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True}
+- c=49.6 (p60): n 37657, capacidad INSUFICIENTE no concluyente, Bonf. primario [-0.1608, 0.2341], Bonf. contraste [-0.3505, -0.0184], PF 1.2021 → no cumple {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True}
+- c=53.6 (p70): n 28670, capacidad INSUFICIENTE no concluyente, Bonf. primario [-0.1589, 0.2343], Bonf. contraste [-0.3268, -0.0124], PF 1.1963 → no cumple {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True}
+- c=57.6 (p80): n 20452, capacidad INSUFICIENTE no concluyente, Bonf. primario [-0.1441, 0.2443], Bonf. contraste [-0.2562, 0.0051], PF 1.2128 → no cumple {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True}
+- c=63.6 (p90): n 9595, capacidad INSUFICIENTE no concluyente, Bonf. primario [-0.1615, 0.2509], Bonf. contraste [-0.3165, 0.0314], PF 1.2299 → no cumple {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True}
+- **min_score_operar: ninguno → swing queda calibrated: false; no se publica umbral**
+- familia Bonferroni: 20 miembros
+
+## medio (solo trazabilidad)
+- n 89333, bloques 5, horizonte válido no
+- primario global: 0.1051 R, IC95 [-0.0503, 0.2060], 5 bloques
+- cortes p20/p40/p60/p80: [29.6, 40.0, 49.6, 57.6] (OK; 730 valores distintos)
+- **Δ Q5−Q1: -0.2120 R, IC95 [-0.3046, -0.1359], anchura 0.1686, 5 bloques** (excluidos ninguno)
+- **veredicto_ordenacion: NO CONCLUYENTE — inválido (bloque parcial 102 ≤ 250)** ['medio solo por trazabilidad (D-45, D-42)']
+
+| quintil | n | primario | IC95 | capacidad | expectancy agrupada | PF |
+|---|---|---|---|---|---|---|
+| Q1 | 17059 | 0.2589 | [0.0119, 0.4260] | INSUFICIENTE (no concluyente) | 0.2698 | 1.3977 |
+| Q2 | 18386 | 0.0995 | [-0.0221, 0.2166] | INSUFICIENTE (no concluyente) | 0.1621 | 1.2729 |
+| Q3 | 16639 | 0.0571 | [-0.0841, 0.1641] | INSUFICIENTE (no concluyente) | 0.1172 | 1.1974 |
+| Q4 | 16934 | 0.0705 | [-0.0913, 0.1861] | INSUFICIENTE (no concluyente) | 0.1309 | 1.2243 |
+| Q5 | 20290 | 0.0469 | [-0.1230, 0.1567] | INSUFICIENTE (no concluyente) | 0.1325 | 1.2281 |
+
+Contrastes adyacentes: Q2−Q1 -0.1594 [-0.2609, -0.0460]; Q3−Q2 -0.0424 [-0.0999, 0.0201]; Q4−Q3 0.0134 [-0.0244, 0.0569]; Q5−Q4 -0.0235 [-0.0684, 0.0284]
+
+Regiones (primario | Δ Q5−Q1): ASIA 0.0230 | -0.3024; EMERGING_MARKETS -0.0977 | -0.4442; EUROPA 0.1122 | -0.2993; GLOBAL 0.0388 | -0.4404; USA 0.1363 | -0.1381
+Intra-activo (Q4∪Q5 − Q1∪Q2): -0.3692 R, IC95 [-0.4842, -0.3020], 5 bloques, NO CONCLUYENTE; pares calculables 393, excluidos 52, bloques sin activos ninguno
+Ablación sin catalizador: Δ Q5−Q1 -0.3746 [-0.6269, -0.2081], 5 bloques, cortes OK, veredicto NO CONCLUYENTE — inválido (bloque parcial 102 ≤ 250) (descriptiva)
+Ablación sin tecnico: Δ Q5−Q1 -0.2389 [-0.3583, -0.1319], 5 bloques, cortes OK, veredicto NO CONCLUYENTE — inválido (bloque parcial 102 ≤ 250) (descriptiva)
+Ablación sin contexto: Δ Q5−Q1 -0.1101 [-0.2605, 0.0635], 5 bloques, cortes OK, veredicto NO CONCLUYENTE — inválido (bloque parcial 102 ≤ 250) (descriptiva)
+
+## Contadores
+- comparaciones_swing: 329 (pre-registro 329)
+- comparaciones_medio_trazabilidad: 309 (pre-registro 309)
+- comparaciones_totales: 638 (pre-registro 638)
+
+_condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)_

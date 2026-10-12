@@ -1,0 +1,13 @@
+# Suite sobre P3_EXECUTOR_SHA 87309da148772f834fd49c3f2357692e48ed9273, árbol limpio: 0 ficheros con seguimiento modificados
+# 2026-09-30T16:47:31Z
+$ .venv/bin/ruff check .
+All checks passed!
+exit=0
+$ .venv/bin/mypy advisor
+Success: no issues found in 71 source files
+exit=0
+$ .venv/bin/python -m pytest -q
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+774 passed, 3 warnings in 193.38s (0:03:13)
+exit=

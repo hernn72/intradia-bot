@@ -8,6 +8,7 @@ from datetime import date
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from advisor.analysis.benchmark import resolve_benchmark_symbol
+from advisor.analysis.overview import context_assets_of
 from advisor.backtest.engine import (
     ENTRY_OPEN_AT_OPEN,
     POLICY_OPERAR,
@@ -17,6 +18,8 @@ from advisor.backtest.engine import (
 )
 from advisor.backtest.report import _MIN_SAMPLE
 from advisor.config import AdvisorConfig
+from advisor.context.point_in_time import ContextMode, PointInTimeContextResolver, resolve_context_mode
+from advisor.data.freshness import mercado_para_simbolo
 from advisor.indicators.technical import sma
 from advisor.research.bootstrap import (
     DEFAULT_RESAMPLES,
@@ -90,15 +93,38 @@ def run_execution_filter_study(
     horizonte: str = "swing",
     cost_pct: float = 0.2,
     root_dir: str = "data/vintages",
+    context_mode: Optional[ContextMode] = None,
+    score_model_version: Optional[str] = None,
 ) -> ExecutionFilterResult:
     """Mide la disciplina real y el contrafactual sobre una cosecha congelada."""
 
     if horizonte not in MAX_HOLD_BARS:
         raise ValueError(f"filtro-ejecucion solo cubre swing y medio: '{horizonte}'")
+    requested_score_model = score_model_version or config.scoring.score_model_version
+    if requested_score_model != "1.0":
+        raise ValueError("filtro-ejecucion usa bandas v1 y solo está definido para score_model_version 1.0")
+    context_mode = resolve_context_mode(requested_score_model, context_mode)
     vintage = load_vintage(resolve_vintage_id(data_vintage_id, root_dir), root_dir=root_dir)
     window = config.horizonte(horizonte)
-    vix_close = frozen_close(vintage, config.market_context.vix_symbol)
-    trend_close = frozen_close(vintage, config.market_context.trend_symbol)
+    asia_symbols = (
+        tuple(sorted(asset.primary_symbol for asset in context_assets_of(universe) if asset.region == "ASIA"))
+        if context_mode == "point_in_time"
+        else ()
+    )
+    context_symbols = (config.market_context.vix_symbol, config.market_context.trend_symbol, *asia_symbols)
+    context_closes = {symbol: frozen_close(vintage, symbol) for symbol in context_symbols}
+    pit_resolver = (
+        PointInTimeContextResolver(
+            {symbol: close for symbol, close in context_closes.items() if close is not None},
+            config.market_context,
+            asia_symbols=asia_symbols,
+            settlement_minutes=config.data_quality.settlement_minutes,
+        )
+        if context_mode == "point_in_time"
+        else None
+    )
+    vix_close = context_closes[config.market_context.vix_symbol]
+    trend_close = context_closes[config.market_context.trend_symbol]
     trend_sma_close = sma(trend_close, config.market_context.trend_sma) if trend_close is not None else None
     benchmark_cache: Dict[str, Optional[object]] = {}
 
@@ -124,10 +150,24 @@ def run_execution_filter_study(
                 benchmark_cache[benchmark_symbol] = frozen_close(vintage, benchmark_symbol)
             cached = benchmark_cache[benchmark_symbol]
             benchmark_close = cached if cached is not None else None
-        vix_aligned = _align(vix_close, df.index) if vix_close is not None else None
-        vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
-        trend_at = _as_optional_list(_align(trend_close, df.index))
-        trend_sma_at = _as_optional_list(_align(trend_sma_close, df.index))
+        market_context_at = None
+        vix_at = None
+        trend_at = None
+        trend_sma_at = None
+        if context_mode == "point_in_time":
+            assert pit_resolver is not None
+            market_context_at = [
+                resolved.context if resolved is not None and resolved.calculable else None
+                for resolved in pit_resolver.contexts_for_index(
+                    df.index,
+                    signal_market=mercado_para_simbolo(asset, symbol),
+                )
+            ]
+        else:
+            vix_aligned = _align(vix_close, df.index) if vix_close is not None else None
+            vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
+            trend_at = _as_optional_list(_align(trend_close, df.index))
+            trend_sma_at = _as_optional_list(_align(trend_sma_close, df.index))
 
         strict_rejected: List[ExecutionRejectedSignal] = []
         strict = simulate_asset(
@@ -141,7 +181,9 @@ def run_execution_filter_study(
             vix_at=vix_at,
             trend_price_at=trend_at,
             trend_sma_at=trend_sma_at,
+            market_context_at=market_context_at,
             broker_neutral=False,
+            score_model_version=requested_score_model,
         )
         neutral_rejected: List[ExecutionRejectedSignal] = []
         neutral = simulate_asset(
@@ -155,8 +197,10 @@ def run_execution_filter_study(
             vix_at=vix_at,
             trend_price_at=trend_at,
             trend_sma_at=trend_sma_at,
+            market_context_at=market_context_at,
             rejected_signals=neutral_rejected,
             broker_neutral=True,
+            score_model_version=requested_score_model,
         )
         lost_ids = {item.signal_id for item in neutral_rejected}
         counterfactual = simulate_asset(
@@ -170,8 +214,10 @@ def run_execution_filter_study(
             vix_at=vix_at,
             trend_price_at=trend_at,
             trend_sma_at=trend_sma_at,
+            market_context_at=market_context_at,
             entry_discipline=ENTRY_OPEN_AT_OPEN,
             broker_neutral=True,
+            score_model_version=requested_score_model,
         )
         executed.extend(neutral)
         lost.extend(neutral_rejected)
@@ -341,6 +387,8 @@ def _format_stats_row(row: PopulationStats) -> str:
 
 
 def _band_for_trade(trade: BacktestTrade) -> str:
+    if trade.score_model_version != "1.0":
+        raise ValueError("bandas de ejecución solo están definidas para score_model_version 1.0")
     for label, low, high in SCORE_BANDS:
         if trade.score >= low and (high is None or trade.score < high):
             return label

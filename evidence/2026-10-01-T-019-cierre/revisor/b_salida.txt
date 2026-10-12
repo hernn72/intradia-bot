@@ -1,0 +1,19 @@
+bloques ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'] n= 19
+Δ bloque 3 = -0.7203297644103569
+media Δ (propia) = -0.28946785451648893
+IC95 instrumento INV-14 sobre los 19 Δ publicados: -0.4097552592092571 -0.16577892093005983 anchura 0.24397633827919726
+IC95 reimplementado: -0.4097552592092571 -0.16577892093005983
+bloques con Δ<0: 16 de 19
+NO CONCLUYENTE por anchura | bloques≥12: True
+activos 90 primario>0 75 Δ calculable 89 Δ<0 89 IC entero <0 83 IC entero >0 0
+intra-activo por activo: 90 media<0: 90
+regiones Δ<0: [('ASIA', '-0.2761'), ('EMERGING_MARKETS', '-1.4664'), ('EUROPA', '-0.4174'), ('GLOBAL', '-1.0508'), ('USA', '-0.3022')]
+intra global: -0.751186043312559 -0.8149588927493742 -0.6719679427030398 19 1512 178 []
+cand 43.6 {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True} False
+cand 49.6 {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True} False
+cand 53.6 {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True} False
+cand 57.6 {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True} False
+cand 63.6 {'1_horizonte_valido': True, '2_capacidad_limitada_o_mejor_y_concluyente': False, '3_bonferroni_primario_cota_inferior_positiva': False, '4_bonferroni_contraste_cota_inferior_positiva': False, '5_profit_factor_mayor_que_1': True} False
+contadores a mano: 329 309
+quintiles: primario Q1..Q5 [0.343, 0.1584, 0.0666, 0.0342, 0.0535]
+capacidad Q: [('Q1', None, None), ('Q2', None, None), ('Q3', None, None), ('Q4', None, None), ('Q5', None, None)]

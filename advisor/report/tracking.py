@@ -21,6 +21,7 @@ from typing import List, Optional
 from advisor.analysis.analyzer import analyze_asset
 from advisor.analysis.market_context import fetch_market_context
 from advisor.config import AdvisorConfig
+from advisor.context.point_in_time import context_mode_for, fetch_point_in_time_market_context
 from advisor.data.fx import FxConverter
 from advisor.data.market_data import MarketDataProvider
 from advisor.report.money import MoneyFormatter
@@ -117,7 +118,16 @@ def review_positions(
         return []
 
     timestamp = now or datetime.now(timezone.utc)
-    context = fetch_market_context(provider, config.market_context)
+    if context_mode_for(config.scoring.score_model_version) == "point_in_time":
+        context = fetch_point_in_time_market_context(
+            provider,
+            config.market_context,
+            universe,
+            timestamp,
+            settlement_minutes=config.data_quality.settlement_minutes,
+        )
+    else:
+        context = fetch_market_context(provider, config.market_context)
     reviews: List[PositionReview] = []
 
     for row in positions:

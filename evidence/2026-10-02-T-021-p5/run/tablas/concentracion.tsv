@@ -1,0 +1,4 @@
+# condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+centro	activos_positivos	activos_negativos	p10	p25	p50	p75	p90	mayor	top5	top10
+B2	75	15	-0.046660	0.015451	0.066295	0.141210	0.187399	0.052492	0.187986	0.329982
+S2	74	16	-0.019240	0.008270	0.034630	0.061187	0.088688	0.036788	0.179082	0.333776

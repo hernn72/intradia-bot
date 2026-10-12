@@ -1,0 +1,12 @@
+[Unit]
+Description=Intradia T-024 - timer diario del checkpoint forward
+
+[Timer]
+# Se ejecuta a diario; el wrapper solo actúa si el día es un checkpoint declarado.
+OnCalendar=*-*-* 12:00:00 Atlantic/Canary
+# Si la Pi arranca tarde el mismo día, systemd lanza el intento pendiente.
+Persistent=true
+Unit=intradia-t024-checkpoint.service
+
+[Install]
+WantedBy=timers.target

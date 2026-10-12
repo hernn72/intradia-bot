@@ -1,0 +1,90 @@
+# Hashes de la evidencia — T-019 cierre (2026-10-01)
+
+## #33: shasum -a 256 -c SHA256SUMS-ejecucion.txt (desde evidence/2026-09-30-T-019-paso3-p3/)
+consola/comando.txt: OK
+consola/exit_code.txt: OK
+consola/fin_utc.txt: OK
+consola/head_al_iniciar.txt: OK
+consola/inicio_utc.txt: OK
+consola/stderr.txt: OK
+consola/stdout.txt: OK
+run/EJECUCION_CONFIRMATORIA_INICIADA: OK
+run/p3-resultado.json: OK
+run/p3-resumen.md: OK
+run/preflight-interno/p3-preflight.json: OK
+run/preflight-interno/p3-preflight.txt: OK
+run/tablas/medio-ablaciones.tsv: OK
+run/tablas/medio-activos.tsv: OK
+run/tablas/medio-bloque-x-quintil.tsv: OK
+run/tablas/medio-contrastes.tsv: OK
+run/tablas/medio-intra-activo-pares-excluidos.tsv: OK
+run/tablas/medio-intra-activo.tsv: OK
+run/tablas/medio-quintiles.tsv: OK
+run/tablas/medio-regiones.tsv: OK
+run/tablas/swing-ablaciones.tsv: OK
+run/tablas/swing-activos.tsv: OK
+run/tablas/swing-bloque-x-quintil.tsv: OK
+run/tablas/swing-candidatos.tsv: OK
+run/tablas/swing-contrastes.tsv: OK
+run/tablas/swing-familia-bonferroni.tsv: OK
+run/tablas/swing-intra-activo-pares-excluidos.tsv: OK
+run/tablas/swing-intra-activo.tsv: OK
+run/tablas/swing-quintiles.tsv: OK
+run/tablas/swing-regiones.tsv: OK
+
+## #33: shasum -a 256 -c evidence/2026-09-30-T-019-paso3-p3/preflight/SHA256SUMS (desde la raíz)
+evidence/2026-09-30-T-019-paso3-p3/preflight/00-suite.txt: OK
+evidence/2026-09-30-T-019-paso3-p3/preflight/01-preflight-exit.txt: OK
+evidence/2026-09-30-T-019-paso3-p3/preflight/01-preflight-stderr.txt: OK
+evidence/2026-09-30-T-019-paso3-p3/preflight/01-preflight-stdout.txt: OK
+evidence/2026-09-30-T-019-paso3-p3/preflight/p3-preflight.json: OK
+evidence/2026-09-30-T-019-paso3-p3/preflight/p3-preflight.txt: OK
+evidence/2026-09-30-T-019-paso3-p3/preflight/registro-previo.md: OK
+evidence/2026-09-30-T-019-paso3-p3/preflight/revision-previa.md: OK
+
+## Paso 4: salidas de evidence/2026-10-01-T-019-score-v2/hashes-de-tablas.txt
+README.md: OK
+calculo-manual-delta-bloque.md: OK
+calculo-manual-sap.md: OK
+confianza.md: OK
+confianza_produccion.py: OK
+contexto-h6.md: OK
+final-pytest-ruff-mypy.txt: OK
+gate-p3-matriz.md: OK
+impacto.md: OK
+impacto.py: OK
+paso4_generar.py: OK
+resultado-p3.md: OK
+tablas/medio-activos-D-menos-A.tsv: OK
+tablas/medio-desplazamientos.tsv: OK
+tablas/medio-histograma-5.tsv: OK
+tablas/medio-migracion-tramos-10-A-D.tsv: OK
+tablas/medio-percentiles.tsv: OK
+tablas/swing-activos-D-menos-A.tsv: OK
+tablas/swing-desplazamientos.tsv: OK
+tablas/swing-histograma-5.tsv: OK
+tablas/swing-migracion-tramos-10-A-D.tsv: OK
+tablas/swing-percentiles.tsv: OK
+
+## TSV por señal del revisor, sin desenlaces (no versionadas, solo en el portátil)
+8387a783461a0491c8713f17e404acafdd2bf21b01dec5ae1c4f94efc2e0ad57  poblacion-swing.tsv
+086ea474798299ef2b3f0bc089ce5896a831d902502e35efdb76492890c6f438  poblacion-medio.tsv
+
+## SHA256 de esta carpeta
+dbb9eae9aaa53c3371394f8ce18831a6875d10b339685419e83835c94eb09641  README.md
+efd58ab8c2ade419e2eeaeb9cf2aee6c7c104d5a1acdc7c3f48c07eeb95e4c0d  final-pytest-ruff-mypy.txt
+211876e88ec20a5638e1b3a5a1ccb4b9798c19acd7a42c75df1432f5b4dd7d3f  gate-p3-final.md
+30cff0aa4089e8a5848aba9d557a6f479acde1dc79bd50997920664278793d79  revision-look-ahead.md
+4ec67ba8e67421c4da73d26c4f7af5df151e362a6033e40326b2f56ab2377e4f  revisor/a_poblacion_y_pit.py
+a127c108c8688ce9db9bdf0a6022441986bdb043a671646a5a67ed4f6efa3944  revisor/a_salida.txt
+a127c108c8688ce9db9bdf0a6022441986bdb043a671646a5a67ed4f6efa3944  revisor/a_stdout.txt
+8fa110b9b795b25c9499426caf9b19adfd1428c308bdea1c2969ecb5f3da1124  revisor/b_aritmetica_artefactos.py
+95c51d058d957e465700a33e2084146802fe9b35622582fbe99337af0a09ab0c  revisor/b_salida.txt
+d9cca58d3592e4b973a5cef3c7c4649dc073ee125a8b08c10b664caecf70902d  revisor/c_produccion_d59.py
+a5c9fd2dc5bf9b57baa78db5d15fa528aaf1fff350563cef950d84bb90cffdd6  revisor/c_salida.txt
+42be17f13ae26ac6f48ffef904c6f18438a556eade1ad2bdc683b5b3eb362916  revisor/d_paridad_real.py
+3e0ca74d55d4503d64e715f71951820acbec87e66fa72bb4f28573b7647a8773  revisor/d_salida.txt
+4b50bb4f15cdb6db4315d34d9c2919692bf082e179a5b1625f5c65b09d287b93  revisor/e_raw_vs_canon.py
+58021ca51799221cd540a512274a6c60a7fa8282429c3f792d773386b3c1239d  revisor/e_salida.txt
+8fcf5809a39acc243d77c7d4997bd680568523ff4404133a0dbdc58d0166bcaf  revisor/paso4-sums.txt
+554b99a5e8ae8177f347dd84336c7c61be1650a643ccc27fb7e6559c7cf17b4e  revisor/ruff.toml

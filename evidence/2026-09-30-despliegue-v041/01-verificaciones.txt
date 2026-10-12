@@ -1,0 +1,27 @@
+$ git rev-parse HEAD
+8b2dddb8fd66423d9550df496d1a2a85abd066b6
+$ git rev-list -n 1 v0.4.1
+8b2dddb8fd66423d9550df496d1a2a85abd066b6
+$ git cat-file -t v0.4.1
+tag
+$ verificar-systemd
+Unidades systemd alineadas con las plantillas versionadas.
+exit=0
+$ verificar-release
+HEAD               8b2dddb8fd66423d9550df496d1a2a85abd066b6
+tag exacto         v0.4.1
+SHA del tag        8b2dddb8fd66423d9550df496d1a2a85abd066b6
+árbol modificado   no
+origin             COINCIDE (8b2dddb8fd66423d9550df496d1a2a85abd066b6)
+veredicto          EN_TAG
+exit=0
+$ systemctl is-active timers
+active
+active
+$ systemctl list-timers intradia-bot*
+NEXT                            LEFT LAST                              PASSED UNIT                     ACTIVATES
+Wed 2026-09-30 14:30:00 BST 2h 18min Wed 2026-09-30 08:30:13 BST 3h 40min ago intradia-bot.timer       intradia-bot.service
+Wed 2026-09-30 22:30:00 BST      10h Tue 2026-09-29 22:30:04 BST      13h ago intradia-bot-event.timer intradia-bot-event.service
+
+2 timers listed.
+Pass --all to see loaded but inactive timers, too.

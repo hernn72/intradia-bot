@@ -1,0 +1,514 @@
+{
+  "fase": "preflight",
+  "identidad": {
+    "preregistro_sha": "8b2dddb8fd66423d9550df496d1a2a85abd066b6",
+    "executor_sha": "87309da148772f834fd49c3f2357692e48ed9273",
+    "git_dirty": false,
+    "data_vintage_id": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+    "universe_vintage_id": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+    "config_hash": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+    "score_model_version": "2.0",
+    "cost_pct": 0.2,
+    "seed": 20260830,
+    "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)"
+  },
+  "inicio_utc": "2026-09-30T16:50:59.355098+00:00",
+  "fin_utc": "2026-09-30T17:22:33.510175+00:00",
+  "horizontes": {
+    "swing": {
+      "horizonte": "swing",
+      "checks": [
+        {
+          "control": "población A-02",
+          "observado": 106363,
+          "esperado": 106363,
+          "ok": true
+        },
+        {
+          "control": "excluded_crypto",
+          "observado": 5112,
+          "esperado": 5112,
+          "ok": true
+        },
+        {
+          "control": "excluded_asia_missing",
+          "observado": 396,
+          "esperado": 396,
+          "ok": true
+        },
+        {
+          "control": "excluded_trend_sma_history",
+          "observado": 6937,
+          "esperado": 6937,
+          "ok": true
+        },
+        {
+          "control": "Asia ∩ SMA200",
+          "observado": 176,
+          "esperado": 176,
+          "ok": true
+        },
+        {
+          "control": "unión deduplicada",
+          "observado": 12269,
+          "esperado": 12269,
+          "ok": true
+        },
+        {
+          "control": "población final (censo)",
+          "observado": 94094,
+          "esperado": 94094,
+          "ok": true
+        },
+        {
+          "control": "sha256 población (censo)",
+          "observado": "4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a",
+          "esperado": "4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a",
+          "ok": true
+        },
+        {
+          "control": "señales del event study PIT v2",
+          "observado": 94094,
+          "esperado": 94094,
+          "ok": true
+        },
+        {
+          "control": "sha256 población (event study PIT v2)",
+          "observado": "4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a",
+          "esperado": "4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a",
+          "ok": true
+        },
+        {
+          "control": "activos",
+          "observado": 90,
+          "esperado": 90,
+          "ok": true
+        },
+        {
+          "control": "regiones",
+          "observado": 5,
+          "esperado": 5,
+          "ok": true
+        },
+        {
+          "control": "bloques ocupados",
+          "observado": 19,
+          "esperado": 19,
+          "ok": true
+        },
+        {
+          "control": "bloques del censo",
+          "observado": 19,
+          "esperado": 19,
+          "ok": true
+        },
+        {
+          "control": "huecos intermedios ^STOXX50E",
+          "observado": 1406,
+          "esperado": 1406,
+          "ok": true
+        },
+        {
+          "control": "antigüedades STOXX ⊆ {1,3,4}",
+          "observado": true,
+          "esperado": true,
+          "ok": true
+        },
+        {
+          "control": "config.yaml activo",
+          "observado": "1.0",
+          "esperado": "1.0",
+          "ok": true
+        },
+        {
+          "control": "config_hash",
+          "observado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+          "esperado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+          "ok": true
+        },
+        {
+          "control": "universe_vintage_id",
+          "observado": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+          "esperado": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+          "ok": true
+        },
+        {
+          "control": "data_vintage_id",
+          "observado": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+          "esperado": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "horizon_valid": true,
+      "shortest_occupied_block_sessions": 42,
+      "max_hold_bars": 40,
+      "cuts": {
+        "metodo": "nearest-rank x[(k*n + 99)//100 - 1]",
+        "percentiles": [
+          20,
+          40,
+          60,
+          80
+        ],
+        "values": [
+          28.0,
+          39.6,
+          49.6,
+          57.6
+        ],
+        "n": 94094,
+        "distinct_scores": 817,
+        "n_by_quintile": {
+          "Q1": 18292,
+          "Q2": 18740,
+          "Q3": 19405,
+          "Q4": 17205,
+          "Q5": 20452
+        },
+        "status": "OK",
+        "tied_pairs": []
+      },
+      "ablation_cuts": {
+        "catalizador": {
+          "metodo": "nearest-rank x[(k*n + 99)//100 - 1]",
+          "percentiles": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "values": [
+            40.0,
+            59.333333333,
+            72.666666667,
+            82.666666667
+          ],
+          "n": 94094,
+          "distinct_scores": 397,
+          "n_by_quintile": {
+            "Q1": 18797,
+            "Q2": 18839,
+            "Q3": 18723,
+            "Q4": 16105,
+            "Q5": 21630
+          },
+          "status": "OK",
+          "tied_pairs": []
+        },
+        "tecnico": {
+          "metodo": "nearest-rank x[(k*n + 99)//100 - 1]",
+          "percentiles": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "values": [
+            27.666666667,
+            31.666666667,
+            36.0,
+            43.333333333
+          ],
+          "n": 94094,
+          "distinct_scores": 151,
+          "n_by_quintile": {
+            "Q1": 18298,
+            "Q2": 18151,
+            "Q3": 18386,
+            "Q4": 18514,
+            "Q5": 20745
+          },
+          "status": "OK",
+          "tied_pairs": []
+        },
+        "contexto": {
+          "metodo": "nearest-rank x[(k*n + 99)//100 - 1]",
+          "percentiles": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "values": [
+            20.0,
+            30.0,
+            42.5,
+            52.5
+          ],
+          "n": 94094,
+          "distinct_scores": 215,
+          "n_by_quintile": {
+            "Q1": 17680,
+            "Q2": 15894,
+            "Q3": 20929,
+            "Q4": 20429,
+            "Q5": 19162
+          },
+          "status": "OK",
+          "tied_pairs": []
+        }
+      },
+      "candidates": {
+        "percentiles": [
+          50,
+          60,
+          70,
+          80,
+          90
+        ],
+        "values": [
+          43.6,
+          49.6,
+          53.6,
+          57.6,
+          63.6
+        ],
+        "distinct": [
+          43.6,
+          49.6,
+          53.6,
+          57.6,
+          63.6
+        ],
+        "collapses": {}
+      }
+    },
+    "medio": {
+      "horizonte": "medio",
+      "checks": [
+        {
+          "control": "población A-02",
+          "observado": 94273,
+          "esperado": 94273,
+          "ok": true
+        },
+        {
+          "control": "excluded_crypto",
+          "observado": 4722,
+          "esperado": 4722,
+          "ok": true
+        },
+        {
+          "control": "excluded_asia_missing",
+          "observado": 218,
+          "esperado": 218,
+          "ok": true
+        },
+        {
+          "control": "excluded_trend_sma_history",
+          "observado": 0,
+          "esperado": 0,
+          "ok": true
+        },
+        {
+          "control": "Asia ∩ SMA200",
+          "observado": 0,
+          "esperado": 0,
+          "ok": true
+        },
+        {
+          "control": "unión deduplicada",
+          "observado": 4940,
+          "esperado": 4940,
+          "ok": true
+        },
+        {
+          "control": "población final (censo)",
+          "observado": 89333,
+          "esperado": 89333,
+          "ok": true
+        },
+        {
+          "control": "sha256 población (censo)",
+          "observado": "4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8",
+          "esperado": "4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8",
+          "ok": true
+        },
+        {
+          "control": "señales del event study PIT v2",
+          "observado": 89333,
+          "esperado": 89333,
+          "ok": true
+        },
+        {
+          "control": "sha256 población (event study PIT v2)",
+          "observado": "4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8",
+          "esperado": "4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8",
+          "ok": true
+        },
+        {
+          "control": "activos",
+          "observado": 90,
+          "esperado": 90,
+          "ok": true
+        },
+        {
+          "control": "regiones",
+          "observado": 5,
+          "esperado": 5,
+          "ok": true
+        },
+        {
+          "control": "bloques ocupados",
+          "observado": 5,
+          "esperado": 5,
+          "ok": true
+        },
+        {
+          "control": "bloques del censo",
+          "observado": 5,
+          "esperado": 5,
+          "ok": true
+        },
+        {
+          "control": "huecos intermedios ^STOXX50E",
+          "observado": 1312,
+          "esperado": 1312,
+          "ok": true
+        },
+        {
+          "control": "antigüedades STOXX ⊆ {1,3,4}",
+          "observado": true,
+          "esperado": true,
+          "ok": true
+        },
+        {
+          "control": "config.yaml activo",
+          "observado": "1.0",
+          "esperado": "1.0",
+          "ok": true
+        },
+        {
+          "control": "config_hash",
+          "observado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+          "esperado": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+          "ok": true
+        },
+        {
+          "control": "universe_vintage_id",
+          "observado": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+          "esperado": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+          "ok": true
+        },
+        {
+          "control": "data_vintage_id",
+          "observado": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+          "esperado": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "horizon_valid": false,
+      "shortest_occupied_block_sessions": 102,
+      "max_hold_bars": 250,
+      "cuts": {
+        "metodo": "nearest-rank x[(k*n + 99)//100 - 1]",
+        "percentiles": [
+          20,
+          40,
+          60,
+          80
+        ],
+        "values": [
+          29.6,
+          40.0,
+          49.6,
+          57.6
+        ],
+        "n": 89333,
+        "distinct_scores": 730,
+        "n_by_quintile": {
+          "Q1": 17071,
+          "Q2": 18387,
+          "Q3": 16640,
+          "Q4": 16940,
+          "Q5": 20295
+        },
+        "status": "OK",
+        "tied_pairs": []
+      },
+      "ablation_cuts": {
+        "catalizador": {
+          "metodo": "nearest-rank x[(k*n + 99)//100 - 1]",
+          "percentiles": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "values": [
+            42.666666667,
+            59.333333333,
+            72.666666667,
+            82.666666667
+          ],
+          "n": 89333,
+          "distinct_scores": 346,
+          "n_by_quintile": {
+            "Q1": 17304,
+            "Q2": 16485,
+            "Q3": 18063,
+            "Q4": 15945,
+            "Q5": 21536
+          },
+          "status": "OK",
+          "tied_pairs": []
+        },
+        "tecnico": {
+          "metodo": "nearest-rank x[(k*n + 99)//100 - 1]",
+          "percentiles": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "values": [
+            27.666666667,
+            32.666666667,
+            36.666666667,
+            43.333333333
+          ],
+          "n": 89333,
+          "distinct_scores": 151,
+          "n_by_quintile": {
+            "Q1": 14426,
+            "Q2": 19922,
+            "Q3": 18304,
+            "Q4": 16141,
+            "Q5": 20540
+          },
+          "status": "OK",
+          "tied_pairs": []
+        },
+        "contexto": {
+          "metodo": "nearest-rank x[(k*n + 99)//100 - 1]",
+          "percentiles": [
+            20,
+            40,
+            60,
+            80
+          ],
+          "values": [
+            20.0,
+            30.0,
+            42.5,
+            52.5
+          ],
+          "n": 89333,
+          "distinct_scores": 172,
+          "n_by_quintile": {
+            "Q1": 16272,
+            "Q2": 14651,
+            "Q3": 19852,
+            "Q4": 19799,
+            "Q5": 18759
+          },
+          "status": "OK",
+          "tied_pairs": []
+        }
+      }
+    }
+  },
+  "ok": true
+}

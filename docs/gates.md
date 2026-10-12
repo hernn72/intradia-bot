@@ -121,6 +121,27 @@ Desbloquea: P3.
 
 ## GATE P3 — Score v2 calibrado
 
+**GATE P3 CRUZADO el 2026-10-01 (D-62), con el veredicto NO CONCLUYENTE.**
+Los cinco requisitos se cumplen. T-019 (A-03) ejecutó P3 una sola vez
+(`87309da`). D-61 registra el resultado:
+- swing: Δ Q5−Q1 −0,2895 R [−0,4098, −0,1658], anchura 0,2440 > 0,20 →
+  NO CONCLUYENTE;
+- medio: inválido;
+- intradía: sin laboratorio;
+- **los tres horizontes `calibrated: false`**, sin ningún umbral v2.
+
+La revisión independiente final del look-ahead no encontró ningún BLOCKER ni
+ningún IMPORTANTE. Producción sigue en Score v1 con 70/60 (D-47) y v2 no se
+activa. Por lo que dice este gate, P4 trabaja sobre `score_signal` sin umbrales
+operativos nuevos. _Condicionado al universo seleccionado en 2026 (sesgo de
+supervivencia y selección no corregido)._
+
+Evidencia:
+- `evidence/2026-09-30-T-019-paso3-p3/` (ejecución);
+- `evidence/2026-10-01-T-019-score-v2/` (resultado, calibración e impacto);
+- `evidence/2026-10-01-T-019-cierre/` (`revision-look-ahead.md` y
+  `gate-p3-final.md`, que recorre los requisitos uno a uno).
+
 Requisitos:
 
 1. Dimensiones y pesos redefinidos y documentados con `score_model_version`
@@ -162,6 +183,35 @@ Desbloquea: P4.
 
 ## GATE P4 — Geometría
 
+**GATE P4 CRUZADO el 2026-10-02 (D-65).** Los cuatro requisitos se cumplen. T-020 (A-04) ejecutó P4
+una sola vez:
+- `P4_PREREG_SHA = 48b8847`;
+- `P4_CODE_SHA = 3df8230`;
+- `P4_RUN_HEAD_SHA = c2c52b1`;
+- evidencia en `cfa365d`.
+
+D-64 registra el resultado:
+- **B2 y S2 pasan a P5** como candidatas:
+  - B2: ΔR +0,0717, con IC Bonferroni [+0,0061, +0,1356];
+  - S2: ΔR +0,0348, con IC Bonferroni [+0,0076, +0,0597];
+- **S1 no pasa:** falla las condiciones 1, 2, 5 y 8;
+- **E1 sale NO CONCLUYENTE;**
+- **B1 es solo descriptiva.**
+
+La heterogeneidad sale ALTA en todo. Es una bandera que no veta (D-63), y queda explicada por
+estratos pre-registrados y por la limitación conocida del instrumento. Se hicieron 447
+comparaciones, 4 de ellas confirmatorias.
+
+La revisión final independiente, tras su vuelta de cierre, no deja ningún BLOCKER ni ningún
+IMPORTANTE. Producción no cambia: B2 y S2 son candidatas de investigación para P5. _Condicionado al
+universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Evidencia:
+- `evidence/2026-10-01-T-020-censo-p4/` (censo);
+- `evidence/2026-10-01-T-020-p4/preflight/` y `…/run/` (preflight y ejecución única);
+- `evidence/2026-10-02-T-020-p4-cierre/` (resultado y heterogeneidad, revisión de look-ahead,
+  revisión final y `gate-p4-final.md`, que recorre los requisitos uno a uno).
+
 Requisitos:
 
 1. Variantes de stop, objetivo y entrada comparadas **pareadas por
@@ -181,6 +231,32 @@ Desbloquea: P5.
 
 ## GATE P5 — Regiones robustas
 
+**GATE P5 CRUZADO el 2026-10-03 (D-68).** Los cuatro requisitos se cumplen. T-021 (A-05) ejecutó P5
+una sola vez:
+- `P5_PREREG_SHA = a7c3d23`;
+- `P5_CODE_SHA = 6c7f913`;
+- `P5_RUN_HEAD_SHA = 282b1ce`;
+- evidencia en `86ddd5b`.
+
+D-67 registra el resultado:
+- **B2 ROBUSTA** y **S2 ROBUSTA**;
+- 13/13 vecinos ACEPTABLES;
+- 6/6 LOCRO con IC95 inferior > 0;
+- 71/71 comparaciones, 0 confirmatorias nuevas;
+- **supervivientes `[B2, S2]`**, con su `config` completa y su hash.
+
+No hay ninguna candidata descartada por fragilidad ni por dependencia de mercado. Las 3 ausencias de
+S2 son estructurales (RR < 1,5). La revisión final independiente no deja ningún BLOCKER ni ningún
+IMPORTANTE. Producción no cambia: B2 y S2 son candidatas de investigación y ninguna se activa.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Evidencia:
+- `evidence/2026-10-02-T-021-p5-diseno/` (inventario estructural del diseño);
+- `evidence/2026-10-02-T-021-p5/preflight/` y `…/run/` (preflight y ejecución única);
+- `evidence/2026-10-03-T-021-p5-lookahead/` (revisión de look-ahead, previa a la ejecución);
+- `evidence/2026-10-03-T-021-p5-cierre/` (resultado, `politicas-finales.json`, revisión final y
+  `gate-p5-final.md`).
+
 Requisitos: superficies de parámetros publicadas; configuraciones descartadas
 por fragilidad o dependencia de un solo mercado listadas con motivo; conjunto
 de políticas candidatas ≤ 5, cada una con su `config` completa y hash.
@@ -190,6 +266,31 @@ Desbloquea: P6.
 ---
 
 ## GATE P6 — Sistema completo
+
+**GATE P6 CRUZADO el 2026-10-05 (D-70), con la salida `[]`.** Los requisitos se cumplen. T-022 (A-06)
+ejecutó P6 una sola vez:
+- `P6_PREREG_SHA = 03f04a42ea9d2be893e7c4cc09de76bd1c55778b`;
+- `P6_CODE_SHA = bc0636d4320b38ef5a620fa9ae94cee35df47580`;
+- `P6_RUN_HEAD_SHA = 353876d39d03f6849847743b9f4e7f791abbed30`;
+- evidencia en `0771989af851748463aa0e79d4a7dc327066ca5f`.
+
+D-70 registra el resultado:
+- **B2 `NO PASA`** y **S2 `NO PASA`**;
+- **supervivientes `[]`**;
+- las dos cumplen N ≥ 100, PF local > 1, R medio local > 0 y DD ≥ −25 %, y fallan **solo** el exceso
+  de CAGR sobre el buy-and-hold del universo (B2 −15,7671 pp; S2 −18,7228 pp).
+
+**Este gate no exige un resultado favorable: exige la medición completa y reproducible.** Esa medición
+está hecha y publicada, y por eso el gate se cruza aunque ninguna política sobreviva. C0, la
+sensibilidad de 10 pb y el puente de todas las barras son descriptivos y no cambian la salida. La
+revisión final independiente no deja ningún BLOCKER ni ningún IMPORTANTE. Producción no cambia.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Evidencia:
+- `evidence/2026-10-03-T-022-p6-diseno/` (censo estructural del diseño);
+- `evidence/2026-10-03-T-022-p6-datos/` (sidecar FX y mapa de sector congelados, `P6_DATA_ID`);
+- `evidence/2026-10-03-T-022-p6/preflight/` y `…/run/` (preflight definitivo y ejecución única);
+- `evidence/2026-10-05-T-022-p6-cierre/` (resultado, revisión final y `gate-p6-final.md`).
 
 Requisitos: simulador de cartera con capital, posiciones simultáneas,
 ocupación, exposición por región/divisa/sector, costes, slippage, dividendos y
@@ -201,9 +302,50 @@ universo, ver roadmap).
 
 Desbloquea: P7.
 
+(Nota de D-70: con la salida `[]`, P7 no recibe ninguna política y sigue BLOQUEADO; cruzar este
+gate no lo inicia ni lo desbloquea operativamente.)
+
 ---
 
 ## GATE P7 — La ventaja sobrevive fuera de muestra (en el tiempo)
+
+**BLOQUEADO: P6 no produjo ninguna política superviviente** (D-70, salida `[]`). P7 no se ha iniciado
+y no tiene ninguna candidata que validar. Reabrirlo exige investigación nueva, con ficha y
+pre-registro propios, que no cambia la etiqueta de P6.
+
+**Entrada a P7 (D-73, D-74):**
+- P7 solo recibe una **candidata nueva de P6-bis** (A-11), congelada, que antes haya superado una
+  evaluación de cartera pre-registrada y equivalente a GATE P6. Esa evaluación se hace sobre datos ya
+  consumidos (hasta el 2026-08-27), así que es desarrollo. La confirmación es P7.
+- **T-024 y T-025 no son P7 ni lo sustituyen.** Ninguno de los dos aporta candidatas ni datos de
+  holdout.
+- **Frontera temporal:** P7 empieza después de la congelación de la candidata **y** del `T1` de la
+  última mirada de T-024 (OD-T24-11). Solo usa sesiones sin desenlace consultado en T-025 (unidad de
+  consumo: **la sesión**, para cualquier política o cohorte; D-75, OD-T25-9) y que no hayan intervenido
+  en T-024 ni en P6-bis. La ventana se fija con sesiones futuras posteriores a la congelación de la
+  candidata, salvo una ventana `VIRGEN_REUTILIZABLE` para una candidata que ya estaba congelada antes de
+  su primera sesión (abajo, D-79). En ningún caso se cambia el requisito 1.
+- **Ventana de P7 (D-75, OD-T25-9 C):** se fija antes de empezar P7, con las sesiones de la frontera de
+  arriba. Desde
+  ese momento **todas** las cohortes de T-025 quedan selladas para esas sesiones, y también todo lo
+  acumulado que las incluya, hasta la consulta única del holdout, que se registra como consumo
+  (`paper_outcome_access`, `P7_HOLDOUT_QUERY`). T-025 sigue funcionando internamente (ficha §10.7).
+- **Exposición ex ante:** durante la ventana de P7 la información ex ante de T-025 sigue visible, como
+  durante el embargo de T-024 (D-76). El pre-registro de P7 tiene que declararla.
+- **Ventana fijada y abandonada sin consulta (D-78, OD-T25-10):** una D-nn la cierra. Es
+  `VIRGEN_REUTILIZABLE` solo si se demuestran 0 accesos a desenlaces en `paper_outcome_access`, sellado
+  ininterrumpido y evidencia verificable, y entonces **sigue sellada** mientras se conserve. Con
+  cualquier acceso, directo o indirecto, es `CONSUMIDA`.
+- **Elegibilidad de una ventana `VIRGEN_REUTILIZABLE` (D-79, OD-T25-12 A; sin excepción a GATE P7):**
+  solo es holdout de P7 para una candidata **completamente congelada antes de la primera sesión de esa
+  ventana** (como mínimo política, geometría, entrada, salida, sizing, arquitectura de cartera, costes,
+  universo aplicable, configuración y código e identidad del pre-registro de P7), conforme al requisito
+  1. Si la candidata se congela después de que la ventana haya empezado o terminado, la ventana no es
+  elegible para ella aunque sus desenlaces sigan siendo vírgenes, y P7 usa una ventana futura posterior
+  a la congelación. Si la ventana deja de ser útil, una D-nn puede liberarla; al consultar sus
+  desenlaces queda consumida.
+- Toda observación cuyo desenlace se consulte durante T-025 queda consumida y no puede ser holdout
+  virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10.6).
 
 Requisitos:
 
@@ -301,6 +443,15 @@ Requisitos:
    estimador primario e intervalos; sin tocar ninguna regla a mitad.
 4. Es la **única** validación no condicionada al universo 2026, porque las
    señales se generan sin conocer el futuro y sobre el universo vigente.
+
+Nota (D-74): el contrato de persistencia de T-025 (§5 de su ficha) cubre buena parte del registro
+del requisito 2, con tres diferencias:
+- falta `context_state`, que llega con la línea B (B-07);
+- el desenlace es por posición abierta, no por cada señal;
+- el «alfa» se lee como exceso frente al buy-and-hold, y P10 tendrá que definirlo.
+
+T-025 construye ese registrador, pero **no es P10**: P10 exige la política, la cartera y el riesgo
+finales con un tag congelado.
 
 Desbloquea: release final y paquete de revisión externa.
 

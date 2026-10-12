@@ -12,15 +12,15 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from importlib import metadata
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Mapping, Optional
 from urllib.parse import quote
 
 import pandas as pd
 
-from advisor.data.market_data import MarketDataProvider
+from advisor.data.market_data import MarketDataProvider, validate_exact_range
 from advisor.universe.models import Asset, Universe
 
 RAW_COLUMNS = ("Open", "High", "Low", "Close", "Adj Close", "Volume", "Dividends", "Stock Splits")
@@ -76,11 +76,14 @@ def freeze_vintage(
     symbols: Iterable[str],
     provider: MarketDataProvider,
     *,
-    period: str,
+    period: Optional[str] = None,
     interval: str,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
     root_dir: str | Path = "data/vintages",
     downloaded_at: Optional[datetime] = None,
     universe_vintage: Optional[str] = None,
+    request_context: Optional[Mapping[str, object]] = None,
 ) -> VintageRunResult:
     """Descarga símbolos, persiste CSV deterministas y escribe el manifiesto.
 
@@ -88,16 +91,45 @@ def freeze_vintage(
     con qué universo se congeló. Sin él, la guarda de INV-08 ampliada que
     compara universos en `replay_managed_population` no se dispara nunca,
     porque el campo que consulta no lo escribía nadie.
+
+    La petición es por ``period`` (la de siempre, manifiesto ``schema_version``
+    1 sin cambios) o exacta por ``start``/``end`` (``start`` inclusivo, ``end``
+    exclusivo, como en yfinance), nunca las dos. La exacta escribe
+    ``schema_version`` 2 con la petición completa en ``request`` y rechaza el
+    símbolo cuya respuesta traiga alguna barra fuera de ``[start, end)``.
+    ``request_context`` (solo en la exacta) queda en ``request.context`` y
+    entra en el hash: liga la cosecha al contexto que la pidió.
     """
 
+    exact = validate_exact_range(start, end)
+    if exact == (period is not None):
+        raise ValueError("freeze_vintage: o period, o start y end; exactamente una de las dos peticiones")
+    if request_context is not None and not exact:
+        raise ValueError("freeze_vintage: request_context solo existe en la petición exacta")
     timestamp = _downloaded_at(downloaded_at)
     root = Path(root_dir)
+    requested = _unique_symbols(symbols)
     prepared: List[tuple[str, str, pd.DataFrame, Dict]] = []
     failed: Dict[str, str] = {}
 
-    for symbol in _unique_symbols(symbols):
+    for symbol in requested:
         try:
-            raw = normalize_raw_history(provider.get_raw_history(symbol, period=period, interval=interval))
+            if exact:
+                assert start is not None and end is not None
+                history = provider.get_raw_history(symbol, interval=interval, start=start, end=end)
+                _require_inside_range(history, start, end)
+                request_fields: Dict = {
+                    "requested_start": start,
+                    "requested_end": end,
+                    "end_exclusive": True,
+                    "auto_adjust": False,
+                    "actions": True,
+                }
+            else:
+                assert period is not None
+                history = provider.get_raw_history(symbol, period=period, interval=interval)
+                request_fields = {"requested_range": period}
+            raw = normalize_raw_history(history)
             series_hash = hash_series(raw)
             actions_hash = hash_actions(raw)
             filename = _filename_for_symbol(symbol)
@@ -110,7 +142,7 @@ def freeze_vintage(
                         "symbol": symbol,
                         "filename": filename,
                         "interval": interval,
-                        "requested_range": period,
+                        **request_fields,
                         "series_hash": series_hash,
                         "corporate_actions_hash": actions_hash,
                         "provider": PROVIDER,
@@ -126,12 +158,27 @@ def freeze_vintage(
     if not prepared:
         raise ValueError("No se pudo congelar ningún símbolo")
 
-    manifest_body = {
-        "schema_version": 1,
+    manifest_body: Dict = {
+        "schema_version": 2 if exact else 1,
         "created_at": timestamp,
         "assets": [entry for _, _, _, entry in prepared],
         "failed": [{"symbol": symbol, "error": failed[symbol]} for symbol in sorted(failed)],
     }
+    if exact:
+        manifest_body["request"] = {
+            "symbols": requested,
+            "symbols_sha256": hash_symbol_list(requested),
+            "start": start,
+            "end": end,
+            "end_exclusive": True,
+            "interval": interval,
+            "auto_adjust": False,
+            "actions": True,
+            "provider": PROVIDER,
+            "provider_version": _provider_version(),
+        }
+        if request_context is not None:
+            manifest_body["request"]["context"] = dict(request_context)
     # Va dentro del cuerpo que se hashea a propósito: el universo forma parte
     # de la identidad de la cosecha, no es un adorno. Consecuencia asumida: las
     # cosechas congeladas a partir de aquí tienen un `data_vintage_id` distinto
@@ -195,6 +242,101 @@ def load_vintage(data_vintage_id: str, *, root_dir: str | Path = "data/vintages"
     return VintageLoad(data_vintage_id=data_vintage_id, manifest=manifest, by_symbol=loaded)
 
 
+@dataclass(frozen=True)
+class VintageStructure:
+    """Fechas y acciones corporativas de una cosecha, sin precios.
+
+    ``by_symbol`` tiene, por símbolo, las filas que ``load_vintage`` conservaría (mismo índice que
+    ``execution_prices``) con solo ``Dividends`` y ``Stock Splits``, verificadas contra el
+    ``corporate_actions_hash`` del manifiesto.
+    """
+
+    data_vintage_id: str
+    manifest: Dict
+    by_symbol: Dict[str, pd.DataFrame]
+
+
+def _verified_manifest(data_vintage_id: str, root_dir: str | Path) -> tuple[Path, Dict]:
+    vintage_dir = Path(root_dir) / data_vintage_id
+    manifest_path = vintage_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"No existe el manifiesto de la cosecha: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("data_vintage_id") != data_vintage_id:
+        raise ValueError("El data_vintage_id del manifiesto no coincide con el directorio solicitado")
+    manifest_body = {k: v for k, v in manifest.items() if k not in {"manifest_hash", "data_vintage_id"}}
+    expected_manifest_hash = manifest.get("manifest_hash")
+    if hash_manifest(manifest_body) != expected_manifest_hash or expected_manifest_hash != data_vintage_id:
+        raise ValueError("Hash de manifiesto inválido: la cosecha fue editada o está corrupta")
+    return vintage_dir, manifest
+
+
+def _structural_rows(path: Path) -> pd.DataFrame:
+    """Filas de ``read_raw_csv`` con solo las acciones corporativas.
+
+    Las columnas de precio se leen como texto y solo para saber qué filas descarta
+    ``normalize_raw_history`` (las que tienen algún precio vacío): ningún precio se convierte a número.
+    """
+
+    df = pd.read_csv(path, index_col="timestamp", dtype=str)
+    df.index = pd.Index([str(value) for value in df.index], name="timestamp")
+    df = df.sort_index()
+    df.index = pd.Index([_normalize_timestamp(ts) for ts in df.index], name="timestamp")
+    present = [column for column in PRICE_COLUMNS if column in df.columns]
+    keep = df[present].notna().all(axis=1) if len(present) == len(PRICE_COLUMNS) else pd.Series(False, index=df.index)
+    actions = pd.DataFrame(index=df.index)
+    for column in ACTION_COLUMNS:
+        actions[column] = df[column].astype(float).fillna(0.0) if column in df.columns else 0.0
+    actions = actions.loc[keep.to_numpy()]
+    if actions.empty:
+        raise ValueError("histórico vacío tras limpiar precios")
+    return actions
+
+
+def load_vintage_structure(data_vintage_id: str, *, root_dir: str | Path = "data/vintages") -> VintageStructure:
+    """Carga solo fechas y acciones corporativas, verificadas contra el manifiesto, sin abrir precios."""
+
+    vintage_dir, manifest = _verified_manifest(data_vintage_id, root_dir)
+    loaded: Dict[str, pd.DataFrame] = {}
+    for asset_entry in manifest["assets"]:
+        symbol = asset_entry["symbol"]
+        actions = _structural_rows(vintage_dir / asset_entry["filename"])
+        if _hash_action_rows(actions) != asset_entry["corporate_actions_hash"]:
+            raise ValueError(f"Hash de acciones corporativas inválido para {symbol}")
+        loaded[symbol] = actions
+    return VintageStructure(data_vintage_id=data_vintage_id, manifest=manifest, by_symbol=loaded)
+
+
+def load_price_rows(
+    data_vintage_id: str,
+    symbol: str,
+    timestamps: Iterable[str],
+    columns: Iterable[str],
+    *,
+    root_dir: str | Path = "data/vintages",
+) -> pd.DataFrame:
+    """Lee solo las filas y columnas pedidas de un símbolo, ya normalizadas.
+
+    Sirve para comprobaciones estructurales que necesitan unos pocos precios (p. ej. la coherencia
+    dividendo/split en las fechas ex) sin construir las vistas. ``Adj Close`` no entra en
+    ``series_hash``; estas filas no se verifican contra el manifiesto, solo el manifiesto en sí.
+    """
+
+    vintage_dir, manifest = _verified_manifest(data_vintage_id, root_dir)
+    entry = next((asset for asset in manifest["assets"] if asset["symbol"] == symbol), None)
+    if entry is None:
+        raise KeyError(f"{symbol} no está en la cosecha {data_vintage_id}")
+    wanted = set(timestamps)
+    cols = list(columns)
+    df = pd.read_csv(vintage_dir / entry["filename"], index_col="timestamp", dtype=str)
+    df.index = pd.Index([_normalize_timestamp(str(ts)) for ts in df.index], name="timestamp")
+    rows = df.loc[df.index.isin(wanted), cols].astype(float)
+    missing = wanted - set(rows.index)
+    if missing:
+        raise KeyError(f"{symbol}: filas ausentes en la cosecha: {sorted(missing)[:3]}")
+    return rows.sort_index()
+
+
 def resolve_vintage_id(value: str, root_dir: str | Path = "data/vintages") -> str:
     """Acepta el identificador entero o un prefijo inequívoco.
 
@@ -248,9 +390,36 @@ def hash_series(raw: pd.DataFrame) -> str:
 def hash_actions(raw: pd.DataFrame) -> str:
     """Hash canónico de dividendos y splits."""
 
-    normalized = normalize_raw_history(raw)
+    return _hash_action_rows(normalize_raw_history(raw))
+
+
+def _hash_action_rows(normalized: pd.DataFrame) -> str:
     rows = _canonical_rows(normalized, CANONICAL_ACTION_COLUMNS)
     return _sha256(_canonical_json({"columns": CANONICAL_ACTION_COLUMNS, "rows": rows}))
+
+
+def hash_symbol_list(symbols: Iterable[str]) -> str:
+    """Hash de una lista de símbolos en su orden: SHA-256 de los símbolos unidos por saltos de línea."""
+
+    return _sha256("\n".join(symbols))
+
+
+def _require_inside_range(history: pd.DataFrame, start: str, end: str) -> None:
+    """Rechaza una respuesta con barras en ``end`` o después (``end`` es exclusivo).
+
+    La fecha de cada barra es la de su propia marca temporal, en la zona en que la sirve el proveedor (la
+    de la plaza), antes de normalizar a UTC: una sesión asiática a medianoche local cae el día anterior
+    en UTC. No se recorta nada: una barra en o tras ``end`` invalida el símbolo. ``start`` lo aplica el
+    proveedor y no se revalida: una barra anterior es historia de más, no información posterior, y un
+    desfase de zona en la primera barra no puede dejar inservible una cosecha entera.
+    """
+
+    if history is None or history.empty:
+        return
+    last = date.fromisoformat(end)
+    outside = sorted({pd.Timestamp(ts).date() for ts in history.index if pd.Timestamp(ts).date() >= last})
+    if outside:
+        raise ValueError(f"barras fuera de la petición [{start}, {end}): {[d.isoformat() for d in outside[:3]]}")
 
 
 def hash_manifest(manifest_body: Dict) -> str:

@@ -29,7 +29,7 @@ import pandas as pd
 
 from advisor.analysis.execution import evaluate_trade_at_entry
 from advisor.analysis.levels import compute_levels
-from advisor.analysis.market_context import build_market_context
+from advisor.analysis.market_context import MarketContext, build_market_context
 from advisor.analysis.opportunity import (
     ACCION_COMPRAR,
     ACCION_VERIFICAR_BROKER,
@@ -39,7 +39,7 @@ from advisor.analysis.opportunity import (
 )
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import SnapshotSeries, build_snapshot, build_snapshot_series, snapshot_from_series
-from advisor.config import AdvisorConfig
+from advisor.config import AdvisorConfig, scoring_for_requested_model
 from advisor.research.event_study import score_band
 from advisor.research.observations import build_signal_observation
 from advisor.universe.models import Asset
@@ -89,6 +89,7 @@ class BacktestTrade:
     cost_pct: float
     signal_id: str = ""
     execution_reason: str = ""
+    score_model_version: str = "1.0"
 
     @property
     def gross_return_pp(self) -> float:
@@ -160,20 +161,36 @@ def _signal_from_snapshot(
     vix_at: Optional[Sequence[Optional[float]]],
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
+    score_model_version: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     levels = compute_levels(snapshot, config.levels, config.risk.min_rr_ratio)
     if levels is None:
         return None
 
-    context = build_market_context(
-        vix_at[j] if vix_at is not None else None,
-        trend_price_at[j] if trend_price_at is not None else None,
-        trend_sma_at[j] if trend_sma_at is not None else None,
-        config.market_context,
+    if market_context_at is not None:
+        context = market_context_at[j]
+        if context is None:
+            return None
+    else:
+        context = build_market_context(
+            vix_at[j] if vix_at is not None else None,
+            trend_price_at[j] if trend_price_at is not None else None,
+            trend_sma_at[j] if trend_sma_at is not None else None,
+            config.market_context,
+        )
+    requested_score_model = score_model_version or config.scoring.score_model_version
+    scoring = scoring_for_requested_model(config.scoring, requested_score_model)
+    score = compute_score(
+        snapshot,
+        context,
+        scoring,
+        model_version=requested_score_model,
+        levels=levels if requested_score_model == "1.0" else None,
+        min_bars=min_bars if requested_score_model == "1.0" else None,
     )
-    score = compute_score(snapshot, levels, context, config.scoring, min_bars)
-    setup_radar, setup_accion, _ = classify_setup(score, levels, context, config.scoring, config.risk, horizonte)
-    radar, accion, _ = classify(score, levels, context, config.scoring, config.risk, asset, horizonte)
+    setup_radar, setup_accion, _ = classify_setup(score, levels, context, scoring, config.risk, horizonte)
+    radar, accion, _ = classify(score, levels, context, scoring, config.risk, asset, horizonte)
 
     return {
         "score": score.value,
@@ -207,6 +224,8 @@ def _signal_prefix(
     vix_at: Optional[Sequence[Optional[float]]],
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
+    score_model_version: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Evalúa la señal al cierre de la vela ``j`` con datos hasta esa vela."""
 
@@ -217,7 +236,8 @@ def _signal_prefix(
         return None
 
     return _signal_from_snapshot(
-        asset, snapshot, j, config, horizonte, min_bars, vix_at, trend_price_at, trend_sma_at
+        asset, snapshot, j, config, horizonte, min_bars,
+        vix_at, trend_price_at, trend_sma_at, market_context_at, score_model_version,
     )
 
 
@@ -231,6 +251,8 @@ def _signal(
     vix_at: Optional[Sequence[Optional[float]]],
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
+    score_model_version: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Evalúa la señal al cierre de la vela ``j`` desde indicadores precalculados."""
 
@@ -239,7 +261,8 @@ def _signal(
     except ValueError:
         return None
     return _signal_from_snapshot(
-        asset, snapshot, j, config, horizonte, min_bars, vix_at, trend_price_at, trend_sma_at
+        asset, snapshot, j, config, horizonte, min_bars,
+        vix_at, trend_price_at, trend_sma_at, market_context_at, score_model_version,
     )
 
 
@@ -273,10 +296,12 @@ def simulate_asset(
     vix_at: Optional[Sequence[Optional[float]]] = None,
     trend_price_at: Optional[Sequence[Optional[float]]] = None,
     trend_sma_at: Optional[Sequence[Optional[float]]] = None,
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
     min_bars: Optional[int] = None,
     entry_discipline: EntryDiscipline = ENTRY_RESPECT_ENTRY_MAX,
     rejected_signals: Optional[List[ExecutionRejectedSignal]] = None,
     broker_neutral: bool = False,
+    score_model_version: Optional[str] = None,
 ) -> List[BacktestTrade]:
     """Simula todas las operaciones de ``asset`` sobre su histórico.
 
@@ -322,6 +347,7 @@ def simulate_asset(
             cost_pct=cost_pct,
             signal_id=position["observation"].signal_id,
             execution_reason=position["execution_reason"],
+            score_model_version=position["observation"].score_model_version,
         )
 
     for j in range(warmup, len(df)):
@@ -369,7 +395,7 @@ def simulate_asset(
         if position is None and j < len(df) - 1:
             signal = _signal(
                 asset, snapshot_series, j, config, horizonte, warmup,
-                vix_at, trend_price_at, trend_sma_at,
+                vix_at, trend_price_at, trend_sma_at, market_context_at, score_model_version,
             )
             if signal is not None and (
                 policy == POLICY_TODAS
@@ -402,7 +428,7 @@ def _rejected_signal(
         signal_date=df.index[observation.signal_idx],
         open_date=df.index[open_index],
         score=pending["score"],
-        score_band=score_band(pending["score"]),
+        score_band=score_band(pending["score"], observation=pending["observation"]),
         radar=pending["radar"],
         accion=pending["accion"],
         setup_radar=pending["setup_radar"],

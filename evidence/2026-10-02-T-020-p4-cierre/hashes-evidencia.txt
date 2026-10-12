@@ -1,0 +1,28 @@
+# Verificación de la evidencia congelada de la ejecución (2026-10-02T07:05:02Z)
+$ (cd evidence/2026-10-01-T-020-p4/run && shasum -a 256 -c SHA256SUMS-ejecucion.txt)
+./consola-confirmatoria.txt: OK
+./EJECUCION_CONFIRMATORIA_P4_INICIADA: OK
+./p4-resultado.json: OK
+./p4-resumen.md: OK
+./tablas/bloques-60.tsv: OK
+./tablas/capacidad.tsv: OK
+./tablas/criterio.tsv: OK
+./tablas/e1-categorias.tsv: OK
+./tablas/emparejamiento.tsv: OK
+./tablas/estimaciones.tsv: OK
+./tablas/nivel.tsv: OK
+./tablas/recuento.tsv: OK
+
+$ git diff --stat cfa365d -- evidence/2026-10-01-T-020-p4/run   (vacío = sin cambios)
+
+$ git diff --stat 3df8230 -- advisor config.yaml deploy   (vacío = sin cambios)
+
+# SHA256 de esta carpeta de cierre
+055d400666b96eccc41623b898b3c7874032d57ab73dc4ab9ecaa0064e1299c6  README.md
+ffb76c9f35739671ec264939ecf5ea66f56c5cf424a8a20d8d4495d31e37ddcc  estratos-congelados.md
+8ea53b63a41fbf7e7108fd2b33492de1fd7f23241fc09fe9a103dc110d66539e  final-pytest-ruff-mypy.txt
+1aa1d61da874cde9862967c04c733b6734e085dbfefda2432907816e0b4207fc  gate-p4-final.md
+970d0fd359d5e0dc108073067c09b60bc33ca3c739533f7e706de17344cdfcf5  leer_estratos.py
+1ecb14adc2091836c4858214db52a983145e99ebc72f802d528edd839d5e0a76  resultado-y-heterogeneidad.md
+23de7dce2a15dee84f8de78db68a9b842a8d295095bbb34acc0251c3dc64068c  revision-final.md
+4ccc79e86da33113178ad10e462294118f4dc18f4b0a2e732b8f79e8584d7ff5  revision-look-ahead.md

@@ -61,9 +61,12 @@ from advisor.research.capacity import (
 )
 from advisor.research.event_study import format_event_study_report, run_event_study
 from advisor.research.execution_filter import format_execution_filter_report, run_execution_filter_study
+from advisor.research.p3 import CONFIRMATORY_OUTPUT_DIR as P3_CONFIRMATORY_OUTPUT_DIR
+from advisor.research.p3 import DATA_VINTAGE_ID as P3_DATA_VINTAGE_ID
+from advisor.research.p3 import P3Identity, format_preflight, run_confirmatory, run_preflight
 from advisor.research.population import resolve_research_population
 from advisor.research.uncertainty import compare_target_geometry, format_paired_comparison
-from advisor.research.vintage import freeze_vintage, select_symbols
+from advisor.research.vintage import freeze_vintage, load_vintage, select_symbols
 from advisor.run.manifest import RunManifest, build_run_manifest, format_manifest_footer
 from advisor.storage.db import AdvisorDB, check_backup, format_backup_check
 from advisor.storage.migrations import LATEST_VERSION
@@ -742,6 +745,109 @@ def cmd_capacidad_estadistica(args: argparse.Namespace, config: AdvisorConfig, u
     return 0
 
 
+def cmd_p3(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    """Ejecutor único de P3 (T-019 paso 3). Sin parámetros que cambien reglas."""
+
+    from advisor.run.git import git_dirty, git_sha
+    from advisor.run.manifest import config_hash
+
+    dirty = git_dirty()
+    ident = P3Identity(executor_sha=git_sha(), git_dirty=dirty.value, config_hash=config_hash(config))
+    if args.fase == "preflight":
+        if args.salida is None:
+            raise ValueError("el preflight necesita --salida")
+        vintage = load_vintage(P3_DATA_VINTAGE_ID)
+        ok, report, _ = run_preflight(config, universe, vintage, ident, Path(args.salida))
+        print(format_preflight(report))
+        return 0 if ok else 2
+    if args.salida is not None:
+        raise ValueError(f"la ejecución confirmatoria no acepta --salida: escribe siempre en {P3_CONFIRMATORY_OUTPUT_DIR}")
+    vintage = load_vintage(P3_DATA_VINTAGE_ID)
+    code, text = run_confirmatory(config, universe, vintage, ident, P3_CONFIRMATORY_OUTPUT_DIR)
+    print(text)
+    return code
+
+
+def cmd_p4(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    """Ejecutor único de P4 (T-020 / A-04). La fase es lo único que se elige."""
+
+    from advisor.research import p4
+
+    ident = p4.current_identity(config)
+    vintage = load_vintage(p4.DATA_VINTAGE_ID)
+    if args.fase == "preflight":
+        development = p4.development_mode()
+        if not development and ident.git_dirty is not False:
+            raise ValueError(
+                f"el preflight definitivo exige el árbol limpio (git_dirty={ident.git_dirty}); "
+                f"para iterar sin escribir evidencia: {p4.DEVELOPMENT_ENV}=1"
+            )
+        ok, report = p4.run_preflight(config, universe, vintage, ident, development=development)
+        print(p4.format_preflight(report), end="")
+        return 0 if ok else 2
+    try:
+        code, text = p4.run_confirmatory(config, universe, vintage, ident, p4.CONFIRMATORY_OUTPUT_DIR)
+    except (p4.P4PreflightError, p4.P4AlreadyExecutedError) as exc:
+        print(f"STOP: {exc}", file=sys.stderr)
+        return 2
+    print(text, end="")
+    return code
+
+
+def cmd_p5(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    """Ejecutor único de P5 (T-021 / A-05). La fase es lo único que se elige."""
+
+    from advisor.research import p5
+
+    ident = p5.current_identity(config)
+    vintage = load_vintage(p5.DATA_VINTAGE_ID)
+    if args.fase == "preflight":
+        development = p5.development_mode()
+        if not development and ident.git_dirty is not False:
+            raise ValueError(
+                f"el preflight definitivo exige el árbol limpio (git_dirty={ident.git_dirty}); "
+                f"para iterar sin escribir evidencia: {p5.DEVELOPMENT_ENV}=1"
+            )
+        ok, report = p5.run_preflight(config, universe, vintage, ident, development=development)
+        print(p5.format_preflight(report), end="")
+        return 0 if ok else 2
+    try:
+        code, text = p5.run_confirmatory(config, universe, vintage, ident, p5.CONFIRMATORY_OUTPUT_DIR)
+    except (p5.P5PreflightError, p5.P5AlreadyExecutedError) as exc:
+        print(f"STOP: {exc}", file=sys.stderr)
+        return 2
+    print(text, end="")
+    return code
+
+
+def cmd_p6(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
+    """Ejecutor único de P6 (T-022 / A-06). La fase es lo único que se elige."""
+
+    from advisor.research import p6
+
+    ident = p6.current_identity(config)
+    if args.fase == "preflight":
+        development = p6.development_mode()
+        if not development and ident.git_dirty is not False:
+            raise ValueError(
+                f"el preflight definitivo exige el árbol limpio (git_dirty={ident.git_dirty}); "
+                f"para iterar sin escribir evidencia: {p6.DEVELOPMENT_ENV}=1"
+            )
+        ok, report = p6.run_preflight(
+            config, universe, p6.load_structure(), ident, development=development,
+            determinism=p6.synthetic_determinism(),
+        )
+        print(p6.format_preflight(report), end="")
+        return 0 if ok else 2
+    try:
+        code, text = p6.run_confirmatory(config, universe, ident, p6.RUN_DIR)
+    except (p6.P6PreflightError, p6.P6AlreadyExecutedError) as exc:
+        print(f"STOP: {exc}", file=sys.stderr)
+        return 2
+    print(text, end="")
+    return code
+
+
 def cmd_ablacion_score(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     universe = resolve_research_population(universe, args.poblacion)
     result = run_event_study(
@@ -1140,6 +1246,35 @@ def build_parser() -> argparse.ArgumentParser:
     ablacion.add_argument("--poblacion", choices=["vigente", "d31", "pre-d31"], default="vigente")
     ablacion.add_argument("--data-dir", default="data/vintages", help="directorio raíz de cosechas versionadas")
     ablacion.set_defaults(func=cmd_ablacion_score)
+
+    p3 = sub.add_parser(
+        "p3",
+        help="ejecutor único de P3 (T-019): preflight sin desenlaces o la ejecución confirmatoria, una sola vez",
+    )
+    p3.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
+    p3.add_argument("--salida", help="directorio de salida del preflight (la confirmatoria usa una ruta fija)")
+    p3.set_defaults(func=cmd_p3)
+
+    p4_parser = sub.add_parser(
+        "p4",
+        help="ejecutor único de P4 (T-020): preflight sin desenlaces o la ejecución confirmatoria, una sola vez",
+    )
+    p4_parser.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
+    p4_parser.set_defaults(func=cmd_p4)
+
+    p5_parser = sub.add_parser(
+        "p5",
+        help="ejecutor único de P5 (T-021): preflight o ejecución confirmatoria, una sola vez",
+    )
+    p5_parser.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
+    p5_parser.set_defaults(func=cmd_p5)
+
+    p6_parser = sub.add_parser(
+        "p6",
+        help="P6 (T-022): simulador de cartera de B2 y S2; preflight sin desenlaces o la única ejecución confirmatoria",
+    )
+    p6_parser.add_argument("--fase", choices=["preflight", "confirmatoria"], required=True)
+    p6_parser.set_defaults(func=cmd_p6)
 
     comparacion = sub.add_parser("comparacion-pareada", help="mide P2.6 con bootstrap por bloques pareados")
     comparacion.add_argument("data_vintage_id", help="identificador de la cosecha congelada")

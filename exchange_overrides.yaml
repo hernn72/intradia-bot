@@ -9,3 +9,29 @@ XKRX:
       fuente: "https://en.sedaily.com/finance/2026/05/20/korea-exchange-to-close-on-local-election-day-constitution"
       verificado_el: 2026-09-16
   aperturas_forzadas: []
+XHKG:
+  cierres_adicionales:
+    - fecha: 2023-09-01
+      motivo: "Tifón Saola (T8): HKEX canceló la sesión completa"
+      fuente: "CNBC 2023-09-01; SCMP"
+      verificado_el: 2026-09-29
+    - fecha: 2023-09-08
+      motivo: "Aviso de lluvia negra todo el día: HKEX canceló la sesión"
+      fuente: "HKEX, comunicado 230908; SCMP"
+      verificado_el: 2026-09-29
+  aperturas_forzadas: []
+XTAI:
+  cierres_adicionales:
+    - fecha: 2023-01-18
+      motivo: "La TWSE no negoció antes del Año Nuevo Lunar; mercado sin negociación, solo liquidación"
+      fuente: "Calendario oficial de la TWSE, año 112"
+      verificado_el: 2026-09-29
+    - fecha: 2024-10-31
+      motivo: "Tifón Kong-rey: la TWSE suspendió la sesión"
+      fuente: "Bloomberg 2024-10-30/31"
+      verificado_el: 2026-09-29
+    - fecha: 2026-07-10
+      motivo: "Tifón Bavi: la TWSE suspendió la sesión"
+      fuente: "Bloomberg 2026-07-10; Reuters vía TradingView"
+      verificado_el: 2026-09-29
+  aperturas_forzadas: []

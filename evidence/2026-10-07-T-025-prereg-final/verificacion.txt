@@ -1,0 +1,12 @@
+Verificación sobre 4efcba1de5163fbfa7e6e69691dc09fd86bbad64 — 2026-10-07T10:09:06Z, antes del commit de congelación de T-025.
+El commit de congelación solo añade documentación y evidencia (ninguna ruta de EXECUTOR_PATHS).
+$ python -m pytest -q
+1430 passed, 20 skipped, 3 warnings in 118.72s (0:01:58)
+$ ruff check .
+All checks passed!
+$ mypy advisor
+Success: no issues found in 79 source files
+$ git diff --quiet 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0 HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt
+exit 0
+$ verificar_identidad()
+1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0

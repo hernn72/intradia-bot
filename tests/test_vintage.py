@@ -10,7 +10,16 @@ from pandas.testing import assert_frame_equal
 
 from advisor.config import LevelsConfig
 from advisor.research.event_study import EventStudyResult, replay_managed_population
-from advisor.research.vintage import build_views, freeze_vintage, hash_series, load_vintage
+from advisor.research.vintage import (
+    _structural_rows,
+    build_views,
+    freeze_vintage,
+    hash_series,
+    load_price_rows,
+    load_vintage,
+    load_vintage_structure,
+    read_raw_csv,
+)
 
 
 class RawProvider:
@@ -184,3 +193,78 @@ def test_load_vintage_rechaza_series_editadas_a_mano(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="Hash de serie inválido"):
         load_vintage(result.data_vintage_id, root_dir=tmp_path)
+
+
+def _frozen(tmp_path, histories: dict[str, pd.DataFrame]):
+    return freeze_vintage(
+        list(histories),
+        RawProvider(histories),
+        period="1y",
+        interval="1d",
+        root_dir=tmp_path,
+        downloaded_at=datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc),
+    )
+
+
+def test_estructura_reproduce_indice_y_acciones_sin_precios(tmp_path) -> None:
+    con_hueco = _raw_history()
+    con_hueco.loc[con_hueco.index[1], "Close"] = float("nan")
+    result = _frozen(tmp_path, {"AAPL": _raw_history_mantisa_completa(), "MSFT": con_hueco})
+
+    full = load_vintage(result.data_vintage_id, root_dir=tmp_path)
+    structure = load_vintage_structure(result.data_vintage_id, root_dir=tmp_path)
+
+    for symbol in ("AAPL", "MSFT"):
+        frame = structure.by_symbol[symbol]
+        assert list(frame.columns) == ["Dividends", "Stock Splits"]
+        assert frame.index.equals(full.by_symbol[symbol].execution_prices.index)
+        pd.testing.assert_frame_equal(
+            frame, full.by_symbol[symbol].raw[["Dividends", "Stock Splits"]].astype(float), check_dtype=False
+        )
+    # La fila sin Close la descarta igual que load_vintage.
+    assert len(structure.by_symbol["MSFT"]) == 3
+
+
+def test_estructura_rechaza_acciones_editadas_y_no_lee_precios_editados(tmp_path) -> None:
+    result = _frozen(tmp_path, {"AAPL": _raw_history()})
+    csv_path = result.manifest_path.parent / "AAPL.csv"
+    original = csv_path.read_text(encoding="utf-8")
+
+    # Un precio editado no cambia ni las fechas ni las acciones: la estructura no lo ve.
+    csv_path.write_text(original.replace("121.5", "121.6", 1), encoding="utf-8")
+    load_vintage_structure(result.data_vintage_id, root_dir=tmp_path)
+
+    csv_path.write_text(original.replace("0.25", "0.26", 1), encoding="utf-8")
+    with pytest.raises(ValueError, match="acciones corporativas"):
+        load_vintage_structure(result.data_vintage_id, root_dir=tmp_path)
+
+
+def test_filas_de_precio_solo_las_pedidas(tmp_path) -> None:
+    result = _frozen(tmp_path, {"AAPL": _raw_history()})
+    stamps = list(load_vintage_structure(result.data_vintage_id, root_dir=tmp_path).by_symbol["AAPL"].index)
+
+    rows = load_price_rows(result.data_vintage_id, "AAPL", stamps[1:3], ("Close", "Adj Close"), root_dir=tmp_path)
+
+    assert list(rows.index) == stamps[1:3] and list(rows.columns) == ["Close", "Adj Close"]
+    assert rows["Close"].tolist() == [121.5, 122.5]
+    with pytest.raises(KeyError):
+        load_price_rows(result.data_vintage_id, "AAPL", ["2030-01-01"], ("Close",), root_dir=tmp_path)
+
+
+def test_filas_estructurales_coinciden_con_read_raw_csv_con_precio_vacio(tmp_path) -> None:
+    """CSV escrito a mano: fila con Close vacío, dividendo vacío y orden desordenado."""
+
+    path = tmp_path / "X.csv"
+    path.write_text(
+        "timestamp,Open,High,Low,Close,Adj Close,Volume,Dividends,Stock Splits\n"
+        "2024-06-09T00:00:00Z,3,3,3,3,3,10,0.5,0\n"
+        "2024-06-07T00:00:00Z,1,1,1,1,1,10,,0\n"
+        "2024-06-08T00:00:00Z,2,2,2,,2,10,0.25,2\n",
+        encoding="utf-8",
+    )
+
+    full = read_raw_csv(path)
+    rows = _structural_rows(path)
+
+    assert rows.index.equals(full.index) and list(rows.index) == ["2024-06-07T00:00:00Z", "2024-06-09T00:00:00Z"]
+    pd.testing.assert_frame_equal(rows, full[["Dividends", "Stock Splits"]].astype(float), check_dtype=False)

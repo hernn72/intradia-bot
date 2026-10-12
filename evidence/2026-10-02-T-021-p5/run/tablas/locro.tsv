@@ -1,0 +1,8 @@
+# condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+centro	sin_region	denominador	pares	estimable	media_delta_r	ic_inferior	ic_superior	pares_minimos	motivos
+B2	USA	56353	56329	True	0.067950	0.015507	0.122806	50718	
+B2	EUROPA	66629	66626	True	0.077285	0.012695	0.139081	59967	
+B2	ASIA	83298	83275	True	0.070625	0.021085	0.119686	74969	
+S2	USA	56353	56328	True	0.038843	0.017103	0.059156	50718	
+S2	EUROPA	66629	66626	True	0.032699	0.004929	0.058428	59967	
+S2	ASIA	83298	83274	True	0.033781	0.014273	0.052136	74969	

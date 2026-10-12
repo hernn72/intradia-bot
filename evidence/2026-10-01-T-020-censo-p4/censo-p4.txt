@@ -1,0 +1,85 @@
+{
+  "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
+  "data_vintage_id": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+  "universe_vintage_id": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+  "config_score_model_version": "1.0",
+  "enumeracion": "run_event_study_on_vintage(swing, score_model_version='1.0'), desenlaces parcheados a None",
+  "a02_swing": 106363,
+  "cripto_excluido": 5112,
+  "cripto_activos": [
+    "BTC-EUR",
+    "ETH-EUR",
+    "SOL-EUR"
+  ],
+  "p4_swing": 101251,
+  "activos": 90,
+  "population_sha256_activo_sesion": "78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141",
+  "signal_ids_sha256": "9faa4a45beaba3eb8dafabf7990906cd8c89e8e06ae2f25edec7839cd48e629f",
+  "regiones": {
+    "ASIA": 17953,
+    "EMERGING_MARKETS": 1151,
+    "EUROPA": 34622,
+    "GLOBAL": 2627,
+    "USA": 44898
+  },
+  "bloques": {
+    "40": {
+      "espina_sesiones": 1302,
+      "bloques_espina": 33,
+      "bloques_ocupados": 30,
+      "primer_y_ultimo_ocupado": [
+        3,
+        32
+      ],
+      "bloque_ocupado_mas_corto": 22,
+      "valida_P2_5": false,
+      "senales_min_por_bloque": 1845
+    },
+    "60": {
+      "espina_sesiones": 1302,
+      "bloques_espina": 22,
+      "bloques_ocupados": 20,
+      "primer_y_ultimo_ocupado": [
+        2,
+        21
+      ],
+      "bloque_ocupado_mas_corto": 42,
+      "valida_P2_5": true,
+      "senales_min_por_bloque": 3599
+    },
+    "80": {
+      "espina_sesiones": 1302,
+      "bloques_espina": 17,
+      "bloques_ocupados": 16,
+      "primer_y_ultimo_ocupado": [
+        1,
+        16
+      ],
+      "bloque_ocupado_mas_corto": 22,
+      "valida_P2_5": false,
+      "senales_min_por_bloque": 1845
+    },
+    "120": {
+      "espina_sesiones": 1302,
+      "bloques_espina": 11,
+      "bloques_ocupados": 10,
+      "primer_y_ultimo_ocupado": [
+        1,
+        10
+      ],
+      "bloque_ocupado_mas_corto": 102,
+      "valida_P2_5": true,
+      "senales_min_por_bloque": 8842
+    }
+  },
+  "regimen_pit": {
+    "CAUTELA": 12431,
+    "NO_CALCULABLE_CONTEXT": 7157,
+    "RISK_OFF": 7944,
+    "RISK_ON": 73719
+  },
+  "no_calculable_por_codigo": {
+    "excluded_asia_missing": 396,
+    "excluded_trend_sma_history": 6937
+  }
+}

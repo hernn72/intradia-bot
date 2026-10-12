@@ -39,6 +39,8 @@ WEIGHTS = {
 }
 
 SCORE_MODEL_VERSION = "1.0"
+SCORE_MODEL_V2 = "2.0"
+IMPLEMENTED_SCORE_MODEL_VERSIONS = frozenset({SCORE_MODEL_VERSION, SCORE_MODEL_V2})
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,10 @@ class Score:
     score_model_version: str = SCORE_MODEL_VERSION
 
     @property
+    def model_version(self) -> str:
+        return self.score_model_version
+
+    @property
     def evaluable_max(self) -> float:
         """Puntos máximos sobre los que se ha podido puntuar realmente."""
         return sum(d.weight for d in self.dimensions if d.available)
@@ -127,6 +133,14 @@ class Score:
         if value >= 60:
             return "Vigilancia"
         return "No operar"
+
+
+def score_label(score: Score) -> str:
+    """Etiqueta de presentacion; los cortes cualitativos solo existen en v1."""
+
+    if score.score_model_version == "1.0":
+        return f"{score.value:.0f}/100 ({score.grade})"
+    return f"{score.value:.0f}/100 (sin umbral calibrado)"
 
 
 def _catalizador(snapshot: TechnicalSnapshot) -> Dimension:
@@ -321,12 +335,63 @@ def _conviccion(snapshot: TechnicalSnapshot, min_bars: int) -> Dimension:
 
 def compute_score(
     snapshot: TechnicalSnapshot,
+    *args: object,
+    model_version: Optional[str] = None,
+    levels: Optional[Levels] = None,
+    min_bars: Optional[int] = None,
+) -> Score:
+    """Puntúa una oportunidad con el modelo pedido.
+
+    La llamada nueva es ``compute_score(snapshot, context, config,
+    model_version=...)``. Score v1 necesita además ``levels`` y ``min_bars``;
+    se mantienen detrás de palabras clave para que Score v2 no pueda leerlos.
+    """
+
+    if len(args) == 2:
+        if not isinstance(args[0], MarketContext) or not isinstance(args[1], ScoringConfig):
+            raise TypeError("compute_score espera MarketContext y ScoringConfig")
+        context = args[0]
+        config = args[1]
+    elif len(args) == 4 and levels is None and min_bars is None:
+        # Compatibilidad con llamadas v1 antiguas: snapshot, levels, context,
+        # config, min_bars. No se admite para v2.
+        if (
+            not isinstance(args[0], Levels)
+            or not isinstance(args[1], MarketContext)
+            or not isinstance(args[2], ScoringConfig)
+            or not isinstance(args[3], int)
+        ):
+            raise TypeError("la firma legacy v1 espera levels, context, config y min_bars")
+        levels = args[0]
+        context = args[1]
+        config = args[2]
+        min_bars = args[3]
+    else:
+        raise TypeError(
+            "compute_score espera (snapshot, context, config, *, model_version, ...) "
+            "o la firma legacy v1"
+        )
+
+    requested = model_version or config.score_model_version
+    if requested == SCORE_MODEL_VERSION:
+        if levels is None or min_bars is None:
+            raise TypeError("Score v1 requiere levels y min_bars")
+        return _compute_score_v1(snapshot, levels, context, config, min_bars)
+    if requested == SCORE_MODEL_V2:
+        if levels is not None or min_bars is not None:
+            raise TypeError("Score v2 no acepta levels ni min_bars")
+        return _compute_score_v2(snapshot, context, config)
+    raise ValueError(f"score_model_version desconocida: {requested}")
+
+
+def _compute_score_v1(
+    snapshot: TechnicalSnapshot,
     levels: Levels,
     context: MarketContext,
     config: ScoringConfig,
     min_bars: int,
 ) -> Score:
-    """Puntúa una oportunidad combinando las seis dimensiones."""
+    """Score v1 histórico: conserva RR y convicción para reproducibilidad."""
 
     return Score(
         dimensions=[
@@ -338,4 +403,30 @@ def compute_score(
             _conviccion(snapshot, min_bars),
         ],
         score_model_version=SCORE_MODEL_VERSION,
+    )
+
+
+def _compute_score_v2(
+    snapshot: TechnicalSnapshot,
+    context: MarketContext,
+    config: ScoringConfig,
+) -> Score:
+    """Score v2: RR y convicción salen, sin redistribuir pesos."""
+
+    if context.source != "point_in_time":
+        raise ValueError("Score v2 exige MarketContext point_in_time")
+    if context.asia_change_pct is None:
+        raise ValueError("Score v2 exige asia_change_pct point-in-time calculable")
+    if context.vix_value is None:
+        raise ValueError("Score v2 exige vix_value point-in-time calculable")
+    if context.trend_price is None or context.trend_sma is None:
+        raise ValueError("Score v2 exige tendencia point-in-time calculable")
+    return Score(
+        dimensions=[
+            _catalizador(snapshot),
+            _fundamental(config),
+            _tecnico(snapshot),
+            _contexto(context),
+        ],
+        score_model_version=SCORE_MODEL_V2,
     )

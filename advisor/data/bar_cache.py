@@ -291,8 +291,12 @@ class CachedBarProvider:
         interval: str = "1d",
         *,
         drop_na: bool = True,
+        start: Optional[str] = None,
+        end: Optional[str] = None,
     ) -> pd.DataFrame:
-        return self._provider.get_raw_history(symbol, period=period, interval=interval, drop_na=drop_na)
+        if start is None and end is None:
+            return self._provider.get_raw_history(symbol, period=period, interval=interval, drop_na=drop_na)
+        return self._provider.get_raw_history(symbol, period=period, interval=interval, drop_na=drop_na, start=start, end=end)
 
     def get_last_close(
         self, symbol: str, period: str = "5d", interval: str = "1d"

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
@@ -17,6 +19,7 @@ from advisor.research.event_study import (
     evaluate_managed_event,
     evaluate_potential_event,
     event_economics,
+    score_band,
     summarize_by_score_band,
 )
 from advisor.research.observations import SignalObservation, stable_signal_id
@@ -83,6 +86,17 @@ def test_contrato_numerico_p21_con_numeros_cerrados() -> None:
 
 def test_signal_id_acepta_timestamp_iso_de_cosecha() -> None:
     assert stable_signal_id("AAPL", "swing", "2021-11-05T04:00:00Z") == "AAPL|swing|2021-11-05T04:00:00Z"
+
+
+def test_bandas_v1_rechazan_observaciones_v2() -> None:
+    observation = replace(_observation(score=62.0), score_model_version="2.0")
+
+    with pytest.raises(ValueError, match=r"score_model_version 1\.0"):
+        score_band(observation.score_value, observation=observation)
+    signal = _signal(score=62.0, status=TARGET_FIRST)
+    signal = replace(signal, observation=observation)
+    with pytest.raises(ValueError, match=r"score_model_version 1\.0"):
+        summarize_by_score_band([signal])
 
 
 @pytest.mark.parametrize(

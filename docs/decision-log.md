@@ -1000,6 +1000,1442 @@ tiene **20** intervalos:
 - medio = **309**, sin familia de umbrales;
 - total = **638**.
 
+### D-58 — 2026-09-30 — La migración v7 se despliega sola, como `v0.4.1`, antes de 2a-code
+Decisión del propietario, **separada del pre-registro de P3**. Enmienda el «no
+despliega nada en la Pi» de la ficha T-019 solo para lo que ya está en `main`
+(el paso 1). **No modifica el pre-registro de P3**: `8b2dddb` sigue siendo su
+SHA, con las mismas reglas, población, exclusiones y familia (D-50 a D-57).
+Desplegar ese SHA en producción no ejecuta ni adelanta nada de P3.
+
+**Qué se decide.** Antes de empezar 2a-code, producción pasa al estado de
+`main` = `8b2dddb` (el SHA del pre-registro de P3, sin commits añadidos) con el
+tag `v0.4.1`. La Pi migra de v6 a v7 y sigue en **Score v1**, con 70/60 legacy y
+`calibrated: false`. No se activa v2, no se implementa 2a-code, no se ejecuta P3
+y no se aplican en producción las exclusiones de P3 (D-51, D-52, D-55).
+
+**Por qué.** Aislar y validar la migración v7 en producción antes de introducir
+los cambios point-in-time: si algo falla después, no se mezcla un fallo de
+esquema con uno de contexto.
+
+**Rollback.** Por D-32, `checkout v0.4.0` no es un rollback válido; hay que
+restaurar el backup `pre-v7` (esquema v6) verificado.
+
+**Resultado (2026-09-30):** desplegado, verificado y **aceptado por el
+propietario**; sin rollback (`evidence/2026-09-30-despliegue-v041/`).
+Observaciones que no bloquean: `position_review` sin filas históricas, y
+TTE.PA con 32 barras descartadas en el log frente a 30 `REAJUSTE` persistidos,
+que queda como **FOLLOW_UP de T-018**, fuera de T-019.
+
+### D-59 — 2026-09-30 — Score v2 exige contexto point-in-time
+Decisión del propietario, tomada después de 2a-code (`782e462`) y **antes** de
+implementar Score v2. No modifica el pre-registro de P3 (`8b2dddb`): concreta
+cómo se aplica D-53/R-CTX al código de Score v2.
+
+**Qué se decide.**
+- `model_version = "2.0"` implica contexto **point-in-time obligatoriamente**.
+- **Nunca** se puede combinar Score v2 con `legacy_v1`, aunque `config.yaml`
+  siga teniendo `"1.0"` activo, como ocurrirá durante P3.
+- El modo de contexto depende de la **versión de score pedida para el cálculo**,
+  no de `config.scoring.score_model_version`. Pedir `"2.0"` selecciona PIT
+  automáticamente.
+- Intentar calcular Score v2 con contexto legacy es un **error**, no una
+  advertencia.
+
+**Por qué.** En 2a-code el selector deriva el modo de la versión activa de la
+configuración. Con `"1.0"` activo, un cálculo de Score v2 que no pidiera PIT
+explícitamente atravesaría el camino legacy, con el look-ahead de tendencia que
+D-53 corrige. La revisión previa a P3 lo registró como observación.
+
+**Efecto.** Lo implementa el paso 2 de T-019, con un test que demuestre que
+Score v2 con contexto legacy falla.
+
+### D-60 — 2026-09-30 — Producción v2 falla cerrada si el contexto point-in-time no es calculable
+Decisión del propietario. Queda **fijada ahora** y solo tendrá efecto si algún
+día se activa v2 en producción (paso 5 de T-019). Hasta entonces el
+comportamiento productivo no cambia: v1 sigue activo.
+
+**Qué se decide.** Si en una pasada de producción v2 el contexto PIT no es
+calculable (Asia ausente, SMA200 sin historia, VIX ausente o cualquier otro
+motivo no calculable):
+- **ningún fallback a legacy**, **ninguna imputación** ni neutralización y
+  **ningún score parcial**;
+- la pasada v2 **no produce recomendaciones** basadas en ese contexto;
+- la pasada **registra claramente el motivo** (el código de no calculable y su
+  detalle).
+
+**Por qué.** La regla v1 de dato ausente (la mitad de los puntos) solo sigue en
+v1. En v2, un contexto incompleto no se puede presentar como un score completo.
+
+**Efecto.** Hoy `fetch_point_in_time_market_context` lanza `RuntimeError` y
+aborta la pasada entera: es código inerte mientras v1 esté activo. Antes del
+paso 5 se sustituye por la política de D-60, y la forma exacta de declarar el
+motivo en la pasada y en el manifiesto se implementa entonces.
+
+### D-61 — 2026-10-01 — Resultado de P3 y estado de calibración de Score v2
+Registro del paso 4 de T-019, autorizado por el propietario. No tiene margen de
+decisión: lo fijan la regla pre-registrada de P3 (`8b2dddb`) y D-45, aplicadas
+al resultado de la **única** ejecución confirmatoria (`P3_EXECUTOR_SHA` =
+`87309da`, evidencia inmutable en `evidence/2026-09-30-T-019-paso3-p3/`).
+Resumen generado desde esos artefactos en
+`evidence/2026-10-01-T-019-score-v2/resultado-p3.md`.
+
+**Swing (confirmatorio).** P3 produjo Δ Q5−Q1 = **−0,2895 R**, IC95
+**[−0,4098, −0,1658]**, anchura **0,2440**, 19 bloques. Por la tabla
+pre-registrada, aplicada en su orden, **`veredicto_ordenacion` = NO
+CONCLUYENTE**, porque la anchura **0,2440 > 0,20**.
+
+Que el intervalo entero sea negativo **no permite sustituir el veredicto
+mecánico** por «ordena al revés» ni por ningún otro juicio confirmatorio. Se
+publica, solo como **descripción separada del veredicto**:
+- el signo del contraste es negativo;
+- las cinco regiones tienen Δ negativo;
+- los 89 activos con Δ calculable tienen Δ negativo;
+- el intra-activo vale −0,751 R [−0,815, −0,672].
+
+**Calibración de swing.** Los cinco candidatos —43,6 / 49,6 / 53,6 / 57,6 /
+63,6— fallan OPERAR. Por tanto swing queda **`calibrated: false`**, con
+`min_score_operar: null` y `min_score_vigilar: null`: **no existe franja
+operativa v2 calibrada**. Ningún percentil se convierte en umbral.
+
+**Medio.** `calibrated: false`. Su resultado es solo de trazabilidad, con el
+veredicto forzado «NO CONCLUYENTE — inválido (bloque parcial 102 ≤ 250)»
+(D-42, D-45).
+
+**Intradía.** `calibrated: false`, sin laboratorio y sin umbrales (D-45).
+
+**Producción.** D-47 sigue plenamente vigente:
+- producción continúa con Score v1;
+- 70/60 pertenecen exclusivamente a `"1.0"`;
+- v2 no se activa;
+- no hay transición atómica posible, porque P3 no produjo umbrales v2 válidos
+  (el paso 5 de la ficha, en su parte de activación, no se hace en A-03).
+
+`config.yaml` no cambia: `"1.0"`, 70/60, `calibrated: false`.
+
+**Consecuencia metodológica.** Un resultado desfavorable o no concluyente **no
+impide por sí mismo** cruzar GATE P3: `docs/gates.md` exige una respuesta
+cuantificada, no favorable. Pero **D-61 no declara GATE P3 cruzado.** Eso se
+decide en el paso 5, después de la revisión independiente final (requisito 5).
+Matriz provisional en `evidence/2026-10-01-T-019-score-v2/gate-p3-matriz.md`.
+
+**Nota (2026-10-01, revisión final, hallazgo M-1).** Todas las cifras de esta
+decisión están **condicionadas al universo seleccionado en 2026 (sesgo de
+supervivencia y selección no corregido)**. Los artefactos de P3 ya llevaban la
+etiqueta y aquí faltaba. Añadirla no cambia ningún número.
+
+### D-62 — 2026-10-01 — GATE P3 cruzado con el veredicto NO CONCLUYENTE
+Decisión del propietario, tomada en el paso 5 de T-019 después de la revisión
+independiente final del look-ahead. Base del cierre: `main` =
+`4ca9a370a02d297c949555a409eb960adfb8d8e8`. El commit de cierre es el que
+introduce esta decisión: `docs(T-019): cierre de GATE P3 y revisión final`.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y
+selección no corregido)._
+
+**Qué se decide.** **GATE P3 queda cruzado.** Sus cinco requisitos están
+satisfechos (`evidence/2026-10-01-T-019-cierre/gate-p3-final.md`):
+1. **Score v2 versionado** como `"2.0"` (D-46, D-59).
+2. **Umbrales por horizonte:** swing, medio e intradía quedan **`calibrated:
+   false`** (D-61).
+3. **Ordenación publicada:** swing **NO CONCLUYENTE**.
+4. **Ablaciones publicadas.**
+5. **Revisión independiente del look-ahead hecha:**
+   `evidence/2026-10-01-T-019-cierre/revision-look-ahead.md`. Sin BLOCKER ni
+   IMPORTANTE; un MENOR (M-1, etiqueta de universo, corregido en D-61) y cinco
+   observaciones.
+
+**El resultado con el que se cruza** (D-61, sin reinterpretar):
+- **Swing:** Δ Q5−Q1 −0,2895 R [−0,4098, −0,1658], anchura 0,2440 > 0,20 →
+  **NO CONCLUYENTE**.
+- **Medio:** «NO CONCLUYENTE — inválido (bloque parcial 102 ≤ 250)».
+- **Intradía:** sin laboratorio.
+- **Umbrales:** no hay ningún umbral v2; `min_score_operar` y
+  `min_score_vigilar` son nulos en los tres horizontes.
+- **Signo:** el negativo del contraste sigue siendo **descriptivo** y no
+  constituye un veredicto distinto. `docs/gates.md` exige una respuesta
+  cuantificada, no favorable.
+
+**Producción.**
+- Score v2 **no se activa**: P3 no produjo umbrales válidos y la activación
+  atómica del paso 5 no es posible.
+- Producción sigue en **Score v1** con 70/60 y `calibrated: false` (D-47), y
+  `config.yaml` no cambia.
+- v2 queda solo como investigación y versionado.
+- D-60 sigue registrada para una posible activación futura.
+- No hay release ni despliegue; la Pi sigue en `v0.4.1` = `8b2dddb`.
+
+**Efecto.**
+- **A-03 queda ACEPTADA** y T-019 cerrada.
+- **P4 (A-04) queda desbloqueado**, pero **no se inicia** con esta decisión.
+  Trabajará sobre `score_signal` sin umbrales operativos nuevos, como prevén
+  `docs/gates.md` y D-45.
+- P3 no se repite: cualquier estudio nuevo del score necesita su propia ficha
+  y datos posteriores a la cosecha `071ddb2b…`, que P3 consumió entera
+  (INV-15).
+
+**Evidencia:**
+- `evidence/2026-09-30-T-019-paso3-p3/` (ejecución única, inmutable);
+- `evidence/2026-10-01-T-019-score-v2/` (paso 4);
+- `evidence/2026-10-01-T-019-cierre/` (revisión final, matriz, suite y hashes).
+
+### D-63 — 2026-10-01 — Pre-registro de P4: población, variantes y criterio
+Decisión del propietario. Cierra **OD-P4-1 a OD-P4-13** de la ficha T-020 (A-04). Se toma **antes de
+ejecutar P4 y sin abrir ningún desenlace nuevo de P4**. B1 constituye una **exposición previa
+conocida y documentada** sobre esta misma cosecha (P2.6, 2026-08-31; ficha, sección 7.1). No se
+consultó ningún resultado nuevo de B1 ni ningún resultado de B2, S1, S2 o E1. La ficha
+`docs/tareas/T-020-p4-geometria.md` es la especificación; aquí solo se resumen las elecciones.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Qué se decide.**
+1. **B1** (objetivo 2 a 3,5·ATR) queda **solo descriptiva**, con la etiqueta «previamente expuesta
+   en esta misma cosecha; no confirmatoria; no elegible para sustituir C0». Ya se midió sobre
+   `071ddb2b` en P2.6. Así se cierra el pendiente de D-02 sin fingir evidencia independiente.
+   (OD-P4-1 = B)
+2. **Población:** la de A-02 swing **sin cripto**, sin las exclusiones de P3 por Asia ni por la
+   SMA200, que son requisitos del contexto v2 y no de la geometría.
+   - Censo sin desenlaces: **101.251** señales y **90** activos.
+   - `p4_population_sha256 = 78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141`.
+   - Bloques de 60 sesiones: **20** ocupados.
+   - Evidencia: `evidence/2026-10-01-T-020-censo-p4/`.
+   (OD-P4-2 = C)
+3. **S1 y S2** se miden sobre toda la población, como política completa bajo la regla E, con
+   `stop_basis` como desglose descriptivo. (OD-P4-3 = A)
+4. **B2 = 4,875·ATR** puede ser candidata. No se la llama ciega del todo, porque hay exposición
+   previa a B1 en la misma dirección. (OD-P4-4 = A)
+5. **Entrada:** una sola comparación confirmatoria, **E1**, solo con C0: entrada al cierre frente a
+   entrada a `open(t+1)` con el orden real de `evaluate_trade_at_entry`, y `R = 0` para las no
+   ejecutadas. E1 no es una geometría ni candidata a P5, y no altera producción. Para las demás
+   geometrías solo se publican la holgura y las categorías de D-06. (OD-P4-5 = C, acotada)
+6. **Bloques:** primaria de 60; sensibilidad válida de 120. Las longitudes 40 y 80 (bloque ocupado
+   más corto de 22 ≤ 40) son inválidas: se publican y quedan fuera de toda condición. (OD-P4-6 = A)
+7. **Familia confirmatoria definitiva, `m = 4`:** B2, S1, S2 y E1. Bonferroni con 0,9875, 20.000
+   remuestreos y la semilla 20260830. B1 queda fuera. (OD-P4-7 = A)
+8. **Medio** fuera de P4. (OD-P4-8 = A)
+9. **Criterio:** el de la sección 22 de la ficha, adaptado. **Solo B2, S1 y S2** pueden pasar a P5.
+   Las condiciones 4 (heterogeneidad) y 7 (ejecutabilidad) no vetan. (OD-P4-9 = A)
+10. **Robustez temporal interna sobre datos de desarrollo:** media por bloque de ΔR > 0 en los
+    bloques 2–11 y en los 12–21. **Desviación formal del protocolo:** el protocolo pedía validación
+    temporal en P4 y P5, pero la cosecha ya está consumida y no hay holdout sin consumir. **P4 no
+    constituye validación temporal**; la validación independiente sigue en P7, bajo INV-15.
+    (OD-P4-10 = B)
+11. **Estratos descriptivos:** región, activo, régimen PIT, volatilidad y `stop_basis`. Un contexto
+    PIT no calculable (7.157 señales en el censo) **no excluye** una señal de P4: se cuenta aparte y
+    no se le inventa régimen. (OD-P4-11 = A)
+12. **La heterogeneidad es una bandera obligatoria, no un veto.** Si sale ALTA, se publican y
+    discuten los estratos antes de cerrar GATE P4. ALTA por sí sola no aprueba ni veta, y no hay
+    calibración sintética. **FOLLOW_UP:** el instrumento de P2.6 trata como independientes sesiones
+    que se solapan y puede confundir esa dependencia con heterogeneidad. Hay que revisarlo antes de
+    darle función de veto en una fase posterior. (OD-P4-12 = B)
+13. **La ejecutabilidad se publica y no veta.** (OD-P4-13 = A)
+
+**Recuento derivado del censo:** 447 comparaciones, de las que 4 son confirmatorias. Es la fórmula
+de la sección 20 de la ficha: el ejecutor la reproduce desde sus salidas, y nunca se escribe a
+mano.
+
+**Lo que no cambia.**
+- P4 no se ha ejecutado, y no se implementa `p4.py` sin una autorización nueva.
+- `config.yaml` sigue en `"1.0"`, Score v2 inactivo y la Pi en `v0.4.1`.
+- El pre-registro de P4 (`P4_PREREG_SHA`) será el HEAD documental que quede después de la tercera
+  revisión independiente de la ficha y de sus correcciones.
+
+### D-64 — 2026-10-02 — Resultado de P4 y candidatas para P5
+Registro del resultado congelado de la **ejecución confirmatoria única** de P4 (T-020, A-04). Se
+transcribe la salida de `evidence/2026-10-01-T-020-p4/run/` sin recalcular nada.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Identidad.**
+- `P4_PREREG_SHA = 48b884722ef027e99857a4e65f9ab6b11da4758f`
+- `P4_CODE_SHA = 3df8230d7806dde4151b56501641a1524a3df9d8`: último commit que modifica el código
+  del ejecutor.
+- `P4_RUN_HEAD_SHA = c2c52b11c60bb8dfd08d8cb33d5f6f251e9bf2c0`: HEAD desde el que se lanzó la
+  ejecución. Respecto a `3df8230` solo añade evidencia de preflight.
+- `P4_RUN_EVIDENCE_COMMIT = cfa365da468edd04f0ccf4d5f20b657382078cbd`
+- Ejecución el 2026-10-02 a las 05:37:50 UTC, con la marca escrita antes de abrir desenlaces.
+  - Completó por la ruta normal: `p4-resultado.json` y `p4-resumen.md` íntegros, y ningún
+    `p4-parada.json`.
+  - El código de salida 0 no quedó archivado literalmente en la consola; se infiere de esa ruta de
+    finalización.
+  - P4 no se repite.
+- El campo histórico `p4_executor_sha` de los artefactos de ejecución contiene `c2c52b1`, el HEAD
+  de ejecución. La marca guarda aparte `p4_executor_sha_preflight = 3df8230`. No es un error de
+  resultado y los artefactos no se reescriben.
+
+**B2 frente a C0 (objetivo 2 a 4,875·ATR): PASA A P5.** Cumple todas las condiciones que vetan.
+- ΔR = **+0,0717 R**; IC Bonferroni 98,75 % = **[+0,0061, +0,1356]**; pares = **101.226**.
+- Sensibilidad 120: ΔR = +0,07264; IC95 inferior = +0,02378.
+- Cota conservadora de ambigüedad: ΔR = +0,07099.
+- Robustez temporal interna sobre datos de desarrollo: bloques 2–11 = +0,06930; bloques 12–21 =
+  +0,07401.
+- Nivel: media `net_R` = +0,17540; PF = 1,26344.
+
+**S2 frente a C0 (stop 2,5·ATR, objetivo 3,75·ATR): PASA A P5.** Cumple todas las condiciones que
+vetan.
+- ΔR = **+0,0348 R**; IC Bonferroni 98,75 % = **[+0,0076, +0,0597]**; pares = **101.225**.
+- Sensibilidad 120: ΔR = +0,03459; IC95 inferior = +0,01309.
+- Cota conservadora de ambigüedad: ΔR = +0,03430.
+- Robustez temporal interna sobre datos de desarrollo: bloques 2–11 = +0,02395; bloques 12–21 =
+  +0,04562.
+- Nivel: media `net_R` = +0,13876; PF = 1,24259.
+
+**S1 frente a C0 (stop 1,5·ATR, objetivo 2,25·ATR): NO PASA.**
+- ΔR = **−0,0411 R**; IC Bonferroni = **[−0,0708, −0,0096]**.
+- Falla exactamente las condiciones **1, 2, 5 y 8**.
+
+**E1 (entrada a `open(t+1)` con veto de producción frente a entrada al cierre, bajo C0): NO
+CONCLUYENTE.**
+- ΔR = **−0,0491 R**; IC Bonferroni = **[−0,1078, +0,0120]**.
+- No es una geometría, no es candidata a P5 y no interviene en la decisión sobre B2, S1 y S2.
+
+**B1 (objetivo 2 a 3,5·ATR): solo descriptiva.**
+- ΔR = **+0,0206 R**; IC95 = **[+0,0047, +0,0363]**.
+- «previamente expuesta en esta misma cosecha; no confirmatoria; no elegible para sustituir C0».
+- No pertenece a Bonferroni, no influye en B2 y no pasa a P5.
+
+**Candidatas que salen de P4:**
+- **B2**
+- **S2**
+
+Las dos pasan a P5, como pre-registró la sección 22 de la ficha («si cumplen varias, todas pasan»).
+No se elige una de las dos, y ninguna se declara mejor por tener un ΔR mayor. S1 queda descartada.
+C0 sigue como control y referencia. P5 decidirá la robustez de las candidatas.
+
+**Heterogeneidad.** Sale **ALTA en las cinco comparaciones**. Es una bandera, no un veto (D-63).
+Los estratos pre-registrados ya calculados se publican y se discuten en
+`evidence/2026-10-02-T-020-p4-cierre/resultado-y-heterogeneidad.md`. No se crea ninguna política
+por estrato.
+
+**Recuento derivado:** 447 comparaciones (B1 110, B2 110, S1 113, S2 113, E1 1), igual que el
+previsto, de las que 4 son confirmatorias.
+
+**Lo que no cambia.**
+- B2 y S2 son candidatas de investigación para P5, no una geometría de producción.
+- `config.yaml` sigue en `"1.0"`, Score v2 inactivo y la Pi en `v0.4.1`.
+- El resultado es de desarrollo, no una validación fuera de muestra (INV-15). La validación
+  independiente sigue en P7.
+
+### D-65 — 2026-10-02 — GATE P4 cruzado
+Cierre mecánico de GATE P4 con la regla del propietario: los cuatro requisitos de `docs/gates.md`
+satisfechos y la revisión final independiente sin ningún BLOCKER ni IMPORTANTE.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+- **P4 se ejecutó una sola vez:** el 2026-10-02, desde `P4_RUN_HEAD_SHA = c2c52b1`, con
+  `P4_CODE_SHA = 3df8230` y `P4_PREREG_SHA = 48b8847`. La evidencia está congelada en `cfa365d`
+  (`evidence/2026-10-01-T-020-p4/run/`, 12/12 SHA256). P4 no se repite.
+- **B2 y S2 pasan a P5** como candidatas (D-64). Ninguna se elige sobre la otra.
+- **S1 no pasa:** falla las condiciones 1, 2, 5 y 8.
+- **E1 sale NO CONCLUYENTE.** No es geometría ni candidata.
+- **B1 es solo descriptiva:** «previamente expuesta en esta misma cosecha; no confirmatoria; no
+  elegible para sustituir C0».
+- **La heterogeneidad ALTA queda explicada y no veta** (D-63). Se explica por la dispersión
+  observable por activo, régimen y volatilidad, y por una limitación conocida del instrumento debida
+  al solapamiento. No se crea ninguna política por estrato. El FOLLOW_UP del instrumento sigue
+  abierto.
+- **Revisión final independiente:** tras la vuelta de cierre, 0 BLOCKER, 0 IMPORTANTE, 0 MENOR y 1
+  OBSERVACIÓN, que es la verificabilidad del texto archivado de la revisión de look-ahead.
+- **GATE P4 CRUZADO.** La matriz está en `evidence/2026-10-02-T-020-p4-cierre/gate-p4-final.md`.
+- **A-04 / T-020 queda ACEPTADA.**
+- **P5 queda desbloqueado, pero NO iniciado.** La ficha de P5 se escribe con una autorización aparte.
+
+**Lo que no cambia.** No se toca producción:
+- B2 y S2 son candidatas de investigación para P5, no una geometría productiva;
+- `config.yaml` sigue en `"1.0"` con la geometría C0;
+- Score v2 sigue inactivo;
+- la Pi sigue en `v0.4.1`;
+- no hay release ni despliegue.
+
+El resultado es de desarrollo; la validación independiente sigue en P7 (INV-15).
+
+### D-66 — 2026-10-02 — Pre-registro de P5: superficies, robustez y políticas elegibles
+Decisión del propietario. Cierra **OD-P5-1 a OD-P5-16** de la ficha T-021 (A-05). Se toma **antes
+de ejecutar P5 y sin ningún desenlace de ningún punto nuevo**: el único cálculo sobre la cosecha es
+el inventario estructural sin desenlaces de `evidence/2026-10-02-T-021-p5-diseno/`. La ficha
+`docs/tareas/T-021-p5-regiones-robustas.md` es la especificación; aquí se resumen las elecciones, y
+las alternativas no elegidas se conservan como historial en la ficha.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Qué es P5.** P5 prueba la robustez de B2 y S2, las candidatas de P4 (D-64), frente a C0. **Solo
+puede quitar candidatas; nunca promociona un vecino. P5 puede terminar en `[]`.** Es desarrollo
+sobre una cosecha ya consumida, posterior a la selección de P4, y **no es validación**: la validación
+independiente sigue en P7 (INV-15).
+
+**Qué se decide.**
+1. **Superficies:** dos 3×3 locales sobre una retícula común (OD-P5-1 = A). El paso es Δstop =
+   0,25·ATR y Δtarget2 = 0,375·ATR, fijo (OD-P5-2 = A).
+   - **B2:** stop ∈ {1,75; 2,00; 2,25} × target2 ∈ {4,500; 4,875; 5,250}; centro (2,00; 4,875).
+   - **S2:** stop ∈ {2,25; 2,50; 2,75} × target2 ∈ {3,375; 3,750; 4,125}; centro (2,50; 3,750).
+   - target1 = 1,5, `min_rr` = 1,5, `entry_max_atr` = 0,75, `target2_structural` = false, regla E,
+     coste 0,20 % y swing con 40 barras, fijos.
+2. **Borde de B2 con `target3`** (OD-P5-3 = C):
+   - en las tres celdas con target2 = 5,25, `target3` = 5,625 y `m3_auxiliar` = true, **solo para
+     el diagnóstico**;
+   - esas celdas no son políticas ni candidatas, nunca pueden salir de P5, y su hash contiene el
+     `target3` real de 5,625;
+   - B2 conserva `target3` = 5,0 y `m3_auxiliar` = false.
+3. **Frontera de RR de S2, truncada:** (2,50; 3,375), (2,75; 3,375) y (2,75; 3,750) son
+   `AUSENCIA_ESTRUCTURAL` (RR < 1,5). No se estiman y no entran en ningún denominador.
+4. **Vecindad de 8 vecinos geométricos** (OD-P5-5 = A), con semiplanos `s−`, `s+`, `m2−` y `m2+`.
+   - **13 vecinos válidos:** 8 de B2 y 5 de S2.
+   - **Ningún vecino es elegible como política.**
+   - **Asimetría de S2, que no se suaviza después de medir:** sus dos vecinos iso-RR, (2,25; 3,375)
+     y (2,75; 4,125), son cada uno el único vecino válido de un semiplano, así que **los dos tienen
+     que ser ACEPTABLES**. De los otros tres puede fallar como mucho uno.
+5. **Clases de celda** (OD-P5-15 = A, con los umbrales de capacidad de P4):
+   - `AUSENCIA_ESTRUCTURAL`;
+   - `NO_ESTIMABLE`: falla la capacidad. No es buena ni mala, cuenta en `|NE|` y puede llevar a
+     NO_CONCLUYENTE;
+   - `ACEPTABLE`: estimable, IC95 inferior de ΔR > 0, cota conservadora puntual > 0, nivel > 0 y
+     PF > 1 (OD-P5-4 = A; OD-P5-12 = A);
+   - `DÉBIL`: estimable, ΔR puntual > 0, pero no ACEPTABLE;
+   - `CONTRARIA`: estimable y ΔR puntual ≤ 0.
+6. **Región robusta** (OD-P5-4 = A), con umbrales fijos:
+   - ningún vecino CONTRARIO;
+   - cada semiplano con vecinos estimables tiene al menos un ACEPTABLE;
+   - `|A| / |E| ≥ 0,75`;
+   - `|NE| ≤ 1`;
+   - ningún semiplano con todos sus vecinos válidos NO_ESTIMABLES;
+   - y el centro cumple su propio criterio: las diez condiciones de P4 y la reproducción de P4 de
+     OD-P5-16.
+7. **Fragilidad:** exactamente F1–F6 de la ficha; no se añade ninguna causa después de medir.
+   - **Precedencia de etiqueta:** FRÁGIL > DEPENDIENTE_DE_MERCADO > NO_CONCLUYENTE > ROBUSTA.
+   - **Solo ROBUSTA sobrevive.**
+8. **Multiplicidad jerárquica** (OD-P5-6 = A):
+   - confirmatorias nuevas = **0**; la evidencia confirmatoria de B2 y S2 sigue siendo la de P4;
+   - los IC95 de los vecinos y del LOCRO son vetos pre-registrados: pueden quitar una candidata,
+     nunca crearla;
+   - sin Bonferroni nuevo y sin banda simultánea.
+9. **Mercado = región; LOCRO decisorio** (OD-P5-7 = A; OD-P5-8 = A, con la capacidad i):
+   - para cada centro se calcula la primaria sin USA, sin EUROPA y sin ASIA; GLOBAL y
+     EMERGING_MARKETS se quedan dentro y se publican descriptivamente;
+   - cada LOCRO pasa solo si es estimable y su IC95 inferior de ΔR es > 0;
+   - **la fracción de pares se calcula sobre su propia población restante:**
+     - sin USA: 56.353 señales, mínimo 50.718 pares;
+     - sin EUROPA: 66.629 señales, mínimo 59.967 pares;
+     - sin ASIA: 83.298 señales, mínimo 74.969 pares;
+   - el resto de los umbrales de capacidad, los de P4;
+   - **nunca el límite absoluto de 91.126** en el LOCRO, y un test demuestra que esa implementación
+     errónea fallaría.
+10. **Concentración por activo descriptiva** (OD-P5-9 = A):
+    - se publican positivos y negativos, percentiles, la mayor contribución individual y la de los
+      5 y los 10 primeros activos;
+    - no veta ni rescata, y no se introduce ningún umbral después.
+11. **Heterogeneidad no vetante** (OD-P5-10 = A): ALTA no veta. El instrumento se publica y no
+    decide; el FOLLOW_UP de autocorrelación y solapamiento sigue fuera de P5.
+12. **Temporal** (OD-P5-11 = A):
+    - **en el centro, veto** (aunque ya se conoce de P4): las dos mitades > 0, y el bloque de 120
+      con ΔR > 0 e IC95 inferior > 0;
+    - **en los vecinos**, el bloque de 120 y las mitades son descriptivos y no forman parte de
+      ACEPTABLE.
+13. **Ambigüedad** (OD-P5-12 = A): para que un vecino sea ACEPTABLE, la cota conservadora puntual
+    tiene que ser > 0. La favorable se publica. No se exige ningún IC de la cota.
+14. **Salida permitida, exactamente:** `[]`, `[B2]`, `[S2]` o `[B2, S2]` (OD-P5-13 = A). C0 sigue
+    siendo control. Un vecino, aunque tenga mejor ΔR, se publica, no se adopta, no recibe hash de
+    política candidata y no puede sustituir a B2 ni a S2.
+15. **Configuración y hash** (OD-P5-14 = A):
+    - `advisor_config_hash` sobre el `AdvisorConfig` completo con solo la geometría sustituida; en
+      C0 tiene que dar `89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387`;
+    - envoltorio canónico `intradia.p5.politica.v1` serializado con `json.dumps(payload,
+      sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)` en UTF-8;
+    - `policy_sha256` (los vecinos publican el mismo cálculo como `diagnostico_sha256`, nunca como
+      `policy_sha256`);
+    - las salidas son las constantes del código: `STOP_FIRST`, `TARGET_FIRST`, `TIME` y `FINAL`.
+16. **Recuento:** 5 comparaciones con IC por vecino y 3 LOCRO por centro: (8·5 + 3) + (5·5 + 3) =
+    **71**, con **0 confirmatorias nuevas**.
+    - El ejecutor deriva el 71 de la estructura antes de abrir ningún desenlace; si sale otro
+      número, **STOP**. El 71 nunca sustituye al recuento derivado.
+    - Acumulado descriptivo de comparaciones con IC sobre la cosecha: P4 447 + P5 71 = **518**.
+17. **Reproducción de P4 antes de la marca, con guardas reforzadas** (OD-P5-16 = A):
+    - **solo** se evalúan C0, B2 y S2; intentar evaluar cualquier otra geometría lanza un error;
+    - **solo** se reproducen estimaciones ya publicadas. Para X ∈ {B2, S2}, las filas de
+      `estimaciones.tsv`: `(X, primaria_60, "")` —que **es la de Bonferroni**, 0,9875 y 20.000
+      remuestreos—, `(X, bloque_120, "")`, `(X, cota_conservadora, "")`,
+      `(X, cota_favorable, "")`, `(X, mitades, bloques_2_11)` y `(X, mitades, bloques_12_21)`;
+      además, la fila X de `nivel.tsv` y de `capacidad.tsv`, y las filas X de
+      `emparejamiento.tsv`;
+    - del IC95 de 2.000 remuestreos usado para la capacidad solo se reproduce y compara la
+      `anchura_ic95`; sus extremos no se archivan;
+    - se comparan cadenas con la representación de P4 (`float` → `"{:.6f}"`). Si algo diverge,
+      **STOP**, sin actualizar el valor esperado ni introducir ninguna tolerancia;
+    - C0 se verifica por identidad semántica con el event study y por su `advisor_config_hash`;
+    - **aislamiento:** no se escriben eventos ni `net_R` por `signal_id`, y la API del preflight no
+      los devuelve; la función de reproducción devuelve solo el agregado autorizado;
+    - **antes de la marca fallan explícitamente**, con tests que lo comprueban, las
+      **estimaciones** (todo cálculo con desenlaces) del LOCRO, de regiones y subpoblaciones, de
+      estratos, de concentración por activo nueva, de los vecinos y cualquier estimación nueva de
+      P5. El censo estructural por región, los denominadores del LOCRO y el recuento estructural no
+      usan desenlaces y sí se calculan en el preflight;
+    - la evidencia del preflight solo contiene agregados ya publicados y controles estructurales;
+    - **esto no autoriza repetir P4** ni ejecutar `p4 --fase confirmatoria`.
+
+**Lo que no cambia.**
+- P5 **no** se ha ejecutado, y `p5.py` no se implementa sin una autorización nueva.
+- `config.yaml` sigue en `"1.0"` con C0, Score v2 inactivo y la Pi en `v0.4.1`.
+- El `P5_PREREG_SHA` será el HEAD documental que quede después de la revisión final del
+  pre-registro y de sus correcciones, con 0 BLOCKER y 0 IMPORTANTE.
+
+### D-67 — 2026-10-03 — Resultado de P5: B2 y S2 robustas
+Registro del resultado congelado de la **ejecución confirmatoria única** de P5 (T-021, A-05). Se
+transcribe la salida de `evidence/2026-10-02-T-021-p5/run/` sin recalcular nada; el detalle completo
+está en `evidence/2026-10-03-T-021-p5-cierre/resultado-p5.md`.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Identidad.**
+- `P5_PREREG_SHA = a7c3d238d651b4ea8f48834848c03c0a5a462dfa`
+- `P5_CODE_SHA = 6c7f9135774f157e82634b6abf82a847d9b99bd9`
+- `P5_PREFLIGHT_HEAD = 7446602114b26f56cae549d2ec299d7bbc07b459`
+- `P5_RUN_HEAD_SHA = 282b1ce991bb4567ff2ad41a28e00c9518662115`: archiva la revisión final de
+  look-ahead, previa a la ejecución. Respecto a `6c7f913` solo añade evidencia.
+- `P5_RUN_EVIDENCE_COMMIT = 86ddd5baf8ceabe6e9d3747d645c7c99d719343c`
+- Marca escrita antes de abrir desenlaces, con `inicio_utc = 2026-10-03T09:44:05.684666+00:00` y
+  sha256 `f50d5ec9cc7e2c266515778592c4398001ee8588dbcdcc2b4c783bcca87c1f8c`, igual al
+  `token_sha256` del resultado.
+- Completó por la ruta normal: `p5-resultado.json` y `p5-resumen.md` íntegros y ningún
+  `p5-parada.json`. La consola archiva `código de salida: 0`.
+- **P5 se ejecutó exactamente una vez y no se repite.**
+
+**Recuento:** comparaciones previstas **71**, derivadas de las salidas **71**, confirmatorias nuevas
+**0**.
+
+**B2 (stop 2,0·ATR, objetivo 2 a 4,875·ATR): ROBUSTA.**
+- `centro_p4 = True`; F1, F2, F3, F4, F5 y F6 = False.
+- 8 vecinos válidos: **8 ACEPTABLES**, 0 NO_ESTIMABLES.
+- LOCRO: sin USA, 56.329 pares, ΔR 0,067950, IC95 [0,015507, 0,122806]; sin EUROPA, 66.626 pares,
+  ΔR 0,077285, IC95 [0,012695, 0,139081]; sin ASIA, 83.275 pares, ΔR 0,070625, IC95 [0,021085,
+  0,119686]. Los tres son estimables y tienen IC95 inferior > 0.
+
+**S2 (stop 2,5·ATR, objetivo 2 a 3,75·ATR): ROBUSTA.**
+- `centro_p4 = True`; F1, F2, F3, F4, F5 y F6 = False.
+- 5 vecinos válidos: **5 ACEPTABLES**, 0 NO_ESTIMABLES. Los dos vecinos iso-RR críticos,
+  (2,25; 3,375) y (2,75; 4,125), son ACEPTABLES.
+- LOCRO: sin USA, 56.328 pares, ΔR 0,038843, IC95 [0,017103, 0,059156]; sin EUROPA, 66.626 pares,
+  ΔR 0,032699, IC95 [0,004929, 0,058428]; sin ASIA, 83.274 pares, ΔR 0,033781, IC95 [0,014273,
+  0,052136]. Los tres son estimables y tienen IC95 inferior > 0.
+
+**Superficies.** Se publican completas, sin recalcular (`superficie.tsv`). B2 tiene 8/8 vecinos
+ACEPTABLES y S2 5/5. Las tres celdas de B2 con `target2 = 5,25` (`target3 = 5,625`,
+`m3_auxiliar = true`) son solo diagnósticas. Ningún vecino es política ni recibe `policy_sha256`.
+
+**Ausencias estructurales de S2:** (2,50; 3,375), (2,75; 3,375) y (2,75; 3,750), por RR < 1,5.
+Quedaron fijadas en D-66, no se estimaron y no son descartes por rendimiento.
+
+**Concentración por activo** (descriptiva: no veta, no aprueba y no se crea ningún umbral):
+- B2: 75 activos positivos y 15 negativos; mayor 5,2492 %, top 5 18,7986 %, top 10 32,9982 %.
+- S2: 74 activos positivos y 16 negativos; mayor 3,6788 %, top 5 17,9082 %, top 10 33,3776 %.
+
+**Descartes:**
+- Candidatas heredadas de P4 descartadas por FRÁGIL: ninguna.
+- Descartadas por DEPENDIENTE_DE_MERCADO: ninguna.
+- NO_CONCLUYENTE: ninguna.
+
+Los 13 vecinos son diagnósticos, no candidatas.
+
+**Supervivientes: exactamente `[B2, S2]`.** P5 solo prueba robustez: no ordena una sobre la otra y
+no dice que una sea mejor.
+
+**Configuraciones completas:** `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`,
+generado con `policy_payload` y `canonical_json`. El `policy_sha256` se regenera desde el
+`canonical_json`.
+- B2: `advisor_config_hash = c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760`,
+  `policy_sha256 = d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9`.
+- S2: `advisor_config_hash = 8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb`,
+  `policy_sha256 = e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11`.
+
+**Lo que no cambia.**
+- B2 y S2 son políticas candidatas de investigación. **Ninguna se activa.**
+- `config.yaml` sigue en `"1.0"` con C0, Score v2 sigue inactivo y la Pi sigue en `v0.4.1`.
+- El resultado es de desarrollo sobre una cosecha ya consumida, no una validación (INV-15). La
+  validación independiente sigue en P7.
+
+### D-68 — 2026-10-03 — GATE P5 cruzado
+Cierre mecánico de GATE P5 con la regla del propietario: los cuatro requisitos de `docs/gates.md`
+satisfechos y la revisión final independiente sin ningún BLOCKER ni IMPORTANTE.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+- **P5 se ejecutó exactamente una vez:** el 2026-10-03, desde `P5_RUN_HEAD_SHA = 282b1ce`, con
+  `P5_CODE_SHA = 6c7f913`, `P5_PREREG_SHA = a7c3d23` y la marca a las 09:44:05 UTC. La evidencia está
+  congelada en `86ddd5b` (`evidence/2026-10-02-T-021-p5/run/`, 11/11 SHA256), y ningún commit
+  posterior la toca. P5 no se repite.
+- **71/71 comparaciones**, de ellas 0 confirmatorias nuevas.
+- **B2: ROBUSTA.** **S2: ROBUSTA.** `centro_p4 = True` y F1–F6 = False en las dos (D-67).
+- **13/13 vecinos ACEPTABLES:** 8/8 de B2 y 5/5 de S2, incluidos los dos iso-RR críticos de S2.
+- **6/6 LOCRO decisorios superados:** todos estimables y con IC95 inferior > 0.
+- **Supervivientes: `[B2, S2]`.** Ninguna se ordena sobre la otra.
+- **Configuraciones completas y hashes** en `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`:
+  - B2: `advisor_config_hash c5d60f44…1760`, `policy_sha256 d5d6a533…01b9`;
+  - S2: `advisor_config_hash 8a151b80…0dbb`, `policy_sha256 e37ee933…4d11`.
+  Se regeneraron desde `canonical_json` y coinciden con la marca y con el preflight.
+- **Ninguna candidata descartada** por fragilidad, por dependencia de mercado ni por resultado no
+  concluyente. Las 3 ausencias de S2 son estructurales (RR < 1,5, D-66), no descartes por resultado.
+- **Revisión final independiente:** 0 BLOCKER, 0 IMPORTANTE, 0 MENOR y 1 OBSERVACIÓN sin impacto
+  (`evidence/2026-10-03-T-021-p5-cierre/revision-final.md`).
+- **GATE P5 CRUZADO.** La matriz está en `evidence/2026-10-03-T-021-p5-cierre/gate-p5-final.md`.
+- **A-05 / T-021 queda ACEPTADA.**
+- **P6 queda desbloqueado, pero NO iniciado.** Su ficha se escribe con una autorización aparte.
+
+**Lo que no cambia.** No se toca producción:
+- B2 y S2 son políticas candidatas de investigación y **ninguna se activa**;
+- `config.yaml` sigue en `"1.0"` con la geometría C0;
+- Score v2 sigue inactivo;
+- la Pi sigue en `v0.4.1`;
+- no hay release ni despliegue.
+
+El resultado es de desarrollo sobre una cosecha ya consumida; la validación independiente sigue en
+P7 (INV-15).
+
+### D-69 — 2026-10-03 — P6: decisiones de diseño cerradas
+Decisión del propietario. Cierra **OD-P6-1 a OD-P6-43** de la ficha T-022 (A-06). Se toma **antes de
+implementar P6 y sin ningún desenlace de sistema**. Lo único calculado sobre la cosecha es el censo
+estructural sin desenlaces de `evidence/2026-10-03-T-022-p6-diseno/`. La ficha
+`docs/tareas/T-022-p6-sistema-completo.md` es la especificación; aquí se resumen las elecciones, y las
+alternativas no elegidas se conservan como historial en la ficha.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Qué es P6.** P6 ejecuta B2 y S2, las políticas candidatas de P5 (D-67/D-68), como **sistemas
+completos** sobre una cartera con capital finito. No usa operaciones pareadas. C0 es un control
+descriptivo. Es desarrollo sobre una cosecha ya consumida, **no validación**: la validación
+independiente sigue en P7 (INV-15).
+
+**Decisiones:**
+
+| OD | Decisión | OD | Decisión |
+|---|---|---|---|
+| 1 Capital | A | 23 Activos tardíos del benchmark | B |
+| 2 Unidades | A | 24 Dividendos del benchmark | B |
+| 3 Base del sizing | A | 25 Costes del benchmark | A |
+| 4 Cash insuficiente | A | 26 Sharpe y risk-free | A |
+| 5 Límites globales | A | 27 Exceso principal | A |
+| 6 Orden de entradas simultáneas | D | 28 ¿Veta el exceso? | A |
+| 7 Cronología intradía | A | 29 C0 | A |
+| 8 Liquidación | A | 30 Muestra mínima | A |
+| 9 Costes | A | 31 Drawdown máximo | C |
+| 10 Slippage | D | 32 Sharpe, Sortino y Calmar | A |
+| 11 Precio de ejecutabilidad | A | 33 Incertidumbre | A + C |
+| 12 Derecho al dividendo | A | 34 Salida | A |
+| 13 Fecha del dividendo | C | 35 Hash de sistema | A |
+| 14 Fiscalidad | A | 36 Empates | A |
+| 15 Fuente FX | A (con B de respaldo) | 37 Población de señales | **C** |
+| 16 Regla causal FX | A | 38 Mismo activo | A |
+| 17 Exposición por divisa | C | 39 Universo | A |
+| 18 Sector | A para acciones + categorías de C para ETF/ETC | 40 Caja en divisas | A |
+| 19 UNKNOWN y ETF/ETC | A | 41 Calendario | A |
+| 20 Valoración | C | 42 Contexto | A |
+| 21 Ventana | A | 43 Moneda del R decisorio | A |
+| 22 Buy-and-hold | A | | |
+
+**Semántica vinculante.**
+
+1. **Capital, unidades y sizing (OD-P6-1/2/3).**
+   - 100.000 EUR iniciales y unidades fraccionarias.
+   - Sizing sobre la equity causal inmediatamente anterior al lote de entrada.
+   - `risk_per_trade_pct = 0,5 %` y `max_position_pct = 10 %` sin cambio; no se optimizan en P6.
+2. **Cash (OD-P6-4/5).**
+   - Long only, sin margen, sin apalancamiento y cash nunca negativo.
+   - Si la posición calculada no cabe con la comisión incluida → `INSUFFICIENT_CASH`, rechazada
+     entera. No se reduce el tamaño ni se prorratea.
+   - Sin límites globales de posiciones, riesgo, región, sector o divisa: son de R-01, después de P7.
+3. **Desempate (OD-P6-6).** Entradas con el mismo `timestamp_utc`, en orden ascendente de
+   `sha256("intradia.p6.desempate.v1" ‖ signal_id)`. La misma regla para B2, S2 y C0. Ni score ni
+   alfabeto.
+4. **Cronología (OD-P6-7/8/36/41).**
+   - Causal y global, con timestamps reales de mercado.
+   - Calendario = `exchange_calendars` + `exchange_overrides.yaml` + versión de tzdata, todo en
+     `P6_DATA_ID`.
+   - Fases en empate: `OPEN_EXIT < OPEN_ENTRY < CLOSE_EXIT < CLOSE_DIVIDEND < CLOSE_VALUATION <
+     SIGNAL`.
+   - Una salida por hueco libera el cash en la apertura; una salida intradía, solo en el cierre.
+   - Entre plazas manda el tiempo UTC real.
+   - El cash de una venta está disponible desde que se materializa la salida; no se modela T+1/T+2.
+5. **Costes (OD-P6-9).** 0,10 % sobre el nominal de entrada y 0,10 % sobre el de salida. No es
+   algebraicamente idéntico al 0,20 % fijo de P4 salvo cuando salida = entrada.
+6. **Slippage (OD-P6-10).** Primario de 5 pb por lado; sensibilidad de 10 pb por lado, **solo
+   descriptiva**: no veta, no rescata y no cambia los supervivientes.
+7. **Ejecutabilidad (OD-P6-11).** El RR, `entry_max`, el riesgo y el sizing se evalúan con el **precio
+   efectivo después del slippage**.
+8. **Dividendos (OD-P6-12/13/14).**
+   - Cobra la posición abierta al cierre de la sesión anterior a la fecha ex. Una compra en la fecha ex
+     no cobra; una venta en su apertura de una posición que venía abierta sí cobra.
+   - Sin fecha de pago: el dividendo entra en cash al **cierre de la sesión ex**.
+   - Bruto, sin retención.
+   - La misma regla para las políticas y el benchmark.
+9. **FX (OD-P6-15/16).**
+   - Más adelante, con autorización aparte, se crea un sidecar congelado de `EURUSD=X`, `EURJPY=X` y
+     `EURHKD=X` desde Yahoo/yfinance.
+   - **Integridad obligatoria:** el `EURUSD=X` del sidecar tiene que reproducir exactamente la cadena
+     canónica de la cosecha. Si falla, no se excluye ningún activo, no se acepta una serie aproximada,
+     se documenta el fallo y se usa como fuente FX la **alternativa B** pre-registrada (tipos de
+     referencia diarios oficiales).
+   - Regla causal: para un evento en τ, el cierre de la última barra FX **completa y disponible antes
+     de τ**, nunca el cierre futuro del mismo día.
+   - `fx_rate_to_EUR = 1 / close(EURXXX=X)`.
+   - En este commit no se descarga nada.
+10. **Exposición por divisa (OD-P6-17).** Se publican dos: la divisa de cotización y liquidación y la
+    `economic_currency`. `MULTI` es una categoría propia. Sin look-through.
+11. **Sector (OD-P6-18/19).**
+    - Acciones: sector externo verificable, congelado con `instrument_id`, `sector`, `taxonomy`,
+      `source` y `observed_at`.
+    - ETF y ETC: categorías estructurales por tipo, sin look-through.
+    - `UNKNOWN` es válida, queda en el denominador y se publica.
+    - El sector es **solo descriptivo**: nunca decide una entrada, un veto ni la supervivencia.
+    - Todavía no se obtienen estos datos.
+12. **Valoración (OD-P6-20).** El ledger por eventos es la fuente de verdad. Más adelante se genera una
+    serie diaria de equity a las 23:59:59 UTC de cada día con al menos una sesión. `periodos_por_año`
+    sale del calendario antes de cualquier desenlace.
+13. **Ventana (OD-P6-21).** Regla A.
+    - Con OD-P6-37 = C y OD-P6-42 = A, el inicio exige el calentamiento estructural de los 88 activos
+      iniciales y la SMA200 de `^STOXX50E` causalmente completa.
+    - Fecha estimada: **2022-06-14**. El preflight deriva y fija la fecha exacta de forma mecánica.
+    - Fin: **2026-08-27**, la última sesión común.
+    - Las exclusiones puntuales posteriores por contexto asiático no mueven el inicio.
+14. **Benchmark (OD-P6-22/23/24/25).**
+    - Pesos iguales sobre los 90 activos, sin rebalanceo.
+    - ARM y Q8Y0.DE: su 1/90 queda en cash hasta la apertura de la barra siguiente a su barra 120.
+    - Dividendos reinvertidos en el mismo activo en la apertura siguiente al abono.
+    - Paga los mismos costes, slippage, FX y reglas de dividendos que las políticas, incluidas la
+      compra inicial, las reinversiones y la liquidación final.
+15. **Sharpe y Sortino (OD-P6-26).** Sharpe con **rf = 0** y Sortino con **MAR = 0**, rotulados así.
+    No se aplica hacia atrás el 2,25 % actual.
+16. **Exceso (OD-P6-27/28).** Principal: `excess_CAGR_pp = 100·(CAGR_policy − CAGR_buy_hold)`;
+    también se publica `excess_terminal_pp`. Para sobrevivir es **obligatorio**
+    `excess_CAGR_pp > 0`. No hay otro umbral de exceso.
+17. **C0 (OD-P6-29).** Solo control descriptivo. Nunca veta ni rescata a B2 o S2, nunca pasa a P7 y
+    nunca vuelve a ser candidata.
+18. **Muestra (OD-P6-30).** `N_closed ≥ 100`. Por debajo, **`NO EVALUABLE POR MUESTRA`**, y no pasa a
+    P7. Se publican las operaciones por año y los años con operaciones, sin otro veto. El recuento
+    nunca reabre esta OD.
+19. **Drawdown (OD-P6-31).** `max_drawdown ≥ −25 %`; uno peor veta. El umbral no se cambia después de
+    ver resultados.
+20. **Métricas descriptivas (OD-P6-32).** Sharpe, Sortino y Calmar son **solo descriptivos**: no vetan
+    ni rescatan.
+21. **Incertidumbre (OD-P6-33).** Ni bootstrap ni IC de trayectoria. Se publican las métricas de
+    trayectoria completas, los resultados por año natural y por primera y segunda mitad de la ventana,
+    rotulados «**robustez temporal interna sobre datos de desarrollo**». Solo descriptivo: no es
+    validación y no veta.
+22. **Salida (OD-P6-34).** Exactamente `[]`, `[B2]`, `[S2]` o `[B2, S2]`. Si las dos pasan, las dos
+    van a P7. No se elige la mejor ni se crea una combinación de B2 y S2.
+23. **Identidad (OD-P6-35).** Más adelante se crean `intradia.p6.system.v1`, con un `system_sha256`
+    que identifica todas las decisiones económicas y de contexto de T-022, y el `P6_DATA_ID`
+    compuesto. Los dos existen y quedan congelados antes de la ejecución.
+24. **Población (OD-P6-37 = C, especialmente vinculante).**
+    - **Primaria y única decisoria:** OPERAR con Score v1 y el contexto point-in-time de OD-P6-42.
+    - **Puente descriptivo hacia P4/P5:** una corrida con **todas las barras elegibles**. No veta, no
+      rescata, no elige y no modifica el resultado de P6.
+    - Cada corrida tiene su propio `system_sha256`.
+    - Se declara expresamente, sin ocultar la diferencia de población:
+      - P4/P5 midieron todas las barras, no OPERAR;
+      - el Score v1 no tiene ordenación demostrada (A-02, D-42);
+      - P3 estudió el Score v2, no el v1;
+      - el RR forma parte del Score v1: con el stop de volatilidad, B2 recibe mecánicamente 15 puntos
+        de RR, frente a 10 en S2 y C0.
+25. **Mismo activo (OD-P6-38).** Una señal nueva de un activo con posición abierta →
+    `IGNORED_ALREADY_OPEN`, contada y publicada. Sin piramidar y sin modificar el stop ni los
+    objetivos.
+26. **Universo (OD-P6-39).** Exactamente los 90 activos de P4/P5. ARM y Q8Y0.DE entran en su
+    elegibilidad: la apertura de la barra siguiente a su barra 120. No se elimina ningún activo por FX,
+    sector, región o conveniencia.
+27. **Caja (OD-P6-40).** Una sola caja en EUR. Cada flujo en otra divisa se convierte con el FX causal,
+    sin coste FX adicional porque no hay un coste congelado defendible. La limitación se declara.
+28. **Contexto (OD-P6-42).**
+    - Obligatorio `context_mode = "point_in_time"`, con la función R-CTX de D-52/D-53/D-56 y el
+      `analysis_timestamp` de D-50.
+    - `NO_CALCULABLE_CONTEXT_HISTORY` o la falta del contexto exigido excluye la señal, y se cuenta.
+    - No se usa `legacy_v1` ni se neutraliza para fabricar un contexto ausente.
+    - Replica el contrato causal del laboratorio y de P3, y **no es idéntico al contexto v1 activo hoy
+      en producción**.
+29. **R decisorio (OD-P6-43).**
+    - El PF y el R que deciden el gate son `trade_R_local`, `profit_factor_local` y `mean_R_local`, en
+      la divisa de cotización y sin efecto FX. El R y el PF en EUR son **solo descriptivos**.
+    - El efecto FX entra íntegro en la equity en EUR, el retorno, el CAGR, el drawdown y el exceso
+      frente al benchmark.
+
+**Criterio decisorio de P6.** B2 o S2 pasan P6 solo si se cumplen **a la vez**:
+
+```text
+N_closed >= 100
+profit_factor_local > 1
+mean_R_local > 0
+max_drawdown >= -25 %
+excess_CAGR_pp > 0
+```
+
+Sharpe, Sortino, Calmar, las sensibilidades, C0, los subperiodos y el puente de todas las barras son
+descriptivos. No hay ranking entre B2 y S2.
+
+**Lo que no cambia.**
+- P6 **no se ha ejecutado**: no existe `p6.py`, no se ha descargado el FX ni el sector y no se ha
+  calculado ninguna señal OPERAR ni ningún desenlace.
+- No existe todavía `P6_PREREG_SHA`: será el HEAD documental que quede tras la revisión final del
+  pre-registro y sus correcciones, con 0 BLOCKER y 0 IMPORTANTE.
+- La implementación, el sidecar FX y el mapa de sector necesitan autorizaciones aparte.
+- Producción no cambia: `config.yaml` en `"1.0"` con C0, Score v1 70/60, Score v2 inactivo y la Pi en
+  `v0.4.1`.
+
+**Precisiones de la revisión final del pre-registro** (2026-10-03). **Especificación derivada de la
+revisión, **ratificada expresamente por el propietario el 2026-10-03, antes de congelar** el
+pre-registro (las cinco precisiones, una a una: `mean_R_local` decide y la media por bloques es
+descriptiva; fuente B del BCE con 17:00 Europe/Berlin, último tipo causal y `1/tipo`; petición fija de
+Yahoo y fallo de A ante cualquier barra que falte, sobre o cambie de las 1.300 de `EURUSD=X`; comisión
+dentro del 1/90 y de cada reinversión; población OPERAR `broker_neutral`).** `P6_PREREG_SHA` es el
+HEAD del commit de congelación que registra esta ratificación. No cambian ninguna letra
+de D-69. Añaden parámetros que el texto no fijaba (17:00 Europe/Berlin para la fuente B, la comisión
+dentro del importe del benchmark, el predicado broker neutral, la petición fija de la fuente A) y
+nombran la consecuencia de usar `mean_R_local` frente a INV-14. Se añadieron para cerrar ambigüedades
+que permitirían reinterpretar después:
+- **INV-14:** el criterio decide con `mean_R_local`, la media de las operaciones cerradas, como fija este
+  D-69. Es una **excepción declarada** al estimador primario de INV-14/D-03, que se definió para eventos.
+  La media por bloque (por año natural) se publica como descriptiva y no veta ni rescata (T-022 §16).
+- **Fuente B de FX:** tipos de referencia del BCE para USD, JPY y HKD, con `timestamp_available` a las
+  17:00 Europe/Berlin del día de referencia, el último tipo causal en los festivos TARGET y
+  `fx_rate = 1/rate` (T-022 §11.1). Fallo de integridad de A = cualquier barra que falte o sobre, o
+  cualquier cadena distinta, en las 1.300 marcas de `EURUSD=X` de la cosecha, sobre una **petición fija**
+  (`start = 2021-08-27`, `end = 2026-08-29`, `interval = 1d`, `auto_adjust = False`,
+  `actions = True`, versión registrada). El paso a B no abre OD.
+- **RR en el score:** los 15 puntos de B2 frente a 10 en S2 y C0 valen **con el stop de volatilidad**;
+  con la regla E, un stop de soporte más ajustado puede dar más puntos a cualquiera.
+- **Predicado OPERAR:** broker neutral (D-04), `setup_radar = OPERAR` y `setup_accion = COMPRAR`.
+- **Benchmark:** la comisión va dentro del importe asignado (1/90, o el dividendo reinvertido).
+- **Dividendos de Xetra en otra divisa:** Yahoo los convierte a un tipo constante (comprobado en
+  R6C0.DE); limitación declarada que afecta igual a las políticas y al benchmark.
+- **Correcciones posteriores de métricas:** solo de errores de implementación; un cambio de
+  definición exige una D-nn y nunca cambia la salida.
+
+### D-70 — 2026-10-05 — Resultado de P6 y GATE P6 cruzado: salida `[]`
+Decisión del propietario. Registra el resultado de la **ejecución confirmatoria única** de P6 (T-022,
+A-06), que acepta como válida y consumida, y cierra GATE P6. Se transcribe la salida de
+`evidence/2026-10-03-T-022-p6/run/` sin recalcular nada; el detalle está en
+`evidence/2026-10-05-T-022-p6-cierre/resultado-p6.md`.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Identidad.**
+- `P6_PREREG_SHA = 03f04a42ea9d2be893e7c4cc09de76bd1c55778b`
+- `P6_CODE_SHA = bc0636d4320b38ef5a620fa9ae94cee35df47580`
+- `P6_RUN_HEAD_SHA = 353876d39d03f6849847743b9f4e7f791abbed30`: archiva el preflight definitivo sobre
+  `bc0636d`; respecto a `bc0636d` solo añade evidencia.
+- `P6_RUN_EVIDENCE_SHA = 0771989af851748463aa0e79d4a7dc327066ca5f`
+- `P6_DATA_ID = 572e09141dbfe0fc9c53a7b529f1abcff46e16027fe9b47d1f3e26330c1e5383`
+- Marca creada el 2026-10-05 a las 10:11:49 UTC, antes de abrir ningún desenlace. Hashea
+  `apertura-payload.json` (`7823fe8dc2634a0f4d6271399511d5d0d62b3a5da49c61106be6210a12dc8a7e`), y su
+  sha256 (`7a05c3b80d42765bf8d7e272a7afa4419ab15aaf8611e3e15e2e9d3182a07463`) es el `token_sha256` del
+  resultado.
+- Completó por la ruta normal: `p6-resultado.json` y `p6-resumen.md` íntegros, ningún `p6-parada.json`
+  y `código de salida: 0` en la consola.
+
+**Decisiones.**
+1. **P6 se ejecutó exactamente una vez** y no se repite.
+2. **B2 recibe `NO PASA`** y **S2 recibe `NO PASA`**.
+3. **Salida de P6 = `[]`.**
+4. **La causa formal es exclusivamente `excess_CAGR_pp <= 0`.** Las dos cumplen `N_closed >= 100`,
+   `profit_factor_local > 1`, `mean_R_local > 0` y `max_drawdown >= -25 %`; solo falla la quinta
+   condición de T-022 §16.
+5. **No se reinterpretan** la sensibilidad de 10 pb, el puente de todas las barras, C0, la
+   exposición, el cash, los subperiodos ni ningún diagnóstico de ocupación. Son descriptivos (T-022
+   §16) y no pueden rescatar ni cambiar la salida.
+6. **No se retoca ninguna candidata** usando estos resultados.
+7. **Producción continúa exactamente igual:** `config.yaml` en `"1.0"` con C0, Score v1 70/60, Score v2
+   inactivo y la Pi en `v0.4.1`. No hay release ni despliegue.
+8. **GATE P6 se cruza** porque todos sus requisitos metodológicos y de evidencia están cumplidos
+   (`evidence/2026-10-05-T-022-p6-cierre/gate-p6-final.md`). El gate exige la medición completa y
+   reproducible, no un resultado favorable.
+9. **P7 queda sin candidata admisible**, y por tanto **A-07 permanece BLOQUEADO**.
+10. **Cualquier intento futuro** de corregir la selección de señales, la prioridad, el sizing, la
+    utilización del cash, la geometría o el benchmark constituye **investigación nueva**, con ficha y
+    pre-registro nuevos, y **no cambia la etiqueta original de P6**.
+
+**Valores vinculantes (corridas primarias a 5 pb).**
+
+| | N_closed | PF local | mean_R_local | Max DD | CAGR | excess_CAGR_pp | Etiqueta |
+|---|---|---|---|---|---|---|---|
+| B2 | 673 | 1,3995145381 | 0,2477734148 | −16,5959 % | 18,0349 % | −15,7671 | **NO PASA** |
+| S2 | 528 | 1,4043635462 | 0,2383023780 | −11,2259 % | 15,0793 % | −18,7228 | **NO PASA** |
+
+Benchmark de comprar y mantener del propio universo, a pesos iguales y 5 pb: CAGR 33,8021 %, max DD
+−26,2249 %.
+
+**Descriptivo, sin efecto en la salida:**
+- C0: N 623, PF 1,2468, mean_R 0,1637, max DD −11,1428 %, CAGR 9,8883 %, exceso −23,9138 pp;
+- sensibilidad de 10 pb: B2 −15,3041 pp y S2 −20,0919 pp de exceso;
+- puente de todas las barras: B2 −9,5165 pp y S2 −5,5714 pp de exceso.
+
+**Conciliación contable:** cuadra en las 9 corridas (efectivo encadenado fila a fila y
+V_T − V_0 = Σ pnl_neto_EUR = Σ bruto + dividendos − comisiones).
+
+**Revisión final independiente:** 0 BLOCKER, 0 IMPORTANTE y 0 MENOR (`evidence/2026-10-05-T-022-p6-cierre/revision-final.md`).
+
+**A-06 / T-022 queda ACEPTADA — GATE P6 CRUZADO.** El resultado es de desarrollo sobre una cosecha ya
+consumida (INV-15); el buy-and-hold del mismo universo mitiga la interpretación, pero no corrige el sesgo
+de universo.
+
+### D-71 — 2026-10-05 — Antes de modificar la cartera, medir si existe edge relativo al drift
+Decisión del propietario, tomada sobre el diagnóstico post hoc de T-023
+(`evidence/2026-10-05-T-023-diagnostico-post-p6/`, PR #43, merge `d86a94e`). Elige la **opción E de
+T-023**.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**P6 sigue siendo vinculante:** B2 `NO PASA`, S2 `NO PASA`, salida `[]` y P7 BLOQUEADO (D-70).
+
+**Motivo.** T-023 muestra problemas de participación y de asignación, sobre todo la saturación de
+cash de B2. También muestra que B2 y S2, con la población de todas las barras y una exposición de
+≈ 95 %, siguen por debajo del buy-and-hold. Por eso, antes de cambiar la prioridad de señales, el
+sizing, el cash, los límites de cartera, la entrada máxima, los objetivos, los stops o el horizonte,
+se responde una pregunta anterior:
+
+> ¿Las ventanas que selecciona la señal aportan rendimiento adicional frente a mantener el mismo
+> activo?
+
+La medición es una tarea nueva, **T-024 — Edge relativo al drift**, basada en H23-04
+(`docs/tareas/T-024-edge-relativo-al-drift.md`).
+
+**Regla metodológica.**
+- La cosecha hasta el 2026-08-27 está consumida y **no puede dar confirmación**. Solo puede usarse
+  para diseñar código, tests, comprobar definiciones y ejemplos rotulados como desarrollo.
+- El resultado decisorio de T-024 usa **exclusivamente** observaciones posteriores al 2026-08-27 que
+  no hayan intervenido en la formulación de H23-04.
+- T-024 separa: (1) el pre-registro y el mecanismo de captura; (2) la acumulación forward; (3) la
+  ejecución decisoria, solo al alcanzar la capacidad fijada antes de mirar.
+- No se amplía la ventana ni se cambia el umbral de capacidad después de ver resultados.
+
+**T-024 fija antes de medir**, para cada operación o señal elegible: el instante exacto de entrada y
+el de salida o de holding comparable; el retorno neto de la operación; el retorno pasivo de referencia
+del mismo activo; costes comparables; el FX causal cuando corresponda; la métrica primaria de exceso;
+la unidad estadística; los bloques temporales; el intervalo; el criterio de capacidad; y el criterio
+`POSITIVO / NO CONCLUYENTE / NO POSITIVO`. La comparación principal es **pareada por
+operación/ventana**. La definición exacta se revisa antes de congelarla y no se improvisa; la ficha de
+diseño (§4) explica por qué la lectura literal «mismo activo en el mismo intervalo» es degenerada y
+propone definiciones alternativas para que las decida el propietario.
+
+**Lo que T-024 no hace:** no simula otra vez P6, no cambia B2 ni S2, no elige otra geometría, no prueba
+la prioridad de señales ni el cash ocioso, no inicia P7 y no activa nada en producción.
+
+**Interpretación futura, fijada ahora** _(sustituida por la precisión obligatoria de D-72: D2 no mide el
+timing puro de la señal, sino las ventanas del contrato congelado; se conserva el texto original)_:
+- edge relativo **claramente positivo** en datos nuevos → el timing de la señal aporta valor y queda
+  justificado estudiar después la arquitectura de cartera, empezando por H23-02 y H23-03;
+- edge **≤ 0** → no se optimiza la asignación para rescatarlo; la investigación vuelve a la señal, la
+  salida o la arquitectura;
+- **NO CONCLUYENTE** → se sigue acumulando forward hasta el límite pre-registrado, sin cambiar las
+  reglas.
+
+**Estado:** ficha de diseño T-024 creada, con sus OD abiertas. **No hay pre-registro congelado** y no
+se ha calculado ningún resultado posterior al 2026-08-27. Producción no cambia.
+
+### D-72 — 2026-10-05 — Decisiones de T-024 Edge relativo al drift
+Decisión del propietario. Cierra **OD-T24-1 a OD-T24-12** de la ficha
+`docs/tareas/T-024-edge-relativo-al-drift.md` (D-71). Se toma **antes de implementar T-024 y sin
+ningún desenlace**: no se ha calculado nada de T-024, ni sobre la cosecha consumida ni sobre datos
+posteriores al 2026-08-27.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Decisiones:**
+1. **OD-T24-1:** D2 es la primaria. D2o es secundaria. D2c, D3 y D4 son descriptivas. D1 sirve
+   exclusivamente para comprobar la implementación.
+2. **OD-T24-2:** B2 y S2 son decisorias; C0 es descriptiva.
+3. **OD-T24-3:** la convención (a), sesiones completas, es la primaria. La descomposición noche y día
+   (b) se publica como descriptiva.
+4. **OD-T24-4:** el drift primario va sin costes. La variante con el coste del pasivo prorrateado es
+   descriptiva.
+5. **OD-T24-5:** divisa local como primaria; EUR descriptivo.
+6. **OD-T24-6:** cosechas forward mensuales congeladas. La caché de la Pi solo sirve como contraste
+   descriptivo de integridad.
+7. **OD-T24-7:** la media por ventana es el estimador primario, con **excepción explícita a INV-14**.
+   La media por bloque mensual sigue siendo descriptiva. **Modificación respecto de la propuesta:** el
+   bootstrap decisorio usa **bloques móviles de 10 semanas ISO de entrada**, no de 4. El motivo es que
+   las ventanas pueden durar hasta 40 sesiones, y un bloque de 4 semanas no conserva bien la
+   dependencia que crean las trayectorias solapadas en el tiempo. Contrato:
+   - todas las ventanas cuyas semanas de entrada pertenecen al bloque se remuestrean juntas;
+   - `B = 10.000`;
+   - semilla fija `20261005`;
+   - el mismo esquema para B2 y S2.
+8. **OD-T24-8:** capacidad `Q_p ≥ 120` y `W_p ≥ 26`; mínimo de 100 ventanas después del no
+   solapamiento; corte final de entradas el 2027-08-27. **Guarda añadida:**
+   - El checkpoint mensual solo **propone** abrir la mirada. Cuando está disponible la cosecha decisiva,
+     75 días o más después, y **antes de leer ningún desenlace**, se recalculan `Q_p` y `W_p` desde esa
+     cosecha, usando solo la señal y la apertura.
+   - Si en la mirada 1 alguna política deja de cumplir `Q ≥ 120` o `W ≥ 26`, **no se abre ningún
+     desenlace, no se crea ni se consume la marca de la mirada y se sigue acumulando**.
+   - En la mirada final, una política que no cumpla la capacidad queda `NO EVALUABLE POR MUESTRA`.
+   - El mínimo de 100 ventanas se comprueba tras aplicar el no solapamiento dentro de la ejecución
+     decisoria.
+9. **OD-T24-9:** Bonferroni. Dos políticas por un máximo de dos miradas → IC bilateral del 98,75 % por
+   política y mirada.
+10. **OD-T24-10:** `δ = 0`. El retorno de la operación ya incorpora sus costes y el drift primario no.
+    No se exige ningún otro margen en la decisión. La lectura frente al coste de ida y vuelta es
+    descriptiva.
+11. **OD-T24-11:** T-024 consume `[T0, T1]`. Cualquier holdout futuro de P7 debe empezar después del
+    `T1` de la última mirada que use T-024.
+12. **OD-T24-12:** la población de todas las barras es solo descriptiva.
+
+**Precisión obligatoria de interpretación.** D2 **no** es una medida de «timing puro de la señal».
+Depende de la selección de la señal, la entrada, el stop, el objetivo, la salida temporal y la
+duración resultante. La afirmación permitida es:
+
+> D2 evalúa si las ventanas del contrato activo congelado de B2/S2 (selección, ejecución y salida)
+> obtienen un retorno neto superior al drift medio del mismo activo durante un número comparable de
+> sesiones.
+
+Interpretación de los resultados:
+- **`POSITIVO`**: las ventanas activas bajo el contrato congelado muestran edge frente al drift. Esto
+  justifica investigar después la capa de cartera.
+- **`NO POSITIVO`**: el conjunto de señal más ejecución y salida no demuestra edge frente al drift. No
+  se optimiza la asignación de cartera para rescatarlo.
+- **`NO CONCLUYENTE`**: se aplica únicamente el calendario de miradas ya fijado.
+- **`NO EVALUABLE POR MUESTRA`**: capacidad insuficiente.
+
+Ningún resultado positivo o negativo se atribuye causalmente solo al score o a la señal.
+
+**Lo que no cambia.**
+- P6: B2 `NO PASA`, S2 `NO PASA`, salida `[]` y P7 BLOQUEADO.
+- No se calcula ningún resultado de T-024, no se descargan ni se miran desenlaces posteriores al
+  2026-08-27 y no se implementa `t024.py` ni la captura.
+- Producción no cambia.
+
+**Siguiente:** actualizar la ficha T-024 con estas decisiones, someter el pre-registro completo a una
+revisión adversarial nueva con 0 BLOCKER y 0 IMPORTANTE, y congelar `T024_PREREG_SHA` en un commit
+documental nuevo.
+
+**Congelación (2026-10-05).** Revisión adversarial final del pre-registro completo (Codex): 0 BLOCKER,
+0 IMPORTANTE, 1 MENOR corregido (la nota en la interpretación de D-71) y 2 OBSERVACIONES. El
+pre-registro queda congelado en el commit que añade `evidence/2026-10-05-T-024-prereg-final/`; su HEAD
+es **`T024_PREREG_SHA`**. El commit no puede contener su propio SHA: se identifica en el PR #44. T-024
+no está implementado y no se ha calculado ningún desenlace.
+
+### D-73 — 2026-10-06 — Reorientación: objetivo Superbot, tres velocidades y T-025 con desenlaces sellados
+Decisión del propietario, tomada el 2026-10-06 sobre su plan «Roadmap pendiente — Intradia Bot →
+Superbot» y sobre dos preguntas que se le hicieron en la misma sesión:
+- cómo resolver el choque entre un shadow con P&L visible y la ceguera de T-024: eligió **«desenlaces
+  de B2/S2 ocultos»**;
+- qué es el «iTrade Bot» de su plan: es **`trading-bot`**.
+
+No cambia ningún resultado, ningún pre-registro ni el código de la Pi.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Objetivo final.** Un único bot (el «Superbot») que:
+- analiza el universo y detecta oportunidades;
+- indica qué comprar, la entrada máxima, el stop, los objetivos, el RR y el tamaño;
+- controla el capital, las posiciones y el riesgo de cartera;
+- simula en paper trading hasta el cierre, con dashboard y avisos;
+- acumula resultados forward.
+
+El capital real solo se plantea después de P10. El motor cuantitativo es el de intradia-bot. La capa
+de cartera, paper trading y dashboard recoge la filosofía de `trading-bot`, y los dos proyectos
+convergen en S-03.
+
+**Tres velocidades.**
+- **Bot:** T-025 → paper trading → dashboard → Superbot. No espera a P7.
+- **Investigación:** T-024 + P6-bis → nueva candidata → evaluación de cartera → P7 → P10. Ningún gate
+  se rebaja.
+- **Publicación:** PAPER-001 v1 con P2–P6 y T-023; la v2/final incorpora T-024, T-025, P7 y P10.
+
+Un bot que funciona y simula operaciones **no** es un sistema con ventaja demostrada. Toda operación
+de T-025 lleva la etiqueta «SHADOW / PAPER — estrategia en investigación, no validada para capital
+real».
+
+**Decisiones.**
+1. **T-025 (Shadow Trading Forward) es la prioridad máxima.** B2 y S2 quedan congeladas tal como
+   están en `evidence/2026-10-03-T-021-p5-cierre/politicas-finales.json`, y C0 solo como control
+   descriptivo; ninguna se optimiza con resultados del shadow. Lo que se persiste antes y después de
+   conocer el futuro lo fija la ficha `docs/tareas/T-025-shadow-paper-trading-forward.md`.
+2. **Desenlaces de B2 y S2 sellados hasta que T-024 se resuelva.** T-024 (D-72,
+   ficha §6.3 y §9) prohíbe mirar desenlaces de B2 y S2 posteriores al 2026-08-27 antes de su mirada,
+   y T-025 opera las mismas políticas en las mismas sesiones.
+   - De B2 y S2 solo se muestra lo que no depende de ningún desenlace.
+   - El resto se desella cuando T-024 tiene resultado (`POSITIVO`, `NO POSITIVO` o `NO EVALUABLE POR
+     MUESTRA`) **para B2 y para S2 a la vez**. Es la lectura literal de la opción elegida («hasta la
+     mirada de T-024»). En los ledgers de P6, todas las señales de S2 son también de B2, así que
+     desellar una antes que la otra revelaría la segunda. _(Corrección del 2026-10-06, revisión
+     independiente: una versión anterior desellaba cada política por separado.)_
+   - El texto de la opción elegida dejaba **C0 visible** por ser descriptiva en T-024. La ficha de
+     T-025 aporta un dato posterior (en P6 todas las señales de C0 son también de B2 y de S2, y C0
+     comparte con B2 el stop de 2,0·ATR) y lo vuelve a preguntar en OD-T25-4. **Hasta que se decida, rige lo elegido: C0 visible.**
+     _(Superado el 2026-10-07 por D-75: C0 queda sellado en desenlaces y P&L durante el mismo embargo.)_
+3. **Los desenlaces que se consultan en T-025 quedan consumidos para investigación** y no pueden ser
+   holdout virgen de P7. Es la regla del propietario fijada en D-74 §3, sin rebajas. P6-bis no usa
+   ningún desenlace de T-025. _(Corrección del 2026-10-06, revisión independiente: una versión anterior
+   de este punto limitaba «consumido» a lo que interviniera en el diseño o la selección. Contradecía la
+   regla del propietario y se retiró.)_ Como T-025 corre indefinidamente, P7 solo tendrá holdout si su
+   ventana no se consulta en T-025: eso se propone en OD-T25-9. _(Decidido el 2026-10-07 en D-75:
+   unidad = sesión y ventana de P7 sellada en todas las cohortes.)_
+4. **T-025 no toca T-024:** ni el worktree de la Pi, ni los `EXECUTOR_PATHS` de `1a697c3`, ni sus
+   cosechas.
+5. **PAPER-001** («From Trade-Level Edge to Portfolio-Level Underperformance») empieza en paralelo.
+   - Separa lo confirmatorio (P2–P6), lo post hoc (T-023) y lo prospectivo (T-024 y T-025).
+   - Declara la pérdida de los CSV de `071ddb2b…`.
+   - Puede salir como preprint antes de que termine T-024.
+6. **P6-bis** pregunta si se puede conservar la señal B2/S2 y mejorar su transformación en cartera.
+   Tiene tres bloques separados, cada uno con su pre-registro, sin cambiar a la vez la señal y la
+   cartera:
+   - (A) gestión de ganadores;
+   - (B) asignación de capital;
+   - (C) participación.
+7. **El resultado de P6-bis** es una de dos cosas:
+   - ninguna candidata: se vuelve a investigación y no se fuerza P7;
+   - una candidata congelada (config, código, entrada, salida, sizing, asignación, costes, universo y
+     hashes) que pasa una evaluación de cartera equivalente a P6 y entonces va a P7.
+8. **P7 no se elimina ni se rebaja.**
+9. **Ingeniería en paralelo:** C-06 (backups) con prioridad alta tras el incidente del 2026-10-06 y el
+   backup fuera del árbol que protege; después C-04 y C-05. Con C-03 a C-06 se puede cerrar GATE PROD.
+10. **La línea B no bloquea T-025.** El contexto se guarda en `context_shadow_decision`, separado de
+    `quant_decision`, y solo puede degradar una señal, nunca rescatarla.
+11. **R-01 puede diseñarse antes**, pero solo se cierra tras GATE P7.
+12. **T-025 se diseña como la capa paper del Superbot**, no como prototipo desechable.
+
+**Consecuencias de decisiones anteriores (no son decisiones nuevas):**
+- **Datos de P6-bis:** D-71 consume la cosecha hasta el 2026-08-27, y las sesiones posteriores
+  pertenecen a la ventana de T-024. Por eso P6-bis solo puede desarrollarse con sesiones hasta el
+  2026-08-27 inclusive, en una cosecha nueva con su `data_vintage_id`, porque los CSV de `071ddb2b…`
+  se perdieron. Esa evaluación de cartera es **desarrollo, no confirmación**: la confirmación es P7.
+- **Frontera de P7 (OD-T24-11 y la regla de consumo):** P7 empieza después de la congelación de su
+  candidata **y** del `T1` de la última mirada de T-024. Solo usa sesiones cuyos desenlaces no se
+  hayan consultado en T-025 (`paper_outcome_access`) ni hayan intervenido en T-024 o en P6-bis.
+
+**Lo que no cambia.**
+- P6 (B2 `NO PASA`, S2 `NO PASA`, salida `[]`).
+- El pre-registro y el código de T-024.
+- P7 BLOQUEADO.
+- La Pi: C0, Score v1 70/60, `v0.4.1`.
+
+### D-74 — 2026-10-06 — Apertura de T-025: diseño y pre-registro propuesto, con OD abiertas
+Registra la apertura formal de T-025 por encargo del propietario (2026-10-06). Separa lo que el
+propietario fijó en el encargo, lo que decide el agente por ser técnico y reversible, y lo que queda
+abierto. **No congela el pre-registro.**
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Fijado por el propietario en el encargo:**
+1. **Alcance de la primera entrega:** inspección, diseño, pre-registro, roadmap, decisiones, revisión
+   independiente y PR documental. Sin paper broker, sin descargas, sin abrir posiciones, sin observar
+   desenlaces, sin tocar la Pi y sin desplegar.
+2. **T-025 no desbloquea P7, no convierte B2/S2 en políticas validadas** y no se presenta como
+   sustituto de P7. T-024 tampoco.
+3. **La regla de contaminación:** «Toda observación cuyo desenlace se consulte durante T-025 queda
+   consumida para investigación y no podrá utilizarse posteriormente como holdout virgen de P7».
+4. **Reglas de modificación:**
+   - B2/S2 congeladas;
+   - el paper broker congelado por versión o tag;
+   - un cambio de política crea una `policy_version` nueva;
+   - un cambio de arquitectura relevante crea una cohorte nueva;
+   - no se mezclan versiones sin etiqueta;
+   - nunca se reescriben observaciones.
+5. **Punto de partida de capital, riesgo y costes:** las reglas de P6 (100.000 EUR; 0,5 % de la
+   equity causal; máximo del 10 %; long only; sin apalancamiento; rechazo completo sin cash; 0,10 % por
+   lado y 5 pb). Nada distinto se adopta sin decisión del propietario.
+6. **Terminología:** la Pi es un **entorno de desarrollo/integración**, no producción. La producción
+   real será el bot final cuando termine la validación. Los textos de estado actuales se corrigen; las
+   entradas históricas del decision log conservan su redacción y, en ellas, «producción» significa «la
+   configuración desplegada en la Pi».
+7. **PAPER-001:** solo ficha y plan; la pérdida de los CSV de `071ddb2b…` se declara y ese vintage no
+   se reconstruye ni se vuelve a descargar fingiendo que es el original.
+
+**Decisiones técnicas del agente (reversibles; las valida la revisión independiente):**
+- Ficha `docs/tareas/T-025-shadow-paper-trading-forward.md` y ficha
+  `docs/tareas/PAPER-001-trade-edge-vs-portfolio.md`.
+- Nombres y forma del contrato de persistencia (ficha §5).
+- La señal vinculante es la de la última pasada anterior a la apertura, conforme a D-50 (§7.1).
+- Las adaptaciones en vivo de §8, cada una declarada y con su test.
+- Idempotencia y concurrencia (§12).
+- MAE y MFE sobre barras diarias (§5).
+- **Base de precios de P6** (`get_raw_history`, `auto_adjust=False`, dividendos aparte) y no la caché
+  `validated_bar`, que está ajustada por dividendos (§3.3). No es una elección nueva: hace falta para no
+  cambiar B2 y S2.
+
+**Abierto (OWNER_DECISION_REQUIRED):**
+- OD-T25-1 a OD-T25-9, en la ficha §17;
+- **OD-12** (convivencia de T-024 con cambios en los `EXECUTOR_PATHS`), abajo.
+
+Mientras sigan abiertas, T-025 está `BLOQUEADA_POR_OWNER` para congelar. _(Cerradas el 2026-10-07:
+OD-T25-1..9 en D-75 y OD-12 en D-77.)_
+
+**Hallazgo registrado:** cualquier commit en `main` que toque `advisor/`, `config.yaml`,
+`universe.yaml`, `exchange_overrides.yaml`, `pyproject.toml` o `requirements.txt` hace que
+`verificar_identidad()` de T-024 falle sobre ese checkout (ficha de T-025 §3.8). Esta entrega no toca
+ninguno. `T024_CODE_SHA` sigue siendo válido.
+
+### D-75 — 2026-10-07 — T-025: el propietario cierra OD-T25-1 a OD-T25-9
+Decisiones del propietario sobre las OD de la ficha `docs/tareas/T-025-shadow-paper-trading-forward.md`
+§17, tomadas el 2026-10-07 antes de que exista código de T-025 y antes de observar ningún desenlace.
+**No congela el pre-registro**: falta la revisión final del propietario del PR #48.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+1. **OD-T25-1, arquitectura: separada.** `paper.db` independiente de `intradia.db`, con `PRAGMA
+   application_id`, esquema y migraciones propios; paquete raíz `paper/`, separado de `advisor/`;
+   comandos propios; ningún comando de posiciones manuales lee `paper.db`. Separación **por
+   construcción, no por filtros**. No se reutilizan `position` ni `position_review`.
+2. **OD-T25-2, capital: 100.000 EUR** iniciales por cohorte y libro, para la comparabilidad directa con
+   P6. B2 y S2 no comparten capital.
+3. **OD-T25-3, libros independientes**, como en P6: cada libro con sus 100.000 EUR, cash, equity,
+   posiciones, ledger, costes y resultados. Una operación de B2 no consume capital de S2 ni al revés.
+   C0 es otro control separado.
+4. **OD-T25-4, visibilidad (cambia la recomendación técnica A + E):** durante el embargo de T-024 se ve
+   la información **ex ante** de B2 y S2 (fecha y hora de la señal, activo, política, `entry_max`, stop,
+   objetivos, RR, tamaño solicitado, ejecución simulada de entrada, precio de entrada si se ejecutó,
+   rechazos de entrada y su motivo) y **no** sus desenlaces (estado posterior, salida, P&L, `net_R`,
+   MAE, MFE, duración, cash y equity derivados, PF, win rate, drawdown, CAGR, exceso, métricas
+   agregadas, progreso o frontera y **cualquier otro canal lateral identificado por la revisión**). Los
+   desenlaces se calculan y persisten, sellados para el propietario, el dashboard, la CLI normal,
+   Telegram, Claude, Codex y cualquier agente. **C0 queda también sellado** en desenlaces y P&L durante
+   el mismo embargo, por su solape con B2 y S2; su información ex ante puede guardarse y verse. Esto
+   sustituye la regla provisional «C0 visible» de D-73 §2. La exposición de T-024 se registra en D-76.
+   - **Interpretación técnica del agente, no parte de la decisión** _(ratificada por el propietario el
+     2026-10-07 en D-78)_ (las dos revisiones de la ronda 4 la consideran la
+     única lectura compatible con las dos listas): el tamaño en unidades o en
+     EUR revela la equity, y el resultado por libro (`FILLED`, `IGNORED_ALREADY_OPEN`,
+     `INSUFFICIENT_CASH`, `POSITION_TOO_SMALL`) revela el cash y si una posición anterior sigue abierta.
+     Por eso se muestran en su forma por política: tamaño solicitado como fracción de la equity y
+     comprobación de apertura (`PASS` con su precio efectivo, o el rechazo de mercado con su motivo).
+     Ficha §10.2.
+5. **OD-T25-5, barra de entrada ausente: A.** Espera hasta el cierre de la 5.ª sesión hábil posterior;
+   después, salto de P6; registro explícito; una barra posterior es tardía y no reescribe decisiones.
+6. **OD-T25-6, dividendo tardío: A.** Se registra al conocerse, se abona causalmente en la primera
+   sesión procesada posterior, marcado `late`, sin reescribir balances, tamaños ni decisiones.
+7. **OD-T25-7, activo sin datos: modificada; no se fabrica una venta.** Tras 20 sesiones hábiles
+   consecutivas sin datos suficientes, la posición pasa a `DATA_LOSS / SUSPENDED`: sin `exit_price`
+   sintético, sin P&L ficticio, sin usar el último cierre como ejecutable; capital bloqueado; alerta
+   operativa; caso identificado. Si vuelven datos válidos, se reanuda desde lo realmente observado, sin
+   reescribir el periodo perdido. Si la cohorte termina sin datos, la operación es
+   `NO_EVALUABLE_DATA_LOSS` y se informa aparte. Una salida real verificable (delisting, liquidación,
+   corporate action con precio verificable) sigue una regla específica y documentada (ficha §8.7), no
+   el fallback de 20 sesiones. Se retira la alternativa `EXIT_DATA_LOSS`.
+8. **OD-T25-8, cohortes: A con una precisión.** Un motor nuevo abre una cohorte nueva; la antigua sigue
+   bajo su motor y contrato congelados; no se migra en silencio ni se mezclan resultados. Un defecto
+   crítico que invalide materialmente una cohorte la congela como `ABORTED_INVALID_ENGINE`, con la
+   causa documentada; su historia no se corrige nunca y la versión corregida abre una cohorte nueva.
+9. **OD-T25-9, consumo y P7: A + C.** La unidad de consumo es la **sesión**, para cualquier política o
+   cohorte, sin usar `(política, sesión)` como escapatoria. Cuando exista una candidata válida para P7,
+   su ventana se fija antes de empezar y desde entonces **todas** las cohortes de T-025 quedan selladas
+   para esas sesiones; T-025 sigue funcionando internamente; tras la consulta única de P7 se registra
+   su consumo.
+
+**Contrato del sellado que se congela** (sin implementarlo ahora): tests que demuestren que, durante un
+embargo, ninguna consulta, API, comando CLI, mensaje de Telegram, dashboard, exportación ni métrica
+agregada devuelve desenlaces, y que fronteras, contadores y estados no son canales laterales; y una vía
+extraordinaria solo para recuperación o auditoría técnica, cuyo uso queda registrado como **ruptura del
+sellado** y consume las sesiones afectadas (ficha §10.4–§10.5).
+
+**Lo que no cambia:** B2, S2 y C0; P6; T-024 (ver D-76); P7 BLOQUEADO; la Pi.
+
+### D-76 — 2026-10-07 — T-024: visibilidad parcial ex ante del propietario, declarada antes de observar desenlaces
+Consecuencia de D-75 (OD-T25-4), registrada **antes de ejecutar T-025** y antes de observar ningún
+desenlace de la ventana forward. **No modifica el pre-registro de T-024** (`T024_PREREG_SHA
+dfcca0ef…`), que sigue congelado.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Qué cambia.** Cuando T-025 funcione, el propietario verá cada día las señales ex ante de B2, S2 y C0
+(activo, niveles, tamaño como fracción de la equity y comprobación de apertura) durante la ventana de
+T-024. Con esas señales y precios públicos podría intentar deducir a mano los resultados.
+
+**Qué conserva T-024, intacto:** pre-registro, código (`T024_CODE_SHA 1a697c3…`), métricas, criterios,
+calendario de miradas, ejecución automática, D2 y reglas de decisión. Ningún desenlace de B2, S2 ni C0
+se muestra hasta que T-024 se resuelve para B2 y S2 (D-73 §2, D-75).
+
+**Naturaleza de la ceguera, a partir de ahora:** **T-024 conserva su diseño confirmatorio
+pre-registrado, con visibilidad parcial ex ante del propietario declarada antes de observar
+desenlaces.** La ceguera humana deja de ser absoluta. Todo informe de T-024 (y PAPER-001 v2) lo cita.
+
+**Exposición previa, que ya existía y se declara aquí:** el informe diario de la Pi
+(`advisor/report/formatter.py`) envía por Telegram, desde antes de T-024, la entrada máxima, el stop y
+los objetivos de las recomendaciones OPERAR de C0 con contexto `legacy_v1` y serie ajustada por
+dividendos. No son las señales de P6 (contexto point-in-time, serie sin ajuste por dividendos), pero se
+solapan con ellas.
+
+**Riesgo residual declarado:** T-024 no tiene pasos discrecionales que dependan de desenlaces, pero sí
+decisiones humanas (qué hacer ante un checkpoint `NO_APTA`, `ERROR_*`, `INTERRUMPIDO` o `PERDIDO`, las
+declaraciones mensuales del calendario o abandonar T-024). Sus reglas ya están fijadas (sin reintento
+automático, sin descargas retrospectivas), y desde hoy se toman con esta exposición declarada. Cualquier
+ruptura del sellado de T-025 (vía extraordinaria) que afecte a B2, S2 o C0 durante el embargo se
+registra en una D-nn propia como pérdida adicional de ceguera de T-024.
+Las alertas de dato por activo de T-025 (por ejemplo, 20 sesiones sin datos), cruzadas con una señal
+`PASS` visible, permiten sospechar una posición suspendida sin confirmarla: es la misma inferencia
+exógena que permiten las señales y los precios públicos, no un dato de libro, y se declara aquí.
+
+### D-77 — 2026-10-07 — OD-12 cerrada: T-024 vive en la línea Git dedicada `t024/forward`
+Decisión del propietario. T-024 tendrá una **línea Git dedicada y congelada**, independiente de la
+evolución de `main`, para que `main` evolucione (T-025, P6-bis, C-04, C-05…) y T-024 siga ejecutándose
+exactamente con sus `EXECUTOR_PATHS` congelados. **Esta entrega no crea la rama ni toca la Pi:** fija el
+contrato y el procedimiento.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Nombre:** `t024/forward`. Sigue la convención de prefijos del repositorio (`research/…`, `docs/…`).
+
+**Contrato de la línea, mientras T-024 esté vivo:**
+1. Se cumple siempre `git diff --quiet 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0 HEAD -- advisor
+   config.yaml universe.yaml exchange_overrides.yaml pyproject.toml requirements.txt`.
+2. **Nunca** se fusiona en ella un cambio que modifique `advisor/`, `config.yaml`, `universe.yaml`,
+   `exchange_overrides.yaml`, `pyproject.toml` o `requirements.txt`. En cuanto `main` toque alguna de
+   esas rutas, `main` no se vuelve a fusionar en `t024/forward`; lo que haga falta se trae con commits
+   propios o `cherry-pick` que no las toquen.
+3. Solo recibe los cambios operativos estrictamente necesarios fuera de esas rutas: el calendario de
+   T-024 (`deploy/t024/calendario-checkpoints.json`), su evidencia (`evidence/T-024-forward/`), su
+   documentación, sus artefactos de captura y correcciones de `deploy/t024/` que no cambien la identidad
+   del ejecutor.
+4. **No cambian** el sidecar de `T024_CODE_SHA` ni el campo `t024_code_sha` del calendario.
+5. Cada cambio entra por PR contra `t024/forward`, con revisión normal, sin squash, sin rebase y sin
+   force-push, y antes de fusionarlo se ejecuta y se anota en el PR el `git diff --quiet` del punto 1 y
+   `verificar_identidad()`, que tiene que devolver exactamente `1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0`.
+6. La evidencia de T-024 llega a `main` fusionando `t024/forward` en `main` (merge normal, en ese
+   sentido y nunca al revés una vez que `main` sea incompatible), o con un PR solo de evidencia.
+7. La fase B del PC (`traer_cosecha`, `registrar`, `capturar`) y la mirada se ejecutan en un worktree
+   del PC sobre `t024/forward`, preferiblemente fuera de la carpeta sincronizada con iCloud (sus
+   duplicados `* 2` sin seguimiento dentro de `advisor/` harían fallar `tree_dirty`).
+
+**Último commit compatible.** Es el último commit de `main` cuyo diff de los `EXECUTOR_PATHS` contra
+`1a697c3` está vacío. Al 2026-10-07 es `main = f80ab2876f7a7cc2e001b285e66fa061c0d7a8dc` (merge del PR
+#47); la cabeza del PR #48 también lo es, porque solo cambia `docs/` y `evidence/`. Si #48 se fusiona en
+`main` antes de crear la línea, el último compatible pasa a ser ese merge. Sea cual sea, se comprueba
+con el `git diff --quiet` del punto 1 en el momento de crear la rama, y su SHA se anota en la evidencia.
+
+**Procedimiento de creación (futuro; no se ejecuta en esta entrega):**
+1. **Crear `t024/forward`** en GitHub desde el último commit compatible, **antes** de fusionar en
+   `main` el primer cambio en los `EXECUTOR_PATHS` y, en todo caso, antes de la declaración de diciembre.
+   Se recomienda protegerla como `main` (sin force-push ni borrado; OA-02).
+2. **Verificar** en el PC, sobre la rama: el `git diff --quiet` del punto 1 del contrato y
+   `verificar_identidad()` = `1a697c3…`.
+3. **Mover el worktree de la Pi de forma controlada**, fuera de la ventana del timer (12:00 Canarias) y
+   nunca un día de checkpoint: comprobar que `/home/fer/intradia-t024` está limpio; `git -C
+   /home/fer/intradia-bot fetch origin`; `git -C /home/fer/intradia-t024 checkout --detach <SHA de
+   t024/forward>` (desacoplado al SHA exacto verificado, como hoy). La ruta del worktree no cambia, así
+   que la unidad systemd instalada tampoco.
+4. **Comprobar** en la Pi: `git diff --quiet 1a697c3… HEAD -- <EXECUTOR_PATHS>`; `verificar_identidad()`
+   con el intérprete del timer; `systemctl list-timers intradia-t024-checkpoint.timer`; y `python
+   deploy/t024/checkpoint.py estado --artefactos /home/fer/t024-forward`.
+5. **Prueba sin descarga:** `checkpoint.py estado` con `--hoy` en un día que no es checkpoint, y
+   `python -m advisor.research.t024_forward peticion …`, que solo calcula la petición. Nunca `ejecutar`
+   un día de checkpoint como prueba.
+6. **`main` queda libre** para evolucionar; el checkout habitual de la Pi (`/home/fer/intradia-bot`)
+   puede seguir a `main` y sus tags.
+7. **Entorno de Python propio para T-024** antes del primer despliegue en la Pi que cambie
+   `requirements.txt` o el venv del bot: hoy la unidad de T-024 usa el intérprete del venv del bot, y
+   `verificar_identidad()` comprueba ficheros, no las versiones instaladas. Un venv dedicado, instalado
+   desde el `requirements.txt` de `t024/forward`, y la reinstalación de la unidad con ese intérprete
+   (`deploy/t024/instalar.sh`) se hacen con el mismo procedimiento controlado.
+
+**Calendario de diciembre.** La declaración del checkpoint de diciembre entra en `t024/forward` antes del
+**2026-11-21**: un PR contra la rama que solo cambia `deploy/t024/calendario-checkpoints.json`, con la
+fuente oficial citada (calendario laboral de Canarias para 2026, como la de noviembre), revisión normal y
+los dos chequeos del punto 5 del contrato. Después se mueve el worktree de la Pi a ese commit con los
+pasos 3–5. No requiere que `main` siga siendo compatible con T-024. Cada mes, el mismo procedimiento con
+el mismo plazo.
+
+**Lo que no cambia:** el pre-registro y el código de T-024, `T024_CODE_SHA`, el calendario ya declarado,
+la Pi y su worktree (hasta ejecutar el procedimiento).
+
+### D-78 — 2026-10-07 — T-025: OD-T25-10 y OD-T25-11 cerradas; visibilidad estricta y plazos ratificados
+Decisiones del propietario tomadas el 2026-10-07, antes de que exista código de T-025 y sin haber
+observado ningún desenlace. Detalle operativo en `docs/tareas/T-025-shadow-paper-trading-forward.md`
+(§7.1, §8.7, §10.2, §10.3, §10.7, §13 y §17).
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+1. **OD-T25-10, ventana de P7 fijada y nunca consultada: A con salvaguardas estrictas.**
+   - Una D-nn cierra formalmente la ventana abandonada.
+   - Tiene que demostrarse que hubo **0 accesos** a desenlaces de esas sesiones y que ninguna fila de
+     `paper_outcome_access` las consume.
+   - Mientras se quieran conservar como candidatas a holdout, **permanecen selladas**: ni dashboard, ni
+     CLI, ni Telegram, ni agentes.
+   - Una candidata futura solo puede reutilizarlas si se definió y congeló sin haber visto esos
+     desenlaces. _(Precisado el 2026-10-07 por D-79: solo si estaba completamente congelada antes de la
+     primera sesión de la ventana; sin excepción a GATE P7.)_
+   - **`VIRGEN_REUTILIZABLE`** si y solo si: la ventana se abandonó, no hubo ninguna consulta de
+     desenlaces, permaneció sellada y existe evidencia verificable. Con cualquier acceso, directo o
+     indirecto: **`CONSUMIDA`**, y ya no puede ser holdout virgen.
+   - No B (quemaría sesiones nunca observadas) ni C (sellado indefinido sin necesidad).
+2. **OD-T25-11, cohorte viva cuyo entorno no puede seguir igual: A con fallback obligatorio a B.**
+   - Puede continuar tras actualizar exclusivamente una dependencia o el entorno solo si **antes** se
+     demuestra equivalencia objetiva: código económico, configuración y hashes de política sin cambios;
+     replay sobre todas las observaciones guardadas relevantes que reproduce byte a byte el ledger;
+     señales, niveles, sizing, órdenes y fills, salidas, cash y equity, acciones corporativas y FX
+     históricos idénticos; interpretación de los datos del proveedor equivalente; versión nueva del
+     entorno registrada.
+   - **`environment_epoch`:** una cohorte puede tener varias épocas; el cambio nunca se oculta; cada
+     época se identifica por versiones y hashes; la transición requiere una D-nn; la equivalencia queda
+     como evidencia. La equivalencia sobre el pasado no demuestra el comportamiento futuro del
+     proveedor: la época nueva es un tramo causal nuevo, etiquetado.
+   - Si cualquier comprobación falla: no continúa con el entorno nuevo y pasa a **`ENGINE_UNRUNNABLE`**
+     desde el último evento válido; posiciones abiertas `NO_EVALUABLE`; sin salidas fabricadas, sin
+     reescribir el histórico, sin P&L inventado, con toda la historia conservada; se abre una cohorte
+     nueva bajo el entorno nuevo.
+   - C solo como estado temporal durante la investigación técnica (`ENVIRONMENT_INVESTIGATION`).
+3. **Ratificación de la visibilidad durante el embargo** (la interpretación estricta de la ronda 4, que
+   D-75 dejó pendiente). Visible ex ante para B2, S2 y C0: fecha y hora, activo, política, `entry_max`,
+   stop, objetivos, RR, tamaño solicitado **solo como fracción de la equity**, comprobaciones puramente
+   de mercado, precio efectivo teórico de entrada si las supera y rechazo de mercado independiente del
+   estado del libro. **No** se muestra: tamaño en EUR, unidades si permiten reconstruir la equity,
+   `FILLED` si depende del cash o de la posición previa, `INSUFFICIENT_CASH`, `IGNORED_ALREADY_OPEN`,
+   estado de la posición previa, cash, equity, posiciones abiertas o cerradas, ni nada que permita
+   deducir un desenlace previo. Se distingue **`MARKET_PASS`** (visible) de **`FILLED`** (interno del
+   libro, sellado).
+4. **Ratificación de los plazos de 5 y 20 sesiones.** Solo avanzan cuando el motor estaba operativo,
+   correspondía pedir la barra, la pidió realmente y el proveedor no entregó una barra válida
+   (`PROVIDER_DATA_MISSING`). Se distingue de `ENGINE_DOWNTIME` y de `SIGNAL_NOT_EVALUATED`. Una caída de
+   la Pi no consume ningún plazo ni se interpreta como ausencia del proveedor. Las señales no evaluadas
+   por caída quedan `SIGNAL_NOT_EVALUATED` y no se reconstruyen. Las posiciones abiertas antes de la
+   caída se reconstruyen causalmente al volver con las barras realmente disponibles, marcadas como
+   procesamiento tardío, sin reescribir decisiones anteriores y resolviendo toda ambigüedad de forma
+   conservadora. Con tests específicos (ficha §16).
+5. **Congelación:** `T025_PREREG_SHA` no se congela hasta que OD-T25-10 y OD-T25-11 estén cerradas y la
+   documentación sea coherente con ellas, y solo si una revisión independiente final termina con
+   **0 BLOCKER y 0 IMPORTANTE**.
+
+**Lo que no cambia:** B2, S2 y C0; P6; T-024 y `T024_CODE_SHA`; P7 BLOQUEADO; la Pi.
+
+### D-79 — 2026-10-07 — T-025: OD-T25-12 cerrada; ninguna excepción a GATE P7 para reutilizar una ventana
+Decisión del propietario sobre la última OD de T-025, abierta por la revisión final (ronda 5). Precisa
+D-78 punto 1. **No cambia ningún requisito de GATE P7.**
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Decisión: alternativa A.**
+1. Una ventana `VIRGEN_REUTILIZABLE` solo puede usarse como holdout de P7 si la candidata que va a
+   evaluarse estaba **completamente congelada antes de la primera sesión de esa ventana**. Como mínimo:
+   política, geometría, entrada, salida, sizing, arquitectura de cartera, costes, universo aplicable,
+   configuración, y el código y la identidad que exija el pre-registro de P7.
+2. Si la candidata se congela después de que la ventana haya empezado o terminado: sus desenlaces pueden
+   seguir siendo informacionalmente vírgenes, pero la ventana **no es elegible** como holdout de P7 para
+   esa candidata. No se modifica GATE P7, no se crea ninguna excepción retrospectiva y P7 usa una ventana
+   futura posterior a la congelación de la candidata.
+3. Una ventana `VIRGEN_REUTILIZABLE` puede conservarse sellada para una candidata que ya cumpliera la
+   condición del punto 1.
+4. Si deja de tener utilidad, una D-nn puede liberarla; al liberarla y consultar sus desenlaces queda
+   consumida.
+
+Con esta decisión, **todas las OD de T-025 (OD-T25-1..12) quedan cerradas** (D-75, D-78 y D-79).
+Ficha §10.7 y §17; `docs/gates.md`, GATE P7.
+
+**Congelación (2026-10-07).** La revisión final de coherencia (`revisor` y Codex) terminó con 0 BLOCKER
+y 0 IMPORTANTE, como exige D-78 §5. **El pre-registro de T-025 queda congelado: `T025_PREREG_SHA` = HEAD
+del commit de congelación** que añade `evidence/2026-10-07-T-025-prereg-final/` (se identifica en el PR
+#48). Desde entonces solo cambia mediante una D-nn que declare la enmienda. T-025 no está implementado
+ni ejecutado.
+
+**Lo que no cambia:** GATE P7 y su requisito 1; B2, S2 y C0; T-024 y `T024_CODE_SHA`; la Pi.
+
+### D-80 — 2026-10-08 — T-025: enmienda de §8.6; un hueco real ambiguo solo se libera con `REAL_GAP_CONFIRMED`
+Decisión del propietario sobre el último IMPORTANTE del PR #50. **Enmienda explícita del pre-registro
+congelado** (`T025_PREREG_SHA = c6fdc42`), limitada a resolver una ambigüedad operativa de §8.6: un hueco
+real de precio con forma de split es indistinguible de un split que el proveedor no publica.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Decisión.**
+1. **Regla por defecto, sin cambios:** cambio de escala ambiguo sin `SPLIT` observado → `SCALE_MISMATCH`
+   → bloqueo. Sin resolución sigue vigente `SCALE_MISMATCH` → `DATA_LOSS_SUSPENDED` →
+   `NO_EVALUABLE_DATA_LOSS` (§7.2, §8.6, §8.7).
+2. **No se implementa** ninguna heurística (por ejemplo, «la escala de la mayoría del histórico»).
+3. **Nueva resolución manual explícita `REAL_GAP_CONFIRMED / NO_SPLIT`**, que nunca se infiere:
+   - registro append-only (`paper_scale_resolution`; ni `UPDATE` ni `DELETE`);
+   - activo y sesión exactos, y solo si existe el `SCALE_MISMATCH` de esa sesión;
+   - fuente verificable, sha256 de la evidencia y la D-nn del propietario que la autoriza.
+   Se registra con `python -m paper --db <paper.db> real-gap-confirmed --symbol <s> --session <d>
+   --source-url <url> --evidence <fichero> --decision D-nn`, que calcula el sha256 del fichero.
+4. **Con la resolución:** se libera el `SCALE_MISMATCH` de esa sesión; las barras bloqueadas se tratan como
+   precios reales **solo desde el momento de la resolución** (nunca antes) y se procesan causalmente, en
+   orden. Las sesiones ya declaradas ausentes se recorren en la frontera, cada una cuando la frontera alcanza
+   su apertura, marcadas `late` y `late_processing`; el split y el dividendo de esa fecha ex, el hueco bajo el
+   stop, el objetivo, el toque intradía y el tiempo se aplican igual que en `OPEN_EXIT` y `CLOSE_EXIT`, y el
+   P&L sale de esos precios. No se reescribe ninguna decisión tomada ni se
+   reabre una orden saltada.
+5. **Un split real no publicado** no se libera como hueco salvo con esta resolución explícita. Si después se
+   observa el `SPLIT`, rige §8.6 tal como estaba.
+
+Ficha §8.6 (anotada). Implementación y tests en el PR #50:
+1. hueco real ambiguo sin resolución → permanece bloqueado y acaba `NO_EVALUABLE_DATA_LOSS`;
+2. `REAL_GAP_CONFIRMED` desbloquea y procesa causalmente (antes y después de la declaración de ausencia);
+3. un split real no publicado no se libera sin la resolución, que exige fuente, sha256, D-nn y sesión exacta.
+
+**Lo que no cambia:** B2, S2 y C0; las reglas económicas; el consumo y el sellado; P7 BLOQUEADO; T-024 y
+`T024_CODE_SHA`; la Pi. No hay cohorte real ni despliegue.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
@@ -1187,6 +2623,66 @@ demás**.
 - **Bloquea:** A-03 (P3, score v2). No bloquea nada más.
 - **Respuesta del propietario, 2026-09-21:** el RR **sale del score como
   dimensión de puntuación**. Registrada en **D-43**, que es el texto que manda.
+
+---
+
+### OD-12 — Cómo convive T-024 con cambios en los `EXECUTOR_PATHS` · **CERRADA el 2026-10-07 en D-77**: línea dedicada `t024/forward` (alternativa a)
+- **Por qué existe:** `verificar_identidad()` de T-024 exige
+  `git diff --quiet 1a697c3 HEAD -- advisor config.yaml universe.yaml exchange_overrides.yaml
+  pyproject.toml requirements.txt` y un árbol limpio. La fase A de la Pi y la fase B del PC
+  (`t024_forward registrar` y `capturar`) la llaman. Hoy `main` cumple: comprobado el 2026-10-06. El
+  primer commit en `main` que toque esas rutas, ya sea de T-025, P6-bis, C-04 o C-05, dejará T-024
+  inoperable desde `main`. Además, la declaración mensual del calendario
+  (`deploy/t024/calendario-checkpoints.json`, la de diciembre antes del 2026-11-21) exige mover el
+  worktree de la Pi a un commit con esas rutas idénticas a `1a697c3`.
+- **Pregunta:** ¿cómo se sigue operando T-024 hasta su mirada final (corte 2027-08-27, más la cosecha
+  decisiva) mientras el resto del proyecto cambia el código?
+- **Alternativas:**
+  - (a) **Línea dedicada de T-024** _(elegida y concretada por D-77: desde el último commit compatible, y
+    `main` solo se fusiona en ella mientras siga siendo compatible)_: una rama `t024/forward` desde `4170bb4` y un worktree propio en el
+    PC. Las declaraciones de calendario, la fase B y la mirada se hacen ahí. La evidencia llega a
+    `main` por PR solo de evidencia, y nunca se fusiona `main` en esa línea.
+  - (b) **Congelar los `EXECUTOR_PATHS` de `main`** hasta que T-024 termine, a finales de 2027.
+  - (c) **Escribir todo el código nuevo fuera de los `EXECUTOR_PATHS`.**
+- **Consecuencia:**
+  - (a) `main` evoluciona sin riesgo para T-024, a cambio de mantener dos líneas y de cuidar que la
+    evidencia no se mezcle.
+  - (b) bloquea P6-bis, C-04, C-05 y cualquier cambio de `advisor/` durante más de un año.
+  - (c) no es viable para C-04, C-05 ni P6-bis, que tocan `advisor/`, y empuja duplicados contra
+    INV-06.
+- **Recomendación técnica:** (a), abierta **antes** del primer commit que toque esas rutas, y
+  **antes del 2026-11-21** si alguna tarea va a fusionarse en `main` antes de la declaración de
+  diciembre. T-025 (OD-T25-1 A) no las toca, pero las demás líneas sí.
+- **Bloquea:** fusionar en `main` cualquier cambio en los `EXECUTOR_PATHS`. No bloquea esta entrega
+  documental.
+- **Decisión del propietario (2026-10-07, D-77):** (a), línea `t024/forward`, con su contrato, su
+  procedimiento de creación y el plan del calendario de diciembre. `main` deja de estar obligado a ser
+  compatible con T-024; lo que bloquea ahora es **crear la línea** antes del primer cambio en los
+  `EXECUTOR_PATHS` de `main`.
+
+### OD-T25-1 a OD-T25-12 — Decisiones de T-025 · **CERRADAS el 2026-10-07** (OD-T25-1..9 en D-75; OD-T25-10 y OD-T25-11 en D-78; OD-T25-12 en D-79)
+Están en `docs/tareas/T-025-shadow-paper-trading-forward.md` §17, con el formato de esta sección:
+1. arquitectura (base `paper.db` y paquete fuera de `advisor/`);
+2. capital inicial;
+3. libros de B2 y S2;
+4. visibilidad de C0 mientras T-024 no se resuelve (reabre en parte D-73 §2);
+5. barra de entrada ausente;
+6. dividendos tardíos;
+7. activo sin datos de forma prolongada;
+8. cohortes y versiones del motor;
+9. alcance del consumo y ventana sellada de P7.
+
+La revisión de la ronda 4 abrió **OD-T25-10** (estado de las sesiones de una ventana de P7 fijada y
+nunca consultada) y su confirmación **OD-T25-11** (una cohorte viva cuyo entorno de Python ya no puede
+seguir igual). **Las dos se cerraron el 2026-10-07 en D-78**, que además ratifica la visibilidad
+estricta y los plazos de 5 y 20 sesiones, y condiciona la congelación a una revisión final limpia.
+La revisión final (ronda 5) abrió **OD-T25-12** (reutilizar una ventana de P7 abandonada frente al
+requisito 1 de GATE P7), **cerrada el 2026-10-07 en D-79** (alternativa A, sin excepción a GATE P7).
+Ninguna OD de T-025 queda abierta.
+
+**Bloqueaban** la congelación del pre-registro de T-025. Decisiones en D-75 (con D-76 para la
+visibilidad de T-024) y texto completo en la ficha §17. OD-T25-7 se cerró con una regla distinta de las
+dos alternativas: `DATA_LOSS / SUSPENDED` sin venta sintética.
 
 ---
 

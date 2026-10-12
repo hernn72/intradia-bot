@@ -1,0 +1,70 @@
+P3 — PREFLIGHT SIN DESENLACES
+preregistro_sha: 8b2dddb8fd66423d9550df496d1a2a85abd066b6
+executor_sha: 87309da148772f834fd49c3f2357692e48ed9273
+git_dirty: False
+data_vintage_id: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841
+universe_vintage_id: 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19
+config_hash: 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387
+score_model_version: 2.0
+cost_pct: 0.2
+seed: 20260830
+label: condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+resultado: OK
+
+=== swing ===
+  [OK] población A-02: 106363 (esperado 106363)
+  [OK] excluded_crypto: 5112 (esperado 5112)
+  [OK] excluded_asia_missing: 396 (esperado 396)
+  [OK] excluded_trend_sma_history: 6937 (esperado 6937)
+  [OK] Asia ∩ SMA200: 176 (esperado 176)
+  [OK] unión deduplicada: 12269 (esperado 12269)
+  [OK] población final (censo): 94094 (esperado 94094)
+  [OK] sha256 población (censo): 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a (esperado 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a)
+  [OK] señales del event study PIT v2: 94094 (esperado 94094)
+  [OK] sha256 población (event study PIT v2): 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a (esperado 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a)
+  [OK] activos: 90 (esperado 90)
+  [OK] regiones: 5 (esperado 5)
+  [OK] bloques ocupados: 19 (esperado 19)
+  [OK] bloques del censo: 19 (esperado 19)
+  [OK] huecos intermedios ^STOXX50E: 1406 (esperado 1406)
+  [OK] antigüedades STOXX ⊆ {1,3,4}: True (esperado True)
+  [OK] config.yaml activo: 1.0 (esperado 1.0)
+  [OK] config_hash: 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387 (esperado 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387)
+  [OK] universe_vintage_id: 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19 (esperado 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19)
+  [OK] data_vintage_id: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841 (esperado 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841)
+  horizonte válido: sí (bloque ocupado más corto 42 sesiones; MAX_HOLD_BARS 40)
+  cortes p20/p40/p60/p80: [28.0, 39.6, 49.6, 57.6] | distintos 817 | n por quintil {'Q1': 18292, 'Q2': 18740, 'Q3': 19405, 'Q4': 17205, 'Q5': 20452} | OK
+  ablación sin catalizador: cortes [40.0, 59.333333333, 72.666666667, 82.666666667] | OK | n {'Q1': 18797, 'Q2': 18839, 'Q3': 18723, 'Q4': 16105, 'Q5': 21630}
+  ablación sin tecnico: cortes [27.666666667, 31.666666667, 36.0, 43.333333333] | OK | n {'Q1': 18298, 'Q2': 18151, 'Q3': 18386, 'Q4': 18514, 'Q5': 20745}
+  ablación sin contexto: cortes [20.0, 30.0, 42.5, 52.5] | OK | n {'Q1': 17680, 'Q2': 15894, 'Q3': 20929, 'Q4': 20429, 'Q5': 19162}
+  candidatos p50..p90: [43.6, 49.6, 53.6, 57.6, 63.6] | distintos [43.6, 49.6, 53.6, 57.6, 63.6] | colapsos ninguno
+
+=== medio ===
+  [OK] población A-02: 94273 (esperado 94273)
+  [OK] excluded_crypto: 4722 (esperado 4722)
+  [OK] excluded_asia_missing: 218 (esperado 218)
+  [OK] excluded_trend_sma_history: 0 (esperado 0)
+  [OK] Asia ∩ SMA200: 0 (esperado 0)
+  [OK] unión deduplicada: 4940 (esperado 4940)
+  [OK] población final (censo): 89333 (esperado 89333)
+  [OK] sha256 población (censo): 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8 (esperado 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8)
+  [OK] señales del event study PIT v2: 89333 (esperado 89333)
+  [OK] sha256 población (event study PIT v2): 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8 (esperado 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8)
+  [OK] activos: 90 (esperado 90)
+  [OK] regiones: 5 (esperado 5)
+  [OK] bloques ocupados: 5 (esperado 5)
+  [OK] bloques del censo: 5 (esperado 5)
+  [OK] huecos intermedios ^STOXX50E: 1312 (esperado 1312)
+  [OK] antigüedades STOXX ⊆ {1,3,4}: True (esperado True)
+  [OK] config.yaml activo: 1.0 (esperado 1.0)
+  [OK] config_hash: 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387 (esperado 89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387)
+  [OK] universe_vintage_id: 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19 (esperado 237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19)
+  [OK] data_vintage_id: 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841 (esperado 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841)
+  horizonte válido: no (bloque ocupado más corto 102 sesiones; MAX_HOLD_BARS 250)
+  cortes p20/p40/p60/p80: [29.6, 40.0, 49.6, 57.6] | distintos 730 | n por quintil {'Q1': 17071, 'Q2': 18387, 'Q3': 16640, 'Q4': 16940, 'Q5': 20295} | OK
+  ablación sin catalizador: cortes [42.666666667, 59.333333333, 72.666666667, 82.666666667] | OK | n {'Q1': 17304, 'Q2': 16485, 'Q3': 18063, 'Q4': 15945, 'Q5': 21536}
+  ablación sin tecnico: cortes [27.666666667, 32.666666667, 36.666666667, 43.333333333] | OK | n {'Q1': 14426, 'Q2': 19922, 'Q3': 18304, 'Q4': 16141, 'Q5': 20540}
+  ablación sin contexto: cortes [20.0, 30.0, 42.5, 52.5] | OK | n {'Q1': 16272, 'Q2': 14651, 'Q3': 19852, 'Q4': 19799, 'Q5': 18759}
+
+condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+

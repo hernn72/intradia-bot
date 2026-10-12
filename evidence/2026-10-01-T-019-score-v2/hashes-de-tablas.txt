@@ -1,0 +1,57 @@
+# Verificación congelada #33
+
+consola/comando.txt: OK
+consola/exit_code.txt: OK
+consola/fin_utc.txt: OK
+consola/head_al_iniciar.txt: OK
+consola/inicio_utc.txt: OK
+consola/stderr.txt: OK
+consola/stdout.txt: OK
+run/EJECUCION_CONFIRMATORIA_INICIADA: OK
+run/p3-resultado.json: OK
+run/p3-resumen.md: OK
+run/preflight-interno/p3-preflight.json: OK
+run/preflight-interno/p3-preflight.txt: OK
+run/tablas/medio-ablaciones.tsv: OK
+run/tablas/medio-activos.tsv: OK
+run/tablas/medio-bloque-x-quintil.tsv: OK
+run/tablas/medio-contrastes.tsv: OK
+run/tablas/medio-intra-activo-pares-excluidos.tsv: OK
+run/tablas/medio-intra-activo.tsv: OK
+run/tablas/medio-quintiles.tsv: OK
+run/tablas/medio-regiones.tsv: OK
+run/tablas/swing-ablaciones.tsv: OK
+run/tablas/swing-activos.tsv: OK
+run/tablas/swing-bloque-x-quintil.tsv: OK
+run/tablas/swing-candidatos.tsv: OK
+run/tablas/swing-contrastes.tsv: OK
+run/tablas/swing-familia-bonferroni.tsv: OK
+run/tablas/swing-intra-activo-pares-excluidos.tsv: OK
+run/tablas/swing-intra-activo.tsv: OK
+run/tablas/swing-quintiles.tsv: OK
+run/tablas/swing-regiones.tsv: OK
+
+# SHA256 salidas paso 4
+
+815ba443ca7a9218afe09a1db70d1f6af9a23d3b9f53b229cde3aedc22f424bd  README.md
+f5fad7ebc4b5c0d4bebe082d2122cfaf7f09d6f9ee7543d4dfa6c6c438cc523f  calculo-manual-delta-bloque.md
+9a2cd109ef9dc219896fadc95327df3912fdae1fcc47a007a0ad9f9247352a76  calculo-manual-sap.md
+506d629643a64ccee695e2d3caeca4edcb20d6eb89cc8d31eacde0d03f7aff31  confianza.md
+07d95a31a5f4576756c04fa929fb8ac1165dac35e9fb8ea105f3ed8c70881cc3  confianza_produccion.py
+f8064ded5388bcbfc9ab6ce7633dedbfeeab8e43e3449bb09029ec01531d9a3c  contexto-h6.md
+ec02b807217af516ea9d5417c94096f42d028aa4a166e5af3c8efddf447964dc  final-pytest-ruff-mypy.txt
+2ba27772b495690fa1c698bcd2a196ec53195cd77245074d6af2f1d35cad83b7  gate-p3-matriz.md
+5832a45cbe98437c8a044ccd376936287cc8a4eefc48b4f24300d1ea05eaffb2  impacto.md
+173e74fe7b5218e81463dd737d8ef3404bf37f68788777e39d5a9b3b404285a8  impacto.py
+fa11cd18d758fe5048432f0a81875893697af2190d1b7746043d12be6b8c7504  paso4_generar.py
+6582fd14c44921b007d177b8cbe2f4f34a2896ea1ae429a8fa8406ac2c8079a8  resultado-p3.md
+f56cf92436adeac609d92591d6d4f57a90c1f304c6b17f4690d56971a8cb1d88  tablas/medio-activos-D-menos-A.tsv
+068ed5bf3a3c00885a8076c0abad25f7c9cd67e2dcc6de4f120b69c427572fde  tablas/medio-desplazamientos.tsv
+6e6425c616f33e11c8ef4917e392b7e5f01cd2d9a87450c1fdc3de82a0e9750b  tablas/medio-histograma-5.tsv
+0183bd1a35e19b2431cb376a4990b1647728b8b870ca92572c5fb590b136b0e9  tablas/medio-migracion-tramos-10-A-D.tsv
+44e19bbf7334968785ba890efcc3b4b727c599384a8bf533bc07cdfc8fe0ab8e  tablas/medio-percentiles.tsv
+79046e022bea2fae317dd81d3ae20fc0d02b834e1804f8f9f21800e423d71eeb  tablas/swing-activos-D-menos-A.tsv
+72163117e8fae7fbed9bc71e172997a80fbe456eb1ad13db479f0248c00f377c  tablas/swing-desplazamientos.tsv
+7116dcc050758429b9dab079670ddd93dd05d3bab28850de73930fae9927b47e  tablas/swing-histograma-5.tsv
+47546790ba42c4471c98f05f1dc82a378c8ac5e36819f997eeba2b48de5df578  tablas/swing-migracion-tramos-10-A-D.tsv
+ddee12b4c04d8b7f1424e78316d7e85ea10de9608f9153fb57d0281a706e3558  tablas/swing-percentiles.tsv

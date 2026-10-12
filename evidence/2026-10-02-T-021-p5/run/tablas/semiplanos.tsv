@@ -1,0 +1,10 @@
+# condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+centro	semiplano	celdas
+B2	s_minus	B2_s1p75_m24p500,B2_s1p75_m24p875,B2_s1p75_m25p250
+B2	s_plus	B2_s2p25_m24p500,B2_s2p25_m24p875,B2_s2p25_m25p250
+B2	m2_minus	B2_s1p75_m24p500,B2_s2p00_m24p500,B2_s2p25_m24p500
+B2	m2_plus	B2_s1p75_m25p250,B2_s2p00_m25p250,B2_s2p25_m25p250
+S2	s_minus	S2_s2p25_m23p375,S2_s2p25_m23p750,S2_s2p25_m24p125
+S2	s_plus	S2_s2p75_m24p125
+S2	m2_minus	S2_s2p25_m23p375
+S2	m2_plus	S2_s2p25_m24p125,S2_s2p50_m24p125,S2_s2p75_m24p125

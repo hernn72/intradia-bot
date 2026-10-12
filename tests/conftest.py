@@ -6,7 +6,9 @@ que un fallo sea siempre reproducible.
 
 from __future__ import annotations
 
-from typing import List, Optional
+import os
+from pathlib import Path
+from typing import Iterator, List, Optional
 
 import pandas as pd
 import pytest
@@ -172,3 +174,34 @@ def hostile_context() -> MarketContext:
         label="RISK_OFF",
         reason="VIX 32,0 ≥ 25,0 y tendencia no alcista",
     )
+
+
+# ---------------------------------------------------------------------------
+# Red de seguridad de borrado: lógica en tests/red_borrado.py. También se propaga a los intérpretes Python
+# hijos mediante tests/red_hijos/sitecustomize.py en PYTHONPATH.
+# ---------------------------------------------------------------------------
+
+from tests.red_borrado import (  # noqa: E402
+    REPO_TESTS,
+    BorradoProhibidoEnTests,
+    PopenGuardado,
+    envolver_borrado,
+    orden_de_borrado,
+    ruta_prohibida,
+)
+
+__all__ = ["BorradoProhibidoEnTests", "PopenGuardado", "envolver_borrado", "orden_de_borrado", "ruta_prohibida"]
+
+DIR_RED_HIJOS = Path(__file__).resolve().parent / "red_hijos"
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _red_de_seguridad_de_borrado() -> Iterator[None]:
+    from tests import red_borrado
+
+    with pytest.MonkeyPatch.context() as mp:
+        red_borrado.instalar(mp.setattr)
+        previo = os.environ.get("PYTHONPATH")
+        mp.setenv("PYTHONPATH", os.pathsep.join([str(DIR_RED_HIJOS), *([previo] if previo else [])]))
+        mp.setenv("INTRADIA_RED_BORRADO_REPO", str(REPO_TESTS))
+        yield

@@ -125,7 +125,8 @@ de contexto y nunca se recomiendan.
 
 ## La puntuación
 
-Seis dimensiones, todas calculadas en Python:
+Producción usa **Score v1** (`score_model_version: "1.0"`), con seis
+dimensiones, todas calculadas en Python:
 
 | Dimensión | Puntos | De dónde sale |
 |---|---:|---|
@@ -136,12 +137,19 @@ Seis dimensiones, todas calculadas en Python:
 | Contexto | 10 | VIX, tendencia del índice de referencia y sesión asiática |
 | Convicción | 10 | Histórico disponible, indicadores presentes, volatilidad |
 
+**Score v2** (`"2.0"`, D-46) está implementado pero **no activo**: catalizador
+20 + técnico 20 + contexto 10, sobre 50 puntos evaluables, **sin RR** (que sigue
+siendo condición de ejecutabilidad y de riesgo) y **sin convicción**, siempre con
+contexto point-in-time (D-59). P3 no produjo umbrales v2 válidos: swing, medio e
+intradía quedan `calibrated: false` (D-61), así que v2 no puede activarse y
+v1 sigue en producción con sus 70/60 (D-47).
+
 **El agente IA no puntúa.** Redacta tesis, catalizador, escenarios y riesgos
 a partir de números ya fijados, y el prompt le prohíbe explícitamente
 recalcularlos, contradecirlos o inventar catalizadores externos. Si un modelo
 pudiera mover la nota, la nota dejaría de ser comparable entre ejecuciones.
 
-Umbrales: ≥70 → 🟢 OPERAR · 60-69 → 🟡 VIGILAR · <60 → 🔴 DESCARTAR. Además,
+Umbrales de Score v1, `calibrated: false`: ≥70 → 🟢 OPERAR · 60-69 → 🟡 VIGILAR · <60 → 🔴 DESCARTAR. Además,
 una oportunidad con buena nota baja a VIGILAR si el contexto es hostil o se
 descarta si el ratio no llega al mínimo o el activo no está en Trade
 Republic; en el horizonte medio también si el potencial no supera con
@@ -235,6 +243,44 @@ intradia-bot/
 El flujo de análisis está separado por pureza: `snapshot`, `levels`,
 `scoring` y `opportunity` no hacen I/O y se prueban sin red; solo `analyzer`,
 `overview` y `market_context` descargan datos.
+
+## Superbot: paper visible
+
+> **PAPER OPERACIONAL / NO VALIDADA PARA CAPITAL REAL.**
+
+`superbot/` simula una cartera completa —cash, órdenes, fills, posiciones,
+stops, objetivos, P&L, equity— con dashboard y avisos por Telegram. Es
+operacional y está **separado del laboratorio**: base propia (`superbot.db`),
+no importa `paper/` (T-025) ni `advisor.research`, no lee `paper.db` ni
+`intradia.db`, y no usa B2/S2/C0 ni la puntuación del asesor.
+
+La estrategia es la de tendencia de `trading-bot` (iTrade Bot) con su
+configuración tras el incidente de julio: SMA50/200 + RSI 45-80, salida por
+rotura confirmada (2 cierres bajo SMA50 − 2 %) o RSI > 90, stop inicial 5 % y
+trailing 3·ATR, riesgo 1,25 %, techo 25 %, 6 posiciones, compras ordenadas por
+momentum y costes de Trade Republic. Los objetivos T1/T2 (2R y 4R) solo avisan.
+Barras diarias cerradas; las órdenes se ejecutan en la apertura siguiente.
+
+```bash
+python -m superbot init --capital 10000              # cartera nueva (hoy)
+python -m superbot init --start 2026-07-01           # arranque retrospectivo, marcado como tal
+python -m superbot run --telegram                    # ciclo completo + avisos
+python -m superbot status                            # resumen en texto
+python -m superbot dashboard                         # http://127.0.0.1:8765/
+python -m superbot dashboard --output dashboard.html # HTML estático
+python -m superbot telegram --prueba
+```
+
+La base va en `data/superbot/superbot.db` o en `$SUPERBOT_DB`. Telegram usa
+`SUPERBOT_TELEGRAM_BOT_TOKEN`/`SUPERBOT_TELEGRAM_CHAT_ID` y, si no existen,
+`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`. Plantillas systemd sin instalar en
+`deploy/superbot/`.
+
+Telegram recibe un solo mensaje por ejecución y solo si el paper hizo algo:
+compras y ventas ya ejecutadas (🟢 COMPRAR, 🔴 VENDER con su motivo: STOP,
+trailing o señal de salida) y objetivos tocados (🎯 OBJETIVO), más un resumen
+breve de cartera. Señales, órdenes pendientes, rechazos, splits e indicadores
+se quedan en `superbot.db` y en el dashboard.
 
 ## Qué se reutiliza de trading-bot
 

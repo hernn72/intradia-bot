@@ -16,7 +16,7 @@ from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.market_context import build_market_context, fetch_market_context
 from advisor.analysis.opportunity import ANALYSIS_ERROR, INSUFFICIENT_HISTORY, INVALID_INDICATORS
 from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
-from advisor.config import AdvisorConfig, HorizonThresholds, MarketContextConfig, ScoringConfig
+from advisor.config import AdvisorConfig, MarketContextConfig, ScoringConfig, scoring_for_requested_model
 from advisor.data.calendars import expected_sessions
 from advisor.data.fx import FxConverter
 from advisor.data.quality import FreshnessState
@@ -412,19 +412,7 @@ class TestVerdict:
         assert "sin datos suficientes" in nota
 
     def test_umbral_no_calibrado_usa_solo_precio(self) -> None:
-        scoring = ScoringConfig.model_construct(
-            score_model_version="2.0",
-            fundamentals_enabled=False,
-            thresholds={
-                "swing": HorizonThresholds.model_construct(
-                    score_model_version="2.0",
-                    calibrated=False,
-                    min_score_operar=None,
-                    min_score_vigilar=None,
-                    calibration_ref=None,
-                )
-            },
-        )
+        scoring = scoring_for_requested_model(ScoringConfig(), "2.0")
         config = self._config().model_copy(update={"scoring": scoring})
 
         verdict, nota = _verdict(105.0, 100.0, stop=92.0, target=120.0, score=40.0, config=config, horizonte="swing")

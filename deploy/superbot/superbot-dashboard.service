@@ -1,0 +1,15 @@
+[Unit]
+Description=Superbot - dashboard paper visible (solo lectura de superbot.db)
+After=network-online.target
+
+[Service]
+User=@SUPERBOT_USER@
+WorkingDirectory=@SUPERBOT_DIR@
+Environment=SUPERBOT_DB=@SUPERBOT_DB@
+# 127.0.0.1 por defecto: para verlo desde el portátil, túnel SSH
+# (ssh -L 8765:127.0.0.1:8765 pi). Exponerlo en la red es decisión aparte.
+ExecStart=@SUPERBOT_PYTHON@ -m superbot dashboard --host 127.0.0.1 --port 8765
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

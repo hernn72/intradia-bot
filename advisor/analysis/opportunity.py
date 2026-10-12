@@ -114,6 +114,7 @@ class Opportunity:
     decision_reasons: List[str]
     sizing: PositionSizing
     execution: ExecutionEvaluation
+    confidence_min_bars: int
     data_freshness: Optional[DataFreshness] = None
     data_quality: Optional[DataQuality] = None
     discard_code: Optional[str] = None
@@ -157,12 +158,23 @@ class Opportunity:
         podido evaluar, no de lo prometedora que parezca la operación.
         """
         missing = len(self.score.missing_dimensions)
-        conviccion = next((d for d in self.score.dimensions if d.name == "conviccion"), None)
-        conviccion_ratio = (conviccion.points / conviccion.weight) if conviccion and conviccion.weight else 0.0
+        min_bars = self.confidence_min_bars
+        coverage_points = 4.0 * min(1.0, self.snapshot.bars / min_bars) if min_bars > 0 else 4.0
+        indicators = (
+            self.snapshot.ema_fast,
+            self.snapshot.ema_slow,
+            self.snapshot.sma_long,
+            self.snapshot.rsi,
+            self.snapshot.atr,
+            self.snapshot.macd_hist,
+        )
+        present = sum(1 for value in indicators if value is not None)
+        indicator_points = 4.0 * present / 6.0
+        ratio = (coverage_points + indicator_points) / 8.0
 
-        if missing == 0 and conviccion_ratio >= 0.8:
+        if missing == 0 and ratio >= 0.8:
             return "Alta"
-        if missing <= 1 and conviccion_ratio >= 0.6:
+        if missing <= 1 and ratio >= 0.6:
             return "Media"
         return "Baja"
 
@@ -358,12 +370,13 @@ def build_opportunity(
     scoring: ScoringConfig,
     risk: RiskConfig,
     portfolio: PortfolioConfig,
+    confidence_min_bars: int,
     data_quality: Optional[DataQualityConfig] = None,
     data_freshness: Optional[DataFreshness] = None,
 ) -> Opportunity:
     """Ensambla la oportunidad ya clasificada y dimensionada."""
 
-    label = conviction_label(score)
+    label = conviction_label(score) if score.score_model_version == "1.0" else f"Score {score.score_model_version}"
     threshold_calibrated = scoring.threshold_for(horizonte).calibrated
     setup = classify_setup_detailed(score, levels, context, scoring, risk, horizonte)
     setup_radar, setup_accion, setup_reasons = setup.radar, setup.accion, setup.reasons
@@ -412,6 +425,7 @@ def build_opportunity(
         discard_code=_discard_code(setup),
         execution_code=_execution_code(execution, data_freshness),
         warnings=setup.warnings,
+        confidence_min_bars=confidence_min_bars,
     )
 
 
@@ -430,7 +444,11 @@ def reevaluate_execution_at_price(
         entry_price=market_price,
         risk=risk,
         portfolio=portfolio,
-        label=conviction_label(opportunity.score),
+        label=(
+            conviction_label(opportunity.score)
+            if opportunity.score.score_model_version == "1.0"
+            else f"Score {opportunity.score.score_model_version}"
+        ),
         asset=opportunity.asset,
         data_freshness=opportunity.data_freshness,
         data_quality=data_quality,

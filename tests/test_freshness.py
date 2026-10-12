@@ -446,6 +446,7 @@ class TestPersistenciaEnLaPasadaReal:
                 executable=True,
                 reason="BROKER_UNVERIFIED",
             ),
+            confidence_min_bars=120,
         )
         fila = FreshnessRow(
             symbol="SAP.DE",

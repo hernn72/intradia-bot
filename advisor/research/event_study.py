@@ -11,17 +11,19 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 from advisor.analysis.benchmark import resolve_benchmark_symbol
 from advisor.analysis.levels import Levels, compute_levels, compute_levels_from_inputs
-from advisor.analysis.market_context import build_market_context
+from advisor.analysis.market_context import MarketContext, build_market_context
+from advisor.analysis.overview import context_assets_of
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import SnapshotSeries, build_snapshot_series, snapshot_from_series
-from advisor.config import AdvisorConfig, LevelsConfig
+from advisor.config import AdvisorConfig, LevelsConfig, scoring_for_requested_model
+from advisor.context.point_in_time import ContextMode, PointInTimeContextResolver, resolve_context_mode
 from advisor.data.freshness import mercado_para_simbolo
 from advisor.data.sessions import market_for_symbol, market_session
 from advisor.indicators.technical import sma
@@ -220,6 +222,8 @@ def run_event_study(
     cost_pct: float = 0.2,
     root_dir: str = "data/vintages",
     population_name: str = "vigente",
+    context_mode: Optional[ContextMode] = None,
+    score_model_version: Optional[str] = None,
 ) -> EventStudyResult:
     """Ejecuta P2.3 sobre una cosecha ya congelada y verificada."""
 
@@ -231,6 +235,8 @@ def run_event_study(
         horizonte=horizonte,
         cost_pct=cost_pct,
         population_name=population_name,
+        context_mode=context_mode,
+        score_model_version=score_model_version,
     )
 
 
@@ -242,27 +248,119 @@ def run_event_study_on_vintage(
     horizonte: str = "swing",
     cost_pct: float = 0.2,
     population_name: str = "vigente",
+    context_mode: Optional[ContextMode] = None,
+    score_model_version: Optional[str] = None,
 ) -> EventStudyResult:
     """Núcleo con I/O ya resuelto, útil para tests y para la CLI."""
 
+    result = _empty_result(config, universe, vintage, horizonte, cost_pct, population_name)
+    for execution_df, j, levels, observation in _iter_event_observations(
+        config, universe, vintage, result, context_mode=context_mode, score_model_version=score_model_version
+    ):
+        try:
+            managed = evaluate_managed_event(observation, execution_df, j, levels, result.max_hold_bars, cost_pct)
+            potential = evaluate_potential_event(observation, execution_df, j, levels, result.max_hold_bars)
+        except ValueError as exc:
+            result.skipped.append((observation.signal_id, str(exc)))
+            continue
+        result.signals.append(EventStudySignal(observation=observation, managed=managed, potential=potential))
+    return result
+
+
+@dataclass(frozen=True)
+class EnumeratedSignal:
+    """Señal del event study antes de abrir ningún desenlace: primitivas y niveles en t."""
+
+    observation: SignalObservation
+    levels: Levels
+
+
+def enumerate_event_signals_on_vintage(
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    *,
+    horizonte: str = "swing",
+    cost_pct: float = 0.2,
+    population_name: str = "vigente",
+    context_mode: Optional[ContextMode] = None,
+    score_model_version: Optional[str] = None,
+) -> Tuple[EventStudyResult, List[EnumeratedSignal]]:
+    """La misma enumeración que ``run_event_study_on_vintage``, sin llamar a los evaluadores.
+
+    Para preflights que no pueden leer desenlaces: ni ``evaluate_managed_event``
+    ni ``evaluate_potential_event`` se ejecutan. El ``EventStudyResult`` vuelve con
+    ``signals`` vacío y el resto de metadatos (activos, sesiones, saltos) igual.
+    """
+
+    result = _empty_result(config, universe, vintage, horizonte, cost_pct, population_name)
+    enumerated = [
+        EnumeratedSignal(observation=observation, levels=levels)
+        for _, _, levels, observation in _iter_event_observations(
+            config, universe, vintage, result, context_mode=context_mode, score_model_version=score_model_version
+        )
+    ]
+    return result, enumerated
+
+
+def _empty_result(
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    horizonte: str,
+    cost_pct: float,
+    population_name: str,
+) -> EventStudyResult:
     if horizonte not in MAX_HOLD_BARS:
         raise ValueError(f"el event study solo cubre swing y medio: '{horizonte}'")
-
-    window = config.horizonte(horizonte)
-    warmup = window.min_bars
-    max_hold = MAX_HOLD_BARS[horizonte]
-    result = EventStudyResult(
+    return EventStudyResult(
         data_vintage_id=vintage.data_vintage_id,
         universe_vintage_id=universe_vintage_id(universe),
         horizonte=horizonte,
         cost_pct=cost_pct,
-        warmup_bars=warmup,
-        max_hold_bars=max_hold,
+        warmup_bars=config.horizonte(horizonte).min_bars,
+        max_hold_bars=MAX_HOLD_BARS[horizonte],
         population_name=population_name,
     )
 
-    vix_close = frozen_close(vintage, config.market_context.vix_symbol)
-    trend_close = frozen_close(vintage, config.market_context.trend_symbol)
+
+def _iter_event_observations(
+    config: AdvisorConfig,
+    universe: Universe,
+    vintage: VintageLoad,
+    result: EventStudyResult,
+    *,
+    context_mode: Optional[ContextMode],
+    score_model_version: Optional[str],
+) -> Iterator[Tuple[pd.DataFrame, int, Levels, SignalObservation]]:
+    """Recorre la cosecha y produce cada señal elegible; rellena los metadatos de ``result``."""
+
+    horizonte = result.horizonte
+    requested_score_model = score_model_version or config.scoring.score_model_version
+    context_mode = resolve_context_mode(requested_score_model, context_mode)
+
+    window = config.horizonte(horizonte)
+    warmup = result.warmup_bars
+
+    asia_symbols = (
+        tuple(sorted(asset.primary_symbol for asset in context_assets_of(universe) if asset.region == "ASIA"))
+        if context_mode == "point_in_time"
+        else ()
+    )
+    context_symbols = (config.market_context.vix_symbol, config.market_context.trend_symbol, *asia_symbols)
+    context_closes = {symbol: frozen_close(vintage, symbol) for symbol in context_symbols}
+    pit_resolver = (
+        PointInTimeContextResolver(
+            {symbol: close for symbol, close in context_closes.items() if close is not None},
+            config.market_context,
+            asia_symbols=asia_symbols,
+            settlement_minutes=config.data_quality.settlement_minutes,
+        )
+        if context_mode == "point_in_time"
+        else None
+    )
+    vix_close = context_closes[config.market_context.vix_symbol]
+    trend_close = context_closes[config.market_context.trend_symbol]
     trend_sma_close = sma(trend_close, config.market_context.trend_sma) if trend_close is not None else None
     benchmark_cache: Dict[str, Optional[pd.Series]] = {}
 
@@ -305,10 +403,24 @@ def run_event_study_on_vintage(
             result.skipped.append((symbol, str(exc)))
             continue
 
-        vix_aligned = _align(vix_close, signal_df.index) if vix_close is not None else None
-        vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
-        trend_at = _as_optional_list(_align(trend_close, signal_df.index))
-        trend_sma_at = _as_optional_list(_align(trend_sma_close, signal_df.index))
+        market_context_at = None
+        vix_at = None
+        trend_at = None
+        trend_sma_at = None
+        if context_mode == "point_in_time":
+            assert pit_resolver is not None
+            market_context_at = [
+                resolved.context if resolved is not None and resolved.calculable else None
+                for resolved in pit_resolver.contexts_for_index(
+                    signal_df.index,
+                    signal_market=mercado_para_simbolo(asset, symbol),
+                )
+            ]
+        else:
+            vix_aligned = _align(vix_close, signal_df.index) if vix_close is not None else None
+            vix_at = _as_optional_list(vix_aligned.shift(1) if vix_aligned is not None else None)
+            trend_at = _as_optional_list(_align(trend_close, signal_df.index))
+            trend_sma_at = _as_optional_list(_align(trend_sma_close, signal_df.index))
 
         for j in range(warmup, len(signal_df) - 1):
             signal = _build_event_signal(
@@ -321,6 +433,8 @@ def run_event_study_on_vintage(
                 vix_at,
                 trend_at,
                 trend_sma_at,
+                market_context_at,
+                requested_score_model,
             )
             if signal is None:
                 continue
@@ -328,17 +442,9 @@ def run_event_study_on_vintage(
             if observation.data_vintage_id != vintage.data_vintage_id:
                 observation = _with_vintage_id(observation, vintage.data_vintage_id)
 
-            try:
-                managed = evaluate_managed_event(observation, execution_df, j, levels, max_hold, cost_pct)
-                potential = evaluate_potential_event(observation, execution_df, j, levels, max_hold)
-            except ValueError as exc:
-                result.skipped.append((observation.signal_id, str(exc)))
-                continue
-            result.signals.append(EventStudySignal(observation=observation, managed=managed, potential=potential))
+            yield execution_df, j, levels, observation
 
         result.evaluated_assets.append(symbol)
-
-    return result
 
 
 def replay_managed_population(
@@ -351,6 +457,47 @@ def replay_managed_population(
 ) -> Dict[str, ManagedEvent]:
     """Reevalúa la población administrada con otros niveles, sin recalcular señales."""
 
+    replayed, missing = _replay_managed(result, vintage, levels_config, min_rr_ratio, cost_pct=cost_pct)
+    if missing:
+        raise ValueError(f"{missing[0]}: la configuración no produce niveles comparables")
+    return replayed
+
+
+@dataclass(frozen=True)
+class ReplayedPopulation:
+    """Réplica de una geometría que conserva, contadas, las señales sin niveles."""
+
+    events: Dict[str, ManagedEvent]
+    without_levels: Tuple[str, ...]
+
+
+def replay_managed_population_counting_missing(
+    result: EventStudyResult,
+    vintage: VintageLoad,
+    levels_config: LevelsConfig,
+    min_rr_ratio: float,
+    *,
+    cost_pct: Optional[float] = None,
+) -> ReplayedPopulation:
+    """Como ``replay_managed_population``, pero una señal sin niveles se cuenta en vez de abortar.
+
+    Para comparar geometrías en las que algunas señales no tienen niveles válidos
+    (por ejemplo, un stop ancho que quedaría ≤ 0): ninguna desaparece en silencio,
+    su ``signal_id`` vuelve en ``without_levels``.
+    """
+
+    replayed, missing = _replay_managed(result, vintage, levels_config, min_rr_ratio, cost_pct=cost_pct)
+    return ReplayedPopulation(events=replayed, without_levels=tuple(missing))
+
+
+def _replay_managed(
+    result: EventStudyResult,
+    vintage: VintageLoad,
+    levels_config: LevelsConfig,
+    min_rr_ratio: float,
+    *,
+    cost_pct: Optional[float],
+) -> Tuple[Dict[str, ManagedEvent], List[str]]:
     if result.data_vintage_id != vintage.data_vintage_id:
         raise ValueError(
             f"cosecha distinta: result={result.data_vintage_id} vintage={vintage.data_vintage_id}"
@@ -361,6 +508,7 @@ def replay_managed_population(
             f"universo distinto: result={result.universe_vintage_id} vintage={vintage_universe}"
         )
     replayed: Dict[str, ManagedEvent] = {}
+    missing: List[str] = []
     effective_cost = result.cost_pct if cost_pct is None else cost_pct
     for signal in result.signals:
         obs = signal.observation
@@ -378,7 +526,8 @@ def replay_managed_population(
             min_rr_ratio=min_rr_ratio,
         )
         if levels is None:
-            raise ValueError(f"{obs.signal_id}: la configuración no produce niveles comparables")
+            missing.append(obs.signal_id)
+            continue
         replayed[obs.signal_id] = evaluate_managed_event(
             obs,
             views.execution_prices,
@@ -387,7 +536,7 @@ def replay_managed_population(
             result.max_hold_bars,
             effective_cost,
         )
-    return replayed
+    return replayed, missing
 
 
 def evaluate_managed_event(
@@ -522,7 +671,7 @@ def evaluate_potential_event(
 
 
 def band_of_full_score(signal: EventStudySignal) -> str:
-    return score_band(signal.observation.score_value)
+    return score_band(signal.observation.score_value, observation=signal.observation)
 
 
 def summarize_by_score_band(
@@ -632,6 +781,8 @@ def _build_event_signal(
     vix_at: Optional[Sequence[Optional[float]]],
     trend_price_at: Optional[Sequence[Optional[float]]],
     trend_sma_at: Optional[Sequence[Optional[float]]],
+    market_context_at: Optional[Sequence[Optional[MarketContext]]] = None,
+    score_model_version: Optional[str] = None,
 ) -> Optional[Tuple[Levels, SignalObservation]]:
     try:
         snapshot = snapshot_from_series(asset.symbol, snapshot_series, j)
@@ -640,13 +791,27 @@ def _build_event_signal(
     levels = compute_levels(snapshot, config.levels, config.risk.min_rr_ratio)
     if levels is None:
         return None
-    context = build_market_context(
-        vix_at[j] if vix_at is not None else None,
-        trend_price_at[j] if trend_price_at is not None else None,
-        trend_sma_at[j] if trend_sma_at is not None else None,
-        config.market_context,
+    if market_context_at is not None:
+        context = market_context_at[j]
+        if context is None:
+            return None
+    else:
+        context = build_market_context(
+            vix_at[j] if vix_at is not None else None,
+            trend_price_at[j] if trend_price_at is not None else None,
+            trend_sma_at[j] if trend_sma_at is not None else None,
+            config.market_context,
+        )
+    requested_score_model = score_model_version or config.scoring.score_model_version
+    scoring = scoring_for_requested_model(config.scoring, requested_score_model)
+    score = compute_score(
+        snapshot,
+        context,
+        scoring,
+        model_version=requested_score_model,
+        levels=levels if requested_score_model == "1.0" else None,
+        min_bars=min_bars if requested_score_model == "1.0" else None,
     )
-    score = compute_score(snapshot, levels, context, config.scoring, min_bars)
     observation = build_signal_observation(asset=asset, horizonte=horizonte, signal_idx=j, snapshot=snapshot, score=score)
     primitive_levels = compute_levels_from_inputs(
         price=observation.price,
@@ -679,10 +844,16 @@ def _with_vintage_id(observation: SignalObservation, data_vintage_id: str) -> Si
         low_lookback=observation.low_lookback,
         high_lookback=observation.high_lookback,
         ema_fast=observation.ema_fast,
+        score_model_version=observation.score_model_version,
+        bars=observation.bars,
+        confidence_indicators_present=observation.confidence_indicators_present,
     )
 
 
-def score_band(score: float) -> str:
+def score_band(score: float, *, score_model_version: str = "1.0", observation: Optional[SignalObservation] = None) -> str:
+    version = observation.score_model_version if observation is not None else score_model_version
+    if version != "1.0":
+        raise ValueError("score_band solo está definido para score_model_version 1.0")
     for label, lower, upper in SCORE_BANDS:
         if score >= lower and (upper is None or score < upper):
             return label

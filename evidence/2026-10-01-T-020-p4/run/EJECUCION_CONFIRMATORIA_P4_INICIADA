@@ -1,0 +1,50 @@
+{
+  "inicio_utc": "2026-10-02T05:37:50.610334+00:00",
+  "p4_prereg_sha": "48b884722ef027e99857a4e65f9ab6b11da4758f",
+  "p4_executor_sha_preflight": "3df8230d7806dde4151b56501641a1524a3df9d8",
+  "head_sha": "c2c52b11c60bb8dfd08d8cb33d5f6f251e9bf2c0",
+  "identidad": {
+    "p4_prereg_sha": "48b884722ef027e99857a4e65f9ab6b11da4758f",
+    "p4_executor_sha": "c2c52b11c60bb8dfd08d8cb33d5f6f251e9bf2c0",
+    "git_dirty": false,
+    "prereg_en_historia": true,
+    "data_vintage_id": "071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841",
+    "universe_vintage_id": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19",
+    "config_hash": "89406d28c7b4b6e6c4f032cd63b6868c927af3e926dfb52d430dfa6654d06387",
+    "config_score_model_version": "1.0",
+    "cost_pct": 0.2,
+    "seed": 20260830,
+    "standard": {
+      "confidence": 0.95,
+      "resamples": 2000
+    },
+    "bonferroni": {
+      "m": 4,
+      "confidence": 0.9875,
+      "resamples": 20000
+    },
+    "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)"
+  },
+  "p4_population_sha256": "78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141",
+  "signal_ids_sha256": "9faa4a45beaba3eb8dafabf7990906cd8c89e8e06ae2f25edec7839cd48e629f",
+  "senales": 101251,
+  "niveles_sha256": {
+    "C0": "e07a33a9a713c6b3662baa615c718ba2621a9070e736c84d4fb5458f32b79f75",
+    "B1": "a35373676a3cf091aec549c0a9ccc55f15c734ed8263636e15330c89bb29a6f0",
+    "B2": "f18694c316c0ad6d94ac566107db52bde0b7335a72a1206d2b49e731b54fbd02",
+    "S1": "8a23e326b5a1664877e1195d2c7b35540cb60bf0925bf5d0a0ea733ecaa7feb6",
+    "S2": "8c3b3e0a81274a9cb4c9b8c2c33a9b763f769a5b16079db64079121dd4016a8c"
+  },
+  "cortes_terciles": [
+    0.019819359544096908,
+    0.030590062111801243
+  ],
+  "familia_confirmatoria": [
+    "B2_vs_C0",
+    "S1_vs_C0",
+    "S2_vs_C0",
+    "E1"
+  ],
+  "seed": 20260830,
+  "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)"
+}

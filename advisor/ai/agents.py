@@ -12,6 +12,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from advisor.analysis.scoring import score_label
+
 if TYPE_CHECKING:
     from anthropic import Anthropic
 
@@ -113,7 +115,7 @@ def build_user_message(opportunity: Opportunity) -> str:
         f"CONTEXTO DE MERCADO: {context.label} — {context.reason}\n"
         f"VIX: {_fmt(context.vix_value, decimals=1)} (umbral {_fmt(context.vix_threshold, decimals=1)})\n"
         f"\n"
-        f"PUNTUACIÓN DEL SISTEMA: {opportunity.score.value:.0f}/100 ({opportunity.score.grade}), "
+        f"PUNTUACIÓN DEL SISTEMA: {score_label(opportunity.score)}, "
         f"sobre {opportunity.score.evaluable_max:.0f} puntos evaluables; {threshold_state}\n"
         f"Dimensiones sin datos: "
         f"{', '.join(opportunity.score.missing_dimensions) if opportunity.score.missing_dimensions else 'ninguna'}\n"

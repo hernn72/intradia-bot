@@ -1,0 +1,130 @@
+{
+  "P6_CODE_SHA": "bc0636d4320b38ef5a620fa9ae94cee35df47580",
+  "P6_PREREG_SHA": "03f04a42ea9d2be893e7c4cc09de76bd1c55778b",
+  "P6_RUN_EVIDENCE_SHA": "0771989af851748463aa0e79d4a7dc327066ca5f",
+  "P6_RUN_HEAD_SHA": "353876d39d03f6849847743b9f4e7f791abbed30",
+  "etiqueta_universo": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
+  "inputs": [
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6-datos/p6-sector-map.yaml",
+      "sha256": "220b21ed2ce74c60c0c1988e36e3eaf12f5c7357ae53e620005762e379f0e93c"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/SHA256SUMS-ejecucion.txt",
+      "sha256": "97244209866a08f9799af818a0017436a1ab91e348cbdd262504e7fa408ff035"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/apertura-payload.json",
+      "sha256": "7823fe8dc2634a0f4d6271399511d5d0d62b3a5da49c61106be6210a12dc8a7e"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/p6-resultado.json",
+      "sha256": "c264947333716720242968b630572e26bfe53455937261d843a08a1e56d08c9f"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/B2_primaria_5pb-ledger.csv",
+      "sha256": "72e400c4fa8583fb9025d3b8f2e1b7b0af9f95838e050d4024503157e5a39fbf"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/B2_primaria_5pb-operaciones.csv",
+      "sha256": "607605a119fd23fe13235a98bba22875ef79c8da69b8da5f9835dcc3f7f4649e"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/B2_primaria_5pb-serie-diaria.csv",
+      "sha256": "a7057e70386ffbba7fe95b7e71bd8d17a9c2a3a6a63c9f7f9cc72244a2ffbe6b"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/B2_sensibilidad_10pb-ledger.csv",
+      "sha256": "6a4b032de6fc1de65789bef3bb3ed04214eb4215120d8b656c1aafa4db3650e0"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/B2_sensibilidad_10pb-operaciones.csv",
+      "sha256": "45aba0854b7e726e5bd805a079ebeb7c95497003a1a20c3eff5fa64ae531b0a9"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/B2_sensibilidad_10pb-serie-diaria.csv",
+      "sha256": "2a914ef729b8b545453a565f9c5cec281f06079f5c2fff944905a7f157411b52"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/B2_todas_las_barras_5pb-ledger.csv",
+      "sha256": "bc33214ef2ae5df5392745964f627801199d3b72bf3e8f3ad6d13b5b7d57665a"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/B2_todas_las_barras_5pb-operaciones.csv",
+      "sha256": "736ab4599fd634cb5a686388f49830b604acffc98e59da052f6aaf6aaf87a0ed"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/B2_todas_las_barras_5pb-serie-diaria.csv",
+      "sha256": "891fe896c6f298ca1105923204ff89204a6f8b3bea6ba04f6a6617bb95d30dce"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/C0_primaria_5pb-ledger.csv",
+      "sha256": "3ac1e517abf56de900b3d3f66de30c77f764977053d3f354a0b994fc931583e3"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/C0_primaria_5pb-operaciones.csv",
+      "sha256": "519dbde75e97d3f72f6fc6eee2afe205f23076f5446705c0bf22bfb1d2358aef"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/C0_primaria_5pb-serie-diaria.csv",
+      "sha256": "28ab4ec7e00ebe1de7044f5e0fd6c3d7c4e688ab8015a75a9f3b19a9b7d1b8ab"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/S2_primaria_5pb-ledger.csv",
+      "sha256": "bb47bf12b0a0ab5fdd94c935182bfb6f55b8019df670e79fea551d1c6e206fb5"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/S2_primaria_5pb-operaciones.csv",
+      "sha256": "f7f4ac400051331705374ea8a1a51d48f60495bad968cbcd7cb6541213a377d6"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/S2_primaria_5pb-serie-diaria.csv",
+      "sha256": "e3fa4c8baf038537258ab2fb1f5430fd187044da939a5cc60c8f8945588a7fbb"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/S2_sensibilidad_10pb-ledger.csv",
+      "sha256": "6fa8fc0d70c860d127acab5153ec67076ce5c7e6187371e36228ef24c23853c8"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/S2_sensibilidad_10pb-operaciones.csv",
+      "sha256": "b3b9bfb1280a5bad0dff722137604a787e1eb48712e101f26860e01ce35279fa"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/S2_sensibilidad_10pb-serie-diaria.csv",
+      "sha256": "bd769d00219d10198b4a58ff783be60001a2a4589b7fff34c4d474d239dfcb88"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/S2_todas_las_barras_5pb-ledger.csv",
+      "sha256": "8ac72fea4626360df69a00a1bdbb43182feadb31190d9eb668488b49c60316e3"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/S2_todas_las_barras_5pb-operaciones.csv",
+      "sha256": "1e7d1d1f2f6de2afa6c6a84afb28f374dc81fc11368881ba3cabf8b51d14a664"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/S2_todas_las_barras_5pb-serie-diaria.csv",
+      "sha256": "9b4ac13a52d395a6d0cd1a95ac8da75c5f4c6da734dafaa8847fe2419f5627ee"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/benchmark_10pb-ledger.csv",
+      "sha256": "9fd4aa4a04d0d527f8b7b33b29362b2e22bcb1ef3803ef6eab2c6a417d0bc942"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/benchmark_10pb-serie-diaria.csv",
+      "sha256": "dc404c147bb629ae63f8e400f818e02c32256f70373694cb08eccce08c6e58eb"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/benchmark_5pb-ledger.csv",
+      "sha256": "989b1811038d45164b7bbcbd7c19f2559c6cc253bcafff45a1acbb4484ef96b3"
+    },
+    {
+      "ruta": "evidence/2026-10-03-T-022-p6/run/tablas/benchmark_5pb-serie-diaria.csv",
+      "sha256": "3bd119c212ac292910dd5b46cbe60be5a1802d89e5d673a9b6655e20c9e9f5db"
+    },
+    {
+      "ruta": "universe.yaml",
+      "sha256": "4a43be981351724d15a23afe7b073122f04e861f7797fc30c3567457fcadc2d3"
+    }
+  ],
+  "main_sha": "26dea364f32866d135f938f128aba541d20b6469"
+}

@@ -1,0 +1,47 @@
+$ verificar-backup --ruta intradia.db.bak-manual-20260930-110208
+fichero            intradia.db.bak-manual-20260930-110208
+integridad         ok
+esquema            v6
+registro           no registrado (copia manual)
+filas en la copia  analysis_run=59, data_freshness_measurement=7026, event_pass=1, position=0, position_review=0, recommendation=8351, validated_bar=3476, validated_bar_revision=579
+filas en la viva   analysis_run=60, data_freshness_measurement=7119, event_pass=1, position=0, position_review=0, recommendation=8444, validated_bar=3478, validated_bar_revision=726
+veredicto          VALIDO
+  - no figura en backup_log: copia manual, no la hizo una migración
+exit=0
+$ verificar-backup --ruta intradia.db.bak-20260930-110539-pre-v7
+fichero            intradia.db.bak-20260930-110539-pre-v7
+integridad         ok
+esquema            v6
+registro           registrado en backup_log
+filas en la copia  analysis_run=59, data_freshness_measurement=7026, event_pass=1, position=0, position_review=0, recommendation=8351, validated_bar=3476, validated_bar_revision=579
+filas en la viva   analysis_run=60, data_freshness_measurement=7119, event_pass=1, position=0, position_review=0, recommendation=8444, validated_bar=3478, validated_bar_revision=726
+veredicto          VALIDO
+exit=0
+$ sha256sum backups
+6e58e8c400503d57d996b887437f41d88ef8a09d06948bcbc346c76c8f1b6aa2  intradia.db.bak-manual-20260930-110208
+354a345bc49a43567e56f19a637a7814b827f33dd40a7378dbcb5af4eb5e10b7  intradia.db.bak-20260930-110539-pre-v7
+$ esquema, integridad y estructuras v7 (lectura, mode=ro)
+user_version backup manual = 6
+user_version backup pre-v7 = 6
+user_version = 7
+integrity_check = ok
+foreign_key_check = []
+analysis_run.scoring_contract_json = [('scoring_contract_json', 'TEXT')]
+position_review.run_id = [('run_id', 'TEXT')]
+FK position_review(run_id) = [('analysis_run', 'run_id', 'run_id')]
+indice = ['idx_position_review_run_id']
+analysis_run total = 60
+analysis_run anteriores a v7 con scoring_contract_json NULL = 59
+analysis_run anteriores a v7 con scoring_contract_json NO NULL = 0
+position_review total = 0 (run_id NULL: 0 )
+backup_log pre-v7 (target_version, tabla, filas) = [(7, 'analysis_run', 59), (7, 'data_freshness_measurement', 7026), (7, 'event_pass', 1), (7, 'position', 0), (7, 'position_review', 0), (7, 'recommendation', 8351), (7, 'validated_bar', 3476), (7, 'validated_bar_revision', 579)]
+recommendation del run = 93
+data_freshness_measurement del run = 93
+accion del run (n, score min, score max) = [('COMPRAR', 3, 71.625, 71.625), ('DESCARTAR', 62, 36.625, 59.125), ('ESPERAR', 28, 60.375, 68.5)]
+validated_bar = 3478
+validated_bar_revision = 726
+validated_bar_revision del run = 147
+validated_bar_revision del run por (tipo, aplicada) = [('REAJUSTE', 1, 30), ('REVISION', 0, 117)]
+validated_bar_revision del run por simbolo = [('TTE.PA', 'REAJUSTE', 30), ('^HSI', 'REVISION', 4), ('^N225', 'REVISION', 4), ('^STOXX', 'REVISION', 4), ('^STOXX50E', 'REVISION', 4), ('AAPL', 'REVISION', 2), ('ALV.DE', 'REVISION', 2), ('AMD', 'REVISION', 2), ('AMZN', 'REVISION', 2), ('AVGO', 'REVISION', 2), ('AZN', 'REVISION', 2), ('CL=F', 'REVISION', 2), ('COIN', 'REVISION', 2), ('CRWD', 'REVISION', 2), ('DBK.DE', 'REVISION', 2), ('DTE.DE', 'REVISION', 2), ('ENR.DE', 'REVISION', 2), ('GOOGL', 'REVISION', 2), ('IFX.DE', 'REVISION', 2), ('INTC', 'REVISION', 2), ('MBG.DE', 'REVISION', 2), ('META', 'REVISION', 2), ('MRVL', 'REVISION', 2), ('MSFT', 'REVISION', 2), ('MU', 'REVISION', 2), ('MUV2.DE', 'REVISION', 2), ('NFLX', 'REVISION', 2), ('NOW', 'REVISION', 2), ('NVDA', 'REVISION', 2), ('ORCL', 'REVISION', 2), ('PLTR', 'REVISION', 2), ('QCOM', 'REVISION', 2), ('R6C0.DE', 'REVISION', 2), ('RRU.DE', 'REVISION', 2), ('SAF.PA', 'REVISION', 2), ('SAP.DE', 'REVISION', 2), ('SIE.DE', 'REVISION', 2), ('TSLA', 'REVISION', 2), ('UBER', 'REVISION', 2), ('^FCHI', 'REVISION', 2), ('^GDAXI', 'REVISION', 2), ('^KS11', 'REVISION', 2), ('^TWII', 'REVISION', 2), ('1810.HK', 'REVISION', 1), ('9988.HK', 'REVISION', 1), ('ADBE', 'REVISION', 1), ('AIR.PA', 'REVISION', 1), ('AMAT', 'REVISION', 1), ('APP', 'REVISION', 1), ('ARM', 'REVISION', 1), ('BRK-B', 'REVISION', 1), ('CRM', 'REVISION', 1), ('CVX', 'REVISION', 1), ('EUNL.DE', 'REVISION', 1), ('EUNN.DE', 'REVISION', 1), ('EXH1.DE', 'REVISION', 1), ('EXSA.DE', 'REVISION', 1), ('EXV1.DE', 'REVISION', 1), ('GS', 'REVISION', 1), ('IQQK.DE', 'REVISION', 1), ('IS3N.DE', 'REVISION', 1), ('MA', 'REVISION', 1), ('MC.PA', 'REVISION', 1), ('PANW', 'REVISION', 1), ('QDV5.DE', 'REVISION', 1), ('RACE.MI', 'REVISION', 1), ('SXR8.DE', 'REVISION', 1), ('VVSM.DE', 'REVISION', 1)]
+revisiones del run con solo el volumen cambiado = 112
+exit=0

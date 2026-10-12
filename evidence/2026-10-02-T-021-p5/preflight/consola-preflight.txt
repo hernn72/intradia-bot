@@ -1,0 +1,12 @@
+# P5 preflight
+modo: DEFINITIVO
+ok: True
+definitivo: True
+poblacion: 101251 señales
+recuento P5: 71 comparaciones; confirmatorias nuevas 0
+P4 reproducido: True
+label: condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)
+
+Checks: todos OK.
+Reproducción de P4: 162/162 cadenas iguales.
+código de salida: 0

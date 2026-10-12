@@ -1,0 +1,15 @@
+[Unit]
+Description=Intradia T-024 - congelación del checkpoint forward (sin registro ni conteos)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@T024_USER@
+WorkingDirectory=@T024_REPO_DIR@
+Environment=PYTHONDONTWRITEBYTECODE=1
+# yfinance no necesita secretos para esta fase.
+TimeoutStartSec=3600
+StandardOutput=append:@T024_LOG@
+StandardError=append:@T024_LOG@
+ExecStart=@T024_PYTHON@ deploy/t024/checkpoint.py ejecutar --data-dir @T024_DATA_DIR@ --artefactos @T024_ARTEFACTOS_DIR@

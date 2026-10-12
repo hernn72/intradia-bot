@@ -1,0 +1,81 @@
+{
+  "esquema": "intradia.p5.politicas_finales.v1",
+  "p5_prereg_sha": "a7c3d238d651b4ea8f48834848c03c0a5a462dfa",
+  "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
+  "politicas": [
+    {
+      "id": "B2",
+      "advisor_config_hash": "c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760",
+      "policy_payload": {
+        "esquema": "intradia.p5.politica.v1",
+        "advisor_config_hash": "c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760",
+        "geometria": {
+          "atr_stop_multiple": 2.0,
+          "target_atr_multiples": [
+            1.5,
+            4.875,
+            5.0
+          ],
+          "target2_structural": false,
+          "entry_max_atr": 0.75,
+          "min_rr": 1.5,
+          "regla_soporte": "E",
+          "support_buffer_atr": 0.25,
+          "m3_auxiliar": false
+        },
+        "laboratorio": {
+          "horizonte": "swing",
+          "max_hold_bars": 40,
+          "coste_pct_ida_vuelta": 0.2,
+          "entrada": "cierre_de_la_senal",
+          "salidas": [
+            "STOP_FIRST",
+            "TARGET_FIRST",
+            "TIME",
+            "FINAL"
+          ],
+          "ambiguous": "no_resuelto"
+        }
+      },
+      "canonical_json": "{\"advisor_config_hash\":\"c5d60f44e89a754f34dfc685cda5073af1c0f9dbb04ab3ec14a813d423f81760\",\"esquema\":\"intradia.p5.politica.v1\",\"geometria\":{\"atr_stop_multiple\":2.0,\"entry_max_atr\":0.75,\"m3_auxiliar\":false,\"min_rr\":1.5,\"regla_soporte\":\"E\",\"support_buffer_atr\":0.25,\"target2_structural\":false,\"target_atr_multiples\":[1.5,4.875,5.0]},\"laboratorio\":{\"ambiguous\":\"no_resuelto\",\"coste_pct_ida_vuelta\":0.2,\"entrada\":\"cierre_de_la_senal\",\"horizonte\":\"swing\",\"max_hold_bars\":40,\"salidas\":[\"STOP_FIRST\",\"TARGET_FIRST\",\"TIME\",\"FINAL\"]}}",
+      "policy_sha256": "d5d6a533fe846a6ebb5d5c8e313c84f2a5b4e04095d08386e5d903dce73101b9"
+    },
+    {
+      "id": "S2",
+      "advisor_config_hash": "8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb",
+      "policy_payload": {
+        "esquema": "intradia.p5.politica.v1",
+        "advisor_config_hash": "8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb",
+        "geometria": {
+          "atr_stop_multiple": 2.5,
+          "target_atr_multiples": [
+            1.5,
+            3.75,
+            5.0
+          ],
+          "target2_structural": false,
+          "entry_max_atr": 0.75,
+          "min_rr": 1.5,
+          "regla_soporte": "E",
+          "support_buffer_atr": 0.25,
+          "m3_auxiliar": false
+        },
+        "laboratorio": {
+          "horizonte": "swing",
+          "max_hold_bars": 40,
+          "coste_pct_ida_vuelta": 0.2,
+          "entrada": "cierre_de_la_senal",
+          "salidas": [
+            "STOP_FIRST",
+            "TARGET_FIRST",
+            "TIME",
+            "FINAL"
+          ],
+          "ambiguous": "no_resuelto"
+        }
+      },
+      "canonical_json": "{\"advisor_config_hash\":\"8a151b80d91bf73e431ec38e5e21f22268783bbd0a26d5f72e6ef8887aca0dbb\",\"esquema\":\"intradia.p5.politica.v1\",\"geometria\":{\"atr_stop_multiple\":2.5,\"entry_max_atr\":0.75,\"m3_auxiliar\":false,\"min_rr\":1.5,\"regla_soporte\":\"E\",\"support_buffer_atr\":0.25,\"target2_structural\":false,\"target_atr_multiples\":[1.5,3.75,5.0]},\"laboratorio\":{\"ambiguous\":\"no_resuelto\",\"coste_pct_ida_vuelta\":0.2,\"entrada\":\"cierre_de_la_senal\",\"horizonte\":\"swing\",\"max_hold_bars\":40,\"salidas\":[\"STOP_FIRST\",\"TARGET_FIRST\",\"TIME\",\"FINAL\"]}}",
+      "policy_sha256": "e37ee93363dbbd7c58cae74bba4391ab9ad41dd1f3ed55804a92efb531e44d11"
+    }
+  ]
+}

@@ -28,7 +28,11 @@ from advisor.analysis.opportunity import (
 from advisor.analysis.overview import IndexQuote, asia_session_change, fetch_overview
 from advisor.analysis.scoring import compute_score
 from advisor.analysis.snapshot import TechnicalSnapshot, build_snapshot
-from advisor.config import AdvisorConfig
+from advisor.config import AdvisorConfig, scoring_for_requested_model
+from advisor.context.point_in_time import (
+    context_mode_for,
+    fetch_point_in_time_market_context,
+)
 from advisor.data.bar_cache import BarCacheReport
 from advisor.data.freshness import DataFreshness, FreshnessRow, calcular_frescura_serie, mercado_para_simbolo
 from advisor.data.market_data import MarketDataProvider
@@ -116,6 +120,7 @@ def analyze_asset(
     benchmark_close: Optional[pd.Series] = None,
     benchmark_symbol: Optional[str] = None,
     now: Optional[datetime] = None,
+    score_model_version: Optional[str] = None,
 ) -> Opportunity:
     """Analiza un único activo.
 
@@ -200,7 +205,16 @@ def analyze_asset(
     if levels is None:
         raise ValueError("no se pueden situar los niveles (ATR no disponible o stop incoherente)")
 
-    score = compute_score(snapshot, levels, context, config.scoring, window.min_bars)
+    requested_score_model = score_model_version or config.scoring.score_model_version
+    scoring = scoring_for_requested_model(config.scoring, requested_score_model)
+    score = compute_score(
+        snapshot,
+        context,
+        scoring,
+        model_version=requested_score_model,
+        levels=levels if requested_score_model == "1.0" else None,
+        min_bars=window.min_bars if requested_score_model == "1.0" else None,
+    )
 
     return build_opportunity(
         asset=asset,
@@ -209,11 +223,12 @@ def analyze_asset(
         levels=levels,
         score=score,
         context=context,
-        scoring=config.scoring,
+        scoring=scoring,
         risk=config.risk,
         portfolio=config.portfolio,
         data_quality=config.data_quality,
         data_freshness=data_freshness,
+        confidence_min_bars=window.min_bars,
     )
 
 
@@ -224,6 +239,7 @@ def run_analysis(
     horizonte: str = "swing",
     groups: Optional[List[str]] = None,
     now: Optional[datetime] = None,
+    score_model_version: Optional[str] = None,
 ) -> AnalysisResult:
     """Analiza el universo completo y devuelve las oportunidades ordenadas.
 
@@ -241,14 +257,24 @@ def run_analysis(
     # cerrada cuando Europa abre, entra como señal en la puntuación de
     # contexto en vez de quedarse en un adorno del informe.
     reference = now or datetime.now(timezone.utc)
+    requested_score_model = score_model_version or config.scoring.score_model_version
     overview = fetch_overview(provider, universe)
-    context = fetch_market_context(
-        provider,
-        config.market_context,
-        asia_session_change(overview),
-        reference=reference,
-        settlement_minutes=config.data_quality.settlement_minutes,
-    )
+    if context_mode_for(requested_score_model) == "point_in_time":
+        context = fetch_point_in_time_market_context(
+            provider,
+            config.market_context,
+            universe,
+            reference,
+            settlement_minutes=config.data_quality.settlement_minutes,
+        )
+    else:
+        context = fetch_market_context(
+            provider,
+            config.market_context,
+            asia_session_change(overview),
+            reference=reference,
+            settlement_minutes=config.data_quality.settlement_minutes,
+        )
     benchmark_cache: Dict[str, Optional[pd.Series]] = {}
 
     opportunities: List[Opportunity] = []
@@ -270,7 +296,17 @@ def run_analysis(
                         config.data_quality.settlement_minutes,
                     )
                 benchmark_close = benchmark_cache[benchmark_symbol]
-            opportunity = analyze_asset(asset, config, provider, context, horizonte, benchmark_close, benchmark_symbol, now)
+            opportunity = analyze_asset(
+                asset,
+                config,
+                provider,
+                context,
+                horizonte,
+                benchmark_close,
+                benchmark_symbol,
+                now,
+                score_model_version=requested_score_model,
+            )
             opportunities.append(opportunity)
             data_symbol = asset.data_symbol(now)
             freshness_rows.append(

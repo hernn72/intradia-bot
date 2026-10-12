@@ -1,0 +1,27 @@
+🧪 SHADOW / PAPER — estrategia en investigación, no validada para capital real
+B2-P6 · 6857.T · sesión 2026-10-09: entrada máx 42928.39, stop 38094.29, obj2 50179.55, RR 2.44 → pendiente de la apertura
+B2-P6 · AMAT · sesión 2026-10-09: entrada máx 519.67, stop 473.32, obj2 589.20, RR 2.44 → pendiente de la apertura
+B2-P6 · EUNL.DE · sesión 2026-10-09: entrada máx 132.37, stop 129.70, obj2 136.38, RR 2.44 → pendiente de la apertura
+B2-P6 · EXH1.DE · sesión 2026-10-09: entrada máx 58.54, stop 56.03, obj2 62.31, RR 2.44 → pendiente de la apertura
+B2-P6 · IBE.MC · sesión 2026-10-09: entrada máx 21.52, stop 20.58, obj2 22.92, RR 2.44 → pendiente de la apertura
+B2-P6 · IQQT.DE · sesión 2026-10-09: entrada máx 190.55, stop 182.15, obj2 203.16, RR 2.44 → pendiente de la apertura
+B2-P6 · MRVL · sesión 2026-10-09: entrada máx 285.54, stop 247.93, obj2 341.95, RR 2.44 → pendiente de la apertura
+B2-P6 · MSFT · sesión 2026-10-09: entrada máx 544.61, stop 509.63, obj2 597.08, RR 2.44 → pendiente de la apertura
+B2-P6 · MUV2.DE · sesión 2026-10-09: entrada máx 530.28, stop 506.51, obj2 565.93, RR 2.44 → pendiente de la apertura
+B2-P6 · NOW · sesión 2026-10-09: entrada máx 144.82, stop 130.31, obj2 166.58, RR 2.44 → pendiente de la apertura
+B2-P6 · NVDA · sesión 2026-10-09: entrada máx 233.18, stop 218.88, obj2 254.63, RR 2.44 → pendiente de la apertura
+B2-P6 · PANW · sesión 2026-10-09: entrada máx 430.97, stop 386.27, obj2 498.03, RR 2.44 → pendiente de la apertura
+B2-P6 · PLTR · sesión 2026-10-09: entrada máx 213.67, stop 196.73, obj2 239.09, RR 2.44 → pendiente de la apertura
+B2-P6 · R6C0.DE · sesión 2026-10-09: entrada máx 45.67, stop 43.26, obj2 49.28, RR 2.44 → pendiente de la apertura
+B2-P6 · SAP.DE · sesión 2026-10-09: entrada máx 195.48, stop 180.73, obj2 217.60, RR 2.44 → pendiente de la apertura
+B2-P6 · SXR8.DE · sesión 2026-10-09: entrada máx 755.35, stop 740.56, obj2 777.54, RR 2.44 → pendiente de la apertura
+B2-P6 · TSLA · sesión 2026-10-09: entrada máx 390.97, stop 360.64, obj2 436.46, RR 2.44 → pendiente de la apertura
+B2-P6 · V · sesión 2026-10-09: entrada máx 390.58, stop 371.78, obj2 418.78, RR 2.44 → pendiente de la apertura
+C0-P6 · PLTR · sesión 2026-10-09: entrada máx 209.05, stop 196.73, obj2 227.53, RR 1.50 → pendiente de la apertura
+C0-P6 · SAP.DE · sesión 2026-10-09: entrada máx 191.46, stop 180.73, obj2 207.55, RR 1.50 → pendiente de la apertura
+C0-P6 · SXR8.DE · sesión 2026-10-09: entrada máx 751.32, stop 740.56, obj2 767.46, RR 1.50 → pendiente de la apertura
+S2-P6 · PLTR · sesión 2026-10-09: entrada máx 209.05, stop 193.65, obj2 232.16, RR 1.50 → pendiente de la apertura
+S2-P6 · SAP.DE · sesión 2026-10-09: entrada máx 191.46, stop 178.05, obj2 211.57, RR 1.50 → pendiente de la apertura
+S2-P6 · SXR8.DE · sesión 2026-10-09: entrada máx 751.32, stop 737.87, obj2 771.49, RR 1.50 → pendiente de la apertura
+Desenlaces sellados hasta que T-024 se resuelva (D-73, D-75).
+Sesión de señal 2026-10-09

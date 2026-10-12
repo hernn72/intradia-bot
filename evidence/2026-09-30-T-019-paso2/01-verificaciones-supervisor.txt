@@ -1,0 +1,49 @@
+# Verificación final del supervisor sobre el árbol que se commitea (2026-09-30, tras la cuarta vuelta)
+
+$ git diff --stat -- config.yaml evidence/2026-09-30-T-019-paso2a-code deploy/ requirements.txt advisor/storage/  (vacío = sin cambios)
+$ grep score_model_version/calibrated config.yaml
+4
+3
+$ .venv/bin/ruff check .
+All checks passed!
+exit=0
+$ .venv/bin/mypy advisor
+Success: no issues found in 70 source files
+exit=0
+$ .venv/bin/python -m pytest -q
+743 passed, 3 warnings in 162.04s (0:02:42)
+$ backtest v1 A-02 --vintage 071ddb2b… | sed | shasum -a 256
+exit=0
+49b12c855c2d2681d9ecd0f592248cd03b11cd8428273014238e04f0ddefbc3c  -
+  866 operaciones
+$ p3_population_control.py de 2a-code + cmp de su evidencia
+exit=0
+IGUAL 01-verificaciones.txt
+IGUAL 06-excluded_asia_missing-medio.tsv
+IGUAL 06-excluded_asia_missing-swing.tsv
+IGUAL 06-excluded_crypto-medio.tsv
+IGUAL 06-excluded_crypto-swing.tsv
+IGUAL 06-excluded_trend_sma_history-medio.tsv
+IGUAL 06-excluded_trend_sma_history-swing.tsv
+IGUAL 06-stoxx_hueco_intermedio-medio.tsv
+IGUAL 06-stoxx_hueco_intermedio-swing.tsv
+IGUAL p3_population_control.py
+IGUAL p3_population_control.txt
+IGUAL README.md
+IGUAL revision-look-ahead-previa.md
+POBLACION FINAL: 94094 señales | 90 activos
+bloques con señales: 19
+sha256 población final: 4aa12d85eb54d7a01c10a4a3e4cf04e8077c842829235a93b75f7bd19c62011a
+control cruzado event_study PIT swing:
+  06-excluded_crypto-swing.tsv: OK
+  06-excluded_asia_missing-swing.tsv: OK
+  06-excluded_trend_sma_history-swing.tsv: OK
+  06-stoxx_hueco_intermedio-swing.tsv: OK
+POBLACION FINAL: 89333 señales | 90 activos
+bloques con señales: 5
+sha256 población final: 4d6eaab9b84ff23bade1df86a82e95f46da546917a226dc8438a8e88493020f8
+control cruzado event_study PIT medio:
+  06-excluded_crypto-medio.tsv: OK
+  06-excluded_asia_missing-medio.tsv: OK
+  06-excluded_trend_sma_history-medio.tsv: OK
+  06-stoxx_hueco_intermedio-medio.tsv: OK

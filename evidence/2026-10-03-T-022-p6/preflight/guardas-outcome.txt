@@ -1,0 +1,66 @@
+# Guardas de desenlace comprobadas por el preflight (sin abrir ninguno)
+
+- build_real_market sin token: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- build_real_signals sin token: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- build_real_signals con token fabricado: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- simulate con datos reales sin autorización: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- simulate_benchmark con datos reales sin autorización: observado=P6OutcomeGateError esperado=P6OutcomeGateError ok=True
+- marca confirmatoria ausente: observado=False esperado=False ok=True
+
+Las funciones reciben una cosecha nula: la guarda salta antes de tocarla; cualquier otro error deja el control en rojo.
+El preflight no carga la cosecha de precios (load_vintage/build_views): test_preflight_real_sin_cargar_precios lo
+comprueba con esas funciones prohibidas.
+
+Ejecución confirmatoria sellada (0ba98a3, d81a358, c91c4d6, b6f0aaf, beaa9ec, d35ae7f, bc0636d). Un único camino abre desenlaces:
+run_confirmatory → _ejecutar_confirmatoria_sellada(), sin argumentos, que en orden:
+  1. lee el preflight definitivo de su ruta fija y exige ok, definitivo y las identidades congeladas
+     (P6_PREREG_SHA, P6_DATA_ID, cosecha, universo, FX, sector, políticas B2/S2/C0);
+  2. exige que P6_DATA_ID se reproduzca y que el ejecutor no haya cambiado desde ese preflight;
+  3. recalcula el preflight vivo con run_preflight y exige la misma huella; comprueba que la marca no existe;
+  4. carga la cosecha completa (import local de load_vintage, solo aquí) y exige la misma ventana; si no,
+     para sin crear la marca;
+  5. calcula dentro el payload canónico y el contrato de corridas (9 SimSpec completos: run_id,
+     policy_id, población, slippage, hash, capital, riesgo, tope, comisión, min_rr, tiempo máximo) con
+     los hashes del preflight definitivo verificado;
+  6. persiste el payload en run/apertura-payload.json (temporal, fsync, replace atómico, fsync del
+     directorio) y lo verifica por hash; si falla, no hay marca;
+  7. crea run/EJECUCION_CONFIRMATORIA_P6_INICIADA con O_CREAT|O_EXCL, que referencia y hashea ese payload;
+     la escribe con fsync y la relee; si falla, la ejecución queda consumida con el payload ya archivado;
+  8. crea el token atado a la marca; es el único vigente (_ACTIVE_TOKEN) y se revoca en un finally;
+  9. el MarketData real lleva el contrato inmutable y p6_sim exige por sí mismo que cada SimSpec coincida
+     exactamente con una entrada, antes de la autorización (token vigente + guard del flujo);
+ 10. p6_sim solo deja construir y simular datos con origin="real" mientras la ejecución sellada está en
+     curso con su token vigente: fuera de ella no se puede montar un MarketData real ni con un contrato
+     propio ni con una autorización permisiva.
+No existen _issue_clearance, create_marker_exclusive, build_confirmatory_token, authorization() ni
+registro de tokens. run_confirmatory devuelve solo código y resumen.
+
+Modelo de amenaza (decisión del propietario, 2026-10-04). Dentro: con el código intacto no se puede
+abrir outcomes sin run_confirmatory, obtener autorización/token por piezas, aportar payload, preflight,
+ventana, hashes o SimSpec, reutilizar una autorización, ejecutar una corrida no pre-registrada, ejecutar
+dos veces ni alterar las identidades congeladas sin que falle la apertura. Fuera: código deliberadamente
+hostil concurrente en el mismo intérprete (introspección de frames, gc, globals, closures, monkeypatch
+durante la ejecución), escritura o borrado manual de los archivos de control y modificación del código.
+
+Namespace de P6 (d35ae7f, bc0636d): Las APIs propias de advisor.research.p6 no exponen lectores arbitrarios de precios ni extractores de precios desde VintageLoad fuera del flujo confirmatorio sellado. El preflight solo realiza internamente la lectura mínima de Close/Adj Close exigida por T-022 §10.1.
+En concreto, advisor.research.p6 no expone load_vintage, load_full_vintage, load_price_rows, frozen_close,
+_context_resolver ni ningún módulo de advisor (p5 se importa localmente); de p4 solo executor_unchanged_since,
+run_git y tree_dirty. La carga completa es un import local dentro de
+_ejecutar_confirmatoria_sellada; load_price_rows es un import local dentro de dividend_split_checks(), que no
+recibe argumentos y calcula ella misma las filas (víspera y fecha ex de los activos con split y dividendo) y
+las columnas (Close, Adj Close); frozen_close y _context_resolver son imports locales dentro de
+build_real_signals, tras el token.
+La carga estructural (load_structure) solo devuelve timestamps, dividendos y splits. Un test inspecciona el
+namespace completo de p6 con una política cerrada de imports (test_n01_n04_namespace_de_p6_sin_lectores_de_precios:
+un callable nuevo importado de otro módulo de advisor falla hasta clasificarlo) y otro audita las funciones propias
+que tocan precios (test_n10_solo_las_rutas_autorizadas_de_p6_tocan_precios: flujo sellado, build_real_* con token,
+§10.1 e índices).
+
+Aclaración final del modelo (propietario, 2026-10-04): P6 no pretende impedir el uso hostil de otros módulos
+genéricos del repositorio. Queda fuera del modelo que un script externo importe deliberadamente desde
+advisor.research.vintage funciones genéricas como load_vintage o load_price_rows y construya a mano un
+MarketData etiquetado falsamente como "synthetic"; también modificar código, monkeypatching, introspección
+hostil, manipulación manual de archivos y los demás casos ya declarados. Lo que sí se exige es que P6 no
+proporcione esa vía por sí mismo. Esto no rebaja ninguna guarda del camino P6.
+Tests: test_s01 … test_s22, test_c01 … test_c20, test_l01 … test_l05, test_n01 … test_n10 y
+test_humo_flujo_sellado_con_constructores_reales_sobre_cosecha_sintetica.

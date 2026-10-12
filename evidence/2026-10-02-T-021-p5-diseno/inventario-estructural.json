@@ -1,0 +1,448 @@
+{
+ "atr_sobre_precio_max": 0.26543716770522247,
+ "celdas": {
+  "1.75|4.5|5.0": {
+   "centro": "B2",
+   "incoherencias": {},
+   "manda": {
+    "EMPATE": 86860,
+    "TECNICO": 14391
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 2752,
+    "SOP/SOP": 14391,
+    "VOL/VOL": 84108
+   },
+   "rr_efectivo_min": 2.5714285714285547,
+   "stop_basis": {
+    "SOPORTE": 14391,
+    "VOLATILIDAD": 86860
+   },
+   "stop_igual_c0": 14391,
+   "stop_igual_centro": 14391,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "1.75|4.875|5.0": {
+   "centro": "B2",
+   "incoherencias": {},
+   "manda": {
+    "TECNICO": 101251
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 2752,
+    "SOP/SOP": 14391,
+    "VOL/VOL": 84108
+   },
+   "rr_efectivo_min": 2.7857142857142714,
+   "stop_basis": {
+    "SOPORTE": 14391,
+    "VOLATILIDAD": 86860
+   },
+   "stop_igual_c0": 14391,
+   "stop_igual_centro": 14391,
+   "stop_y_target2_iguales_centro": 14391,
+   "validos": 101251
+  },
+  "1.75|5.25|5.625": {
+   "centro": "B2",
+   "incoherencias": {},
+   "manda": {
+    "TECNICO": 101251
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 2752,
+    "SOP/SOP": 14391,
+    "VOL/VOL": 84108
+   },
+   "rr_efectivo_min": 3.0,
+   "stop_basis": {
+    "SOPORTE": 14391,
+    "VOLATILIDAD": 86860
+   },
+   "stop_igual_c0": 14391,
+   "stop_igual_centro": 14391,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.0|3.0|5.0": {
+   "centro": "S2",
+   "incoherencias": {},
+   "manda": {
+    "RR": 96969,
+    "TECNICO": 4282
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "SOP/SOP": 17143,
+    "VOL/VOL": 84108
+   },
+   "rr_efectivo_min": 1.499999999999983,
+   "stop_basis": {
+    "SOPORTE": 17143,
+    "VOLATILIDAD": 84108
+   },
+   "stop_igual_c0": 101251,
+   "stop_igual_centro": 17149,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.0|4.5|5.0": {
+   "centro": "B2",
+   "incoherencias": {},
+   "manda": {
+    "RR": 86860,
+    "TECNICO": 14391
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "SOP/SOP": 17143,
+    "VOL/VOL": 84108
+   },
+   "rr_efectivo_min": 2.249999999999959,
+   "stop_basis": {
+    "SOPORTE": 17143,
+    "VOLATILIDAD": 84108
+   },
+   "stop_igual_c0": 101251,
+   "stop_igual_centro": 101251,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.0|4.875|5.0": {
+   "centro": "B2",
+   "incoherencias": {},
+   "manda": {
+    "EMPATE": 84108,
+    "TECNICO": 17143
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "SOP/SOP": 17143,
+    "VOL/VOL": 84108
+   },
+   "rr_efectivo_min": 2.437499999999961,
+   "stop_basis": {
+    "SOPORTE": 17143,
+    "VOLATILIDAD": 84108
+   },
+   "stop_igual_c0": 101251,
+   "stop_igual_centro": 101251,
+   "stop_y_target2_iguales_centro": 101251,
+   "validos": 101251
+  },
+  "2.0|5.25|5.625": {
+   "centro": "B2",
+   "incoherencias": {},
+   "manda": {
+    "TECNICO": 101251
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "SOP/SOP": 17143,
+    "VOL/VOL": 84108
+   },
+   "rr_efectivo_min": 2.624999999999963,
+   "stop_basis": {
+    "SOPORTE": 17143,
+    "VOLATILIDAD": 84108
+   },
+   "stop_igual_c0": 101251,
+   "stop_igual_centro": 101251,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.25|3.375|5.0": {
+   "centro": "S2",
+   "incoherencias": {},
+   "manda": {
+    "RR": 94603,
+    "TECNICO": 6648
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 2726,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 81382
+   },
+   "rr_efectivo_min": 1.4999999999999851,
+   "stop_basis": {
+    "SOPORTE": 19869,
+    "VOLATILIDAD": 81382
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 19870,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.25|3.75|5.0": {
+   "centro": "S2",
+   "incoherencias": {},
+   "manda": {
+    "RR": 92148,
+    "TECNICO": 9103
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 2726,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 81382
+   },
+   "rr_efectivo_min": 1.666666666666637,
+   "stop_basis": {
+    "SOPORTE": 19869,
+    "VOLATILIDAD": 81382
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 19870,
+   "stop_y_target2_iguales_centro": 19870,
+   "validos": 101251
+  },
+  "2.25|4.125|5.0": {
+   "centro": "S2",
+   "incoherencias": {},
+   "manda": {
+    "RR": 89582,
+    "TECNICO": 11669
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 2726,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 81382
+   },
+   "rr_efectivo_min": 1.833333333333313,
+   "stop_basis": {
+    "SOPORTE": 19869,
+    "VOLATILIDAD": 81382
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 19870,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.25|4.5|5.0": {
+   "centro": "B2",
+   "incoherencias": {},
+   "manda": {
+    "RR": 86860,
+    "TECNICO": 14391
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 2726,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 81382
+   },
+   "rr_efectivo_min": 1.9999999999999696,
+   "stop_basis": {
+    "SOPORTE": 19869,
+    "VOLATILIDAD": 81382
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 17149,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.25|4.875|5.0": {
+   "centro": "B2",
+   "incoherencias": {},
+   "manda": {
+    "EMPATE": 6,
+    "RR": 84102,
+    "TECNICO": 17143
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 2726,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 81382
+   },
+   "rr_efectivo_min": 2.166666666666652,
+   "stop_basis": {
+    "SOPORTE": 19869,
+    "VOLATILIDAD": 81382
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 17149,
+   "stop_y_target2_iguales_centro": 17149,
+   "validos": 101251
+  },
+  "2.25|5.25|5.625": {
+   "centro": "B2",
+   "incoherencias": {},
+   "manda": {
+    "EMPATE": 81382,
+    "TECNICO": 19869
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 2726,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 81382
+   },
+   "rr_efectivo_min": 2.3333333333333037,
+   "stop_basis": {
+    "SOPORTE": 19869,
+    "VOLATILIDAD": 81382
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 17149,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.5|3.375|5.0": {
+   "centro": "S2",
+   "incoherencias": {
+    "P_SOBRE_ENTRY_MAX": 81381,
+    "RR_EN_P_BAJO_MIN_RR": 81381
+   },
+   "manda": {
+    "RR": 94603,
+    "TECNICO": 6648
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 5507,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 78601
+   },
+   "rr_efectivo_min": 1.3499999999999903,
+   "stop_basis": {
+    "SOPORTE": 22650,
+    "VOLATILIDAD": 78601
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 101251,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.5|3.75|5.0": {
+   "centro": "S2",
+   "incoherencias": {},
+   "manda": {
+    "RR": 92148,
+    "TECNICO": 9103
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 5507,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 78601
+   },
+   "rr_efectivo_min": 1.4999999999999862,
+   "stop_basis": {
+    "SOPORTE": 22650,
+    "VOLATILIDAD": 78601
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 101251,
+   "stop_y_target2_iguales_centro": 101251,
+   "validos": 101251
+  },
+  "2.5|4.125|5.0": {
+   "centro": "S2",
+   "incoherencias": {},
+   "manda": {
+    "RR": 89582,
+    "TECNICO": 11669
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 5507,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 78601
+   },
+   "rr_efectivo_min": 1.6499999999999764,
+   "stop_basis": {
+    "SOPORTE": 22650,
+    "VOLATILIDAD": 78601
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 101251,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.75|3.375|5.0": {
+   "centro": "S2",
+   "incoherencias": {
+    "P_SOBRE_ENTRY_MAX": 81381,
+    "RR_EN_P_BAJO_MIN_RR": 81381
+   },
+   "manda": {
+    "RR": 94603,
+    "TECNICO": 6648
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 8275,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 75833
+   },
+   "rr_efectivo_min": 1.2272727272727062,
+   "stop_basis": {
+    "SOPORTE": 25418,
+    "VOLATILIDAD": 75833
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 22650,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  },
+  "2.75|3.75|5.0": {
+   "centro": "S2",
+   "incoherencias": {
+    "P_SOBRE_ENTRY_MAX": 78601,
+    "RR_EN_P_BAJO_MIN_RR": 78601
+   },
+   "manda": {
+    "RR": 92148,
+    "TECNICO": 9103
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 8275,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 75833
+   },
+   "rr_efectivo_min": 1.363636363636346,
+   "stop_basis": {
+    "SOPORTE": 25418,
+    "VOLATILIDAD": 75833
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 22650,
+   "stop_y_target2_iguales_centro": 22650,
+   "validos": 101251
+  },
+  "2.75|4.125|5.0": {
+   "centro": "S2",
+   "incoherencias": {},
+   "manda": {
+    "RR": 89582,
+    "TECNICO": 11669
+   },
+   "none": {},
+   "pares_stop_basis_vs_c0": {
+    "MIXTO": 8275,
+    "SOP/SOP": 17143,
+    "VOL/VOL": 75833
+   },
+   "rr_efectivo_min": 1.4999999999999887,
+   "stop_basis": {
+    "SOPORTE": 25418,
+    "VOLATILIDAD": 75833
+   },
+   "stop_igual_c0": 17149,
+   "stop_igual_centro": 22650,
+   "stop_y_target2_iguales_centro": 0,
+   "validos": 101251
+  }
+ },
+ "outcomes_read": false,
+ "poblacion": 101251,
+ "population_sha256": "78024050f7081ad4e1dd5cefaefbfa1a1668ff5b1a2ced8c34e62b6501873141"
+}

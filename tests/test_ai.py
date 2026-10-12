@@ -30,6 +30,7 @@ def _opportunity(asset, context):
     return build_opportunity(
         asset=asset, horizonte="swing", snapshot=snapshot, levels=levels,
         score=score, context=context, scoring=ScoringConfig(), risk=RiskConfig(), portfolio=PortfolioConfig(),
+        confidence_min_bars=250,
     )
 
 

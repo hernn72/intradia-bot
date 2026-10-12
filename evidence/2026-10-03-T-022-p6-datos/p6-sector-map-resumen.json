@@ -1,0 +1,19 @@
+{
+  "instrumentos": 90,
+  "por_sector": {
+    "BOND_ETF": 1,
+    "Communication Services": 6,
+    "Consumer Cyclical": 8,
+    "Consumer Defensive": 1,
+    "EQUITY_ETF": 15,
+    "Energy": 5,
+    "Financial Services": 9,
+    "Healthcare": 4,
+    "Industrials": 11,
+    "Technology": 29,
+    "Utilities": 1
+  },
+  "unknown": [],
+  "sector_map_yaml_sha256": "220b21ed2ce74c60c0c1988e36e3eaf12f5c7357ae53e620005762e379f0e93c",
+  "sector_map_canonical_sha256": "24f45421a582cc79ee16f8436e3e008d252ccafc06f34503961d5dfccea662cd"
+}

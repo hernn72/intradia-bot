@@ -1,0 +1,29 @@
+Verificación local (2026-10-06, macOS, Python 3.12, .venv), sobre el HEAD del sidecar.
+El ejecutor es idéntico al de 1a697c3.
+
+git diff --name-only 1a697c3 HEAD    -> solo evidence/ (sidecar, README del lock, esta carpeta)
+verificar_identidad()                -> 1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0
+python -m pytest -q                  -> 1274 passed, 3 warnings (570 s)
+pytest tests/test_t024_forward.py    -> 83 passed
+ruff check .                         -> All checks passed!
+mypy advisor                         -> Success: no issues found in 79 source files
+
+Petición del primer checkpoint (solo cálculo, sin red):
+python -m advisor.research.t024_forward peticion --checkpoint 2026-11-03 --festivo 2026-11-02
+  {"actions": true, "auto_adjust": false, "checkpoint": "2026-11-03", "end": "2026-10-26",
+   "end_exclusive": true, "festivos": ["2026-11-02"], "interval": "1d", "n_symbols": 126,
+   "start": "2021-08-30",
+   "symbols_sha256": "c7a896ab921a27dce3e6ea268187ff03ce77954dd67298ac2b62d7c4017b50b5"}
+
+Modo period legacy: el data_vintage_id de una cosecha fija es 6214dfcc… y el SHA256 del manifest.json es
+5fd016a3…. Ambos son idénticos a los que produce advisor/research/vintage.py de 3bec864 (test fijado).
+
+Cosecha consumida: 071ddb2b… verifica con su id original (manifiesto en CI; carga completa en local).
+
+Cero datos forward:
+- data/vintages/ solo contiene 071ddb2b2c43c28c36517fd55b4388cee00aac16d11d27a992e250e8af253841;
+- no existe registro forward;
+- no se ha llamado a yfinance en esta entrega: todos los tests usan proveedores falsos.
+
+Cero desenlaces: no se ha ejecutado ejecutar_mirada, no existe ninguna marca *.t024.consumida y no se ha
+calculado D1, D2, D2o, D2c, D3 ni D4.

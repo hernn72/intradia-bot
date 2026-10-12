@@ -1,0 +1,132 @@
+{
+  "label": "condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)",
+  "peticion_fuente_A": {
+    "start": "2021-08-27",
+    "end": "2026-08-29",
+    "interval": "1d",
+    "auto_adjust": false,
+    "actions": true,
+    "provider": "yfinance",
+    "provider_version": "1.7.0"
+  },
+  "fuente_A_yahoo": {
+    "EURUSD=X": {
+      "intentos": [
+        {
+          "intento": "1",
+          "inicio_utc": "2026-10-03T13:57:41Z",
+          "excepcion": ""
+        }
+      ],
+      "downloaded_at": "2026-10-03T13:57:41Z",
+      "filas_devueltas": 1301,
+      "fichero": "yahoo-EURUSD%3DX.csv",
+      "file_sha256": "565e8cd6ac7cbff25ca9c306022e0cbb0b5ce23d79a2d9b1d9142186798037f1",
+      "series_hash": "3d3d4af3d15de9f2e5736f96997bf465fb58612d89377de463abbd4c502f911c"
+    },
+    "EURJPY=X": {
+      "intentos": [
+        {
+          "intento": "1",
+          "inicio_utc": "2026-10-03T13:57:42Z",
+          "excepcion": ""
+        }
+      ],
+      "downloaded_at": "2026-10-03T13:57:42Z",
+      "filas_devueltas": 1301,
+      "fichero": "yahoo-EURJPY%3DX.csv",
+      "file_sha256": "5a72c668e4b62e410b0e597e797c576f91030b9e84903bb2435b543404db1d9b",
+      "series_hash": "2b20f0aa75efda0695e53f1d533e8b2c378b2d4d1382e9733c95e7e4792d3b13"
+    },
+    "EURHKD=X": {
+      "intentos": [
+        {
+          "intento": "1",
+          "inicio_utc": "2026-10-03T13:57:42Z",
+          "excepcion": ""
+        }
+      ],
+      "downloaded_at": "2026-10-03T13:57:42Z",
+      "filas_devueltas": 1301,
+      "fichero": "yahoo-EURHKD%3DX.csv",
+      "file_sha256": "ba117984b9e59e6e5d2822201c511296b867dc62186eda13d3ea0524dad8d983",
+      "series_hash": "a10b1499d6886879f366e465516de376a13c2c80cbd51117eb0d3393c0ada106"
+    }
+  },
+  "integridad_EURUSD": {
+    "ok": false,
+    "marcas_cosecha": 1300,
+    "rango": [
+      "2021-08-29T23:00:00Z",
+      "2026-08-27T23:00:00Z"
+    ],
+    "marcas_sidecar_en_rango": 1300,
+    "faltan": 0,
+    "sobran": 0,
+    "distintas": 1,
+    "ejemplos_faltan": [],
+    "ejemplos_sobran": [],
+    "ejemplos_distintas": [
+      {
+        "marca": "2026-08-27T23:00:00Z",
+        "cosecha": [
+          "1.1657729148864746",
+          "1.1659088134765625",
+          "1.1582117080688477",
+          "1.1587486267089844",
+          "0",
+          "0",
+          "0"
+        ],
+        "sidecar": [
+          "1.1653381586074829",
+          "1.1656370162963867",
+          "1.1595547199249268",
+          "1.1656370162963867",
+          "0",
+          "0",
+          "0"
+        ]
+      }
+    ]
+  },
+  "fuente_usada": "B",
+  "motivo_B": "falla la comprobación de integridad de EURUSD=X de la fuente A (D-69)",
+  "fuente_B_ecb": {
+    "fuente": "B",
+    "provider": "ECB",
+    "url": "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.zip",
+    "downloaded_at": "2026-10-03T13:57:42Z",
+    "zip_sha256": "9465dd5c6b7a5c1c70b1915589d91722c4f90a8ed40222100fdbaebcc5a745f3",
+    "fichero_del_zip": "eurofxref-hist.csv",
+    "timestamp_available": "17:00 Europe/Berlin del día de referencia",
+    "series": {
+      "EURUSD": {
+        "tipos": 1282,
+        "primera_fecha": "2021-08-27",
+        "ultima_fecha": "2026-08-28",
+        "series_hash": "b59ebb02bf400a9dd5966f8b5ec4acda0b1983839b6e0cfd46f320af8a037b7c"
+      },
+      "EURJPY": {
+        "tipos": 1282,
+        "primera_fecha": "2021-08-27",
+        "ultima_fecha": "2026-08-28",
+        "series_hash": "e5a6c648c4c68c85109b7b2d7b6b6676e12a87ddcc3cde2fed9886aa2da60950"
+      },
+      "EURHKD": {
+        "tipos": 1282,
+        "primera_fecha": "2021-08-27",
+        "ultima_fecha": "2026-08-28",
+        "series_hash": "d86adb766c476d2c8eedc50d9a6fb7ecd51a54264874a1d2427a961886f21cc7"
+      }
+    }
+  },
+  "series_fx": {
+    "EURUSD": "b59ebb02bf400a9dd5966f8b5ec4acda0b1983839b6e0cfd46f320af8a037b7c",
+    "EURJPY": "e5a6c648c4c68c85109b7b2d7b6b6676e12a87ddcc3cde2fed9886aa2da60950",
+    "EURHKD": "d86adb766c476d2c8eedc50d9a6fb7ecd51a54264874a1d2427a961886f21cc7"
+  },
+  "fx_sidecar_csv_sha256": "222e94e787344ce91285d4a06ea6acd216038e14db75f5e082b6d4c9ee39fddf",
+  "fx_rate_to_EUR": "1 / rate",
+  "fx_vintage_id": "10e832ef38daa5d7e81a444bcd3bc99a5e783a382a14a4a14c68e6736dfeac0b"
+}

@@ -1,20 +1,41 @@
 # T-019 — Score v2 y umbrales por horizonte, con P3 pre-registrado (A-03)
 
-Estado: EN CURSO. La ficha se aprobó el 2026-09-26 como **pre-registro
+Estado: **ACEPTADA — cerrada el 2026-10-01 con GATE P3 CRUZADO (D-62)**, con el veredicto
+NO CONCLUYENTE, los tres horizontes `calibrated: false`, sin umbrales v2 y producción en v1
+(D-47). Revisión final: `evidence/2026-10-01-T-019-cierre/`. _Condicionado al universo
+seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Historia: la ficha se aprobó el 2026-09-26 como **pre-registro
 condicionado de P3** (PR #26). El paso 1 está hecho (PR #28, `db51d67`). El
 **paso 2a-doc está cerrado el 2026-09-29**, con D-50 a D-57: `analysis_timestamp`,
 cripto fuera de P3, Asia con sesiones cerradas, VIX y tendencia point-in-time,
 cinco cierres reales aprobados, exclusión por historia insuficiente de la
 SMA200, huecos de `^STOXX50E` con el último cierre causal y Bonferroni con
 `m = 20`.
-**El commit de 2a-doc es el pre-registro completo y ejecutable de P3.** P3
+**El commit de 2a-doc es el pre-registro completo y ejecutable de P3: SHA
+`8b2dddb8fd66423d9550df496d1a2a85abd066b6`.** P3
 sigue sin poder ejecutarse hasta que estén hechos 2a-code y la revisión previa
 de look-ahead.
+**2026-09-30 — ese SHA está en producción como `v0.4.1`** (D-58, despliegue
+aceptado): esquema v7, Score v1 y 70/60 con `calibrated: false`. Es una decisión
+separada que no modifica el pre-registro.
+**Estado al 2026-10-01 — pasos 1, 2a-doc, 2a-code (`782e462`), 2 (`5953300`) y
+3 hechos; paso 4 hecho (D-61).** P3 se ejecutó **una sola vez** sobre
+`P3_EXECUTOR_SHA` = `87309da` (evidencia inmutable en
+`evidence/2026-09-30-T-019-paso3-p3/`, PR #33). Swing: Δ Q5−Q1 −0,2895 R
+[−0,4098, −0,1658], anchura 0,2440 > 0,20 → **NO CONCLUYENTE**; ningún candidato
+cumple OPERAR. **Los tres horizontes quedan `calibrated: false`** (D-61) y
+producción sigue en Score v1 con 70/60 (D-47). Impacto, contexto, confianza y
+cálculos manuales en `evidence/2026-10-01-T-019-score-v2/`. **Paso 5 hecho el
+2026-10-01:** la revisión independiente final del look-ahead no encontró ningún
+BLOCKER ni ningún IMPORTANTE, y GATE P3 queda cruzado (D-62). La activación de v2
+del paso 5 **no se hace** en A-03 (swing sin calibrar).
 Decisiones cerradas por el propietario: A → **D-45**, B → **D-46**, C →
 **D-47** (C2, estado de transición), VIX → **D-49** y **D-53**,
 `analysis_timestamp` → **D-50**, cripto → **D-51**, Asia (PR-1) → **D-52**,
 cierres extraordinarios → **D-54**, SMA200 → **D-55**, huecos de `^STOXX50E` →
-**D-56**, Bonferroni → **D-57**. La **D-48** se retiró el
+**D-56**, Bonferroni → **D-57**, Score v2 exige PIT → **D-59**, producción v2
+falla cerrada sin contexto calculable → **D-60**. La **D-48** se retiró el
 mismo día, antes de fusionarse (mezclaba tres cuestiones). GATE P3 requisito 2
 corregido por D-45 y precisado en la tercera revisión.
 Agente: Opus (ficha) → propietario (D-45 a D-47, D-49 a D-57) → Codex (implementación) → Claude Code
@@ -55,7 +76,9 @@ respondidos con evidencia, **salga lo que salga**.
 - No despliega nada en la Pi. Cuando se escribió la ficha, la Pi estaba en
   `v0.3.0` (`03e1ec3`), esquema v5; desde el 2026-09-26 está en `v0.4.0`
   (`84ea28e`), esquema v6.
-  Cualquier despliegue es una decisión posterior y separada.
+  Cualquier despliegue es una decisión posterior y separada. **Por D-58, el
+  paso 1 se desplegó solo el 2026-09-30 como `v0.4.1` (`8b2dddb`)**: la Pi está
+  en esquema v7 con Score v1; nada de 2a-code ni de P3 está en producción.
 - No redefine el score después de ver resultados: la ablación publica, no
   selecciona (sección «P3 — ablación»).
 
@@ -833,7 +856,9 @@ solo los de `horizontes`), porque `abrir` acepta cualquiera.
     misma apertura (`db.py:227–243`), así que llega directamente a v7;
   - **base de `main`:** v6 → v7, con su backup `pre-v7`;
   - **la Pi:** estaba en **v5** al escribirse la ficha y desde el 2026-09-26
-    está en **v6** (`v0.4.0`); no se toca en A-03;
+    está en **v6** (`v0.4.0`); no se toca en A-03. **Enmendado por D-58:**
+    el 2026-09-30 migró a **v7** como `v0.4.1`, con backup `pre-v7` válido
+    (`evidence/2026-09-30-despliegue-v041/`);
   - **futuro despliegue que contenga T-018 y P3:** v5 → v6 → v7, cada paso con su
     backup;
   - **rollback de código:** no deshace **ninguna** de las dos migraciones
@@ -843,7 +868,8 @@ solo los de `horizontes`), porque `abrir` acepta cualquiera.
   A-02 (866 operaciones; hash normalizado `49b12c85…`), salvo lo que cambie por
   `config_hash`. Informe: solo cambia la etiqueta «no calibrado».
 - **Aviso de esquema:** este paso migra a v7. La Pi (v6 desde el 2026-09-26)
-  no se toca.
+  no se toca. **Enmendado por D-58:** la Pi migró a v7 el 2026-09-30
+  (`v0.4.1`).
 
 **Paso 2a-doc — Cerrar el contexto point-in-time. Solo documentación, antes de
 tocar código. HECHO el 2026-09-29** (D-50 a D-57; evidencia en
@@ -918,6 +944,10 @@ Ninguna otra parte del diseño cambia.
 - Las bandas v1 de investigación (H-7) quedan etiquetadas `v1` y rechazan
   observaciones de otra versión.
 - Producción **no cambia**: `scoring.score_model_version` sigue en `"1.0"`.
+- **D-59 (2026-09-30):** `model_version = "2.0"` implica contexto
+  point-in-time obligatorio. El modo de contexto se deriva de la versión
+  **pedida** para el cálculo, no de la activa en la configuración, y calcular
+  Score v2 con `legacy_v1` es un error, con test.
 
 **Paso 3 — P3 ejecutado una sola vez** sobre el pre-registro completo del SHA de
 2a-doc (sección siguiente), y solo después de la revisión 1 de look-ahead.
@@ -935,7 +965,10 @@ registra que swing queda `calibrated: false`. Medio e intradía,
 permiten, en un solo commit:** `scoring.score_model_version: "2.0"` y los tres
 bloques de umbrales `"2.0"` a la vez, válidos por las reglas 7 y 8. Con swing
 sin calibrar, este paso **no se hace** en A-03. Sin despliegue: la Pi es
-decisión aparte.
+decisión aparte. **D-60:** antes de activar, producción v2 debe fallar cerrada
+si el contexto PIT no es calculable: sin fallback a legacy, sin imputación ni
+score parcial, sin recomendaciones v2 basadas en ese contexto y con el motivo
+registrado.
 
 ## P3 — experimento pre-registrado
 
@@ -1250,7 +1283,7 @@ Cualquiera de esas cosas es un estudio nuevo, con decisión propia y
 - El estimador, los bloques, la semilla, `CapacityThresholds`, la cosecha y
   `universe.yaml`.
 - La evidencia de A-02.
-- La Pi y su esquema (v6 desde el 2026-09-26).
+- La Pi y su esquema (v7 desde el 2026-09-30, `v0.4.1`, por D-58).
 
 ## Tests unitarios
 Números cerrados, calculados a mano en el propio test.
@@ -1555,6 +1588,10 @@ orden de los pasos.
 
 ## Matriz de GATE P3
 
+**Matriz final, con la evidencia efectiva y el dictamen de cada requisito:**
+`evidence/2026-10-01-T-019-cierre/gate-p3-final.md` (2026-10-01, D-62). Los cinco requisitos están
+SATISFECHOS.
+
 | # | Requisito (texto tras la decisión A) | Evidencia exacta que lo satisface |
 |---|---|---|
 | 1 | Dimensiones y pesos redefinidos y documentados con `score_model_version` nuevo; nada posterior se mezcla con lo anterior sin etiqueta | D-46 registrada; `advisor/analysis/scoring.py` con `"2.0"` y `Score.model_version`; `test_v2_valor_del_caso_base`, `test_v1_y_v2_tienen_versiones_distintas`, `test_bandas_v1_rechazan_observaciones_v2`, test de recomendación persistida; `README.md` actualizado |
@@ -1564,4 +1601,43 @@ orden de los pasos.
 | 5 | Revisión independiente del look-ahead | `revision-look-ahead-previa.md` (antes de P3, sobre 2a-doc y 2a-code) y `revision-look-ahead.md` (final), de otro agente, con al menos: que el `analysis_timestamp` y la regla del VIX congelados en 2a-doc (D-49) no contienen look-ahead y que producción, backtest, event study y seguimiento usan la misma implementación —el revisor verifica, no elige—; la respuesta a PR-1; alineación de tendencia y fortaleza relativa; que los quintiles y candidatos no leen desenlace; que la población no depende del score; paridad de contexto producción/laboratorio/seguimiento (H-1, R-CTX); que medio no se usa para nada más que trazabilidad; hallazgos clasificados y cerrados |
 
 ## Handoff al siguiente agente
-(se rellena al terminar)
+**T-019 cerrada el 2026-10-01: GATE P3 CRUZADO (D-62).** _Condicionado al universo seleccionado
+en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**Pasos 0 a 5 hechos.** P3 se ejecutó una sola vez (`87309da`, PR #33) y **no se repite nunca**.
+Su evidencia, `evidence/2026-09-30-T-019-paso3-p3/`, es inmutable.
+
+**Resultado (D-61):**
+- swing **NO CONCLUYENTE**: anchura 0,2440 > 0,20, con Δ Q5−Q1 −0,2895 R;
+- el signo negativo es solo descriptivo;
+- swing, medio e intradía **`calibrated: false`**, sin ningún umbral v2.
+
+**Producción:** sigue en Score v1 con 70/60 (D-47) y `config.yaml` en `"1.0"`. Score v2 **no se
+activa** y queda solo como investigación y versionado. D-60 está registrada para una posible
+activación futura. No hay release ni despliegue: la Pi sigue en `v0.4.1` = `8b2dddb`.
+
+**Evidencia por paso:**
+- paso 4: `evidence/2026-10-01-T-019-score-v2/` (impacto, H-6, confianza, cálculos manuales);
+- cierre: `evidence/2026-10-01-T-019-cierre/` (revisión final, `gate-p3-final.md`, suite y hashes).
+
+**Cálculos a mano** que exige «Número comprobado a mano, obligatorio»:
+- **SAP.DE**, sesión XETRA 2022-06-13: Score v2 = 100·(1,0 + 0,0 + 1,2)/50 = **4,4**, que cae en
+  **Q1** con los cortes 28,0 / 39,6 / 49,6 / 57,6.
+- **Bloque 3:** Δ = −0,0482 − 0,6721 = **−0,7203**. La media de los 19 Δ de bloque da −0,289468,
+  que es el valor del contraste.
+
+**Observaciones de la revisión final que conviene tener presentes:**
+- O-1: el seguimiento toma el modo de contexto de la versión activa de la config;
+- O-5: la pasada v2 aborta si el contexto no es calculable, y eso es D-60;
+- las dos importan solo si algún día se activa v2.
+
+**Siguiente:** **A-04 (P4)** está desbloqueada pero **no iniciada**. Su ficha está por escribir y
+trabajará sobre `score_signal` sin umbrales operativos nuevos.
+
+**Prohibido sin decisión nueva:**
+- repetir P3;
+- usar 70/60 sobre v2;
+- modificar Score v2 a partir de la ablación o del signo.
+
+P3 consumió la cosecha completa, así que cualquier estudio nuevo necesita datos posteriores
+(INV-15).
