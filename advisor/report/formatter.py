@@ -51,6 +51,7 @@ from advisor.analysis.sizing import POSITION_LIMIT_MAX_POSITION_PCT, POSITION_LI
 from advisor.config import AdvisorConfig, PortfolioConfig
 from advisor.data.bar_cache import BarCacheReport
 from advisor.data.freshness import (
+    QUALITY_OK,
     DataFreshness,
     FreshnessBucket,
     FreshnessRow,
@@ -764,6 +765,57 @@ def format_report(
     )
     lines.append(_SEPARATOR)
 
+    return "\n".join(lines)
+
+
+def _pct_compact(value: float) -> str:
+    """Porcentaje sin decimal sobrante: ``8,9 %``, ``10 %``."""
+
+    return f"{value:.1f}".rstrip("0").rstrip(".").replace(".", ",") + " %"
+
+
+def format_telegram_opportunities(
+    result: AnalysisResult,
+    config: AdvisorConfig,
+    fx: FxConverter,
+) -> Optional[str]:
+    """Aviso de Telegram con solo las oportunidades OPERAR, o ``None`` si no hay.
+
+    Es una vista del mismo resultado que ``format_report``: las mismas OPERAR,
+    en el mismo orden y con el mismo tope ``top_n``, y los mismos niveles que su
+    ficha. El informe completo sigue saliendo por la salida estándar y la base de
+    datos; aquí solo va lo necesario para meter la orden, en un único mensaje, y
+    los dos avisos que cambian cómo meterla: precio extendido y dato no OK.
+    """
+
+    operar = result.by_radar(RADAR_OPERAR)
+    if not operar:
+        return None
+    shown = operar[: config.report.top_n]
+
+    lines: List[str] = ["📊 ASESOR — OPORTUNIDADES", ""]
+    for opportunity in shown:
+        money = MoneyFormatter(fx, opportunity.asset.currency)
+        levels = opportunity.levels
+        lines.append(f"🟢 {opportunity.asset.symbol}")
+        lines.append(f"Entrada máx.: {money(levels.entry_max)}")
+        lines.append(f"Stop: {money(levels.stop)}")
+        lines.append(f"Objetivo: {money(levels.target2)}")
+        # RR y tamaño salen del precio de referencia, no de la entrada máxima:
+        # sin el precio, el RR parecería el de comprar a la entrada máxima.
+        lines.append(f"RR a {money(opportunity.execution.entry_price)}: {_num(opportunity.execution.rr, 2)}")
+        lines.append(f"Tamaño sugerido: {_pct_compact(opportunity.sizing.position_pct)}")
+        if levels.chase:
+            lines.append("⚠️ Esperar pullback / no perseguir")
+        if _freshness_for_opportunity(opportunity, result.generated_at).quality != QUALITY_OK:
+            lines.append("⚠️ Dato degradado")
+        lines.append("")
+
+    total = len(operar)
+    summary = "1 oportunidad detectada." if total == 1 else f"{total} oportunidades detectadas."
+    if len(shown) < total:
+        summary += f" Se muestran las {len(shown)} primeras."
+    lines.append(summary)
     return "\n".join(lines)
 
 
