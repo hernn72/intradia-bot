@@ -46,9 +46,10 @@ from advisor.data.market_data import MarketDataProvider
 from advisor.deploy.release import evaluate_release, format_release_status
 from advisor.deploy.systemd import DEFAULT_CONFIG_ENV, DEFAULT_SYSTEMD_DIR, find_systemd_drift, write_rendered_units
 from advisor.events.calendar import EventCalendar, YahooEarningsSource
+from advisor.events.models import MarketEvent
 from advisor.events.passes import decide_event_pass, format_event_trigger
 from advisor.freshness_history import format_freshness_history_summary, summarize_freshness_history
-from advisor.report.formatter import format_report
+from advisor.report.formatter import format_report, format_telegram_opportunities
 from advisor.report.money import MoneyFormatter
 from advisor.report.tracking import format_reviews, review_positions
 from advisor.research.ablation import format_ablation_report, run_ablation
@@ -69,7 +70,7 @@ from advisor.research.vintage import freeze_vintage, load_vintage, select_symbol
 from advisor.run.manifest import RunManifest, build_run_manifest, format_manifest_footer
 from advisor.storage.db import AdvisorDB, check_backup, format_backup_check
 from advisor.storage.migrations import LATEST_VERSION
-from advisor.telegram.notifier import TelegramNotifier
+from advisor.telegram.notifier import TELEGRAM_MAX_CHARS, TelegramNotifier
 from advisor.universe.loader import load_universe
 from advisor.universe.models import Asset, Universe
 from advisor.universe.vintage import universe_vintage_id, universe_vintage_payload
@@ -311,11 +312,15 @@ def cmd_analizar(args: argparse.Namespace, config: AdvisorConfig, universe: Univ
         logger.info("%d recomendaciones guardadas en %s", saved, config.db_path)
 
     if args.telegram:
-        notifier = _build_notifier()
-        if notifier.send_long_message(report):
-            logger.info("Informe enviado por Telegram")
+        # Telegram es un aviso para operar, no el informe: sin OPERAR no hay
+        # mensaje, y el informe completo queda en la salida y en la base.
+        aviso = format_telegram_opportunities(result, config, fx)
+        if aviso is None:
+            logger.info("Sin oportunidades OPERAR: no se envía Telegram")
+        elif _build_notifier().send_message(aviso):
+            logger.info("Oportunidades enviadas por Telegram")
         else:
-            logger.warning("El informe no se pudo enviar por Telegram")
+            logger.warning("Las oportunidades no se pudieron enviar por Telegram")
 
     return 0
 
@@ -540,6 +545,20 @@ def _parse_date(value: Optional[str]) -> date:
         raise ValueError(f"fecha inválida: {value!r}. Usa YYYY-MM-DD") from None
 
 
+def _event_telegram(events: List[MarketEvent], aviso: str) -> str:
+    """Una línea con el evento delante del aviso, sin pasar de un mensaje.
+
+    `send_message` no trocea: si un día con muchos eventos alargara la línea más
+    allá del límite, Telegram rechazaría el aviso y los eventos quedarían sin
+    enviar. El detalle de cada evento sigue en el informe impreso.
+    """
+
+    text = f"{format_event_trigger(events)}\n\n{aviso}"
+    if len(text) <= TELEGRAM_MAX_CHARS:
+        return text
+    return f"Pasada por evento: {len(events)} eventos hoy (detalle en el informe)\n\n{aviso}"
+
+
 def cmd_pasada_evento(args: argparse.Namespace, config: AdvisorConfig, universe: Universe) -> int:
     if not config.events.enabled:
         logger.info("Pasada por evento autodescartada: calendario de eventos desactivado")
@@ -599,12 +618,21 @@ def cmd_pasada_evento(args: argparse.Namespace, config: AdvisorConfig, universe:
     saved = _persist(result, fx, db, manifest)
     logger.info("%d recomendaciones guardadas en %s", saved, config.db_path)
 
+    aviso = format_telegram_opportunities(result, config, fx)
+    if aviso is None:
+        # SENT significa «Telegram enviado» y es lo único que deduplica: sin
+        # OPERAR no hay mensaje, así que los eventos quedan CLAIMED, como tras un
+        # envío fallido. El timer corre una vez al día y un evento solo se
+        # reclama en su fecha; repetir la pasada a mano el mismo día vuelve a
+        # analizar y avisa si entonces sí hay OPERAR.
+        logger.info("Pasada por evento sin oportunidades OPERAR: no se envía Telegram y los eventos quedan CLAIMED")
+        return 0
     notifier = _build_notifier()
-    if notifier.send_long_message(report):
-        logger.info("Informe de evento enviado por Telegram")
+    if notifier.send_message(_event_telegram(decision.events, aviso)):
+        logger.info("Oportunidades de la pasada por evento enviadas por Telegram")
         db.mark_event_passes_sent(decision.claimed_event_ids)
     else:
-        logger.warning("El informe de evento no se pudo enviar por Telegram")
+        logger.warning("Las oportunidades de la pasada por evento no se pudieron enviar por Telegram")
 
     return 0
 
