@@ -42,10 +42,6 @@ def _cli_text(name: str) -> str:
     return "\n".join(lines)
 
 
-def _symbols(text: str) -> set:
-    return set(re.findall(r"^\S+ · (\S+) · sesión", text, flags=re.M))
-
-
 def test_mensaje_real_de_24_lineas_queda_en_pocas() -> None:
     text = _cli_text("muestra-2026-10-09.txt")
     assert len(text.split("\n")) == 26
@@ -62,11 +58,18 @@ def test_mensaje_real_de_24_lineas_queda_en_pocas() -> None:
 
 
 def test_no_pierde_ninguna_senal() -> None:
-    for name, session in (("muestra-2026-10-09.txt", "2026-10-09"), ("muestra-mixta.txt", "2026-10-09")):
+    """Cada par (política, activo) del original aparece exactamente una vez en el resumen."""
+
+    from collections import Counter
+
+    for name in ("muestra-2026-10-09.txt", "muestra-mixta.txt"):
         text = _cli_text(name)
-        out = resumir(text, session)
-        for symbol in _symbols(text):
-            assert symbol in out, (name, symbol)
+        original = Counter(re.findall(r"^(\S+) · (\S+) · sesión", text, flags=re.M))
+        resumido: Counter = Counter()
+        for policy, entries in re.findall(r"^(\S+-P6) \(\d+\): (.+)$", resumir(text, "2026-10-09"), flags=re.M):
+            for entry in entries.split(", "):
+                resumido[(policy, entry.split(" ", 1)[0])] += 1
+        assert resumido == original, name
 
 
 def test_no_anade_datos_que_no_esten_en_el_original() -> None:
