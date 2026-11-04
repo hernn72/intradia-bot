@@ -334,12 +334,13 @@ def test_barra_atrasada_en_su_plaza_gestiona_la_posicion_pero_no_compra(tmp_path
 def test_split_reescala_la_posicion_sin_perdida_ficticia(tmp_path: Path) -> None:
     store = make_store(tmp_path)
     split = {**NEUTRAL, "sma_fast": 52.0, "sma_slow": 45.0, "atr": 1.0, "Stock Splits": 2.0}
-    data = {"SAP.DE": series("SAP.DE", [
+    bars = [
         bar(99, 101, 98, 100, BUY),
         bar(100, 104, 99, 103, NEUTRAL),     # fill 100,075; trailing 97
         bar(51, 52, 50.5, 51.5, split),      # split 2:1: abre a 51 (= 102 antes)
-    ])}
-    run(store, data, today=START + timedelta(days=2))
+    ]
+    run(store, {"SAP.DE": series("SAP.DE", bars[:2])}, today=START + timedelta(days=1))
+    run(store, {"SAP.DE": series("SAP.DE", bars)}, today=START + timedelta(days=2))
     position = rows(store, "SELECT * FROM positions")[0]
     entry_units = rows(store, "SELECT quantity FROM fills")[0]["quantity"]
     assert position["status"] == "OPEN"

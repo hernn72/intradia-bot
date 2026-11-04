@@ -18,10 +18,16 @@ from advisor.data.freshness import mercado_para_simbolo
 from advisor.data.sessions import session_date_of, trim_unclosed_bar
 from advisor.universe.models import Asset, Universe
 from superbot.config import SuperbotConfig
-from superbot.engine import BarSeries
+from superbot.engine import BarSeries, split_ratio
 from superbot.strategy import enrich
 
 logger = logging.getLogger(__name__)
+
+# Días naturales que puede tener la última barra de un símbolo para vigilarlo con
+# ella. Por encima del cierre más largo de una plaza del universo (nueve días
+# seguidos en Shanghái por el Año Nuevo Lunar) y del retraso con el que el
+# proveedor sirve Europa.
+MAX_BAR_AGE_DAYS = 10
 
 
 class HistoryProvider(Protocol):
@@ -72,14 +78,26 @@ def load_series(
             frame = _by_session(frame, market)
             if len(frame) < config.strategy.sma_slow:
                 raise ValueError(f"histórico insuficiente: {len(frame)} sesiones")
+            unclosed = 1.0
+            if "Stock Splits" in raw.columns:
+                unclosed = float(raw.loc[raw.index > trimmed.index[-1], "Stock Splits"].map(split_ratio).prod())
             result.series[asset.symbol] = BarSeries(
                 symbol=asset.symbol, name=asset.name, currency=asset.currency.upper(),
-                frame=enrich(frame, config.strategy), market=market,
+                frame=enrich(frame, config.strategy), market=market, unclosed_split=unclosed,
             )
         except Exception as exc:  # un símbolo sin datos no para la cartera
             logger.warning("%s: %s", asset.symbol, exc)
             result.errors[asset.symbol] = str(exc)
     return result
+
+
+def fresh_symbols(series: Dict[str, BarSeries], today: date) -> Set[str]:
+    """Símbolos cuya última barra permite vigilarlos hoy."""
+
+    return {
+        symbol for symbol, bars in series.items()
+        if (today - bars.frame.index[-1]).days <= MAX_BAR_AGE_DAYS
+    }
 
 
 class FxHistory:
@@ -91,7 +109,8 @@ class FxHistory:
 
     def __init__(self, provider: HistoryProvider, currencies: Set[str], period: str) -> None:
         self._rates: Dict[str, pd.Series] = {}
-        for currency in sorted(currencies - {"EUR"}):
+        self._requested = currencies - {"EUR"}
+        for currency in sorted(self._requested):
             try:
                 raw = provider.get_history(f"EUR{currency}=X", period=period, interval="1d")
                 closes = raw["Close"].dropna()
@@ -102,6 +121,12 @@ class FxHistory:
                 self._rates[currency] = series[~series.index.duplicated(keep="last")].sort_index()
             except Exception as exc:
                 logger.warning("Sin tipo de cambio EUR/%s: %s", currency, exc)
+
+    @property
+    def missing(self) -> Set[str]:
+        """Divisas pedidas de las que no hay ningún tipo de cambio."""
+
+        return {c for c in self._requested if c not in self._rates or self._rates[c].empty}
 
     def rate(self, currency: str, on: date) -> Optional[float]:
         if currency == "EUR":

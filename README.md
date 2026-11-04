@@ -282,6 +282,34 @@ trailing o señal de salida) y objetivos tocados (🎯 OBJETIVO), más un resume
 breve de cartera. Señales, órdenes pendientes, rechazos, splits e indicadores
 se quedan en `superbot.db` y en el dashboard.
 
+Una ejecución queda `OK` y sale con 0 solo si la cartera se atendió con datos
+válidos. Una barra es vigente hasta 10 días naturales, y sin barras nuevas sigue
+siendo `OK`. Sale con 1 y queda `ERROR` en dos niveles:
+
+- **Parada:** ningún símbolo tiene barras vigentes, o falla el proceso. La cartera
+  no se toca.
+- **Sin entradas:** menos del 90 % del universo tiene barras vigentes, una posición
+  abierta se queda sin ellas, falta un tipo de cambio o hay un split sin decidir.
+  Solo se protege lo abierto, con los símbolos que tengan datos: ventas pendientes,
+  stops y trailing. No nace ninguna compra y los símbolos sin posición no avanzan: la
+  siguiente ejecución sana ejecuta sus órdenes pendientes que no hayan caducado, con
+  el efectivo de ese momento, y solo la última sesión sin entradas puede dar señales
+  nuevas, porque no se compra en el pasado. La curva de esas sesiones no incluye las
+  compras que se ejecuten después con su fecha.
+
+Hasta el 10 % de símbolos sin datos y sin posición no cambia el estado: aparecen en
+el detalle y un símbolo con barras caducadas no se procesa.
+
+El proveedor sirve cada descarga con todo el histórico ajustado por los splits
+ya conocidos, y por dividendos. Una posición de una ejecución anterior se pasa a
+la base de la descarga antes de procesar ninguna sesión; una abierta con una
+descarga que ya incluye el split no se toca. Si el precio de la fecha ex no
+permite distinguir un split de una caída real, el símbolo queda sin procesar y la
+ejecución es `ERROR` hasta que una descarga posterior lo aclare. Una réplica
+retrospectiva calcula las unidades con precios ajustados, no con los que había
+entonces. El ajuste por dividendos no se traslada a las posiciones: el paper no
+abona dividendos.
+
 ## Qué se reutiliza de trading-bot
 
 Cuatro módulos se copiaron porque no tenían ninguna dependencia del resto de

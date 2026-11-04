@@ -17,6 +17,11 @@ from typing import Any, Dict, List
 
 STRATEGY_ID = "itrade_trend_v1"
 
+# Parte del universo esperado con barras vigentes por debajo de la cual una
+# ejecución no abre nada. En 2.428 ejecuciones reconstruidas (2022 a agosto de 2026, 90
+# símbolos) el mínimo fue 0,978: los festivos nunca lo activan.
+MIN_COVERAGE = 0.90
+
 
 @dataclass(frozen=True)
 class StrategyParams:
