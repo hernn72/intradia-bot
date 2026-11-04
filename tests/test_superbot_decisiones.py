@@ -6,7 +6,7 @@ import ast
 import random
 import sqlite3
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -16,7 +16,7 @@ import pytest
 import superbot.engine as engine_module
 from superbot import alerts
 from superbot.config import SizingParams, SuperbotConfig
-from superbot.decisions import DecisionRecorder, NullRecorder, recorder_from_env
+from superbot.decisions import Decision, DecisionRecorder, NullRecorder, recorder_from_env
 from superbot.engine import BarSeries, PaperEngine
 from superbot.store import SuperbotStore
 from tests import test_superbot_run_status as base
@@ -26,6 +26,7 @@ from tests.test_superbot_run_status import run as cli_run
 provider = base.provider
 
 START = date(2026, 3, 2)
+START_TIME = datetime(2026, 3, 2, 18, 15, tzinfo=timezone.utc)
 BUY = {"sma_fast": 95.0, "sma_slow": 90.0, "rsi": 60.0, "atr": 2.0, "trend_break": False}
 HOLD = {"sma_fast": 105.0, "sma_slow": 90.0, "rsi": 60.0, "atr": 2.0, "trend_break": False}
 
@@ -362,3 +363,30 @@ def test_cli_perdida_declarada_sin_cambiar_el_estado(tmp_path: Path, provider: t
     assert snapshot(db)["fills"] == before or len(snapshot(db)["fills"]) >= len(before)
     state = SuperbotStore(db).get_meta(alerts.STATE_KEY) or ""
     assert "REGISTRO_INCOMPLETO" in state
+
+
+class DiskFull(DecisionRecorder):
+    """Base sin páginas libres al escribir: SQLite revierte la transacción entera."""
+
+    def flush(self, conn: sqlite3.Connection, run_id: int, entries: bool) -> Optional[str]:
+        self._rows.extend(Decision(START, f"X{i}", "RANKING", "x" * 200) for i in range(3000))
+        pages = conn.execute("PRAGMA page_count").fetchone()[0]
+        conn.execute(f"PRAGMA max_page_count = {pages}")
+        return super().flush(conn, run_id, entries)
+
+
+def test_disco_lleno_no_da_por_buena_una_ejecucion_revertida(store: SuperbotStore) -> None:
+    with pytest.raises(sqlite3.Error):
+        process(store, data(SAP=[SIGNAL, FLAT]), recorder=DiskFull())
+    conn = store.connect()
+    conn.execute("PRAGMA max_page_count = 1073741823")
+    for table in ("fills", "positions", "symbol_state", "notifications", "decision_runs", "decision_log"):
+        assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0, table
+    process(store, data(SAP=[SIGNAL, FLAT]))
+    assert len(store.fills()) == 1
+
+
+def test_una_sola_perdida_avisa_porque_no_se_recupera() -> None:
+    sent: List[str] = []
+    alerts.advance({}, START_TIME, {"REGISTRO_INCOMPLETO": "x"}, lambda text: sent.append(text) or True)
+    assert len(sent) == 1 and "Entradas bloqueadas" not in sent[0]

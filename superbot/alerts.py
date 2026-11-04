@@ -37,8 +37,8 @@ TITLES = {
     "SPLIT_RETENIDO": "Split sin decidir",
     "REGISTRO_INCOMPLETO": "Registro de decisiones incompleto",
 }
-# Protegen la cartera: no esperan a ver si la ejecución siguiente lo arregla.
-IMMEDIATE = {"PARADA", "SIN_VIGILAR"}
+# Protegen la cartera o no se recuperan: no esperan a ver si la siguiente lo arregla.
+IMMEDIATE = {"PARADA", "SIN_VIGILAR", "REGISTRO_INCOMPLETO"}
 # No bloquean entradas: la cartera sigue su curso normal.
 WITHOUT_BLOCK = {"PARADA", "REGISTRO_INCOMPLETO"}
 

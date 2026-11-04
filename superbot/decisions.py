@@ -5,6 +5,8 @@ lee estas tablas. Al terminar, las filas se escriben dentro de la transacción d
 cartera, tras un ``SAVEPOINT``: operaciones y registro se confirman juntos, y un
 fallo del registro deshace solo el registro. Entonces se declara la pérdida en
 ``decision_runs``; sin fila de cierre, una ejecución tampoco cuenta como registrada.
+La excepción es que SQLite pierda la transacción completa: nada quedó confirmado y
+el error sube, como cualquier otro fallo de la cartera.
 
 Nada de lo que ocurra aquí puede llegar al motor: cada entrada captura sus errores.
 """
@@ -108,6 +110,10 @@ class DecisionRecorder(NullRecorder):
                 conn.execute("RELEASE registro")
                 raise
         except Exception as exc:
+            # Disco lleno o error de E/S: SQLite ya revirtió la transacción entera, con la
+            # cartera dentro. No es un fallo del registro: el motor debe enterarse.
+            if not conn.in_transaction:
+                raise
             lost = f"registro de decisiones perdido: {expected} sin guardar ({type(exc).__name__})"
             logger.warning(lost)
             _declare_loss(conn, run_id, mode, expected)
