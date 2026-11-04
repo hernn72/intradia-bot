@@ -31,7 +31,9 @@ drop-in, así que revertir no toca la unidad instalada.
 
 Los avisos arrancan en `seco`. Para enviarlos, añade `SUPERBOT_ALERTAS_BOT_TOKEN` y
 `SUPERBOT_ALERTAS_CHAT_ID` al fichero de entorno y repite con
-`SUPERBOT_ALERTAS_MODO=1`.
+`SUPERBOT_ALERTAS_MODO=1` y el mismo sha: solo cambia la unidad y el punto de
+reversión no se mueve. Si no se puede restaurar el código, el temporizador se
+queda parado a propósito.
 
 No hay migración de esquema: la versión anterior puede leer la base que deja esta,
 así que `revertir` sin `--con-base` conserva las ejecuciones hechas entretanto.

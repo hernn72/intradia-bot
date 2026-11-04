@@ -54,13 +54,33 @@ check() {
   echo "Posiciones con unidades reescaladas: $(query "SELECT COUNT(*) FROM positions p JOIN fills f ON f.position_id = p.id AND f.side = 'BUY' WHERE p.quantity <> f.quantity")"
 }
 
+write_dropin() {
+  mkdir -p "${DROPIN_DIR}"
+  printf '[Service]\nSuccessExitStatus=2\nEnvironment=SUPERBOT_ALERTAS=%s\n' "${ALERTAS}" > "${DROPIN}"
+  systemctl daemon-reload
+}
+
 restore_code() {
   local dir="$1"
-  repo checkout -q --detach "$(cat "${dir}/sha")"
-  if [[ -s "${dir}/rama" ]]; then repo checkout -q "$(cat "${dir}/rama")"; fi
-  rm -f "${DROPIN}"
-  rmdir "${DROPIN_DIR}" 2>/dev/null || true
+  repo checkout -q -f --detach "$(cat "${dir}/sha")" || return 1
+  if [[ -s "${dir}/rama" ]]; then repo checkout -q -f "$(cat "${dir}/rama")" || return 1; fi
+  [[ "$(repo rev-parse HEAD)" == "$(cat "${dir}/sha")" && -z "$(repo status --porcelain --untracked-files=no)" ]] || return 1
+  if [[ -f "${dir}/dropin.conf" ]]; then
+    mkdir -p "${DROPIN_DIR}"
+    cp "${dir}/dropin.conf" "${DROPIN}"
+  else
+    rm -f "${DROPIN}"
+    rmdir "${DROPIN_DIR}" 2>/dev/null || true
+  fi
   systemctl daemon-reload
+}
+
+# Con el código a medias el temporizador se queda parado: mejor sin ejecuciones que
+# una cartera movida por un árbol mezclado.
+restore_or_halt() {
+  restore_code "$1" && return 0
+  trap - EXIT
+  die "no se pudo restaurar ${WORKDIR}; temporizador PARADO, copia en $1"
 }
 
 wait_idle() {
@@ -69,11 +89,17 @@ wait_idle() {
 }
 
 deploy() {
-  local sha="$1" dir
+  local sha dir
   check
   repo fetch -q origin
-  repo cat-file -e "${sha}^{commit}" || die "no existe ${sha}"
+  sha="$(repo rev-parse --verify "$1^{commit}")" || die "no existe $1"
   repo merge-base --is-ancestor "${sha}" origin/main || die "${sha} no está en origin/main"
+
+  if [[ "$(repo rev-parse HEAD)" == "${sha}" ]]; then
+    write_dropin
+    echo "Código ya en ${sha}: solo cambia la unidad. Avisos: ${ALERTAS}. El punto de reversión no se mueve."
+    return
+  fi
 
   systemctl stop "${TIMER}"
   trap 'systemctl start "${TIMER}"' EXIT
@@ -84,39 +110,42 @@ deploy() {
   chmod 700 "${BACKUPS}" "${dir}"
   repo rev-parse HEAD > "${dir}/sha"
   repo symbolic-ref -q --short HEAD > "${dir}/rama" || true
+  if [[ -f "${DROPIN}" ]]; then cp "${DROPIN}" "${dir}/dropin.conf"; fi
   sqlite3 "${DB}" ".backup '${dir}/superbot.db'"
   [[ "$(sqlite3 "${dir}/superbot.db" 'PRAGMA integrity_check')" == ok ]] || die "copia dañada; no se ha cambiado nada"
   sha256sum "${dir}/superbot.db" > "${dir}/SHA256SUMS"
-  ln -sfn "${dir}" "${BACKUPS}/ultima"
   echo "Copia en ${dir}"
 
+  # git puede salir con 0 y dejar ficheros sin escribir: se comprueba el árbol.
   if ! {
     repo checkout -q --detach "${sha}" &&
-    mkdir -p "${DROPIN_DIR}" &&
-    printf '[Service]\nSuccessExitStatus=2\nEnvironment=SUPERBOT_ALERTAS=%s\n' "${ALERTAS}" > "${DROPIN}" &&
-    systemctl daemon-reload &&
-    as_user env SUPERBOT_DB="${DB}" bash -c "cd '${WORKDIR}' && '${PYTHON}' -m superbot status" > /dev/null
+    [[ "$(repo rev-parse HEAD)" == "${sha}" && -z "$(repo status --porcelain --untracked-files=no)" ]] &&
+    write_dropin &&
+    as_user env SUPERBOT_DB="${DB}" bash -c "cd '${WORKDIR}' && '${PYTHON}' -c 'import superbot.engine, superbot.data, advisor.data.market_data' && '${PYTHON}' -m superbot status" > /dev/null
   }; then
-    echo "Fallo al desplegar: se restaura el código anterior." >&2
-    restore_code "${dir}"
+    echo "Fallo al desplegar: se restaura el estado anterior." >&2
+    restore_or_halt "${dir}"
     exit 1
   fi
-  echo "Desplegado ${sha}. Avisos: ${ALERTAS}."
+  ln -sfn "${dir}" "${BACKUPS}/ultima"
+  echo "Desplegado ${sha}. Avisos: ${ALERTAS}. Reversión a $(cut -c1-7 "${dir}/sha")."
 }
 
 revert() {
-  local dir
+  local dir saved
   dir="$(readlink -f "${BACKUPS}/ultima")"
   [[ -f "${dir}/sha" ]] || die "no hay copia en ${BACKUPS}"
+  echo "Copia $(basename "${dir}"): código $(cut -c1-7 "${dir}/sha")"
   systemctl stop "${TIMER}"
   trap 'systemctl start "${TIMER}"' EXIT
   wait_idle
-  restore_code "${dir}"
+  restore_or_halt "${dir}"
   if [[ "${1:-}" == --con-base ]]; then
     (cd "${dir}" && sha256sum -c SHA256SUMS --quiet) || die "la copia no coincide con su suma"
-    sqlite3 "${DB}" ".backup '${dir}/superbot-antes-de-revertir.db'"
+    saved="${dir}/antes-de-revertir-$(date +%Y%m%d-%H%M%S).db"
+    sqlite3 "${DB}" ".backup '${saved}'"
     install -o "${RUN_USER:-root}" -m 600 "${dir}/superbot.db" "${DB}"
-    echo "Base restaurada. La anterior queda en ${dir}/superbot-antes-de-revertir.db"
+    echo "Base restaurada. La anterior queda en ${saved}"
   fi
   echo "Revertido a $(repo rev-parse --short HEAD)."
 }

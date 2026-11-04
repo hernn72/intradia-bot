@@ -81,7 +81,8 @@ class TelegramNotifier:
             )
             response.raise_for_status()
         except requests.RequestException as exc:
-            logger.error("Error enviando mensaje a Telegram: %s", exc)
+            # El texto de la excepción incluye la URL, y con ella el token.
+            logger.error("Error enviando mensaje a Telegram: %s", type(exc).__name__)
             return False
 
         return True

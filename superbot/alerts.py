@@ -65,7 +65,8 @@ def advance(state: Dict[str, Any], now: datetime, causes: Dict[str, str],
         if now - datetime.fromisoformat(episode["sent"]) >= wait and send(_text("SIGUE", cause, detail)):
             episode["sent"] = now.isoformat()
             episode["reminders"] += 1
-    for cause in [c for c in episodes if c not in causes]:
+    # Una ejecución parada no ha mirado nada: no cuenta como limpia para las demás causas.
+    for cause in [] if "PARADA" in causes else [c for c in episodes if c not in causes]:
         episode = episodes[cause]
         episode["clean"] += 1
         if episode["clean"] >= CLEAN_RUNS_TO_CLOSE and (

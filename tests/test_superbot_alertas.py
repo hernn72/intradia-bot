@@ -78,6 +78,25 @@ def test_recuperado_sin_enviar_se_reintenta() -> None:
     assert alerts.advance(state, RUNS[3], {}, lambda _: True) == {}
 
 
+def test_una_ejecucion_parada_no_recupera_otra_causa() -> None:
+    sequence = [(RUNS[0], {"SIN_VIGILAR"}), (RUNS[1], {"PARADA"}), (RUNS[2], {"PARADA"})]
+    assert not any("Recuperado" in text for text in replay(sequence))
+
+
+def test_fallo_de_envio_no_deja_el_token_en_el_log(caplog: pytest.LogCaptureFixture,
+                                                   monkeypatch: pytest.MonkeyPatch) -> None:
+    import requests
+
+    from advisor.telegram.notifier import TelegramNotifier
+
+    def down(url: str, **kwargs: object) -> None:
+        raise requests.ConnectionError(f"Max retries exceeded with url: {url}")
+
+    monkeypatch.setattr(requests, "post", down)
+    assert TelegramNotifier(bot_token="123:SECRETO", chat_id="1").send_message("x") is False
+    assert "SECRETO" not in caplog.text
+
+
 @pytest.fixture
 def telegram(monkeypatch: pytest.MonkeyPatch) -> List[str]:
     sent: List[str] = []
