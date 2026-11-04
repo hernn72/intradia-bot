@@ -23,7 +23,7 @@ import pandas as pd
 import pytest
 
 from advisor.universe.loader import load_universe
-from superbot.cli import main
+from superbot.cli import _insufficient, main
 from superbot.config import MIN_COVERAGE, SuperbotConfig
 from superbot.data import MAX_BAR_AGE_DAYS, fresh_symbols, load_series, select_assets
 from superbot.engine import BarSeries
@@ -329,7 +329,7 @@ def test_cobertura_por_debajo_del_minimo_es_error_y_no_abre_nada(tmp_path: Path,
     assert entries(db) == before
 
 
-def test_cobertura_justo_en_el_minimo_sigue_siendo_correcta(tmp_path: Path, provider: type[Provider]) -> None:
+def test_cobertura_por_encima_del_minimo_sigue_siendo_correcta(tmp_path: Path, provider: type[Provider]) -> None:
     db = portfolio(tmp_path)
     symbols = expected_symbols(db)
     provider.fail = fail_share(symbols, db, int(len(symbols) * (1 - MIN_COVERAGE)))
@@ -447,7 +447,7 @@ def test_sigterm_durante_la_descarga_cierra_la_ejecucion_como_error(tmp_path: Pa
     script = textwrap.dedent(f"""
         import time
         import advisor.data.market_data as market_data
-        from superbot.cli import main
+        from superbot.cli import _insufficient, main
 
         class Hung:
             def __init__(self, min_interval_seconds=0.0): pass
@@ -468,3 +468,39 @@ def test_sigterm_durante_la_descarga_cierra_la_ejecucion_como_error(tmp_path: Pa
         time.sleep(0.05)
     assert process.poll() == 128 + signal.SIGTERM
     assert last_run(db)["status"] == "ERROR"
+
+
+@pytest.mark.parametrize("fresh,expected,blocked", [(81, 90, False), (80, 90, True), (9, 10, False), (90, 90, False)])
+def test_limite_exacto_de_la_cobertura(fresh: int, expected: int, blocked: bool) -> None:
+    assert bool(_insufficient(set(), set(), fresh, expected)) is blocked
+
+
+def test_split_retenido_deja_la_ejecucion_en_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from superbot.engine import PaperEngine, ProcessResult
+
+    db = portfolio(tmp_path)
+    monkeypatch.setattr(PaperEngine, "process", lambda *a, **k: ProcessResult(held=["SAP.DE"]))
+    assert run(db) == 1
+    row = last_run(db)
+    assert row["status"] == "ERROR"
+    assert "SAP.DE" in row["detail"]
+
+
+def test_posicion_caducada_sigue_llegando_al_motor(
+    tmp_path: Path, provider: type[Provider], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from superbot.engine import PaperEngine
+
+    db = portfolio(tmp_path)
+    position = held(db)
+    provider.age_of = {position: MAX_BAR_AGE_DAYS + 1}
+    seen: list = []
+    original = PaperEngine.process
+
+    def spy(self, series, fx, run_id, today, allow_entries=True):  # type: ignore[no-untyped-def]
+        seen.append(position in series)
+        return original(self, series, fx, run_id, today, allow_entries)
+
+    monkeypatch.setattr(PaperEngine, "process", spy)
+    assert run(db) == 1
+    assert seen == [True]

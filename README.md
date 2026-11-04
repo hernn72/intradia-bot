@@ -292,8 +292,10 @@ siendo `OK`. Sale con 1 y queda `ERROR` en dos niveles:
   abierta se queda sin ellas, falta un tipo de cambio o hay un split sin decidir.
   Solo se protege lo abierto, con los símbolos que tengan datos: ventas pendientes,
   stops y trailing. No nace ninguna compra y los símbolos sin posición no avanzan: la
-  siguiente ejecución sana ejecuta sus órdenes pendientes, pero solo la última sesión
-  sin entradas puede dar señales nuevas, porque no se compra en el pasado.
+  siguiente ejecución sana ejecuta sus órdenes pendientes que no hayan caducado, con
+  el efectivo de ese momento, y solo la última sesión sin entradas puede dar señales
+  nuevas, porque no se compra en el pasado. La curva de esas sesiones no incluye las
+  compras que se ejecuten después con su fecha.
 
 Hasta el 10 % de símbolos sin datos y sin posición no cambia el estado: aparecen en
 el detalle y un símbolo con barras caducadas no se procesa.

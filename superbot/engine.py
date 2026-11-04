@@ -158,9 +158,10 @@ class PaperEngine:
                  entries: bool, held: Dict[str, date]) -> ProcessResult:
         if not entries:
             # Un símbolo sin posición no avanza: sus órdenes se ejecutan en su sesión
-            # cuando vuelva una ejecución sana. La frontera de su plaza sí avanza con
-            # los que tienen posición, así que de varias sesiones sin entradas solo la
-            # última puede dar señales de compra: no se compra en el pasado.
+            # cuando vuelva una ejecución sana, dimensionadas con el efectivo de ese
+            # momento. La frontera de su plaza sí avanza con los que tienen posición,
+            # así que de varias sesiones sin entradas solo la última puede dar señales
+            # de compra: no se compra en el pasado.
             managed = self._managed_symbols()
             series = {symbol: bars for symbol, bars in series.items() if symbol in managed}
         start = self.store.start_date()
@@ -219,11 +220,8 @@ class PaperEngine:
                         "ON CONFLICT(symbol) DO UPDATE SET last_bar_date = excluded.last_bar_date",
                         (symbol, session.isoformat()),
                     )
-                # La curva ya guardada no se reescribe con el estado de hoy. Sin entradas
-                # tampoco se escribe: faltarían las compras que siguen pendientes de
-                # estas sesiones, y la ejecución sana que las procese ya no podría
-                # corregir una fecha anterior a la última.
-                if entries and (last_snapshot is None or session >= last_snapshot):
+                # La curva ya guardada no se reescribe con el estado de hoy.
+                if last_snapshot is None or session >= last_snapshot:
                     self._snapshot(ctx)
                 result.bars += len(symbols)
                 result.dates.append(session)
@@ -237,11 +235,7 @@ class PaperEngine:
         return result
 
     def _managed_symbols(self) -> Set[str]:
-        rows = self.store.connect().execute(
-            "SELECT symbol FROM positions WHERE status = 'OPEN' "
-            "UNION SELECT symbol FROM orders WHERE side = 'SELL' AND status = 'PENDING'"
-        ).fetchall()
-        return {row["symbol"] for row in rows}
+        return {position["symbol"] for position in self.store.open_positions()}
 
     def _portfolio_text(self, conn: sqlite3.Connection) -> str:
         positions = conn.execute("SELECT * FROM positions WHERE status = 'OPEN'").fetchall()

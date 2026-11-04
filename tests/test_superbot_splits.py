@@ -21,7 +21,7 @@ import pandas as pd
 import pytest
 
 from superbot.config import SizingParams, SuperbotConfig
-from superbot.engine import SPLIT_WINDOW_BARS, BarSeries, PaperEngine
+from superbot.engine import SPLIT_WINDOW_BARS, BarSeries, PaperEngine, _split_evidence
 from superbot.store import SuperbotStore
 
 START = date(2026, 3, 2)
@@ -478,3 +478,11 @@ def test_caida_real_en_una_posicion_nacida_en_esta_descarga_no_se_toma_por_un_sp
     closed = position(store)
     assert closed["quantity"] == bought(store)
     assert closed["status"] == "CLOSED"
+
+
+@pytest.mark.parametrize("after,ratio,expected", [
+    (100, 2.0, False), (81, 2.0, False), (78, 2.0, None), (65, 2.0, None), (62, 2.0, True), (50, 2.0, True),
+    (41, 2.0, True), (38, 2.0, None), (130, 2.0, False), (200, 0.5, True), (130, 0.5, None), (110, 0.5, False),
+])
+def test_bandas_de_la_evidencia_de_split(after: float, ratio: float, expected: Optional[bool]) -> None:
+    assert _split_evidence(100, after, ratio) is expected
