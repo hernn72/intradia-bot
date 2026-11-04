@@ -306,17 +306,24 @@ def test_un_fallo_tras_reconciliar_deshace_el_ajuste(store: SuperbotStore, monke
     assert position(store)["quantity"] == pytest.approx(before["quantity"] * 2)
 
 
-@pytest.mark.parametrize("factor", [2.0, 0.5])
-def test_ejecucion_en_la_fecha_ex_sin_sesiones_nuevas_y_luego_la_barra_ex(store: SuperbotStore, factor: float) -> None:
-    # Camino diario: la ejecución de la tarde ve la serie ajustada y la barra ex
-    # aún abierta; la de la noche trae esa barra. El ajuste se aplica una vez.
+@pytest.mark.parametrize("factor,change,status", [
+    (2.0, 0.0, "OPEN"), (0.5, 0.0, "OPEN"), (2.0, -0.31, "CLOSED"), (10.0, -0.70, "CLOSED"), (0.5, 0.45, "OPEN"),
+])
+def test_camino_diario_tarde_y_noche_de_la_fecha_ex(
+    store: SuperbotStore, factor: float, change: float, status: str
+) -> None:
+    # La ejecución de la tarde ve la serie ajustada con la barra ex aún abierta y
+    # sin sesiones pendientes: espera. La de la noche trae la barra ex y aplica el
+    # split una sola vez, también si esa apertura es una caída real.
     run(store, frame(PRE))
     before = position(store)
     adjusted = frame(rebased(PRE, factor))
     adjusted["SAP.DE"].unclosed_split = factor
     assert run(store, adjusted).bars == 0
+    assert position(store) == before
+    opening = 103 / factor * (1 + change)
+    high = max(opening, 103 / factor) * 1.01
+    run(store, frame([*rebased(PRE, factor), bar(opening, high, opening * 0.99, opening, split=factor)]))
     held = position(store)
     assert held["quantity"] == pytest.approx(before["quantity"] * factor)
-    assert held["last_close"] == pytest.approx(before["last_close"] / factor)
-    run(store, frame([*rebased(PRE, factor), bar(103 / factor, 104 / factor, 102 / factor, 103 / factor, split=factor)]))
-    assert position(store)["quantity"] == pytest.approx(before["quantity"] * factor)
+    assert held["status"] == status

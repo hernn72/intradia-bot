@@ -250,9 +250,15 @@ class PaperEngine:
             last_date = date.fromisoformat(position["last_date"])
             if bars is None or last_date not in bars.frame.index:
                 continue
+            pending = bars.frame.loc[bars.frame.index > last_date]
+            if pending.empty:
+                # Sin sesiones que procesar se espera a la barra ex: ajustar ahora
+                # dejaría a la ejecución siguiente sin forma de distinguir una
+                # caída real en esa fecha de un salto de serie.
+                continue
             ratio = bars.unclosed_split
-            if "Stock Splits" in bars.frame.columns:
-                ratio *= float(bars.frame.loc[bars.frame.index > last_date, "Stock Splits"].map(split_ratio).prod())
+            if "Stock Splits" in pending.columns:
+                ratio *= float(pending["Stock Splits"].map(split_ratio).prod())
             if ratio != 1 and _matches_split(float(position["last_close"]),
                                              float(bars.frame.loc[last_date, "Close"]), ratio):
                 self._rescale(conn, position["id"], ratio)
