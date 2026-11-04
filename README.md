@@ -291,8 +291,9 @@ siendo `OK`. Sale con 1 y queda `ERROR` en dos niveles:
 - **Sin entradas:** menos del 90 % del universo tiene barras vigentes, una posición
   abierta se queda sin ellas, falta un tipo de cambio o hay un split sin decidir.
   Solo se protege lo abierto, con los símbolos que tengan datos: ventas pendientes,
-  stops y trailing. No nace ninguna compra, y los símbolos sin posición no avanzan,
-  así que la siguiente ejecución sana retoma sus sesiones.
+  stops y trailing. No nace ninguna compra y los símbolos sin posición no avanzan: la
+  siguiente ejecución sana ejecuta sus órdenes pendientes, pero solo la última sesión
+  sin entradas puede dar señales nuevas, porque no se compra en el pasado.
 
 Hasta el 10 % de símbolos sin datos y sin posición no cambia el estado: aparecen en
 el detalle y un símbolo con barras caducadas no se procesa.

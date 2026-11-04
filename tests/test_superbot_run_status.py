@@ -362,6 +362,19 @@ def entries_allowed(monkeypatch: pytest.MonkeyPatch) -> list:
     return seen
 
 
+def test_una_ejecucion_sana_abre_lo_que_una_degradada_no(tmp_path: Path, provider: type[Provider]) -> None:
+    healthy, degraded = tmp_path / "sana" / "superbot.db", tmp_path / "degradada" / "superbot.db"
+    for db in (healthy, degraded):
+        db.parent.mkdir()
+        init(db, "europa", "usa", days=90)
+    assert run(healthy) == 0
+    assert entries(healthy)[3] > 0
+    symbols = expected_symbols(degraded)
+    provider.fail = set(symbols[: int(len(symbols) * (1 - MIN_COVERAGE)) + 1])
+    assert run(degraded) == 1
+    assert entries(degraded) == (0, 0, 0, 0)
+
+
 def test_ejecucion_sana_permite_entradas(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     db = portfolio(tmp_path)
     seen = entries_allowed(monkeypatch)

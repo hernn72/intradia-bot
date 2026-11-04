@@ -40,7 +40,6 @@ from superbot.config import CostParams, SuperbotConfig
 from superbot.store import SuperbotStore, utcnow_iso
 from superbot.strategy import evaluate, initial_levels, momentum_score, trailed_stop
 
-
 # Sesiones finales de una descarga en las que la barra de un split aún puede
 # llegar sin el pasado ajustado. Más atrás la serie ya es continua y una caída en
 # la fecha ex es una caída.
@@ -158,8 +157,10 @@ class PaperEngine:
     def _process(self, series: Dict[str, BarSeries], fx: FxSource, run_id: int, today: date,
                  entries: bool, held: Dict[str, date]) -> ProcessResult:
         if not entries:
-            # Un símbolo sin posición no avanza: sus sesiones siguen pendientes y
-            # una ejecución sana las procesa como si esta no hubiera existido.
+            # Un símbolo sin posición no avanza: sus órdenes se ejecutan en su sesión
+            # cuando vuelva una ejecución sana. La frontera de su plaza sí avanza con
+            # los que tienen posición, así que de varias sesiones sin entradas solo la
+            # última puede dar señales de compra: no se compra en el pasado.
             managed = self._managed_symbols()
             series = {symbol: bars for symbol, bars in series.items() if symbol in managed}
         start = self.store.start_date()
@@ -218,8 +219,11 @@ class PaperEngine:
                         "ON CONFLICT(symbol) DO UPDATE SET last_bar_date = excluded.last_bar_date",
                         (symbol, session.isoformat()),
                     )
-                # La curva ya guardada no se reescribe con el estado de hoy.
-                if last_snapshot is None or session >= last_snapshot:
+                # La curva ya guardada no se reescribe con el estado de hoy. Sin entradas
+                # tampoco se escribe: faltarían las compras que siguen pendientes de
+                # estas sesiones, y la ejecución sana que las procese ya no podría
+                # corregir una fecha anterior a la última.
+                if entries and (last_snapshot is None or session >= last_snapshot):
                     self._snapshot(ctx)
                 result.bars += len(symbols)
                 result.dates.append(session)
@@ -352,14 +356,16 @@ class PaperEngine:
         position = self._open_position(ctx.conn, symbol)
         if position is None or position["entry_date"] >= ctx.session.isoformat() or position["id"] in ctx.rebased:
             return
-        jumped: Optional[bool] = False
-        if ctx.at_download_end(symbol) and not self._split_in_ledger(ctx, position):
-            jumped = _split_evidence(float(position["last_close"]), float(row["Open"]), ratio)
+        jumped = False if self._split_in_ledger(ctx, position) else _split_evidence(
+            float(position["last_close"]), float(row["Open"]), ratio
+        )
+        recent = ctx.at_download_end(symbol)
         # Nacida en esta descarga comparte base con ella: un salto, por claro que
         # parezca, se trata como posible caída hasta que otra descarga lo confirme.
-        if jumped is None or (jumped and position["id"] in ctx.born):
+        born = position["id"] in ctx.born
+        if recent and (jumped is None or (jumped and born)):
             raise _UndecidedSplit(symbol, ctx.session)
-        if jumped:
+        if jumped and not born:
             self._rescale(ctx.conn, position["id"], ratio)
             ctx.emit(f"SPLIT {symbol} factor {ratio:g}")
         else:
@@ -369,14 +375,19 @@ class PaperEngine:
         """¿Las unidades ya recogen todos los splits desde la entrada, incluido el de esta sesión?
 
         El fill de entrada conserva las unidades compradas, así que la posición
-        dice cuánto se reescaló sin depender del precio de la fecha ex.
+        dice cuánto se reescaló sin depender del precio de la fecha ex. Solo vale si
+        la descarga llega hasta la entrada: un split ya fuera de ella cuenta en las
+        unidades pero no en lo esperado.
         """
 
+        frame = ctx.series[position["symbol"]].frame
+        entry_date = date.fromisoformat(position["entry_date"])
+        if frame.index[0] > entry_date:
+            return False
         entry = ctx.conn.execute(
             "SELECT quantity FROM fills WHERE position_id = ? AND side = 'BUY'", (position["id"],)
         ).fetchone()
-        frame = ctx.series[position["symbol"]].frame
-        since = frame.loc[(frame.index > date.fromisoformat(position["entry_date"])) & (frame.index <= ctx.session)]
+        since = frame.loc[(frame.index > entry_date) & (frame.index <= ctx.session)]
         expected = float(since["Stock Splits"].map(split_ratio).prod())
         return math.isclose(float(position["quantity"]) / float(entry["quantity"]), expected, rel_tol=1e-9)
 

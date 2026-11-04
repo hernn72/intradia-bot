@@ -409,6 +409,35 @@ def test_el_salto_ambiguo_caduca_y_la_caida_real_salta_por_el_stop(store: Superb
     assert store.fills()[-1]["kind"] == "GAP_STOP"
 
 
+def test_split_antiguo_fuera_de_la_descarga_no_oculta_el_nuevo(store: SuperbotStore) -> None:
+    # 2:1 ya aplicado que sale del histórico; llega otro 2:1 con la serie saltando.
+    run(store, frame(PRE))
+    run(store, frame([*PRE, bar(51, 52, 50.5, 51.5, split=2.0)]))
+    assert position(store)["quantity"] == pytest.approx(bought(store) * 2)
+    later = START + timedelta(days=2)
+    run(store, frame([bar(51, 52, 50.5, 51.5), bar(25.8, 26, 25.5, 25.8, split=2.0)], start=later))
+    assert position(store)["quantity"] == pytest.approx(bought(store) * 4)
+    assert position(store)["status"] == "OPEN"
+
+
+def test_salto_claro_tras_una_semana_sin_ejecutar_sigue_reescalando(store: SuperbotStore) -> None:
+    # La descarga conserva el salto y la fecha ex ya queda fuera del final.
+    run(store, frame(PRE))
+    ex = bar(51.5, 52, 51, 51.5, split=2.0)
+    run(store, frame([*PRE, ex, *[bar(51.5, 52, 51, 51.5)] * SPLIT_WINDOW_BARS]))
+    held = position(store)
+    assert held["quantity"] == pytest.approx(bought(store) * 2)
+    assert held["status"] == "OPEN"
+
+
+def test_salto_ambiguo_fuera_del_final_no_retiene(store: SuperbotStore) -> None:
+    run(store, frame(PRE))
+    ex = bar(70, 71, 69, 70, split=2.0)
+    result = run(store, frame([*PRE, ex, *[bar(70, 71, 69, 70)] * SPLIT_WINDOW_BARS]))
+    assert result.held == []
+    assert position(store)["quantity"] == bought(store)
+
+
 def test_retener_un_simbolo_deshace_lo_procesado_y_bloquea_entradas(store: SuperbotStore) -> None:
     # MSFT abriría hoy; el salto ambiguo de SAP.DE aparece después en la misma sesión.
     run(store, frame(PRE))

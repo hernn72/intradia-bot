@@ -2,8 +2,8 @@
 
 Con datos insuficientes la cartera no abre nada, pero tampoco deja de proteger lo
 que ya tiene: ventas pendientes, stops y trailing siguen. Los símbolos sin
-posición no avanzan, así que una ejecución sana posterior retoma sus sesiones
-como si la degradada no hubiera existido.
+posición no avanzan: una ejecución sana posterior ejecuta sus órdenes en su sesión
+y, de varias sesiones sin entradas, solo la última puede dar señales de compra.
 """
 
 from __future__ import annotations
@@ -62,13 +62,14 @@ def run(store: SuperbotStore, frames: Dict[str, BarSeries], entries: bool = True
 def table(store: SuperbotStore, name: str) -> List[dict]:
     drop = {"id", "signal_id", "position_id", "order_id", "entry_order_id", "run_id", "created_at"}
     rows = store.connect().execute(f"SELECT * FROM {name} ORDER BY symbol, 1").fetchall()
-    return [{k: row[k] for k in row.keys() if k not in drop} for row in rows]
+    return [{k: v for k, v in dict(row).items() if k not in drop} for row in rows]
 
 
 def test_sin_entradas_no_nace_ninguna_senal_de_compra(store: SuperbotStore) -> None:
     run(store, data(SAP=[SIGNAL, FLAT]), entries=False)
     assert store.orders() == []
     assert store.connect().execute("SELECT COUNT(*) FROM signals").fetchone()[0] == 0
+    assert "SAP.DE" not in store.last_bar_dates()
 
 
 def test_sin_entradas_una_compra_pendiente_espera(store: SuperbotStore) -> None:
@@ -121,3 +122,25 @@ def test_tras_una_ejecucion_sin_entradas_la_cartera_queda_igual_que_sin_ella(tmp
             assert degraded.equity_curve() == healthy.equity_curve()
         else:
             assert table(degraded, name) == table(healthy, name), name
+
+
+def test_varias_sesiones_sin_entradas_no_compran_en_el_pasado(store: SuperbotStore) -> None:
+    # Señal de ALV en una sesión intermedia: no se recupera. La de la última sesión sí.
+    held = [SIGNAL, FLAT, FLAT, FLAT, FLAT, FLAT]
+    other = [FLAT, FLAT, SIGNAL, FLAT, SIGNAL, FLAT]
+    run(store, data(SAP=held[:2], ALV=other[:2]))
+    run(store, data(SAP=held[:5], ALV=other[:5]), entries=False)
+    run(store, data(SAP=held, ALV=other))
+    [fill] = [f for f in store.fills() if f["symbol"] == "ALV.DE"]
+    assert fill["bar_date"] == (START + timedelta(days=5)).isoformat()
+    assert len(table(store, "signals")) == 2
+
+
+def test_compra_pendiente_recuperada_entra_en_la_curva_de_su_sesion(store: SuperbotStore) -> None:
+    held = [SIGNAL, FLAT, FLAT, FLAT, FLAT]
+    other = [FLAT, SIGNAL, FLAT, FLAT, FLAT]
+    run(store, data(SAP=held[:2], ALV=other[:2]))
+    run(store, data(SAP=held[:4], ALV=other[:4]), entries=False)
+    run(store, data(SAP=held, ALV=other))
+    curve = {row["date"]: row["open_positions"] for row in store.equity_curve()}
+    assert curve[(START + timedelta(days=2)).isoformat()] == 2
