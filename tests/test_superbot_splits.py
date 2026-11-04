@@ -243,3 +243,80 @@ def test_split_en_la_sesion_de_entrada_no_reescala(store: SuperbotStore) -> None
     run(store, frame([bar(49.5, 50.5, 49, 50, cheap), bar(50, 52, 49.5, 51, split=2.0)]))
     bought = store.connect().execute("SELECT quantity FROM fills").fetchone()[0]
     assert position(store)["quantity"] == bought
+
+
+@pytest.mark.parametrize("factor,change,units,status", [
+    (2.0, -0.31, 2.0, "CLOSED"), (4.0, -0.52, 4.0, "CLOSED"), (10.0, -0.70, 10.0, "CLOSED"), (0.5, 0.45, 0.5, "OPEN"),
+])
+def test_caida_real_en_la_fecha_ex_tras_reconciliar_no_ajusta_dos_veces(
+    store: SuperbotStore, factor: float, change: float, units: float, status: str
+) -> None:
+    run(store, frame(PRE))
+    before = position(store)
+    opening = 103 / factor * (1 + change)
+    high = max(opening, 103 / factor) * 1.01
+    result = run(store, frame([*rebased(PRE, factor), bar(opening, high, opening * 0.99, opening, split=factor)]))
+    held = position(store)
+    assert held["quantity"] == pytest.approx(before["quantity"] * units)
+    assert held["status"] == status
+    assert sum("SPLIT SAP.DE" in line and "incluido" not in line for line in result.events) == 1
+
+
+@pytest.mark.parametrize("factor", [2.0, 0.5])
+def test_barra_ex_aun_abierta_tambien_reconcilia_la_posicion(store: SuperbotStore, factor: float) -> None:
+    # Ejecución en plena fecha ex tras perder la de la víspera: la barra ex se
+    # recorta, pero la sesión pendiente ya llega ajustada.
+    run(store, frame(PRE))
+    before = position(store)
+    pending = bar(102 / factor, 104 / factor, 101 / factor, 103 / factor)
+    data = frame([*rebased(PRE, factor), pending])
+    data["SAP.DE"].unclosed_split = factor
+    run(store, data)
+    held = position(store)
+    assert held["status"] == "OPEN"
+    assert held["quantity"] == pytest.approx(before["quantity"] * factor)
+    # La barra ex llega después, ya cerrada: no se aplica otra vez.
+    ex = bar(103 / factor, 104 / factor, 102 / factor, 103 / factor, split=factor)
+    run(store, frame([*rebased(PRE, factor), pending, ex]))
+    assert position(store)["quantity"] == pytest.approx(before["quantity"] * factor)
+
+
+def test_barra_ex_abierta_sin_historico_ajustado_no_toca_la_posicion(store: SuperbotStore) -> None:
+    run(store, frame(PRE))
+    before = position(store)
+    data = frame([*PRE, bar(103, 104, 102, 103)])
+    data["SAP.DE"].unclosed_split = 2.0
+    run(store, data)
+    assert position(store)["quantity"] == before["quantity"]
+
+
+def test_un_fallo_tras_reconciliar_deshace_el_ajuste(store: SuperbotStore, monkeypatch: pytest.MonkeyPatch) -> None:
+    run(store, frame(PRE))
+    before = position(store)
+
+    def boom(*args: object) -> None:
+        raise RuntimeError("fallo tras reconciliar")
+
+    monkeypatch.setattr(PaperEngine, "_fill_sell", boom)
+    with pytest.raises(RuntimeError):
+        run(store, frame(RETRO))
+    assert position(store) == before
+    monkeypatch.undo()
+    run(store, frame(RETRO))
+    assert position(store)["quantity"] == pytest.approx(before["quantity"] * 2)
+
+
+@pytest.mark.parametrize("factor", [2.0, 0.5])
+def test_ejecucion_en_la_fecha_ex_sin_sesiones_nuevas_y_luego_la_barra_ex(store: SuperbotStore, factor: float) -> None:
+    # Camino diario: la ejecución de la tarde ve la serie ajustada y la barra ex
+    # aún abierta; la de la noche trae esa barra. El ajuste se aplica una vez.
+    run(store, frame(PRE))
+    before = position(store)
+    adjusted = frame(rebased(PRE, factor))
+    adjusted["SAP.DE"].unclosed_split = factor
+    assert run(store, adjusted).bars == 0
+    held = position(store)
+    assert held["quantity"] == pytest.approx(before["quantity"] * factor)
+    assert held["last_close"] == pytest.approx(before["last_close"] / factor)
+    run(store, frame([*rebased(PRE, factor), bar(103 / factor, 104 / factor, 102 / factor, 103 / factor, split=factor)]))
+    assert position(store)["quantity"] == pytest.approx(before["quantity"] * factor)

@@ -17,8 +17,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from advisor.universe.loader import load_universe
 from superbot.cli import main
-from superbot.data import MAX_BAR_AGE_DAYS, fresh_symbols
+from superbot.config import SuperbotConfig
+from superbot.data import MAX_BAR_AGE_DAYS, fresh_symbols, load_series
 from superbot.engine import BarSeries
 
 UNIVERSE = Path(__file__).resolve().parent.parent / "universe.yaml"
@@ -236,3 +238,52 @@ def test_una_excepcion_del_motor_sigue_quedando_como_error(
     assert run(db) == 1
     row = last_run(db)
     assert row["status"] == "ERROR" and "fallo del motor" in row["detail"]
+
+
+def test_ejecucion_sin_datos_reintenta_los_avisos_pendientes(
+    tmp_path: Path, provider: type[Provider], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from superbot import notify
+
+    db = portfolio(tmp_path)
+    called = []
+    monkeypatch.setattr(notify, "flush", lambda store, notifier: called.append(True) or {"SENT": 0})
+    provider.fail_all = True
+    assert run(db) == 1
+    assert called == []                    # sin --telegram no se envía nada
+    assert run(db, "--telegram") == 1
+    assert called == [True]
+    assert last_run(db)["status"] == "ERROR"
+
+
+def test_tipo_de_cambio_vacio_cuenta_como_ausente(tmp_path: Path, provider: type[Provider],
+                                                  monkeypatch: pytest.MonkeyPatch) -> None:
+    db = tmp_path / "superbot.db"
+    init(db, "usa", days=30)
+    original = Provider.get_history
+
+    def without_closes(self: Provider, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+        frame = original(self, symbol, period, interval)
+        return frame.assign(Close=0.0) if symbol.endswith("=X") else frame
+
+    monkeypatch.setattr(Provider, "get_history", without_closes)
+    assert run(db) == 1
+    assert "USD" in last_run(db)["detail"]
+
+
+def test_load_series_conserva_el_split_de_la_barra_recortada() -> None:
+    now = datetime(2026, 6, 10, 15, 0, tzinfo=timezone.utc)      # NYSE abierta
+    index = pd.bdate_range(end="2026-06-10", periods=320, tz="America/New_York")
+    closes = np.linspace(50, 80, len(index))
+    raw = pd.DataFrame({"Open": closes, "High": closes, "Low": closes, "Close": closes,
+                        "Stock Splits": 0.0}, index=index)
+    raw.iloc[-1, raw.columns.get_loc("Stock Splits")] = 4.0
+
+    class One:
+        def get_history(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+            return raw
+
+    asset = next(a for a in load_universe(UNIVERSE).analizables(["usa"]) if a.symbol == "AAPL")
+    bars = load_series([asset], One(), SuperbotConfig(), now).series["AAPL"]
+    assert bars.frame.index[-1] < date(2026, 6, 10)
+    assert bars.unclosed_split == 4.0

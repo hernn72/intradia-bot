@@ -55,6 +55,9 @@ class BarSeries:
     currency: str
     frame: pd.DataFrame
     market: str = ""
+    # Split de las barras aún abiertas, ya recortadas de ``frame``: el histórico
+    # llega ajustado por él antes de que la barra ex sea un dato.
+    unclosed_split: float = 1.0
 
 
 @dataclass
@@ -88,7 +91,7 @@ def _matches_split(before: float, after: float, ratio: float) -> bool:
     return abs(change - math.log(ratio)) < abs(change)
 
 
-def _split_ratio(value: object) -> float:
+def split_ratio(value: object) -> float:
     """Factor de split de una barra, o 1 si no lo hay."""
 
     ratio = float(value) if value is not None and pd.notna(value) else 0.0  # type: ignore[arg-type]
@@ -132,7 +135,7 @@ class PaperEngine:
             last_snapshot_row = conn.execute("SELECT MAX(date) FROM equity_snapshots").fetchone()[0]
             last_snapshot = date.fromisoformat(last_snapshot_row) if last_snapshot_row else None
             self._expire_buys(conn, today)
-            self._rebase_positions(conn, series, result)
+            rebased = self._rebase_positions(conn, series, result)
             for session in sorted(work):
                 symbols = sorted(work[session])
                 # Sesión anterior a la frontera de su plaza (o a la global, si la
@@ -140,7 +143,7 @@ class PaperEngine:
                 # ya existe —split, órdenes emitidas, salidas, stops— pero no nacen
                 # señales de compra en el pasado.
                 stale = {s for s in symbols if (threshold := thresholds[series[s].market]) and session < threshold}
-                ctx = _Session(conn, session, run_id, fx, series, session >= notify_from, result, stale)
+                ctx = _Session(conn, session, run_id, fx, series, session >= notify_from, result, stale, rebased)
                 for symbol in symbols:
                     self._apply_split(ctx, symbol)
                 for symbol in symbols:
@@ -225,7 +228,7 @@ class PaperEngine:
         )
 
     def _rebase_positions(self, conn: sqlite3.Connection, series: Dict[str, BarSeries],
-                          result: ProcessResult) -> None:
+                          result: ProcessResult) -> Set[int]:
         """Lleva a la base de esta descarga las posiciones de ejecuciones anteriores.
 
         Cada descarga trae todo el histórico ya ajustado por los splits que
@@ -236,19 +239,26 @@ class PaperEngine:
         ficticia. Comparar el último cierre guardado con el de esa misma sesión
         en la descarga no depende de lo que se movió el mercado, y el «más cerca
         de» absorbe el ajuste por dividendos, que también reescribe el pasado.
+
+        Devuelve las posiciones reescaladas: cubren todos los splits de la
+        descarga, así que :meth:`_apply_split` no debe volver a evaluarlas.
         """
 
+        rebased: Set[int] = set()
         for position in conn.execute("SELECT * FROM positions WHERE status = 'OPEN'").fetchall():
             bars = series.get(position["symbol"])
             last_date = date.fromisoformat(position["last_date"])
-            if bars is None or last_date not in bars.frame.index or "Stock Splits" not in bars.frame.columns:
+            if bars is None or last_date not in bars.frame.index:
                 continue
-            pending = bars.frame.loc[bars.frame.index > last_date, "Stock Splits"].map(_split_ratio)
-            ratio = float(pending.prod())
+            ratio = bars.unclosed_split
+            if "Stock Splits" in bars.frame.columns:
+                ratio *= float(bars.frame.loc[bars.frame.index > last_date, "Stock Splits"].map(split_ratio).prod())
             if ratio != 1 and _matches_split(float(position["last_close"]),
                                              float(bars.frame.loc[last_date, "Close"]), ratio):
                 self._rescale(conn, position["id"], ratio)
-                result.events.append(f"{pending[pending != 1].index[0]} SPLIT {position['symbol']} factor {ratio:g}")
+                rebased.add(position["id"])
+                result.events.append(f"{last_date} SPLIT {position['symbol']} factor {ratio:g}")
+        return rebased
 
     def _apply_split(self, ctx: _Session, symbol: str) -> None:
         """Reescala la posición si la serie salta en la sesión de un split.
@@ -262,11 +272,11 @@ class PaperEngine:
         """
 
         row = ctx.row(symbol)
-        ratio = _split_ratio(row.get("Stock Splits"))
+        ratio = split_ratio(row.get("Stock Splits"))
         if ratio == 1:
             return
         position = self._open_position(ctx.conn, symbol)
-        if position is None or position["entry_date"] >= ctx.session.isoformat():
+        if position is None or position["entry_date"] >= ctx.session.isoformat() or position["id"] in ctx.rebased:
             return
         if _matches_split(float(position["last_close"]), float(row["Open"]), ratio):
             self._rescale(ctx.conn, position["id"], ratio)
@@ -540,6 +550,7 @@ class _Session:
     notify_events: bool
     result: ProcessResult
     stale: Set[str] = field(default_factory=set)
+    rebased: Set[int] = field(default_factory=set)
 
     def row(self, symbol: str) -> pd.Series:
         row: pd.Series = self.series[symbol].frame.loc[self.session]

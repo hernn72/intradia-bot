@@ -18,7 +18,7 @@ from advisor.data.freshness import mercado_para_simbolo
 from advisor.data.sessions import session_date_of, trim_unclosed_bar
 from advisor.universe.models import Asset, Universe
 from superbot.config import SuperbotConfig
-from superbot.engine import BarSeries
+from superbot.engine import BarSeries, split_ratio
 from superbot.strategy import enrich
 
 logger = logging.getLogger(__name__)
@@ -78,9 +78,12 @@ def load_series(
             frame = _by_session(frame, market)
             if len(frame) < config.strategy.sma_slow:
                 raise ValueError(f"histórico insuficiente: {len(frame)} sesiones")
+            unclosed = 1.0
+            if "Stock Splits" in raw.columns:
+                unclosed = float(raw.loc[raw.index > trimmed.index[-1], "Stock Splits"].map(split_ratio).prod())
             result.series[asset.symbol] = BarSeries(
                 symbol=asset.symbol, name=asset.name, currency=asset.currency.upper(),
-                frame=enrich(frame, config.strategy), market=market,
+                frame=enrich(frame, config.strategy), market=market, unclosed_split=unclosed,
             )
         except Exception as exc:  # un símbolo sin datos no para la cartera
             logger.warning("%s: %s", asset.symbol, exc)

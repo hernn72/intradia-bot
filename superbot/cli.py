@@ -120,6 +120,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                 store.finish_run(run_id, "ERROR", len(loaded.series), len(loaded.errors), 0,
                                  f"{reason}; {detail}"[:4000])
                 print(f"Error: {reason}", file=sys.stderr)
+                if args.telegram:
+                    print(f"Telegram: {notify.flush(store, notify.notifier_from_env())}")
                 return 1
             fx = FxHistory(provider, {s.currency for s in loaded.series.values()}, config.history_period)
             held = {p["symbol"] for p in store.open_positions()}
