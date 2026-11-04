@@ -29,7 +29,21 @@ PYTHON="$(prop ExecStart | sed -n 's/.*argv\[\]=\([^ ]*\).*/\1/p')"
 
 as_user() { sudo -u "${RUN_USER:-root}" -H "$@"; }
 repo() { as_user git -c safe.directory="${WORKDIR}" -C "${WORKDIR}" "$@"; }
-query() { sqlite3 "file:${DB}?mode=ro" "$1"; }
+
+# La Pi no trae la herramienta sqlite3: todo pasa por el Python del servicio.
+sql() {
+  PYTHONDONTWRITEBYTECODE=1 "${PYTHON}" -c 'import sqlite3, sys
+conn = sqlite3.connect("file:" + sys.argv[1] + "?mode=ro", uri=True)
+for row in conn.execute(sys.argv[2]):
+    print("|".join("" if value is None else str(value) for value in row))' "$1" "$2"
+}
+query() { sql "${DB}" "$1"; }
+backup_db() {
+  PYTHONDONTWRITEBYTECODE=1 "${PYTHON}" -c 'import sqlite3, sys
+source, target = sqlite3.connect(sys.argv[1]), sqlite3.connect(sys.argv[2])
+with target:
+    source.backup(target)' "$1" "$2"
+}
 
 idle() {
   local state
@@ -111,8 +125,8 @@ deploy() {
   repo rev-parse HEAD > "${dir}/sha"
   repo symbolic-ref -q --short HEAD > "${dir}/rama" || true
   if [[ -f "${DROPIN}" ]]; then cp "${DROPIN}" "${dir}/dropin.conf"; fi
-  sqlite3 "${DB}" ".backup '${dir}/superbot.db'"
-  [[ "$(sqlite3 "${dir}/superbot.db" 'PRAGMA integrity_check')" == ok ]] || die "copia dañada; no se ha cambiado nada"
+  backup_db "${DB}" "${dir}/superbot.db"
+  [[ "$(sql "${dir}/superbot.db" 'PRAGMA integrity_check')" == ok ]] || die "copia dañada; no se ha cambiado nada"
   sha256sum "${dir}/superbot.db" > "${dir}/SHA256SUMS"
   echo "Copia en ${dir}"
 
@@ -143,7 +157,7 @@ revert() {
   if [[ "${1:-}" == --con-base ]]; then
     (cd "${dir}" && sha256sum -c SHA256SUMS --quiet) || die "la copia no coincide con su suma"
     saved="${dir}/antes-de-revertir-$(date +%Y%m%d-%H%M%S).db"
-    sqlite3 "${DB}" ".backup '${saved}'"
+    backup_db "${DB}" "${saved}"
     install -o "${RUN_USER:-root}" -m 600 "${dir}/superbot.db" "${DB}"
     echo "Base restaurada. La anterior queda en ${saved}"
   fi
