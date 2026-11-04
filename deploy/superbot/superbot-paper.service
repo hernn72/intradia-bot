@@ -11,6 +11,8 @@ EnvironmentFile=-@SUPERBOT_ENV_FILE@
 Environment=SUPERBOT_DB=@SUPERBOT_DB@
 # Descarga ~90 históricos con medio segundo entre peticiones.
 TimeoutStartSec=1800
+# Salida 2: otra ejecución tiene el lock. No hace nada y no es un fallo.
+SuccessExitStatus=2
 StandardOutput=append:@SUPERBOT_LOG@
 StandardError=append:@SUPERBOT_LOG@
 ExecStart=@SUPERBOT_PYTHON@ -m superbot run --telegram

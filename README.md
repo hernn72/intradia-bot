@@ -297,6 +297,11 @@ siendo `OK`. Sale con 1 y queda `ERROR` en dos niveles:
   nuevas, porque no se compra en el pasado. La curva de esas sesiones no incluye las
   compras que se ejecuten después con su fecha.
 
+Los errores operativos tienen avisos propios, apagados por defecto
+(`SUPERBOT_ALERTAS`: `seco` los escribe en el log y `1` los envía con
+`SUPERBOT_ALERTAS_BOT_TOKEN` y `SUPERBOT_ALERTAS_CHAT_ID`). Si Python no llega a
+arrancar no hay aviso: solo se ve en `systemctl`.
+
 Hasta el 10 % de símbolos sin datos y sin posición no cambia el estado: aparecen en
 el detalle y un símbolo con barras caducadas no se procesa.
 

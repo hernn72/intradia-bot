@@ -200,6 +200,13 @@ class SuperbotStore:
         row = self.connect().execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return None if row is None else str(row[0])
 
+    def set_meta(self, key: str, value: str) -> None:
+        with self.transaction() as conn:
+            conn.execute(
+                "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, value),
+            )
+
     def config(self) -> SuperbotConfig:
         if self._conn is None and not self.path.exists():
             raise ValueError(f"{self.path} no está inicializada: ejecuta `python -m superbot init`")
