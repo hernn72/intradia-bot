@@ -23,7 +23,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set
 
-from superbot import LABEL, notify
+from superbot import LABEL, alerts, notify
 from superbot.config import MIN_COVERAGE, SuperbotConfig
 from superbot.store import SuperbotStore
 
@@ -80,16 +80,16 @@ def _no_data_reason(series: Dict[str, Any]) -> str:
     return f"sin datos válidos: barras caducadas en todo el universo, la última es de {newest}"
 
 
-def _insufficient(symbols: Set[str], currencies: Set[str], fresh: int, expected: int) -> List[str]:
+def _insufficient(symbols: Set[str], currencies: Set[str], fresh: int, expected: int) -> Dict[str, str]:
     """Por qué estos datos no bastan para abrir nada: la cartera solo protege lo que tiene."""
 
-    problems = []
+    problems = {}
     if symbols:
-        problems.append(f"posiciones sin vigilar por falta de barras: {', '.join(sorted(symbols))}")
+        problems["SIN_VIGILAR"] = f"posiciones sin vigilar por falta de barras: {', '.join(sorted(symbols))}"
     if currencies:
-        problems.append(f"sin tipo de cambio: {', '.join(sorted(currencies))}")
+        problems["SIN_FX"] = f"sin tipo de cambio: {', '.join(sorted(currencies))}"
     if fresh < expected * MIN_COVERAGE:
-        problems.append(f"cobertura insuficiente: {fresh} de {expected} símbolos con barras vigentes")
+        problems["COBERTURA"] = f"cobertura insuficiente: {fresh} de {expected} símbolos con barras vigentes"
     return problems
 
 
@@ -130,6 +130,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 store.finish_run(run_id, "ERROR", len(loaded.series), len(loaded.errors), 0,
                                  f"{reason}; {detail}"[:4000])
                 print(f"Error: {reason}", file=sys.stderr)
+                alerts.report(store, now, {"PARADA": reason})
                 if args.telegram:
                     print(f"Telegram: {notify.flush(store, notify.notifier_from_env())}")
                 return 1
@@ -141,14 +142,17 @@ def cmd_run(args: argparse.Namespace) -> int:
             usable = {s: bars for s, bars in loaded.series.items() if s in fresh | held}
             result = PaperEngine(store).process(usable, fx, run_id, now.date(), allow_entries=not problems)
             if result.held:
-                problems.append(f"split sin decidir, símbolo retenido: {', '.join(result.held)}")
+                problems["SPLIT_RETENIDO"] = f"split sin decidir, símbolo retenido: {', '.join(result.held)}"
             store.finish_run(run_id, "ERROR" if problems else "OK", len(loaded.series), len(loaded.errors),
-                             result.bars, "; ".join(filter(None, [*problems, detail]))[:4000])
+                             result.bars, "; ".join(filter(None, [*problems.values(), detail]))[:4000])
         except BaseException as exc:
             # También Ctrl+C o el SIGTERM de systemd: la cartera ya hizo rollback,
             # pero la ejecución no debe quedar como RUNNING para siempre.
             store.finish_run(run_id, "ERROR", 0, 0, 0, repr(exc)[:4000])
+            alerts.report(store, now, {"PARADA": f"fallo del proceso: {type(exc).__name__}"})
             raise
+
+        alerts.report(store, now, problems)
 
         print(f"Ejecución {run_id}: {len(loaded.series)} símbolos con datos, {len(loaded.errors)} sin datos, "
               f"{result.bars} barras nuevas en {len(result.dates)} sesiones")
@@ -160,7 +164,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     print()
     print(notify.summary_text(store))
     if problems:
-        print(f"Error: {'; '.join(problems)}", file=sys.stderr)
+        print(f"Error: {'; '.join(problems.values())}", file=sys.stderr)
         return 1
     return 0
 
