@@ -20,7 +20,7 @@ from contextlib import contextmanager
 from dataclasses import replace
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Set
 
 from superbot import LABEL, notify
 from superbot.config import SuperbotConfig
@@ -72,10 +72,28 @@ def _exclusive(db_path: Path) -> Iterator[bool]:
         yield True
 
 
+def _no_data_reason(series: Dict[str, Any]) -> str:
+    if not series:
+        return "sin datos válidos: ningún símbolo tiene barras"
+    newest = max(bars.frame.index[-1] for bars in series.values())
+    return f"sin datos válidos: barras caducadas en todo el universo, la última es de {newest}"
+
+
+def _unattended(symbols: Set[str], currencies: Set[str]) -> List[str]:
+    """Lo que esta ejecución no pudo atender: la cartera procesó el resto, pero no fue correcta."""
+
+    problems = []
+    if symbols:
+        problems.append(f"posiciones sin vigilar por falta de barras: {', '.join(sorted(symbols))}")
+    if currencies:
+        problems.append(f"sin tipo de cambio: {', '.join(sorted(currencies))}")
+    return problems
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     from advisor.data.market_data import MarketDataProvider
     from advisor.universe.loader import load_universe
-    from superbot.data import FxHistory, load_series, select_assets
+    from superbot.data import FxHistory, fresh_symbols, load_series, select_assets
     from superbot.engine import PaperEngine
 
     db_path = _db_path(args)
@@ -93,10 +111,22 @@ def cmd_run(args: argparse.Namespace) -> int:
         run_id = store.start_run()
         try:
             loaded = load_series(assets, provider, config, now)
+            detail = "; ".join(f"{s}: {e}" for s, e in sorted(loaded.errors.items()))
+            fresh = fresh_symbols(loaded.series, now.date())
+            if not fresh:
+                # Sin ninguna barra vigente el motor no tiene nada que hacer, y
+                # dejarlo correr solo daría por buena una ejecución vacía.
+                reason = _no_data_reason(loaded.series)
+                store.finish_run(run_id, "ERROR", len(loaded.series), len(loaded.errors), 0,
+                                 f"{reason}; {detail}"[:4000])
+                print(f"Error: {reason}", file=sys.stderr)
+                return 1
             fx = FxHistory(provider, {s.currency for s in loaded.series.values()}, config.history_period)
+            held = {p["symbol"] for p in store.open_positions()}
             result = PaperEngine(store).process(loaded.series, fx, run_id, now.date())
-            detail = "; ".join(f"{s}: {e}" for s, e in sorted(loaded.errors.items()))[:4000]
-            store.finish_run(run_id, "OK", len(loaded.series), len(loaded.errors), result.bars, detail)
+            problems = _unattended(held - fresh, fx.missing)
+            store.finish_run(run_id, "ERROR" if problems else "OK", len(loaded.series), len(loaded.errors),
+                             result.bars, "; ".join(filter(None, [*problems, detail]))[:4000])
         except BaseException as exc:
             # También Ctrl+C o el SIGTERM de systemd: la cartera ya hizo rollback,
             # pero la ejecución no debe quedar como RUNNING para siempre.
@@ -112,6 +142,9 @@ def cmd_run(args: argparse.Namespace) -> int:
             print(f"Telegram: {counts}")
     print()
     print(notify.summary_text(store))
+    if problems:
+        print(f"Error: {'; '.join(problems)}", file=sys.stderr)
+        return 1
     return 0
 
 

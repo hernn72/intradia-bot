@@ -79,6 +79,22 @@ def commission(notional_eur: float, costs: CostParams) -> float:
     return max(notional_eur * costs.commission_pct, costs.commission_fixed_eur)
 
 
+def _matches_split(before: float, after: float, ratio: float) -> bool:
+    """¿El cambio de ``before`` a ``after`` se parece más al split que a ningún cambio?"""
+
+    if before <= 0 or after <= 0:
+        return False
+    change = math.log(before / after)
+    return abs(change - math.log(ratio)) < abs(change)
+
+
+def _split_ratio(value: object) -> float:
+    """Factor de split de una barra, o 1 si no lo hay."""
+
+    ratio = float(value) if value is not None and pd.notna(value) else 0.0  # type: ignore[arg-type]
+    return ratio if ratio > 0 else 1.0
+
+
 class PaperEngine:
     def __init__(self, store: SuperbotStore) -> None:
         self.store = store
@@ -116,6 +132,7 @@ class PaperEngine:
             last_snapshot_row = conn.execute("SELECT MAX(date) FROM equity_snapshots").fetchone()[0]
             last_snapshot = date.fromisoformat(last_snapshot_row) if last_snapshot_row else None
             self._expire_buys(conn, today)
+            self._rebase_positions(conn, series, result)
             for session in sorted(work):
                 symbols = sorted(work[session])
                 # Sesión anterior a la frontera de su plaza (o a la global, si la
@@ -199,28 +216,63 @@ class PaperEngine:
             (status, ctx.session.isoformat(), detail, order_id),
         )
 
-    def _apply_split(self, ctx: _Session, symbol: str) -> None:
-        """Reescala la posición abierta en la sesión de un split.
+    def _rescale(self, conn: sqlite3.Connection, position_id: int, ratio: float) -> None:
+        conn.execute(
+            "UPDATE positions SET quantity = quantity * ?, entry_price_native = entry_price_native / ?, "
+            "initial_stop = initial_stop / ?, stop = stop / ?, target1 = target1 / ?, target2 = target2 / ?, "
+            "last_close = last_close / ? WHERE id = ?",
+            (ratio, ratio, ratio, ratio, ratio, ratio, ratio, position_id),
+        )
 
-        El histórico del proveedor viene ajustado por splits: tras un 2:1 la
-        apertura sale a mitad de precio y, sin reescalar, la posición saltaría
-        por su stop con una pérdida ficticia del 50 %.
+    def _rebase_positions(self, conn: sqlite3.Connection, series: Dict[str, BarSeries],
+                          result: ProcessResult) -> None:
+        """Lleva a la base de esta descarga las posiciones de ejecuciones anteriores.
+
+        Cada descarga trae todo el histórico ya ajustado por los splits que
+        conoce, también las sesiones anteriores a la fecha ex. Una posición
+        abierta antes guarda precios sin ajustar, y hay que pasarla a la base
+        nueva antes de la primera sesión pendiente: tras días sin ejecutar, esas
+        sesiones llegan ajustadas y harían saltar el stop con una pérdida
+        ficticia. Comparar el último cierre guardado con el de esa misma sesión
+        en la descarga no depende de lo que se movió el mercado, y el «más cerca
+        de» absorbe el ajuste por dividendos, que también reescribe el pasado.
         """
 
-        raw = ctx.row(symbol).get("Stock Splits")
-        ratio = float(raw) if raw is not None and pd.notna(raw) else 0.0
-        if ratio <= 0 or ratio == 1:
+        for position in conn.execute("SELECT * FROM positions WHERE status = 'OPEN'").fetchall():
+            bars = series.get(position["symbol"])
+            last_date = date.fromisoformat(position["last_date"])
+            if bars is None or last_date not in bars.frame.index or "Stock Splits" not in bars.frame.columns:
+                continue
+            pending = bars.frame.loc[bars.frame.index > last_date, "Stock Splits"].map(_split_ratio)
+            ratio = float(pending.prod())
+            if ratio != 1 and _matches_split(float(position["last_close"]),
+                                             float(bars.frame.loc[last_date, "Close"]), ratio):
+                self._rescale(conn, position["id"], ratio)
+                result.events.append(f"{pending[pending != 1].index[0]} SPLIT {position['symbol']} factor {ratio:g}")
+
+    def _apply_split(self, ctx: _Session, symbol: str) -> None:
+        """Reescala la posición si la serie salta en la sesión de un split.
+
+        Con un histórico continuo no hay nada que hacer: la posición ya está en
+        la base de la descarga, porque nació en ella o la llevó allí
+        :meth:`_rebase_positions`, y reescalarla aplicaría el split dos veces.
+        Solo queda el caso de una descarga que publica la barra ex sin ajustar el
+        pasado: tras un 2:1 la apertura sale a mitad de precio y la posición
+        saltaría por su stop con una pérdida ficticia del 50 %.
+        """
+
+        row = ctx.row(symbol)
+        ratio = _split_ratio(row.get("Stock Splits"))
+        if ratio == 1:
             return
         position = self._open_position(ctx.conn, symbol)
         if position is None or position["entry_date"] >= ctx.session.isoformat():
             return
-        ctx.conn.execute(
-            "UPDATE positions SET quantity = quantity * ?, entry_price_native = entry_price_native / ?, "
-            "initial_stop = initial_stop / ?, stop = stop / ?, target1 = target1 / ?, target2 = target2 / ?, "
-            "last_close = last_close / ? WHERE id = ?",
-            (ratio, ratio, ratio, ratio, ratio, ratio, ratio, position["id"]),
-        )
-        ctx.emit(f"SPLIT {symbol} factor {ratio:g}")
+        if _matches_split(float(position["last_close"]), float(row["Open"]), ratio):
+            self._rescale(ctx.conn, position["id"], ratio)
+            ctx.emit(f"SPLIT {symbol} factor {ratio:g}")
+        else:
+            ctx.emit(f"SPLIT {symbol} factor {ratio:g} ya incluido en los precios de la posición")
 
     def _fill_sell(self, ctx: _Session, symbol: str) -> None:
         for order in self._pending(ctx.conn, symbol, "SELL", ctx.session):
