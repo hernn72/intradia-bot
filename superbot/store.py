@@ -120,6 +120,27 @@ CREATE TABLE IF NOT EXISTS equity_snapshots (
     equity_eur     REAL NOT NULL,
     open_positions INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS decision_log (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id   INTEGER NOT NULL REFERENCES runs(id),
+    bar_date TEXT NOT NULL,
+    symbol   TEXT NOT NULL,
+    action   TEXT NOT NULL CHECK (action IN ('BUY', 'SELL')),
+    decision TEXT NOT NULL CHECK (decision IN ('ACEPTADA', 'DESCARTADA')),
+    reason   TEXT NOT NULL,
+    detail   TEXT,
+    momentum REAL,
+    rank     INTEGER,
+    slots    INTEGER,
+    UNIQUE (symbol, bar_date, action)
+);
+CREATE TABLE IF NOT EXISTS decision_runs (
+    run_id   INTEGER PRIMARY KEY REFERENCES runs(id),
+    mode     TEXT NOT NULL CHECK (mode IN ('NORMAL', 'SIN_ENTRADAS')),
+    expected INTEGER NOT NULL,
+    written  INTEGER NOT NULL,
+    status   TEXT NOT NULL CHECK (status IN ('COMPLETO', 'INCOMPLETO'))
+);
 CREATE TABLE IF NOT EXISTS notifications (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     key        TEXT NOT NULL UNIQUE,
@@ -227,6 +248,24 @@ class SuperbotStore:
         return {
             row["symbol"]: date.fromisoformat(row["last_bar_date"])
             for row in self._rows("SELECT symbol, last_bar_date FROM symbol_state")
+        }
+
+    # --- decisiones ----------------------------------------------------------
+
+    def decision_summary(self) -> Dict[str, Any]:
+        return {
+            "reasons": self._rows(
+                "SELECT decision, reason, COUNT(*) AS rows FROM decision_log GROUP BY decision, reason "
+                "ORDER BY rows DESC"
+            ),
+            "rows": self.connect().execute("SELECT COUNT(*) FROM decision_log").fetchone()[0],
+            "incomplete": self._rows("SELECT * FROM decision_runs WHERE status = 'INCOMPLETO' ORDER BY run_id"),
+            # Procesó barras tras la primera ejecución registrada y no dejó cierre: se perdió todo.
+            "unclosed": self._rows(
+                "SELECT id FROM runs WHERE bars > 0 AND id > (SELECT MIN(run_id) FROM decision_runs) "
+                "AND id NOT IN (SELECT run_id FROM decision_runs) ORDER BY id"
+            ),
+            "size_mb": self.path.stat().st_size / 1_048_576,
         }
 
     # --- runs ---------------------------------------------------------------
