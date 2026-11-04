@@ -15,6 +15,7 @@ import argparse
 import fcntl
 import logging
 import os
+import signal
 import sys
 from contextlib import contextmanager
 from dataclasses import replace
@@ -23,7 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set
 
 from superbot import LABEL, notify
-from superbot.config import SuperbotConfig
+from superbot.config import MIN_COVERAGE, SuperbotConfig
 from superbot.store import SuperbotStore
 
 DEFAULT_DB = Path("data/superbot/superbot.db")
@@ -79,15 +80,23 @@ def _no_data_reason(series: Dict[str, Any]) -> str:
     return f"sin datos válidos: barras caducadas en todo el universo, la última es de {newest}"
 
 
-def _unattended(symbols: Set[str], currencies: Set[str]) -> List[str]:
-    """Lo que esta ejecución no pudo atender: la cartera procesó el resto, pero no fue correcta."""
+def _insufficient(symbols: Set[str], currencies: Set[str], fresh: int, expected: int) -> List[str]:
+    """Por qué estos datos no bastan para abrir nada: la cartera solo protege lo que tiene."""
 
     problems = []
     if symbols:
         problems.append(f"posiciones sin vigilar por falta de barras: {', '.join(sorted(symbols))}")
     if currencies:
         problems.append(f"sin tipo de cambio: {', '.join(sorted(currencies))}")
+    if fresh < expected * MIN_COVERAGE:
+        problems.append(f"cobertura insuficiente: {fresh} de {expected} símbolos con barras vigentes")
     return problems
+
+
+def _stop_on_sigterm(signum: int, frame: Any) -> None:
+    """Python muere con SIGTERM sin desenrollar nada: la ejecución quedaría como RUNNING."""
+
+    raise SystemExit(128 + signum)
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -104,6 +113,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             print("Otra ejecución de superbot está en curso; no se hace nada.", file=sys.stderr)
             return 2
 
+        signal.signal(signal.SIGTERM, _stop_on_sigterm)
         now = datetime.now(timezone.utc)
         live = {p["symbol"] for p in store.open_positions()} | {o["symbol"] for o in store.pending_orders()}
         assets = select_assets(load_universe(args.universe), config, extra_symbols=live)
@@ -125,8 +135,13 @@ def cmd_run(args: argparse.Namespace) -> int:
                 return 1
             fx = FxHistory(provider, {s.currency for s in loaded.series.values()}, config.history_period)
             held = {p["symbol"] for p in store.open_positions()}
-            result = PaperEngine(store).process(loaded.series, fx, run_id, now.date())
-            problems = _unattended(held - fresh, fx.missing)
+            problems = _insufficient(held - fresh, fx.missing, len(fresh), len(assets))
+            # Un símbolo caducado solo se procesa si hay una posición que vigilar: con
+            # barras viejas no se abre nada y sus sesiones esperan a que vuelva.
+            usable = {s: bars for s, bars in loaded.series.items() if s in fresh | held}
+            result = PaperEngine(store).process(usable, fx, run_id, now.date(), allow_entries=not problems)
+            if result.held:
+                problems.append(f"split sin decidir, símbolo retenido: {', '.join(result.held)}")
             store.finish_run(run_id, "ERROR" if problems else "OK", len(loaded.series), len(loaded.errors),
                              result.bars, "; ".join(filter(None, [*problems, detail]))[:4000])
         except BaseException as exc:

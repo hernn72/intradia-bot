@@ -41,6 +41,12 @@ from superbot.store import SuperbotStore, utcnow_iso
 from superbot.strategy import evaluate, initial_levels, momentum_score, trailed_stop
 
 
+# Sesiones finales de una descarga en las que la barra de un split aún puede
+# llegar sin el pasado ajustado. Más atrás la serie ya es continua y una caída en
+# la fecha ex es una caída.
+SPLIT_WINDOW_BARS = 5
+
+
 class FxSource(Protocol):
     def rate(self, currency: str, on: date) -> Optional[float]:
         """EUR por 1 unidad de ``currency`` vigente en la sesión ``on``."""
@@ -66,6 +72,15 @@ class ProcessResult:
     dates: List[date] = field(default_factory=list)
     events: List[str] = field(default_factory=list)
     operations: List[str] = field(default_factory=list)
+    # Símbolos sin procesar desde un split que no se pudo decidir.
+    held: List[str] = field(default_factory=list)
+
+
+class _UndecidedSplit(Exception):
+    def __init__(self, symbol: str, session: date) -> None:
+        super().__init__(f"{symbol} {session}")
+        self.symbol = symbol
+        self.session = session
 
 
 def buy_price(price: float, costs: CostParams) -> float:
@@ -91,6 +106,23 @@ def _matches_split(before: float, after: float, ratio: float) -> bool:
     return abs(change - math.log(ratio)) < abs(change)
 
 
+def _split_evidence(before: float, after: float, ratio: float) -> Optional[bool]:
+    """¿Dice el salto de precio que la serie cambió de base? ``None`` si no lo decide.
+
+    El salto se mide como parte del split: 0 es no cambiar y 1 es el split exacto.
+    Solo cuenta a favor de una lectura a menos de un tercio de ella; entre ambas,
+    un 2:1 con la acción al alza y una caída real dan el mismo precio. Un salto en
+    sentido contrario al split nunca es el split.
+    """
+
+    if before <= 0 or after <= 0:
+        return False
+    share = math.log(before / after) / math.log(ratio)
+    if share < 1 / 3:
+        return False
+    return True if 2 / 3 <= share <= 4 / 3 else None
+
+
 def split_ratio(value: object) -> float:
     """Factor de split de una barra, o 1 si no lo hay."""
 
@@ -105,7 +137,31 @@ class PaperEngine:
 
     # --- entrada ------------------------------------------------------------
 
-    def process(self, series: Dict[str, BarSeries], fx: FxSource, run_id: int, today: date) -> ProcessResult:
+    def process(self, series: Dict[str, BarSeries], fx: FxSource, run_id: int, today: date,
+                allow_entries: bool = True) -> ProcessResult:
+        """Procesa las barras nuevas; ``allow_entries=False`` solo protege lo que ya hay abierto.
+
+        Un split sin decidir revierte la ejecución y la repite sin ese símbolo y
+        sin entradas: lo que se declara erróneo no debe haber abierto nada.
+        """
+
+        held: Dict[str, date] = {}
+        while True:
+            try:
+                result = self._process(series, fx, run_id, today, allow_entries and not held, held)
+            except _UndecidedSplit as undecided:
+                held[undecided.symbol] = undecided.session
+                continue
+            result.held = sorted(held)
+            return result
+
+    def _process(self, series: Dict[str, BarSeries], fx: FxSource, run_id: int, today: date,
+                 entries: bool, held: Dict[str, date]) -> ProcessResult:
+        if not entries:
+            # Un símbolo sin posición no avanza: sus sesiones siguen pendientes y
+            # una ejecución sana las procesa como si esta no hubiera existido.
+            managed = self._managed_symbols()
+            series = {symbol: bars for symbol, bars in series.items() if symbol in managed}
         start = self.store.start_date()
         watermarks = self.store.last_bar_dates()
         # Frontera por plaza: la sesión más reciente ya procesada entre los
@@ -124,7 +180,7 @@ class PaperEngine:
         for symbol, bars in series.items():
             floor = watermarks.get(symbol) or frontiers.get(bars.market) or start - timedelta(days=1)
             for session in bars.frame.index:
-                if session > floor:
+                if session > floor and (symbol not in held or session < held[symbol]):
                     work[session].append(symbol)
 
         thresholds = {bars.market: frontiers.get(bars.market, global_frontier) for bars in series.values()}
@@ -136,6 +192,7 @@ class PaperEngine:
             last_snapshot = date.fromisoformat(last_snapshot_row) if last_snapshot_row else None
             self._expire_buys(conn, today)
             rebased = self._rebase_positions(conn, series, result)
+            born: Set[int] = set()
             for session in sorted(work):
                 symbols = sorted(work[session])
                 # Sesión anterior a la frontera de su plaza (o a la global, si la
@@ -143,7 +200,8 @@ class PaperEngine:
                 # ya existe —split, órdenes emitidas, salidas, stops— pero no nacen
                 # señales de compra en el pasado.
                 stale = {s for s in symbols if (threshold := thresholds[series[s].market]) and session < threshold}
-                ctx = _Session(conn, session, run_id, fx, series, session >= notify_from, result, stale, rebased)
+                ctx = _Session(conn, session, run_id, fx, series, session >= notify_from, result, stale, rebased,
+                               born, entries)
                 for symbol in symbols:
                     self._apply_split(ctx, symbol)
                 for symbol in symbols:
@@ -173,6 +231,13 @@ class PaperEngine:
                      notify.operations_message(result.operations, self._portfolio_text(conn))),
                 )
         return result
+
+    def _managed_symbols(self) -> Set[str]:
+        rows = self.store.connect().execute(
+            "SELECT symbol FROM positions WHERE status = 'OPEN' "
+            "UNION SELECT symbol FROM orders WHERE side = 'SELL' AND status = 'PENDING'"
+        ).fetchall()
+        return {row["symbol"] for row in rows}
 
     def _portfolio_text(self, conn: sqlite3.Connection) -> str:
         positions = conn.execute("SELECT * FROM positions WHERE status = 'OPEN'").fetchall()
@@ -237,8 +302,10 @@ class PaperEngine:
         nueva antes de la primera sesión pendiente: tras días sin ejecutar, esas
         sesiones llegan ajustadas y harían saltar el stop con una pérdida
         ficticia. Comparar el último cierre guardado con el de esa misma sesión
-        en la descarga no depende de lo que se movió el mercado, y el «más cerca
-        de» absorbe el ajuste por dividendos, que también reescribe el pasado.
+        en la descarga no depende de lo que se movió el mercado. El ajuste por
+        dividendos también reescribe el pasado: el «más cerca de» evita confundirlo
+        con un split, pero la posición no se lleva a esa base, porque el paper no
+        abona dividendos y sus niveles siguen siendo precios de mercado.
 
         Devuelve las posiciones reescaladas: cubren todos los splits de la
         descarga, así que :meth:`_apply_split` no debe volver a evaluarlas.
@@ -274,7 +341,8 @@ class PaperEngine:
         :meth:`_rebase_positions`, y reescalarla aplicaría el split dos veces.
         Solo queda el caso de una descarga que publica la barra ex sin ajustar el
         pasado: tras un 2:1 la apertura sale a mitad de precio y la posición
-        saltaría por su stop con una pérdida ficticia del 50 %.
+        saltaría por su stop con una pérdida ficticia del 50 %. Si el precio no
+        permite decidirlo, el símbolo espera a una descarga posterior.
         """
 
         row = ctx.row(symbol)
@@ -284,11 +352,33 @@ class PaperEngine:
         position = self._open_position(ctx.conn, symbol)
         if position is None or position["entry_date"] >= ctx.session.isoformat() or position["id"] in ctx.rebased:
             return
-        if _matches_split(float(position["last_close"]), float(row["Open"]), ratio):
+        jumped: Optional[bool] = False
+        if ctx.at_download_end(symbol) and not self._split_in_ledger(ctx, position):
+            jumped = _split_evidence(float(position["last_close"]), float(row["Open"]), ratio)
+        # Nacida en esta descarga comparte base con ella: un salto, por claro que
+        # parezca, se trata como posible caída hasta que otra descarga lo confirme.
+        if jumped is None or (jumped and position["id"] in ctx.born):
+            raise _UndecidedSplit(symbol, ctx.session)
+        if jumped:
             self._rescale(ctx.conn, position["id"], ratio)
             ctx.emit(f"SPLIT {symbol} factor {ratio:g}")
         else:
             ctx.emit(f"SPLIT {symbol} factor {ratio:g} ya incluido en los precios de la posición")
+
+    def _split_in_ledger(self, ctx: _Session, position: sqlite3.Row) -> bool:
+        """¿Las unidades ya recogen todos los splits desde la entrada, incluido el de esta sesión?
+
+        El fill de entrada conserva las unidades compradas, así que la posición
+        dice cuánto se reescaló sin depender del precio de la fecha ex.
+        """
+
+        entry = ctx.conn.execute(
+            "SELECT quantity FROM fills WHERE position_id = ? AND side = 'BUY'", (position["id"],)
+        ).fetchone()
+        frame = ctx.series[position["symbol"]].frame
+        since = frame.loc[(frame.index > date.fromisoformat(position["entry_date"])) & (frame.index <= ctx.session)]
+        expected = float(since["Stock Splits"].map(split_ratio).prod())
+        return math.isclose(float(position["quantity"]) / float(entry["quantity"]), expected, rel_tol=1e-9)
 
     def _fill_sell(self, ctx: _Session, symbol: str) -> None:
         for order in self._pending(ctx.conn, symbol, "SELL", ctx.session):
@@ -304,6 +394,8 @@ class PaperEngine:
             self._resolve(ctx, order["id"], "FILLED", "ejecutada en la apertura")
 
     def _fill_buy(self, ctx: _Session, symbol: str) -> None:
+        if not ctx.entries:
+            return
         cfg = self.config
         for order in self._pending(ctx.conn, symbol, "BUY", ctx.session):
             signal_date = date.fromisoformat(order["signal_date"])
@@ -346,6 +438,7 @@ class PaperEngine:
                  ctx.session.isoformat(), float(row["Open"]), fx_rate),
             )
             position_id = int(cursor.lastrowid or 0)
+            ctx.born.add(position_id)
             ctx.conn.execute(
                 "INSERT INTO fills (position_id, order_id, symbol, side, kind, bar_date, currency, price_native, "
                 "fx_rate, quantity, notional_eur, commission_eur, cash_delta_eur) "
@@ -448,6 +541,8 @@ class PaperEngine:
         return row is not None
 
     def _place_buys(self, ctx: _Session, candidates: List[_BuyCandidate]) -> None:
+        if not ctx.entries:
+            return
         """Como iTrade: las compras de mayor momentum primero, y solo las que caben.
 
         Huecos = máximo de posiciones − abiertas − compras ya pendientes; y como
@@ -557,6 +652,8 @@ class _Session:
     result: ProcessResult
     stale: Set[str] = field(default_factory=set)
     rebased: Set[int] = field(default_factory=set)
+    born: Set[int] = field(default_factory=set)
+    entries: bool = True
 
     def row(self, symbol: str) -> pd.Series:
         row: pd.Series = self.series[symbol].frame.loc[self.session]
@@ -564,6 +661,9 @@ class _Session:
 
     def fx_rate(self, symbol: str) -> Optional[float]:
         return self.fx.rate(self.series[symbol].currency, self.session)
+
+    def at_download_end(self, symbol: str) -> bool:
+        return self.session >= self.series[symbol].frame.index[-SPLIT_WINDOW_BARS:][0]
 
     def emit(self, line: str, telegram_block: Optional[str] = None) -> None:
         """Anota el evento en el log de la ejecución; las operaciones recientes van además a Telegram."""

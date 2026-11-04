@@ -283,17 +283,29 @@ breve de cartera. Señales, órdenes pendientes, rechazos, splits e indicadores
 se quedan en `superbot.db` y en el dashboard.
 
 Una ejecución queda `OK` y sale con 0 solo si la cartera se atendió con datos
-válidos. Sale con 1 y queda `ERROR` si ningún símbolo tiene barras vigentes (la
-cartera no se toca), si una posición abierta se queda sin barras vigentes o si
-falta el tipo de cambio de una divisa en uso (lo demás sí se procesa). Una barra
-es vigente hasta 10 días naturales. Un símbolo sin datos y sin posición no cambia
-el estado: solo aparece en el detalle. Sin barras nuevas sigue siendo `OK`.
+válidos. Una barra es vigente hasta 10 días naturales, y sin barras nuevas sigue
+siendo `OK`. Sale con 1 y queda `ERROR` en dos niveles:
+
+- **Parada:** ningún símbolo tiene barras vigentes, o falla el proceso. La cartera
+  no se toca.
+- **Sin entradas:** menos del 90 % del universo tiene barras vigentes, una posición
+  abierta se queda sin ellas, falta un tipo de cambio o hay un split sin decidir.
+  Solo se protege lo abierto, con los símbolos que tengan datos: ventas pendientes,
+  stops y trailing. No nace ninguna compra, y los símbolos sin posición no avanzan,
+  así que la siguiente ejecución sana retoma sus sesiones.
+
+Hasta el 10 % de símbolos sin datos y sin posición no cambia el estado: aparecen en
+el detalle y un símbolo con barras caducadas no se procesa.
 
 El proveedor sirve cada descarga con todo el histórico ajustado por los splits
 ya conocidos, y por dividendos. Una posición de una ejecución anterior se pasa a
 la base de la descarga antes de procesar ninguna sesión; una abierta con una
-descarga que ya incluye el split no se toca. Una réplica retrospectiva calcula
-las unidades con precios ajustados, no con los que había entonces.
+descarga que ya incluye el split no se toca. Si el precio de la fecha ex no
+permite distinguir un split de una caída real, el símbolo queda sin procesar y la
+ejecución es `ERROR` hasta que una descarga posterior lo aclare. Una réplica
+retrospectiva calcula las unidades con precios ajustados, no con los que había
+entonces. El ajuste por dividendos no se traslada a las posiciones: el paper no
+abona dividendos.
 
 ## Qué se reutiliza de trading-bot
 

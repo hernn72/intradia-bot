@@ -7,7 +7,12 @@ correcta: nadie vigila esos stops.
 
 from __future__ import annotations
 
+import signal
 import sqlite3
+import subprocess
+import sys
+import textwrap
+import time
 import zlib
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -19,8 +24,8 @@ import pytest
 
 from advisor.universe.loader import load_universe
 from superbot.cli import main
-from superbot.config import SuperbotConfig
-from superbot.data import MAX_BAR_AGE_DAYS, fresh_symbols, load_series
+from superbot.config import MIN_COVERAGE, SuperbotConfig
+from superbot.data import MAX_BAR_AGE_DAYS, fresh_symbols, load_series, select_assets
 from superbot.engine import BarSeries
 
 UNIVERSE = Path(__file__).resolve().parent.parent / "universe.yaml"
@@ -287,3 +292,166 @@ def test_load_series_conserva_el_split_de_la_barra_recortada() -> None:
     bars = load_series([asset], One(), SuperbotConfig(), now).series["AAPL"]
     assert bars.frame.index[-1] < date(2026, 6, 10)
     assert bars.unclosed_split == 4.0
+
+
+# --- Datos insuficientes: ninguna entrada nueva ------------------------------
+
+
+def expected_symbols(db: Path) -> list[str]:
+    from superbot.store import SuperbotStore
+
+    config = SuperbotStore(db).config()
+    return [a.symbol for a in select_assets(load_universe(str(UNIVERSE)), config)]
+
+
+def entries(db: Path) -> tuple:
+    conn = sqlite3.connect(db)
+    return tuple(conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in (
+        "signals WHERE action = 'BUY'", "orders WHERE side = 'BUY'", "fills WHERE side = 'BUY'", "positions"))
+
+
+def fail_share(symbols: list[str], db: Path, missing: int) -> Set[str]:
+    keep = {row[0] for row in sqlite3.connect(db).execute("SELECT symbol FROM positions WHERE status = 'OPEN'")}
+    return set(sorted(s for s in symbols if s not in keep)[:missing])
+
+
+def test_cobertura_por_debajo_del_minimo_es_error_y_no_abre_nada(tmp_path: Path, provider: type[Provider]) -> None:
+    db = portfolio(tmp_path)
+    symbols = expected_symbols(db)
+    allowed = int(len(symbols) * (1 - MIN_COVERAGE))
+    provider.fail = fail_share(symbols, db, allowed + 1)
+    provider.age_days = 1
+    before = entries(db)
+    assert run(db) == 1
+    row = last_run(db)
+    assert row["status"] == "ERROR"
+    assert "cobertura" in row["detail"]
+    assert entries(db) == before
+
+
+def test_cobertura_justo_en_el_minimo_sigue_siendo_correcta(tmp_path: Path, provider: type[Provider]) -> None:
+    db = portfolio(tmp_path)
+    symbols = expected_symbols(db)
+    provider.fail = fail_share(symbols, db, int(len(symbols) * (1 - MIN_COVERAGE)))
+    assert run(db) == 0
+    assert last_run(db)["status"] == "OK"
+
+
+def test_barras_caducadas_no_cuentan_para_la_cobertura(tmp_path: Path, provider: type[Provider]) -> None:
+    db = portfolio(tmp_path)
+    symbols = expected_symbols(db)
+    stale = fail_share(symbols, db, int(len(symbols) * (1 - MIN_COVERAGE)) + 1)
+    provider.age_of = dict.fromkeys(stale, MAX_BAR_AGE_DAYS + 1)
+    assert run(db) == 1
+    assert "cobertura" in last_run(db)["detail"]
+
+
+def entries_allowed(monkeypatch: pytest.MonkeyPatch) -> list:
+    """Lo que el CLI pide al motor: la cartera de estos tests está llena y no podría comprar."""
+
+    from superbot.engine import PaperEngine
+
+    seen: list = []
+    original = PaperEngine.process
+
+    def spy(self, series, fx, run_id, today, allow_entries=True):  # type: ignore[no-untyped-def]
+        seen.append(allow_entries)
+        return original(self, series, fx, run_id, today, allow_entries)
+
+    monkeypatch.setattr(PaperEngine, "process", spy)
+    return seen
+
+
+def test_ejecucion_sana_permite_entradas(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    db = portfolio(tmp_path)
+    seen = entries_allowed(monkeypatch)
+    assert run(db) == 0
+    assert seen == [True]
+
+
+def test_posicion_sin_barras_bloquea_todas_las_entradas(
+    tmp_path: Path, provider: type[Provider], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db = portfolio(tmp_path)
+    seen = entries_allowed(monkeypatch)
+    provider.fail = {held(db)}
+    assert run(db) == 1
+    assert last_run(db)["status"] == "ERROR"
+    assert seen == [False]
+
+
+def test_sin_tipo_de_cambio_no_abre_nada_tampoco_en_euros(
+    tmp_path: Path, provider: type[Provider], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db = portfolio(tmp_path)
+    seen = entries_allowed(monkeypatch)
+    provider.fail = {"EURUSD=X"}
+    assert run(db) == 1
+    assert "tipo de cambio" in last_run(db)["detail"]
+    assert seen == [False]
+
+
+def test_cobertura_baja_bloquea_las_entradas(
+    tmp_path: Path, provider: type[Provider], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db = portfolio(tmp_path)
+    seen = entries_allowed(monkeypatch)
+    symbols = expected_symbols(db)
+    provider.fail = fail_share(symbols, db, int(len(symbols) * (1 - MIN_COVERAGE)) + 1)
+    assert run(db) == 1
+    assert seen == [False]
+
+
+def test_ejecucion_degradada_sigue_vigilando_las_posiciones_con_datos(tmp_path: Path, provider: type[Provider]) -> None:
+    db = portfolio(tmp_path)
+    position = held(db)
+    symbols = expected_symbols(db)
+    provider.fail = fail_share(symbols, db, len(symbols) // 2)
+    provider.age_days = 1
+    mark = sqlite3.connect(db).execute("SELECT last_bar_date FROM symbol_state WHERE symbol = ?", (position,)).fetchone()
+    assert run(db) == 1
+    after = sqlite3.connect(db).execute("SELECT last_bar_date FROM symbol_state WHERE symbol = ?", (position,)).fetchone()
+    assert after > mark
+
+
+def test_simbolo_caducado_sin_posicion_no_llega_al_motor(tmp_path: Path, provider: type[Provider]) -> None:
+    # Basta un símbolo vigente para arrancar: el caducado no puede abrir con barras viejas.
+    db = tmp_path / "superbot.db"
+    init(db, "europa", "usa", days=90)
+    symbols = expected_symbols(db)
+    stale = symbols[0]
+    provider.age_of = {stale: MAX_BAR_AGE_DAYS + 1}
+    assert run(db) == 0
+    conn = sqlite3.connect(db)
+    assert conn.execute("SELECT COUNT(*) FROM signals WHERE symbol = ?", (stale,)).fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM symbol_state WHERE symbol = ?", (stale,)).fetchone()[0] == 0
+
+
+def test_sigterm_durante_la_descarga_cierra_la_ejecucion_como_error(tmp_path: Path) -> None:
+    # TimeoutStartSec de systemd: sin esto la fila se quedaba en RUNNING para siempre.
+    db = tmp_path / "superbot.db"
+    init(db, "europa")
+    script = textwrap.dedent(f"""
+        import time
+        import advisor.data.market_data as market_data
+        from superbot.cli import main
+
+        class Hung:
+            def __init__(self, min_interval_seconds=0.0): pass
+            def get_history(self, symbol, period="1y", interval="1d"):
+                print("descargando", flush=True)
+                time.sleep(60)
+
+        market_data.MarketDataProvider = Hung
+        raise SystemExit(main(["--db", {str(db)!r}, "run", "--universe", {str(UNIVERSE)!r}]))
+    """)
+    process = subprocess.Popen([sys.executable, "-c", script], stdout=subprocess.PIPE, text=True,
+                               cwd=UNIVERSE.parent)
+    assert process.stdout is not None
+    process.stdout.readline()
+    process.send_signal(signal.SIGTERM)
+    deadline = time.monotonic() + 20
+    while process.poll() is None and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert process.poll() == 128 + signal.SIGTERM
+    assert last_run(db)["status"] == "ERROR"

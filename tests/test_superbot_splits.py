@@ -21,7 +21,7 @@ import pandas as pd
 import pytest
 
 from superbot.config import SizingParams, SuperbotConfig
-from superbot.engine import BarSeries, PaperEngine
+from superbot.engine import SPLIT_WINDOW_BARS, BarSeries, PaperEngine
 from superbot.store import SuperbotStore
 
 START = date(2026, 3, 2)
@@ -209,6 +209,7 @@ def test_repetir_la_ejecucion_no_aplica_dos_veces(store: SuperbotStore) -> None:
 
 def test_descarga_sin_ajustar_sigue_reescalando(store: SuperbotStore) -> None:
     # Un proveedor que publica la barra ex sin ajustar el pasado: la serie salta.
+    run(store, frame(PRE))
     run(store, frame([*PRE, bar(51, 52, 50.5, 51.5, split=2.0)]))
     bought = store.connect().execute("SELECT quantity FROM fills").fetchone()[0]
     assert position(store)["quantity"] == pytest.approx(bought * 2)
@@ -327,3 +328,124 @@ def test_camino_diario_tarde_y_noche_de_la_fecha_ex(
     held = position(store)
     assert held["quantity"] == pytest.approx(before["quantity"] * factor)
     assert held["status"] == status
+
+
+# --- Ajuste ambiguo ----------------------------------------------------------
+#
+# Sin un salto de base que comparar, el precio de la fecha ex no siempre distingue
+# una serie discontinua de una caída real. El libro dice lo que ya se aplicó, y lo
+# que siga sin decidirse espera: mejor una sesión sin procesar que un ajuste falso.
+
+
+def bought(store: SuperbotStore) -> float:
+    return float(store.connect().execute("SELECT quantity FROM fills WHERE side = 'BUY'").fetchone()[0])
+
+
+def watermark(store: SuperbotStore) -> date:
+    return store.last_bar_dates()["SAP.DE"]
+
+
+EVE = bar(103, 104, 102, 103)
+
+
+@pytest.mark.parametrize("factor,drop", [(2.0, 0.35), (2.0, 0.60), (4.0, 0.60), (10.0, 0.75)])
+def test_ejecucion_perdida_y_caida_real_en_la_fecha_ex_ajusta_una_sola_vez(
+    store: SuperbotStore, factor: float, drop: float
+) -> None:
+    # 18:15 de la fecha ex sin haber corrido la víspera: la descarga ya viene
+    # ajustada, hay una sesión pendiente y se reescala con el split de la barra abierta.
+    run(store, frame(PRE))
+    afternoon = frame(rebased([*PRE, EVE], factor))
+    afternoon["SAP.DE"].unclosed_split = factor
+    run(store, afternoon)
+    assert position(store)["quantity"] == pytest.approx(bought(store) * factor)
+    # 22:45: la barra ex trae una caída real mayor que 1 − 1/√factor.
+    opening = 103 / factor * (1 - drop)
+    run(store, frame([*rebased([*PRE, EVE], factor),
+                      bar(opening, opening * 1.01, opening * 0.99, opening, split=factor)]))
+    assert position(store)["quantity"] == pytest.approx(bought(store) * factor)
+
+
+def test_dos_splits_el_libro_solo_descarta_el_ya_aplicado(store: SuperbotStore) -> None:
+    run(store, frame(PRE))
+    afternoon = frame(rebased([*PRE, EVE], 2))
+    afternoon["SAP.DE"].unclosed_split = 2.0
+    run(store, afternoon)
+    ex = bar(51.5, 52, 51, 51.5, split=2.0)
+    run(store, frame([*rebased([*PRE, EVE], 2), ex]))
+    assert position(store)["quantity"] == pytest.approx(bought(store) * 2)
+    # Un segundo split con la serie saltando otra vez sí se aplica.
+    run(store, frame([*rebased([*PRE, EVE], 2), ex, bar(17.2, 17.5, 17, 17.2, split=3.0)]))
+    assert position(store)["quantity"] == pytest.approx(bought(store) * 6)
+
+
+def test_salto_ambiguo_retiene_el_simbolo_sin_tocar_la_posicion(store: SuperbotStore) -> None:
+    run(store, frame(PRE))
+    before = position(store)
+    mark = watermark(store)
+    result = run(store, frame([*PRE, bar(70, 71, 69, 70, split=2.0)]))    # ¿−32 % real o 2:1 con +36 %?
+    assert result.held == ["SAP.DE"]
+    assert position(store) == before
+    assert watermark(store) == mark
+    assert len(store.fills()) == 1
+
+
+def test_el_salto_ambiguo_se_resuelve_cuando_la_descarga_ajusta_el_pasado(store: SuperbotStore) -> None:
+    run(store, frame(PRE))
+    run(store, frame([*PRE, bar(70, 71, 69, 70, split=2.0)]))
+    result = run(store, frame([*rebased(PRE, 2), bar(70, 71, 69, 70, split=2.0)]))
+    assert result.held == []
+    assert position(store)["quantity"] == pytest.approx(bought(store) * 2)
+
+
+def test_el_salto_ambiguo_caduca_y_la_caida_real_salta_por_el_stop(store: SuperbotStore) -> None:
+    drop = bar(33, 34, 32, 33, split=2.0)                          # −36 % real con la serie continua
+    assert run(store, frame([*rebased(PRE, 2), drop])).held == ["SAP.DE"]
+    later = [bar(33, 34, 32, 33)] * SPLIT_WINDOW_BARS
+    assert run(store, frame([*rebased(PRE, 2), drop, *later])).held == []
+    closed = position(store)
+    assert closed["status"] == "CLOSED"
+    assert closed["quantity"] == bought(store)
+    assert store.fills()[-1]["kind"] == "GAP_STOP"
+
+
+def test_retener_un_simbolo_deshace_lo_procesado_y_bloquea_entradas(store: SuperbotStore) -> None:
+    # MSFT abriría hoy; el salto ambiguo de SAP.DE aparece después en la misma sesión.
+    run(store, frame(PRE))
+    data = frame([*PRE, bar(70, 71, 69, 70, split=2.0)])
+    index = data["SAP.DE"].frame.index
+    other = pd.DataFrame([bar(99, 101, 98, 100, BUY) for _ in index], index=index)
+    data["ALV.DE"] = BarSeries(symbol="ALV.DE", name="Allianz", currency="EUR", frame=other, market="XETRA")
+    result = run(store, data)
+    assert result.held == ["SAP.DE"]
+    conn = store.connect()
+    assert conn.execute("SELECT COUNT(*) FROM orders WHERE symbol = 'ALV.DE'").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM signals WHERE symbol = 'ALV.DE'").fetchone()[0] == 0
+    assert "ALV.DE" not in store.last_bar_dates()
+
+
+def test_split_antiguo_de_la_descarga_no_se_toma_por_un_salto_de_serie(store: SuperbotStore) -> None:
+    # Réplica: 2:1 con una caída real del 45 %, sesiones después. Solo el final de
+    # una descarga puede estar sin ajustar, así que esto es una caída de verdad.
+    old = bar(28, 29, 27, 28, split=2.0)
+    later = [bar(28, 29, 27, 28)] * SPLIT_WINDOW_BARS
+    run(store, frame([*rebased(PRE, 2), old, *later]))
+    closed = position(store)
+    assert closed["quantity"] == bought(store)
+    assert closed["status"] == "CLOSED"
+
+
+@pytest.mark.parametrize("drop", [0.31, 0.45])
+def test_caida_real_en_una_posicion_nacida_en_esta_descarga_no_se_toma_por_un_split(
+    store: SuperbotStore, drop: float
+) -> None:
+    # Réplica reciente: la posición nace y llega a la fecha ex en la misma ejecución.
+    opening = 51.5 * (1 - drop)
+    ex = bar(opening, opening * 1.01, opening * 0.99, opening, split=2.0)
+    assert run(store, frame([*rebased(PRE, 2), ex])).held == ["SAP.DE"]
+    assert store.open_positions() == []
+    later = [bar(opening, opening * 1.01, opening * 0.99, opening)] * SPLIT_WINDOW_BARS
+    run(store, frame([*rebased(PRE, 2), ex, *later]))
+    closed = position(store)
+    assert closed["quantity"] == bought(store)
+    assert closed["status"] == "CLOSED"
