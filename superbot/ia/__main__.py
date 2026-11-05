@@ -53,7 +53,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if cliente is None:
             print(f"Falta {CLAVE_ENV}", file=sys.stderr)
             return 2
-        informe = ejecutar_corpus(cliente, politica)
+        informe = ejecutar_corpus(cliente, politica, registro)
         print(json.dumps(informe, ensure_ascii=False, indent=1))
         return 0 if informe["aprobados"] == informe["casos"] else 1
 

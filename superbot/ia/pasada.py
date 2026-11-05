@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -216,14 +217,19 @@ class Motor:
         except PresupuestoAgotado as exc:
             self._guardar(asesor, paquete, SIN_PRESUPUESTO, error=str(exc))
             return None
+        inicio = time.monotonic()
         try:
             respuesta = self.cliente.llamar(system, paquete.mensaje, esquema)
         except Exception as exc:
             # Una llamada fallida pudo facturarse: se da por gastado lo reservado.
             self.registro.conciliar(mes, reserva, reserva)
-            self._guardar(asesor, paquete, ERROR_LLAMADA, error=type(exc).__name__, coste_eur=reserva)
+            self._guardar(
+                asesor, paquete, ERROR_LLAMADA, error=type(exc).__name__, coste_eur=reserva,
+                segundos=round(time.monotonic() - inicio, 2),
+            )
             return None
 
+        segundos = round(time.monotonic() - inicio, 2)
         coste = self.politica.coste_eur(respuesta.tokens_entrada, respuesta.tokens_salida)
         self.registro.conciliar(mes, reserva, coste)
         estado, dictamen = validar_dictamen(respuesta.texto, paquete, respuesta.stop_reason)
@@ -231,7 +237,7 @@ class Motor:
             asesor, paquete, estado, model=respuesta.modelo, model_version=respuesta.modelo,
             respuesta_cruda=respuesta.texto, salida_validada=canonico(dictamen) if dictamen is not None else None,
             stop_reason=respuesta.stop_reason, request_id=respuesta.request_id, tokens_entrada=respuesta.tokens_entrada,
-            tokens_salida=respuesta.tokens_salida, coste_eur=coste,
+            tokens_salida=respuesta.tokens_salida, coste_eur=coste, segundos=segundos,
         )
         return dictamen
 

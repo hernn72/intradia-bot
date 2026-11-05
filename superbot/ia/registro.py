@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS ia_llamada (
     tokens_entrada INTEGER,
     tokens_salida INTEGER,
     coste_eur REAL NOT NULL DEFAULT 0,
+    segundos REAL,
     desde_cache INTEGER NOT NULL DEFAULT 0,
     error TEXT,
     created_at TEXT NOT NULL

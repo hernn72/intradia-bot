@@ -6,12 +6,14 @@ paquetes sintéticos: no contienen datos de mercado ni desenlaces.
 
 from __future__ import annotations
 
+import time
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional
 
 from superbot.ia.asesores import OK, OPORTUNIDAD, RIESGO, ClienteIA, cargar_prompt, esquema_de, validar_dictamen
-from superbot.ia.paquete import COMPRA, POSICION, Observacion, Paquete
+from superbot.ia.paquete import COMPRA, POSICION, Observacion, Paquete, canonico
 from superbot.ia.politica import CAUSA_INVALIDACION, CAUSA_SCORE, CAUSA_SMA, PoliticaIA
+from superbot.ia.registro import RegistroIA
 
 _T = datetime(2026, 1, 15, 22, 0, tzinfo=timezone.utc)
 _O = Observacion("barras", "SINT", "2026-01-15", _T, _T, "corpus")
@@ -103,22 +105,38 @@ def paquete_de(datos: Mapping[str, Any]) -> Paquete:
     )
 
 
-def ejecutar_corpus(cliente: ClienteIA, politica: PoliticaIA) -> Dict[str, Any]:
-    fallos: List[Dict[str, str]] = []
-    coste = 0.0
-    llamadas = 0
+def ejecutar_corpus(cliente: ClienteIA, politica: PoliticaIA, registro: Optional[RegistroIA] = None) -> Dict[str, Any]:
+    """Pasa los 20 casos. El gasto cuenta contra el presupuesto del mes y cada llamada queda medida."""
+
+    llamadas: List[Dict[str, Any]] = []
+    mes = datetime.now(timezone.utc).strftime("%Y-%m")
     for nombre, datos in CASOS.items():
         paquete = paquete_de(datos)
         asesores = (OPORTUNIDAD, RIESGO) if paquete.tipo == COMPRA else (RIESGO,)
         for asesor in asesores:
-            respuesta = cliente.llamar(cargar_prompt(asesor), paquete.mensaje, esquema_de(paquete))
-            llamadas += 1
-            coste += politica.coste_eur(respuesta.tokens_entrada, respuesta.tokens_salida)
-            estado, _dictamen = validar_dictamen(respuesta.texto, paquete, respuesta.stop_reason)
-            if estado != OK:
-                fallos.append({"caso": nombre, "asesor": asesor, "estado": estado})
+            system, esquema = cargar_prompt(asesor), esquema_de(paquete)
+            reserva = politica.coste_maximo_eur(
+                len((system + paquete.mensaje + canonico(esquema)).encode("utf-8")) + politica.margen_tokens_entrada
+            )
+            if registro is not None:
+                registro.reservar(mes, reserva)
+            inicio = time.monotonic()
+            respuesta = cliente.llamar(system, paquete.mensaje, esquema)
+            segundos = round(time.monotonic() - inicio, 2)
+            coste = politica.coste_eur(respuesta.tokens_entrada, respuesta.tokens_salida)
+            if registro is not None:
+                registro.conciliar(mes, reserva, coste)
+            estado, dictamen = validar_dictamen(respuesta.texto, paquete, respuesta.stop_reason)
+            llamadas.append({
+                "caso": nombre, "asesor": asesor, "estado": estado,
+                "decision": dictamen["decision"] if dictamen else None, "causa": dictamen.get("causa") if dictamen else None,
+                "modelo": respuesta.modelo, "stop_reason": respuesta.stop_reason, "segundos": segundos,
+                "tokens_entrada": respuesta.tokens_entrada, "tokens_salida": respuesta.tokens_salida,
+                "coste_eur": round(coste, 5), "respuesta": None if estado == OK else respuesta.texto[:600],
+            })
+    fallos = [llamada for llamada in llamadas if llamada["estado"] != OK]
     casos_fallidos = {fallo["caso"] for fallo in fallos}
     return {
-        "casos": len(CASOS), "aprobados": len(CASOS) - len(casos_fallidos), "llamadas": llamadas,
-        "coste_eur": round(coste, 4), "fallos": fallos,
+        "casos": len(CASOS), "aprobados": len(CASOS) - len(casos_fallidos), "llamadas": len(llamadas),
+        "coste_eur": round(sum(llamada["coste_eur"] for llamada in llamadas), 4), "fallos": fallos, "detalle": llamadas,
     }
