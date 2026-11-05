@@ -346,6 +346,9 @@ pre-registro propios, que no cambia la etiqueta de P6.
   desenlaces queda consumida.
 - Toda observación cuyo desenlace se consulte durante T-025 queda consumida y no puede ser holdout
   virgen de P7. Su registro de consumo está en `paper.db` (`paper_outcome_access`, T-025 §10.6).
+- **Exclusión por Superbot (D-81):** una ventana de P7 debe tener intersección vacía con
+  `paper_outcome_access` y con `evidence/superbot-ia/consumo-sesiones.md`. Mientras `superbot_ia_v1` sea
+  visible no se genera ninguna ventana virgen. No rebaja ningún requisito de GATE P7.
 
 Requisitos:
 

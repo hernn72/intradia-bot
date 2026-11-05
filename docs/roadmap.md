@@ -20,6 +20,24 @@ detalle operativo de cada tarea: eso vive en `docs/tareas/` y el método en
 
 ---
 
+## Estado verificado — 2026-11-05 (tarde): Superbot con IA (D-81)
+
+Sustituye al orden de trabajo de todas las secciones siguientes, que se conservan como historia.
+
+| Qué | Estado |
+|---|---|
+| `itrade_trend_v1` | **Retirada.** `superbot-paper.timer` parado y deshabilitado el 2026-11-05; archivo verificado, tag `archivo/superbot-itrade-v1`. No se reactiva |
+| Observación de 20 sesiones | Cancelada |
+| Objetivo | Un único Superbot con IA, política `superbot_ia_v1`, solo paper (`docs/superbot-ia/ENTREGA-A-ARQUITECTURA.md`) |
+| Entrega A | Aprobada: arquitectura y D-81 |
+| Entregas B, C y D | Autorizadas, en orden, en un solo frente. Ninguna otra funcionalidad |
+| T-024 y T-025 | Operativos, sin cambios. Desenlaces de T-025 sellados. #51 abierta |
+| Asesor | Operativo, sin cambios |
+
+Desde `SIA_T0`, T-024 pierde ceguera y las sesiones visibles quedan consumidas para P7 (D-81).
+
+---
+
 ## Estado verificado — 2026-11-05: observación de Superbot
 
 Comprobado el 2026-11-05 contra el repositorio y la Pi. Esta sección manda sobre el orden de trabajo de

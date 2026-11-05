@@ -2436,6 +2436,54 @@ Ficha §8.6 (anotada). Implementación y tests en el PR #50:
 **Lo que no cambia:** B2, S2 y C0; las reglas económicas; el consumo y el sellado; P7 BLOQUEADO; T-024 y
 `T024_CODE_SHA`; la Pi. No hay cohorte real ni despliegue.
 
+### D-81 — 2026-11-05 — Superbot con IA: retirada de `itrade_trend_v1`, política visible `superbot_ia_v1` y enmiendas
+
+Decisión del propietario. Es una **decisión de producto** y acepta un coste de validez que se documenta aquí sin atenuarlo. Se toma sin haber abierto ningún desenlace sellado de T-025.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**1. Decisión.**
+- `itrade_trend_v1` deja de ser la estrategia objetivo. Su ejecución paper se detuvo el 2026-11-05. Se archiva tal como estaba: 4 posiciones abiertas, órdenes LLY y V pendientes, sin liquidar. Tag `archivo/superbot-itrade-v1`.
+- Se construye un único Superbot con la política **`superbot_ia_v1`**: el motor cuantitativo aporta oportunidades y restricciones, dos asesores IA dictaminan, un comité determinista resuelve y el motor de riesgo conserva el veto. Cartera paper y base propias. Arquitectura en `docs/superbot-ia/ENTREGA-A-ARQUITECTURA.md`.
+- **La IA es vinculante solo en paper.** Sin capital real.
+
+**2. Lo que el propietario acepta expresamente.**
+`superbot_ia_v1` usa Score v1 y el mismo universo que C0, B2 y S2, y mostrará fills, posiciones, cash, equity y P&L. Eso permite deducir parte de lo que T-025 sella. **No es otra cohorte ajena al sellado por llevar otro nombre**: es un canal lateral aceptado y declarado. Sus sesiones no se presentarán como evidencia independiente ni ciega.
+
+**3. Alcance y fechas.**
+- **`SIA_T0`:** instante UTC en que se activa el modo `activo`. Se fija al activar y se registra en `evidence/superbot-ia/consumo-sesiones.md`, añadiéndose como nota a esta decisión. El modo `registro` no crea cartera ni desenlaces y no consume sesiones, aunque sí muestra dictámenes ex ante.
+- **Sesiones afectadas:** toda `(plaza, session_date)` cuya apertura sea igual o posterior a `SIA_T0`, hasta que `superbot_ia_v1` deje de ser visible. El registro guarda ambas claves.
+- **Sin efecto retroactivo:** las sesiones anteriores a `SIA_T0` conservan su estado. La erosión parcial ya anotada del Superbot antiguo, del 2026-10-12 al 2026-11-04, no cambia.
+
+**4. Efecto sobre T-024.**
+T-024 conserva pre-registro, código (`T024_CODE_SHA 1a697c3…`), métricas, criterios, calendario y ejecución. Desde `SIA_T0` su ceguera se debilita más allá de la visibilidad ex ante de D-76: el propietario verá desenlaces de una política relacionada. Un resultado de T-024 que incluya esas sesiones se declarará **no ciego desde `SIA_T0`**. Todo informe de T-024 y **cualquier versión de PAPER-001 publicada tras esta decisión** la citan, con la fecha de `SIA_T0` si ya existe.
+
+**5. Efecto sobre P7.**
+- Las sesiones afectadas quedan **`CONSUMIDA`** por acceso indirecto (D-78), también para una candidata ya congelada.
+- **Limitación posterior:** mientras `superbot_ia_v1` sea visible no se genera ninguna ventana virgen. P7 solo podría abrirse con una ventana futura en la que Superbot esté sellado, o retirado, antes de su primera sesión.
+- GATE P7 y sus requisitos no se rebajan. `docs/gates.md` añade una exclusión: una ventana de P7 debe tener intersección vacía con `paper_outcome_access` y con `consumo-sesiones.md`. P10 no cambia.
+
+**6. Lo que sigue sellado.**
+No se autoriza abrir desenlaces de T-025. B2, S2 y C0 siguen sellados en `paper.db`, para el propietario, el dashboard, la CLI, Telegram, Claude, Codex y cualquier agente, hasta el desellado conjunto de §10.1. Superbot no lee `paper.db`.
+
+**7. Enmiendas.**
+
+| Decisión | Enmienda |
+|---|---|
+| **D-38** | Para `superbot_ia_v1`, punto 3: el LLM se pide para los 5 primeros elegibles (Score ≥ 60) por plaza y pasada, y para las posiciones abiertas con algún predicado de venta positivo en su última sesión cerrada; nunca para el universo. Punto 2: caché de 24 h por `input_hash` del paquete canónico. Punto 1: Superbot usa clave de API propia y un tope de 5 €/mes con reserva previa del coste máximo de cada llamada. El tope global de 10 €/mes sigue vigente, pero no se aplica automáticamente al asesor y a iTrade, porque no se tocan: se revisa cada mes en la consola de la API |
+| **D-73** | §10: excepción para `superbot_ia_v1`, donde los dictámenes deciden en paper. §12: T-025 deja de ser la capa paper del Superbot y sigue como investigación. El resto no cambia |
+| **D-75** | OD-T25-4 y OD-T25-9 siguen vigentes para T-025. Se añade que los desenlaces de `superbot_ia_v1` son un canal lateral aceptado, fuera de `paper_outcome_access`, y que su consumo se registra en `evidence/superbot-ia/consumo-sesiones.md`, por sesión |
+| **D-76** | La naturaleza de la ceguera pasa a ser: visibilidad parcial ex ante hasta `SIA_T0`, y exposición a desenlaces de una política relacionada desde `SIA_T0` |
+| **D-78** | Las sesiones afectadas son `CONSUMIDA`. No pueden ser `VIRGEN_REUTILIZABLE` |
+| **D-79** | Sin cambio de requisitos. Una candidata no puede usar como holdout ninguna sesión afectada, aunque estuviera congelada antes |
+| **Línea B y principios del roadmap** | Excepción limitada a `superbot_ia_v1` en paper: los asesores clasifican COMPRAR, DESCARTAR, MANTENER y VENDER antes de GATE CONTEXT, usando solo datos internos verificados. Siguen sin calcular indicadores, score, stop, tamaño ni riesgo. B-00 a B-10 no cambian, y noticias y fundamentales siguen bloqueados |
+| **R-01 y GATE RISK** | No se cierran. Los límites de Superbot son un subconjunto paper |
+| **Roadmap, estado del 2026-11-05** | Queda sustituido: se cancela la observación de 20 sesiones y el congelado de desarrollo. Se autorizan exactamente las Entregas B, C y D, y el registro de decisiones solo para `superbot_ia_v1`. Ninguna otra funcionalidad |
+| **`docs/gates.md`** | Exclusión de P7 indicada en el punto 5 |
+
+**8. Lo que no cambia.** Código, metodología y ficha de T-024 y T-025 (`T025_PREREG_SHA` incluido). Requisitos de GATE P7, P10 y F-01. El asesor en producción y `advisor/`. Etiqueta obligatoria: **«SUPERBOT IA — PAPER, NO VALIDADA PARA CAPITAL REAL»**. El motor cuantitativo no tiene ventaja demostrada (D-70).
+
+**9. Revisión.** Codex revisó la Entrega A y este texto en tres rondas y una confirmación final, y terminó con dictamen APROBADA, sin críticos ni importantes abiertos.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
