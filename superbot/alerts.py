@@ -35,16 +35,19 @@ TITLES = {
     "COBERTURA": "Cobertura insuficiente",
     "SIN_FX": "Falta un tipo de cambio",
     "SPLIT_RETENIDO": "Split sin decidir",
+    "REGISTRO_INCOMPLETO": "Registro de decisiones incompleto",
 }
-# Protegen la cartera: no esperan a ver si la ejecución siguiente lo arregla.
-IMMEDIATE = {"PARADA", "SIN_VIGILAR"}
+# Protegen la cartera o no se recuperan: no esperan a ver si la siguiente lo arregla.
+IMMEDIATE = {"PARADA", "SIN_VIGILAR", "REGISTRO_INCOMPLETO"}
+# No bloquean entradas: la cartera sigue su curso normal.
+WITHOUT_BLOCK = {"PARADA", "REGISTRO_INCOMPLETO"}
 
 
 def _text(kind: str, cause: str, detail: str) -> str:
     if kind == "RECUPERADO":
         return f"✅ {HEADER}\nRecuperado: {TITLES[cause]}"
     prefix = "Sigue: " if kind == "SIGUE" else ""
-    tail = "" if cause == "PARADA" else "\nEntradas bloqueadas; lo abierto sigue protegido si hay datos."
+    tail = "" if cause in WITHOUT_BLOCK else "\nEntradas bloqueadas; lo abierto sigue protegido si hay datos."
     return f"⚠️ {HEADER}\n{prefix}{TITLES[cause]}\n- {detail}{tail}"
 
 

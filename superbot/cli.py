@@ -5,6 +5,7 @@ Comandos:
 - ``run``: descarga barras cerradas, ejecuta el ciclo completo y encola el aviso
   de operaciones (solo si el paper compró, vendió o tocó un objetivo).
 - ``status``: resumen de cartera en texto.
+- ``decisiones``: resumen del registro de señales de compra.
 - ``dashboard``: sirve el dashboard por HTTP o lo escribe a un fichero HTML.
 - ``telegram``: envía los avisos pendientes o un mensaje de prueba.
 """
@@ -103,6 +104,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     from advisor.data.market_data import MarketDataProvider
     from advisor.universe.loader import load_universe
     from superbot.data import FxHistory, fresh_symbols, load_series, select_assets
+    from superbot.decisions import recorder_from_env
     from superbot.engine import PaperEngine
 
     db_path = _db_path(args)
@@ -140,11 +142,13 @@ def cmd_run(args: argparse.Namespace) -> int:
             # Un símbolo caducado solo se procesa si hay una posición que vigilar: con
             # barras viejas no se abre nada y sus sesiones esperan a que vuelva.
             usable = {s: bars for s, bars in loaded.series.items() if s in fresh | held}
-            result = PaperEngine(store).process(usable, fx, run_id, now.date(), allow_entries=not problems)
+            engine = PaperEngine(store, recorder_from_env())
+            result = engine.process(usable, fx, run_id, now.date(), allow_entries=not problems)
             if result.held:
                 problems["SPLIT_RETENIDO"] = f"split sin decidir, símbolo retenido: {', '.join(result.held)}"
             store.finish_run(run_id, "ERROR" if problems else "OK", len(loaded.series), len(loaded.errors),
-                             result.bars, "; ".join(filter(None, [*problems.values(), detail]))[:4000])
+                             result.bars,
+                             "; ".join(filter(None, [*problems.values(), result.trace_lost, detail]))[:4000])
         except BaseException as exc:
             # También Ctrl+C o el SIGTERM de systemd: la cartera ya hizo rollback,
             # pero la ejecución no debe quedar como RUNNING para siempre.
@@ -152,7 +156,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             alerts.report(store, now, {"PARADA": f"fallo del proceso: {type(exc).__name__}"})
             raise
 
-        alerts.report(store, now, problems)
+        lost = {"REGISTRO_INCOMPLETO": result.trace_lost} if result.trace_lost else {}
+        alerts.report(store, now, {**problems, **lost})
 
         print(f"Ejecución {run_id}: {len(loaded.series)} símbolos con datos, {len(loaded.errors)} sin datos, "
               f"{result.bars} barras nuevas en {len(result.dates)} sesiones")
@@ -171,6 +176,21 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def cmd_status(args: argparse.Namespace) -> int:
     print(notify.summary_text(SuperbotStore(_db_path(args))))
+    return 0
+
+
+def cmd_decisions(args: argparse.Namespace) -> int:
+    from superbot.decisions import SIZE_WARNING_MB
+
+    summary = SuperbotStore(_db_path(args)).decision_summary()
+    print(f"Decisiones registradas: {summary['rows']}")
+    for row in summary["reasons"]:
+        print(f"  {row['decision']:<10} {row['reason']:<16} {row['rows']}")
+    print(f"Ejecuciones con trazabilidad incompleta: {len(summary['incomplete'])}")
+    print(f"Ejecuciones sin cierre del registro: {len(summary['unclosed'])}")
+    print(f"Tamaño de la base: {summary['size_mb']:.1f} MB")
+    if summary["size_mb"] > SIZE_WARNING_MB:
+        print(f"Aviso: la base supera {SIZE_WARNING_MB} MB; conviene decidir qué historial conservar.")
     return 0
 
 
@@ -228,6 +248,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_status = sub.add_parser("status", help="resumen de cartera")
     p_status.set_defaults(func=cmd_status)
+
+    p_decisions = sub.add_parser("decisiones", help="resumen del registro de decisiones")
+    p_decisions.set_defaults(func=cmd_decisions)
 
     p_dash = sub.add_parser("dashboard", help="dashboard HTML")
     p_dash.add_argument("--host", default="127.0.0.1")
