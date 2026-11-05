@@ -165,6 +165,9 @@ class RegistroIA:
         )
         return int(cursor.lastrowid or 0)
 
+    def fechar_decision(self, pasada_id: int, decision_ts: datetime) -> None:
+        self.conn.execute("UPDATE ia_pasada SET decision_ts = ? WHERE id = ?", (decision_ts.isoformat(), pasada_id))
+
     def cerrar_pasada(self, pasada_id: int, status: str, detail: str = "") -> None:
         self.conn.execute(
             "UPDATE ia_pasada SET finished_at = ?, status = ?, detail = ? WHERE id = ?",

@@ -176,6 +176,11 @@ class TestValidacion:
         texto = json.dumps(compra_ok(motivos=["El ATR es de 61"]))
         assert validar_dictamen(texto, paquete_compra(), "end_turn")[0] == asesores.CIFRA_AJENA
 
+    @pytest.mark.parametrize("frase", ["El RSI83 es alto", "Precio 100", "Sube un 5%", "Nivel SMA83", "El 2.º máximo"])
+    def test_cualquier_digito_invalida_salvo_la_lista(self, frase: str) -> None:
+        texto = json.dumps(compra_ok(motivos=[frase]))
+        assert validar_dictamen(texto, paquete_compra(), "end_turn")[0] == asesores.CIFRA_AJENA
+
     def test_nombres_de_indicador_con_digitos_se_admiten(self) -> None:
         assert validar_dictamen(json.dumps(compra_ok(motivos=["Sigue sobre la SMA50"])), paquete_compra(), "end_turn")[0] == OK
 
@@ -348,12 +353,27 @@ class TestDictaminar:
 
     def test_el_coste_real_nunca_supera_la_reserva(self, tmp_path: Path) -> None:
         paquete = paquete_compra()
-        entrada = len((asesores.cargar_prompt(OPORTUNIDAD) + paquete.mensaje).encode("utf-8"))
+        entrada = len((asesores.cargar_prompt(OPORTUNIDAD) + paquete.mensaje).encode("utf-8")) + 1000
         respuesta = RespuestaModelo(json.dumps(compra_ok()), "m", "end_turn", None, entrada, POLITICA.max_tokens)
         motor = self._motor(tmp_path, ClienteFalso([respuesta]))
         self._pedir(motor, paquete)
         fila = motor.registro.conn.execute("SELECT reservado_eur, gastado_eur FROM ia_gasto").fetchone()
         assert fila[0] == pytest.approx(0) and fila[1] == pytest.approx(POLITICA.coste_maximo_eur(entrada))
+
+    def test_la_reserva_cubre_esquema_y_envoltura(self, tmp_path: Path) -> None:
+        reservas: List[float] = []
+
+        class Registro(RegistroIA):
+            def reservar(self, mes: str, importe: float) -> None:
+                reservas.append(importe)
+                super().reservar(mes, importe)
+
+        reg = Registro(tmp_path / "ia.db", POLITICA)
+        motor = pasada.Motor(reg, ClienteFalso(por_defecto=compra_ok()), POLITICA, reg.abrir_pasada(T, "registro", "s"), T, lambda: T)
+        paquete = paquete_compra()
+        self._pedir(motor, paquete)
+        minimo = len((asesores.cargar_prompt(OPORTUNIDAD) + paquete.mensaje).encode("utf-8")) + POLITICA.margen_tokens_entrada
+        assert reservas[0] > POLITICA.coste_maximo_eur(minimo)
 
     def test_el_mes_es_el_de_la_llamada(self, tmp_path: Path) -> None:
         motor = self._motor(tmp_path, ClienteFalso(por_defecto=compra_ok()))
@@ -385,6 +405,18 @@ class TestDictaminar:
         motor = self._motor(tmp_path, cliente)
         assert self._pedir(motor, paquete_compra()) is None
         assert self._pedir(motor, paquete_compra())["decision"] == "COMPRAR"
+
+
+class TestSdk:
+    def test_rechaza_un_sdk_antiguo(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import anthropic
+
+        monkeypatch.setattr(anthropic, "__version__", "0.30.0")
+        with pytest.raises(RuntimeError, match="hace falta"):
+            asesores.ClienteAnthropic("clave", POLITICA)
+
+    def test_las_dependencias_declaran_el_minimo(self) -> None:
+        assert "anthropic>=1.2.0" in Path("requirements-superbot-ia.txt").read_text(encoding="utf-8")
 
 
 class TestPresupuesto:
@@ -520,6 +552,8 @@ class TestPasada:
         )
         assert resultado.compras == ["A"]
         assert datetime.fromisoformat(reg.decisiones()[0]["decision_ts"]) == T + timedelta(minutes=2)
+        fila = reg.conn.execute("SELECT decision_ts FROM ia_pasada").fetchone()
+        assert datetime.fromisoformat(fila[0]) == T + timedelta(minutes=2)
 
     def test_pasadas_simultaneas_no_se_solapan(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         reg = registro(tmp_path)

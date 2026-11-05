@@ -206,9 +206,10 @@ class Motor:
             return None
 
         system = cargar_prompt(asesor)
-        # Un token ocupa al menos un byte: los bytes acotan la entrada y max_tokens la salida,
-        # así que el coste real nunca supera la reserva.
-        reserva = self.politica.coste_maximo_eur(len((system + paquete.mensaje).encode("utf-8")))
+        # Un token ocupa al menos un byte: bytes más margen acotan la entrada, y max_tokens la salida.
+        esquema = esquema_de(paquete)
+        cota = len((system + paquete.mensaje + canonico(esquema)).encode("utf-8")) + self.politica.margen_tokens_entrada
+        reserva = self.politica.coste_maximo_eur(cota)
         mes = self.reloj().strftime("%Y-%m")
         try:
             self.registro.reservar(mes, reserva)
@@ -216,7 +217,7 @@ class Motor:
             self._guardar(asesor, paquete, SIN_PRESUPUESTO, error=str(exc))
             return None
         try:
-            respuesta = self.cliente.llamar(system, paquete.mensaje, esquema_de(paquete))
+            respuesta = self.cliente.llamar(system, paquete.mensaje, esquema)
         except Exception as exc:
             # Una llamada fallida pudo facturarse: se da por gastado lo reservado.
             self.registro.conciliar(mes, reserva, reserva)
@@ -401,6 +402,7 @@ def _ejecutar(
 
     # ``instante`` corta los datos. La decisión se fecha aquí, con todo ya observado y antes de llamar al modelo.
     decision_ts = reloj()
+    registro.fechar_decision(pasada_id, decision_ts)
     motor = Motor(registro, cliente, politica, pasada_id, decision_ts, reloj)
     _evaluar_posiciones(motor, analizadas, contexto, cartera, resultado)
     candidatas = [

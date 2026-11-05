@@ -28,6 +28,8 @@ class PoliticaIA:
     cache_horas: int = 24
     modelo: str = "claude-opus-5-5"
     max_tokens: int = 4000
+    # Margen sobre los bytes del mensaje: esquema y envoltura que la API factura como entrada.
+    margen_tokens_entrada: int = 4000
     esfuerzo: str = "medium"
     usd_millon_entrada: float = 4.0
     usd_millon_salida: float = 20.0

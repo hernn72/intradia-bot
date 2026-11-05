@@ -35,6 +35,9 @@ ERROR_LLAMADA = "ERROR_LLAMADA"
 SIN_PRESUPUESTO = "SIN_PRESUPUESTO"
 SIN_CLIENTE = "SIN_CLIENTE"
 
+# Primera versión probada con output_config.format y output_config.effort.
+SDK_MINIMO = (1, 2)
+
 _PROMPTS = Path(__file__).parent / "prompts"
 
 _TEXTOS: Dict[str, Any] = {"type": "array", "items": {"type": "string"}}
@@ -68,7 +71,8 @@ _EXTERNO = re.compile(
     r"inflaci[oó]n|tipos de inter[eé]s|aranceles|elecciones|guerra|ceo|adquisici[oó]n|fusi[oó]n)\b",
     re.IGNORECASE,
 )
-_CIFRA = re.compile(r"(?<![\w\-])\d+(?:[.,]\d+)?")
+# Únicos nombres con dígitos admitidos en el texto. Cualquier otro dígito invalida la frase.
+_INDICADORES = re.compile(r"\b(?:SMA50|SMA200|EMA20|EMA50)\b")
 
 
 @dataclass(frozen=True)
@@ -89,8 +93,11 @@ class ClienteAnthropic:
     """Llamada real. Sin fallback a otro modelo: una negativa es un fallo y debe constar como tal."""
 
     def __init__(self, api_key: str, politica: PoliticaIA) -> None:
+        import anthropic
         from anthropic import Anthropic
 
+        if tuple(int(parte) for parte in anthropic.__version__.split(".")[:2]) < SDK_MINIMO:
+            raise RuntimeError(f"anthropic {anthropic.__version__}: hace falta {SDK_MINIMO} o posterior")
         self._client: Any = Anthropic(api_key=api_key, timeout=120.0, max_retries=2)
         self._politica = politica
 
@@ -150,7 +157,7 @@ def _texto_valido(frases: List[str]) -> Optional[str]:
     for frase in frases:
         if _EXTERNO.search(frase):
             return DATO_EXTERNO
-        if _CIFRA.search(frase):
+        if any(caracter.isdigit() for caracter in _INDICADORES.sub("", frase)):
             return CIFRA_AJENA
     return None
 
