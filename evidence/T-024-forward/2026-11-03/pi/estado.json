@@ -1,0 +1,14 @@
+{
+  "apta": true,
+  "checkpoint": "2026-11-03",
+  "data_vintage_id": "6e36c37e7dbfba762f9f5806bbfaee8affe89ee1eb92588494da7b48f0c0e252",
+  "estado": "APTA",
+  "finalizado_utc": "2026-11-03T12:04:26Z",
+  "motivos": [],
+  "rc_congelar": 0,
+  "segunda_copia": {
+    "ficheros": 127,
+    "ruta": "/home/fer/t024-forward/copias/vintages/6e36c37e7dbfba762f9f5806bbfaee8affe89ee1eb92588494da7b48f0c0e252",
+    "verificada": true
+  }
+}

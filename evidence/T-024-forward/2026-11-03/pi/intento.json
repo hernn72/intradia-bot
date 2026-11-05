@@ -1,0 +1,10 @@
+{
+  "calendario_sha256": "07d7bca140c9a66b299e8ee514231456a85862ae011f707f7c3a62c36008934a",
+  "checkpoint": "2026-11-03",
+  "hoy": "2026-11-03",
+  "inicio_utc": "2026-11-03T12:00:26Z",
+  "python": "/home/fer/t024-venv/bin/python",
+  "repo": "/home/fer/intradia-t024",
+  "repo_head": "752d90d2e70bfb455290567187c9b2393a5c72e3",
+  "wrapper_sha256": "57279f911a8c7128e133bb969514ec20bc31c8c4732c725601129dcad8fcfb4a"
+}
