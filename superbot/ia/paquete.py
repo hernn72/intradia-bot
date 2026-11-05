@@ -34,8 +34,12 @@ class Observacion:
 
 @dataclass(frozen=True)
 class PosicionIA:
+    """Posición abierta, con lo guardado al abrirla para poder auditar sus causas de venta."""
+
     symbol: str
     entry_date: date
+    signal_session: date
+    decision_apertura: str
     entry_price: float
     stop: float
     invalidation_level: Optional[float]
@@ -80,7 +84,7 @@ class Paquete:
 
     @property
     def clave(self) -> str:
-        return f"{self.symbol}|{self.tipo}|{self.signal_session}|{self.target_session}|{POLICY_ID}"
+        return f"{self.symbol}|{self.signal_session}|{self.target_session}|{POLICY_ID}"
 
     @property
     def mensaje(self) -> str:
@@ -107,6 +111,9 @@ def validar_causal(paquete: Paquete) -> None:
     tardia = max(o.available_at for o in paquete.observaciones)
     if tardia > paquete.decision_ts:
         raise PaqueteInvalido(f"dato disponible en {tardia.isoformat()}, posterior a la decisión")
+    observada = max(o.observed_at for o in paquete.observaciones)
+    if observada > paquete.decision_ts:
+        raise PaqueteInvalido(f"dato observado en {observada.isoformat()}, posterior a la decisión")
     if paquete.decision_ts >= paquete.target_open:
         raise PaqueteInvalido("decisión posterior a la apertura de su sesión objetivo")
     if paquete.datos.get("contexto", {}).get("fuente") != "point_in_time":

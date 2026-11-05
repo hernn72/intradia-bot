@@ -25,11 +25,12 @@ OK = "OK"
 JSON_INVALIDO = "JSON_INVALIDO"
 ESQUEMA_INVALIDO = "ESQUEMA_INVALIDO"
 CITA_INEXISTENTE = "CITA_INEXISTENTE"
-CIFRA_AJENA = "CIFRA_AJENA"
+CIFRA_AJENA = "CIFRA_EN_TEXTO"
 DATO_EXTERNO = "DATO_EXTERNO"
 CAUSA_NO_CIERTA = "CAUSA_NO_CIERTA"
 TRUNCADA = "TRUNCADA"
 RECHAZADA = "RECHAZADA"
+FINAL_INESPERADO = "FINAL_INESPERADO"
 ERROR_LLAMADA = "ERROR_LLAMADA"
 SIN_PRESUPUESTO = "SIN_PRESUPUESTO"
 SIN_CLIENTE = "SIN_CLIENTE"
@@ -67,7 +68,7 @@ _EXTERNO = re.compile(
     r"inflaci[oó]n|tipos de inter[eé]s|aranceles|elecciones|guerra|ceo|adquisici[oó]n|fusi[oó]n)\b",
     re.IGNORECASE,
 )
-_CIFRA = re.compile(r"(?<![A-Za-zÁÉÍÓÚáéíóúÑñ_\-])\d+(?:[.,]\d+)?(?![A-Za-z_])")
+_CIFRA = re.compile(r"(?<![\w\-])\d+(?:[.,]\d+)?")
 
 
 @dataclass(frozen=True)
@@ -139,31 +140,24 @@ def _valor_en(datos: Any, ruta: str) -> Any:
     return actual
 
 
-def _numeros(value: Any) -> List[float]:
-    if isinstance(value, bool):
-        return []
-    if isinstance(value, (int, float)):
-        return [float(value)]
-    if isinstance(value, Mapping):
-        return [n for item in value.values() for n in _numeros(item)]
-    if isinstance(value, (list, tuple)):
-        return [n for item in value for n in _numeros(item)]
-    return []
+def _texto_valido(frases: List[str]) -> Optional[str]:
+    """Sin cifras: una cifra no se puede atar a su dato, así que el texto solo nombra campos.
 
+    La lista de términos externos es una red de seguridad, no una garantía: un sinónimo
+    puede pasar. La defensa de fondo es que el modelo no recibe nada externo.
+    """
 
-def _cifra_conocida(texto: str, conocidos: List[float]) -> bool:
-    numero = float(texto.replace(",", "."))
-    decimales = len(texto.replace(",", ".").partition(".")[2])
-    return any(round(valor, decimales) == numero or round(abs(valor), decimales) == numero for valor in conocidos)
-
-
-def _texto_valido(frases: List[str], conocidos: List[float]) -> Optional[str]:
     for frase in frases:
         if _EXTERNO.search(frase):
             return DATO_EXTERNO
-        if any(not _cifra_conocida(match.group(0), conocidos) for match in _CIFRA.finditer(frase)):
+        if _CIFRA.search(frase):
             return CIFRA_AJENA
     return None
+
+
+def _hoja_valida(datos: Any, ruta: str) -> bool:
+    valor = _valor_en(datos, ruta)
+    return valor is not None and not isinstance(valor, (Mapping, list, tuple))
 
 
 def validar_dictamen(texto: str, paquete: Paquete, stop_reason: Optional[str]) -> Tuple[str, Optional[Dict[str, Any]]]:
@@ -173,6 +167,8 @@ def validar_dictamen(texto: str, paquete: Paquete, stop_reason: Optional[str]) -
         return TRUNCADA, None
     if stop_reason == "refusal":
         return RECHAZADA, None
+    if stop_reason != "end_turn":
+        return FINAL_INESPERADO, None
     try:
         data = json.loads(texto)
     except (TypeError, ValueError):
@@ -202,9 +198,9 @@ def validar_dictamen(texto: str, paquete: Paquete, stop_reason: Optional[str]) -
         if vende and paquete.datos.get("predicados", {}).get(data["causa"]) is not True:
             return CAUSA_NO_CIERTA, None
 
-    if any(_valor_en(paquete.datos, ruta) is None for ruta in data["datos_citados"]):
+    if not all(_hoja_valida(paquete.datos, ruta) for ruta in data["datos_citados"]):
         return CITA_INEXISTENTE, None
-    fallo = _texto_valido(data["motivos"] + data["riesgos"], _numeros(paquete.datos))
+    fallo = _texto_valido(data["motivos"] + data["riesgos"])
     if fallo is not None:
         return fallo, None
     return OK, data

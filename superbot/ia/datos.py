@@ -39,8 +39,15 @@ class ContextoNoCalculable(RuntimeError):
     """Sin contexto point-in-time no hay análisis ni decisiones."""
 
 
-def _huella(df: pd.DataFrame) -> str:
-    return hashlib.sha256(pd.util.hash_pandas_object(df, index=True).values.tobytes()).hexdigest()[:16]
+def _huella(datos: pd.DataFrame | pd.Series) -> str:
+    return hashlib.sha256(pd.util.hash_pandas_object(datos, index=True).values.tobytes()).hexdigest()[:16]
+
+
+def _hasta_sesion(serie: pd.Series, market: str, session: date) -> pd.Series:
+    """Los puntos causales usados: la huella no depende de barras posteriores a ``session``."""
+
+    sesiones = [session_date_of(ts, market) for ts in serie.index]
+    return serie[[s is not None and s <= session for s in sesiones]]
 
 
 class ProveedorCrudo:
@@ -94,20 +101,21 @@ def cargar_contexto(
     if resultado.context.source != "point_in_time":
         raise ContextoNoCalculable(f"contexto con fuente {resultado.context.source}")
 
-    observaciones: List[Observacion] = []
-    for symbol, session in (
+    usadas: List[Tuple[str, Optional[date]]] = [
         (ajustes.vix_symbol, resultado.vix_session),
         (ajustes.trend_symbol, resultado.trend_used_session),
-    ):
+        *((symbol, max(sesiones)) for symbol, sesiones in sorted(resultado.asia_sessions.items())),
+    ]
+    observaciones: List[Observacion] = []
+    for symbol, session in usadas:
         if session is None:
             raise ContextoNoCalculable(f"{symbol} sin sesión usada")
         disponible = _disponible(symbol, session, settlement)
         if disponible is None:
             raise ContextoNoCalculable(f"{symbol} sin hora de cierre")
+        causal = _hasta_sesion(series[symbol]["Close"], market_for_symbol(symbol), session)
         observaciones.append(
-            Observacion(
-                "contexto", symbol, session.isoformat(), disponible, proveedor.observado[symbol], _huella(series[symbol])
-            )
+            Observacion("contexto", symbol, session.isoformat(), disponible, proveedor.observado[symbol], _huella(causal))
         )
     return Contexto(resultado.context, resultado, tuple(observaciones))
 
@@ -132,7 +140,7 @@ class Analisis:
     target_open: datetime
     close: float
     sma: Optional[float]
-    observacion: Observacion
+    observaciones: Tuple[Observacion, ...]
 
 
 def analizar(
@@ -181,6 +189,24 @@ def analizar(
         raise ValueError("sesión sin hora de cierre")
     target, apertura = sesion_objetivo(market, signal)
     media = barras["Close"].rolling(politica.sma_periodo).mean().iloc[-1]
+    observaciones = [
+        Observacion(
+            "barras", data_symbol, signal.isoformat(), cierre + timedelta(minutes=settlement),
+            proveedor.observado[data_symbol], _huella(barras),
+        )
+    ]
+    if benchmark_symbol and benchmark_close is not None and len(benchmark_close):
+        plaza = market_for_symbol(benchmark_symbol)
+        sesion = session_date_of(benchmark_close.index[-1], plaza)
+        disponible = _disponible(benchmark_symbol, sesion, settlement) if sesion is not None else None
+        if sesion is None or disponible is None:
+            raise ValueError(f"benchmark {benchmark_symbol} sin sesión fechable")
+        observaciones.append(
+            Observacion(
+                "benchmark", benchmark_symbol, sesion.isoformat(), disponible, proveedor.observado[benchmark_symbol],
+                _huella(benchmark_close),
+            )
+        )
     return Analisis(
         asset=asset,
         oportunidad=oportunidad,
@@ -190,12 +216,5 @@ def analizar(
         target_open=apertura,
         close=float(barras["Close"].iloc[-1]),
         sma=None if pd.isna(media) else float(media),
-        observacion=Observacion(
-            "barras",
-            data_symbol,
-            signal.isoformat(),
-            cierre + timedelta(minutes=settlement),
-            proveedor.observado[data_symbol],
-            _huella(barras),
-        ),
+        observaciones=tuple(observaciones),
     )

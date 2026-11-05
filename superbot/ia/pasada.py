@@ -72,6 +72,16 @@ def code_sha(repo: Path = Path(__file__).resolve().parents[2]) -> str:
         return "desconocido"
 
 
+def _observaciones(paquete: Paquete) -> str:
+    return canonico([
+        {
+            "fuente": o.fuente, "symbol": o.symbol, "session": o.session, "available_at": o.available_at.isoformat(),
+            "observed_at": o.observed_at.isoformat(), "hash": o.hash,
+        }
+        for o in paquete.observaciones
+    ])
+
+
 def _redondeado(value: Any) -> Any:
     return round(float(value), 4) if isinstance(value, (int, float)) and not isinstance(value, bool) else value
 
@@ -87,8 +97,9 @@ def _datos_base(analisis: Analisis, contexto: Contexto, cartera: EstadoCartera, 
     }
     return {
         "tipo": tipo,
+        # Sin el nombre libre: en el mensaje solo van campos normalizados, nada interpretable como orden.
         "activo": {
-            "valor": asset.symbol, "nombre": asset.name, "clase": asset.asset_class, "region": asset.region,
+            "valor": asset.symbol, "clase": asset.asset_class, "region": asset.region,
             "plaza": analisis.market, "divisa": asset.currency,
         },
         "sesion_senal": analisis.signal_session.isoformat(),
@@ -115,7 +126,7 @@ def _paquete(analisis: Analisis, contexto: Contexto, instante: datetime, tipo: s
     return Paquete(
         tipo=tipo, symbol=analisis.asset.symbol, market=analisis.market, signal_session=analisis.signal_session,
         target_session=analisis.target_session, target_open=analisis.target_open, decision_ts=instante, datos=datos,
-        observaciones=(analisis.observacion, *contexto.observaciones),
+        observaciones=(*analisis.observaciones, *contexto.observaciones),
     )
 
 
@@ -160,19 +171,22 @@ class Motor:
     """Estado de una pasada: registro, cliente y reloj inyectados."""
 
     def __init__(
-        self, registro: RegistroIA, cliente: Optional[ClienteIA], politica: PoliticaIA, pasada_id: int, instante: datetime
+        self, registro: RegistroIA, cliente: Optional[ClienteIA], politica: PoliticaIA, pasada_id: int, instante: datetime,
+        reloj: Callable[[], datetime],
     ) -> None:
         self.registro = registro
         self.cliente = cliente
         self.politica = politica
         self.pasada_id = pasada_id
         self.instante = instante
+        self.reloj = reloj
 
     def _guardar(self, asesor: str, paquete: Paquete, estado: str, **extra: Any) -> None:
         self.registro.guardar_llamada(
             pasada_id=self.pasada_id, asesor=asesor, provider="anthropic", prompt_version=version_prompt(asesor),
             schema_version=SCHEMA_VERSION, input_hash=paquete.input_hash,
-            input_source_ids=canonico(paquete.input_source_ids), analysis_timestamp=self.instante.isoformat(),
+            input_source_ids=canonico(paquete.input_source_ids), observaciones=_observaciones(paquete),
+            analysis_timestamp=self.instante.isoformat(),
             estado=estado, **extra,
         )
 
@@ -192,9 +206,10 @@ class Motor:
             return None
 
         system = cargar_prompt(asesor)
-        # Un token ronda los 3-4 caracteres; dividir entre dos sobrestima a propósito.
-        reserva = self.politica.coste_maximo_eur((len(system) + len(paquete.mensaje)) // 2)
-        mes = self.instante.strftime("%Y-%m")
+        # Un token ocupa al menos un byte: los bytes acotan la entrada y max_tokens la salida,
+        # así que el coste real nunca supera la reserva.
+        reserva = self.politica.coste_maximo_eur(len((system + paquete.mensaje).encode("utf-8")))
+        mes = self.reloj().strftime("%Y-%m")
         try:
             self.registro.reservar(mes, reserva)
         except PresupuestoAgotado as exc:
@@ -222,8 +237,13 @@ class Motor:
     def registrar(
         self, paquete: Paquete, analisis: Analisis, votos: Mapping[str, Optional[Mapping[str, Any]]],
         resolucion: comite.Resolucion, predicados: Optional[Mapping[str, Optional[bool]]] = None,
+        posicion: Optional[PosicionIA] = None,
     ) -> None:
         op = analisis.oportunidad
+        apertura = {} if posicion is None else {
+            "invalidacion_apertura": posicion.invalidation_level, "sesion_senal_apertura": posicion.signal_session,
+            "decision_apertura": posicion.decision_apertura,
+        }
         self.registro.guardar_decision(
             clave=paquete.clave, pasada_id=self.pasada_id, symbol=paquete.symbol, market=paquete.market,
             tipo=paquete.tipo, signal_session=paquete.signal_session.isoformat(),
@@ -232,7 +252,7 @@ class Motor:
             cuantitativo=canonico({
                 "score": op.score.value, "score_modelo": op.score.model_version, "accion_asesor": op.accion,
                 "rr": op.levels.rr_ratio, "invalidacion": op.levels.invalidation_level, "cierre": analisis.close,
-                "sma": analisis.sma,
+                "sma": analisis.sma, **apertura,
             }),
             votos=canonico(votos), predicados=canonico(predicados) if predicados is not None else None,
             resolucion=resolucion.decision, motivo=resolucion.motivo, prioridad=resolucion.prioridad,
@@ -254,6 +274,10 @@ def _evaluar_compras(
             validar_causal(paquete)
             motor.registro.guardar_paquete(paquete)
             dictamenes = {asesor: motor.dictaminar(asesor, paquete) for asesor in (OPORTUNIDAD, RIESGO)}
+            if any(dictamen is None for dictamen in dictamenes.values()):
+                # Sin compra y sin decisión: la clave queda libre para reintentar en la pasada siguiente.
+                resultado.incidencias.append(f"{symbol}: falta dictamen válido; sin decisión")
+                continue
             resolucion = comite.resolver_compra(
                 voto_de(OPORTUNIDAD, dictamenes[OPORTUNIDAD]), voto_de(RIESGO, dictamenes[RIESGO])
             )
@@ -290,6 +314,9 @@ def _evaluar_posiciones(
                 continue
             datos = _datos_base(analisis, contexto, cartera, POSICION)
             datos["posicion"] = {
+                "fecha_entrada": posicion.entry_date.isoformat(), "sesion_senal": posicion.signal_session.isoformat(),
+                "decision_apertura": posicion.decision_apertura,
+                "invalidacion_apertura": _redondeado(posicion.invalidation_level),
                 "precio_entrada": _redondeado(posicion.entry_price), "stop": _redondeado(posicion.stop),
                 "resultado_pct": round(posicion.pnl_pct, 2), "exposicion_pct": round(posicion.exposicion_pct, 2),
             }
@@ -300,6 +327,9 @@ def _evaluar_posiciones(
             validar_causal(paquete)
             motor.registro.guardar_paquete(paquete)
             dictamen = motor.dictaminar(RIESGO, paquete)
+            if dictamen is None:
+                resultado.incidencias.append(f"{posicion.symbol}: falta dictamen válido; se mantiene")
+                continue
             resolucion = comite.resolver_posicion([voto_de(RIESGO, dictamen)], predicados)
         except Exception as exc:
             resultado.incidencias.append(f"{posicion.symbol}: {type(exc).__name__}: {exc}"[:200])
@@ -312,7 +342,7 @@ def _evaluar_posiciones(
         if resolucion.decision == comite.VENDER and not permitidas[posicion.symbol]:
             resolucion = comite.Resolucion(comite.MANTENER, "LIMITE_DE_VENTAS", causa=resolucion.causa)
         try:
-            motor.registrar(paquete, analisis, votos, resolucion, comprobaciones)
+            motor.registrar(paquete, analisis, votos, resolucion, comprobaciones, posicion)
         except Exception as exc:
             resultado.incidencias.append(f"{posicion.symbol}: {type(exc).__name__}: {exc}"[:200])
             continue
@@ -320,7 +350,17 @@ def _evaluar_posiciones(
             resultado.ventas.append(posicion.symbol)
 
 
-def ejecutar_pasada(
+def ejecutar_pasada(**argumentos: Any) -> ResultadoPasada:
+    """Pasada en modo ``registro``, en exclusiva. El modo ``activo`` llega con la Entrega C."""
+
+    registro: RegistroIA = argumentos["registro"]
+    with registro.exclusivo() as libre:
+        if not libre:
+            return ResultadoPasada(0, "ERROR", incidencias=["otra pasada en curso"])
+        return _ejecutar(**argumentos)
+
+
+def _ejecutar(
     *,
     config: AdvisorConfig,
     universe: Universe,
@@ -333,8 +373,6 @@ def ejecutar_pasada(
     reloj: Callable[[], datetime],
     politica: Optional[PoliticaIA] = None,
 ) -> ResultadoPasada:
-    """Pasada en modo ``registro``. El modo ``activo`` llega con la Entrega C."""
-
     politica = politica or registro.politica
     pasada_id = registro.abrir_pasada(instante, "registro", code_sha())
     resultado = ResultadoPasada(pasada_id, "OK")
@@ -361,10 +399,12 @@ def ejecutar_pasada(
             logger.info("%s sin análisis: %s", symbol, exc)
             resultado.incidencias.append(f"{symbol}: {type(exc).__name__}: {exc}"[:200])
 
-    motor = Motor(registro, cliente, politica, pasada_id, instante)
+    # ``instante`` corta los datos. La decisión se fecha aquí, con todo ya observado y antes de llamar al modelo.
+    decision_ts = reloj()
+    motor = Motor(registro, cliente, politica, pasada_id, decision_ts, reloj)
     _evaluar_posiciones(motor, analizadas, contexto, cartera, resultado)
     candidatas = [
-        a for a in analizadas.values() if motivo_no_elegible(a, cartera, politica, instante) is None
+        a for a in analizadas.values() if motivo_no_elegible(a, cartera, politica, decision_ts) is None
     ]
     _evaluar_compras(motor, elegir_por_plaza(candidatas, politica), contexto, cartera, resultado)
     registro.cerrar_pasada(pasada_id, resultado.status, "; ".join(resultado.incidencias))

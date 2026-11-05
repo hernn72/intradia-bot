@@ -6,6 +6,7 @@ D-81), y lleva el presupuesto. Sin registro completo una decisión no vale.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import sqlite3
 from contextlib import contextmanager
@@ -34,8 +35,7 @@ CREATE TABLE IF NOT EXISTS ia_paquete (
     input_hash TEXT PRIMARY KEY,
     tipo TEXT NOT NULL,
     symbol TEXT NOT NULL,
-    contenido TEXT NOT NULL,
-    observaciones TEXT NOT NULL
+    contenido TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ia_llamada (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS ia_llamada (
     schema_version TEXT NOT NULL,
     input_hash TEXT NOT NULL REFERENCES ia_paquete(input_hash),
     input_source_ids TEXT NOT NULL,
+    observaciones TEXT NOT NULL,
     analysis_timestamp TEXT NOT NULL,
     estado TEXT NOT NULL,
     respuesta_cruda TEXT,
@@ -134,6 +135,18 @@ class RegistroIA:
         self.conn.close()
 
     @contextmanager
+    def exclusivo(self) -> Iterator[bool]:
+        """Una pasada cada vez: dos procesos no pueden gastar ni decidir a la vez."""
+
+        with open(self.path.with_name(self.path.name + ".lock"), "w") as candado:
+            try:
+                fcntl.flock(candado, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                yield False
+                return
+            yield True
+
+    @contextmanager
     def _transaccion(self) -> Iterator[sqlite3.Connection]:
         self.conn.execute("BEGIN IMMEDIATE")
         try:
@@ -183,20 +196,9 @@ class RegistroIA:
     # --- paquetes, llamadas y decisiones ---------------------------------------
 
     def guardar_paquete(self, paquete: Paquete) -> None:
-        observaciones = [
-            {
-                "fuente": o.fuente,
-                "symbol": o.symbol,
-                "session": o.session,
-                "available_at": o.available_at.isoformat(),
-                "observed_at": o.observed_at.isoformat(),
-                "hash": o.hash,
-            }
-            for o in paquete.observaciones
-        ]
         self.conn.execute(
-            "INSERT OR IGNORE INTO ia_paquete (input_hash, tipo, symbol, contenido, observaciones) VALUES (?, ?, ?, ?, ?)",
-            (paquete.input_hash, paquete.tipo, paquete.symbol, paquete.mensaje, json.dumps(observaciones)),
+            "INSERT OR IGNORE INTO ia_paquete (input_hash, tipo, symbol, contenido) VALUES (?, ?, ?, ?)",
+            (paquete.input_hash, paquete.tipo, paquete.symbol, paquete.mensaje),
         )
 
     def cache(self, input_hash: str, asesor: str, prompt_version: str, desde: datetime) -> Optional[LlamadaGuardada]:
