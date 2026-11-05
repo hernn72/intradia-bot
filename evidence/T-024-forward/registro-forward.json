@@ -1,0 +1,30 @@
+{
+  "cosechas": [
+    {
+      "T024_CODE_SHA": "1a697c3fa2ab76ddfcf567c2ef3f5ab56492eaf0",
+      "T024_PREREG_SHA": "dfcca0ef3428df916089480a0ca574f47e550c24",
+      "actions": true,
+      "auto_adjust": false,
+      "checkpoint": "2026-11-03",
+      "data_vintage_id": "6e36c37e7dbfba762f9f5806bbfaee8affe89ee1eb92588494da7b48f0c0e252",
+      "end_exclusive": true,
+      "festivos": [
+        "2026-11-02"
+      ],
+      "interval": "1d",
+      "manifest_file_sha256": "be9e904c4f73e787bbe63ea142448688016a821ddad26d3d92a36ce691c6c373",
+      "manifest_hash": "6e36c37e7dbfba762f9f5806bbfaee8affe89ee1eb92588494da7b48f0c0e252",
+      "n_symbols": 126,
+      "provider": "yfinance",
+      "provider_version": "1.7.0",
+      "requested_end": "2026-10-26",
+      "requested_start": "2021-08-30",
+      "symbols_sha256": "c7a896ab921a27dce3e6ea268187ff03ce77954dd67298ac2b62d7c4017b50b5",
+      "universe_vintage_id": "237b0056f0b2ce6cfa0bc1cc64a475585c938a178e61ad23863b37c3ac565d19"
+    }
+  ],
+  "entradas_sha256": "3572d07b80f4a5fab33731306430978acfb118db153b524f7deb50cb67dc293f",
+  "schema": "t024-registro-forward",
+  "schema_version": 1,
+  "sha256": "270d8f4eb6132c49b64f28b2de6dba15450fe7b177002cb59fb427e9ad58332a"
+}

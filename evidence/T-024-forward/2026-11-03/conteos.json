@@ -1,0 +1,50 @@
+{
+  "barras_nuevas": null,
+  "barras_revisadas": null,
+  "c_e": "2026-11-03",
+  "checkpoint": "2026-11-03",
+  "data_vintage_id": "6e36c37e7dbfba762f9f5806bbfaee8affe89ee1eb92588494da7b48f0c0e252",
+  "politicas": {
+    "B2": {
+      "ejecutables": 355,
+      "exclusiones": {
+        "excluida_excluded_asia_missing": 81,
+        "no_operar": 3058
+      },
+      "q_p": 196,
+      "rechazos": {
+        "ABOVE_MAX_ENTRY": 35,
+        "INVALID_STOP": 1
+      },
+      "senales_operar": 391,
+      "w_p": 8
+    },
+    "C0": {
+      "ejecutables": 33,
+      "exclusiones": {
+        "excluida_excluded_asia_missing": 81,
+        "no_operar": 3375
+      },
+      "q_p": 32,
+      "rechazos": {
+        "ABOVE_MAX_ENTRY": 41
+      },
+      "senales_operar": 74,
+      "w_p": 8
+    },
+    "S2": {
+      "ejecutables": 35,
+      "exclusiones": {
+        "excluida_excluded_asia_missing": 81,
+        "no_operar": 3374
+      },
+      "q_p": 34,
+      "rechazos": {
+        "ABOVE_MAX_ENTRY": 40
+      },
+      "senales_operar": 75,
+      "w_p": 8
+    }
+  },
+  "previa_data_vintage_id": null
+}
