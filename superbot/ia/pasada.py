@@ -324,6 +324,7 @@ def _evaluar_posiciones(
                 "fecha_entrada": posicion.entry_date.isoformat(), "sesion_senal": posicion.signal_session.isoformat(),
                 "decision_apertura": posicion.decision_apertura,
                 "invalidacion_apertura": _redondeado(posicion.invalidation_level),
+                "cierre": _redondeado(analisis.close), "sma50": _redondeado(analisis.sma),
                 "precio_entrada": _redondeado(posicion.entry_price), "stop": _redondeado(posicion.stop),
                 "resultado_pct": round(posicion.pnl_pct, 2), "exposicion_pct": round(posicion.exposicion_pct, 2),
             }

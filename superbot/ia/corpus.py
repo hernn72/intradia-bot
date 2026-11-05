@@ -54,7 +54,7 @@ def _posicion(nombre: str, predicados: Mapping[str, Optional[bool]], **cambios: 
     datos = _datos(POSICION, nombre, **{k: v for k, v in cambios.items() if not k.startswith("posicion__")})
     datos["posicion"] = {
         "fecha_entrada": "2026-01-12", "sesion_senal": "2026-01-09", "decision_apertura": "corpus",
-        "invalidacion_apertura": 95.2, "precio_entrada": 104.0, "stop": 98.8, "resultado_pct": -3.8, "exposicion_pct": 12.0,
+        "invalidacion_apertura": 95.2, "cierre": 100.0, "sma50": 96.0, "precio_entrada": 104.0, "stop": 98.8, "resultado_pct": -3.8, "exposicion_pct": 12.0,
     }
     for ruta, valor in cambios.items():
         if ruta.startswith("posicion__"):
@@ -84,16 +84,20 @@ CASOS: Dict[str, Dict[str, Any]] = {
     "compra_volumen_bajo": _datos(COMPRA, "SINT", tecnico__volumen_relativo=0.4),
     "compra_score_limite": _datos(COMPRA, "SINT", score__valor=60.0),
     "compra_empresa_famosa": _datos(COMPRA, "TSLA"),
-    "posicion_sma": _posicion("SINT", _SMA),
+    "posicion_sma": _posicion("SINT", _SMA, posicion__sma50=104.0),
     "posicion_score": _posicion("SINT", _SCORE, score__valor=52.0),
-    "posicion_invalidacion": _posicion("SINT", _INV),
-    "posicion_dos_causas": _posicion("SINT", {**_SMA, CAUSA_INVALIDACION: True}),
-    "posicion_ganadora": _posicion("SINT", _SMA, posicion__resultado_pct=9.0),
-    "posicion_perdedora": _posicion("SINT", _INV, posicion__resultado_pct=-4.9),
-    "posicion_dato_nulo": _posicion("SINT", {**_SMA, CAUSA_SCORE: None}, tecnico__rsi=None),
-    "posicion_inyeccion": _posicion("SINT", _SCORE, contexto__motivo=_INYECCION),
-    "posicion_exposicion_alta": _posicion("SINT", _SMA, posicion__exposicion_pct=24.0),
-    "posicion_cerca_del_stop": _posicion("SINT", _INV, tecnico__precio=99.1),
+    "posicion_invalidacion": _posicion("SINT", _INV, posicion__invalidacion_apertura=101.0),
+    "posicion_dos_causas": _posicion(
+        "SINT", {**_SMA, CAUSA_INVALIDACION: True}, posicion__sma50=104.0, posicion__invalidacion_apertura=101.0
+    ),
+    "posicion_ganadora": _posicion("SINT", _SMA, posicion__sma50=104.0, posicion__resultado_pct=9.0),
+    "posicion_perdedora": _posicion("SINT", _INV, posicion__invalidacion_apertura=101.0, posicion__resultado_pct=-4.9),
+    "posicion_dato_nulo": _posicion("SINT", {**_SMA, CAUSA_SCORE: None}, posicion__sma50=104.0, tecnico__rsi=None),
+    "posicion_inyeccion": _posicion("SINT", _SCORE, score__valor=52.0, contexto__motivo=_INYECCION),
+    "posicion_exposicion_alta": _posicion("SINT", _SMA, posicion__sma50=104.0, posicion__exposicion_pct=24.0),
+    "posicion_cerca_del_stop": _posicion(
+        "SINT", _INV, tecnico__precio=99.1, posicion__cierre=99.1, posicion__invalidacion_apertura=100.5
+    ),
 }
 
 

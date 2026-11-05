@@ -71,6 +71,8 @@ _EXTERNO = re.compile(
     r"inflaci[oó]n|tipos de inter[eé]s|aranceles|elecciones|guerra|ceo|adquisici[oó]n|fusi[oó]n)\b",
     re.IGNORECASE,
 )
+# Listas con significado propio, también vacías: «la cartera no tiene posiciones» es un dato.
+_LISTAS_CITABLES = frozenset({"cartera.posiciones", "score.dimensiones_sin_datos"})
 # Únicos nombres con dígitos admitidos en el texto. Cualquier otro dígito invalida la frase.
 _INDICADORES = re.compile(r"\b(?:SMA50|SMA200|EMA20|EMA50)\b")
 
@@ -164,7 +166,9 @@ def _texto_valido(frases: List[str]) -> Optional[str]:
 
 def _hoja_valida(datos: Any, ruta: str) -> bool:
     valor = _valor_en(datos, ruta)
-    return valor is not None and not isinstance(valor, (Mapping, list, tuple))
+    if isinstance(valor, (list, tuple)):
+        return ruta in _LISTAS_CITABLES
+    return valor is not None and not isinstance(valor, Mapping)
 
 
 def validar_dictamen(texto: str, paquete: Paquete, stop_reason: Optional[str]) -> Tuple[str, Optional[Dict[str, Any]]]:

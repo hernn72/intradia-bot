@@ -184,7 +184,11 @@ class TestValidacion:
     def test_nombres_de_indicador_con_digitos_se_admiten(self) -> None:
         assert validar_dictamen(json.dumps(compra_ok(motivos=["Sigue sobre la SMA50"])), paquete_compra(), "end_turn")[0] == OK
 
-    @pytest.mark.parametrize("ruta", ["tecnico", "cartera.posiciones", "activo"])
+    @pytest.mark.parametrize("ruta", ["cartera.posiciones", "score.dimensiones_sin_datos"])
+    def test_las_listas_con_significado_se_citan_aunque_esten_vacias(self, ruta: str) -> None:
+        assert validar_dictamen(json.dumps(compra_ok(datos_citados=[ruta])), paquete_compra(), "end_turn")[0] == OK
+
+    @pytest.mark.parametrize("ruta", ["tecnico", "activo", "cartera", "contexto"])
     def test_citar_un_objeto_entero_no_vale(self, ruta: str) -> None:
         texto = json.dumps(compra_ok(datos_citados=[ruta]))
         assert validar_dictamen(texto, paquete_compra(), "end_turn")[0] == asesores.CITA_INEXISTENTE
