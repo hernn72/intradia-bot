@@ -132,7 +132,7 @@ def ejecutar_corpus(cliente: ClienteIA, politica: PoliticaIA, registro: Optional
                 "decision": dictamen["decision"] if dictamen else None, "causa": dictamen.get("causa") if dictamen else None,
                 "modelo": respuesta.modelo, "stop_reason": respuesta.stop_reason, "segundos": segundos,
                 "tokens_entrada": respuesta.tokens_entrada, "tokens_salida": respuesta.tokens_salida,
-                "coste_eur": round(coste, 5), "respuesta": None if estado == OK else respuesta.texto[:600],
+                "coste_eur": round(coste, 5), "respuesta": None if estado == OK else respuesta.texto,
             })
     fallos = [llamada for llamada in llamadas if llamada["estado"] != OK]
     casos_fallidos = {fallo["caso"] for fallo in fallos}
