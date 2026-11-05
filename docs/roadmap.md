@@ -20,6 +20,60 @@ detalle operativo de cada tarea: eso vive en `docs/tareas/` y el método en
 
 ---
 
+## Estado verificado — 2026-11-05: observación de Superbot
+
+Comprobado el 2026-11-05 contra el repositorio y la Pi. Esta sección manda sobre el orden de trabajo de
+las siguientes y las sustituye como estado actual; las anteriores se conservan como historia.
+
+**Decisión del propietario (2026-11-05).** Superbot es el único producto en desarrollo activo. Se cierra
+el desarrollo de funcionalidades y se observa. Superbot es paper: **no está validado para capital real**.
+
+### Terminado
+
+| Qué | Estado |
+|---|---|
+| Laboratorio P2–P6 y T-023 | Cerrados. B2 y S2 `NO PASA`, salida `[]` (D-70) |
+| Superbot paper visible | PR #52 y #53; estrategia `itrade_trend_v1` |
+| Fiabilidad, avisos y despliegue | PR #56 y #57; `main` en `8ebd689`, desplegado el 2026-11-04 |
+| T-025, motor y despliegue | `v0.5.0`, cohorte con arranque el 2026-10-12 |
+| T-024, captura en la Pi | Primera congelación automática el 2026-11-03 |
+
+### Operativo en la Pi
+
+| Servicio | Versión | Estado el 2026-11-05 |
+|---|---|---|
+| Superbot paper y dashboard | `8ebd689` | 37 ejecuciones `OK`, avisos en `seco` |
+| Asesor intradia | `v0.4.2` (`331ebc5`) | Temporizadores activos, solo mantenimiento |
+| T-024 checkpoint | `752d90d` (`t024/forward`) | Temporizador activo, sin fallos en 9 días |
+| T-025 paper | `v0.5.0` (`78db33d`) | 76 pasadas `OK`, 0 periodos de caída, temporizador activo |
+
+Telegram sigue silenciado en todos desde el 2026-10-28. T-024 y T-025 continúan con sus reglas, sus
+desenlaces sellados y sus metodologías intactas.
+
+### Pendiente
+
+| Qué | Condición |
+|---|---|
+| Observación de Superbot | **Rendimiento:** todo el historial desde el 2026-10-12, sin reiniciar nada; al 2026-11-04 son 18 sesiones y 13 operaciones cerradas, todas en tiempo real. **Estabilidad:** 20 sesiones NYSE sobre `8ebd689` desde la ejecución 37 (2026-11-04); la 20.ª será la del 2026-12-02. Las sesiones se cuentan por día, no por ejecución |
+| Decisión final | Con las 20 sesiones: mantener la estrategia, seguir observando o abrir un único desarrollo de mejora |
+| T-024, fase B del checkpoint del 2026-11-03 | Según su runbook, en el PC. Sin verificar el 2026-11-05 |
+| #51 (T-025) | Abierta y visible. Mitigada en la Pi por el script de la unidad; la corrección exige versión nueva del motor y cohorte nueva |
+
+Durante la observación solo se admiten correcciones de fallos operativos demostrados, y ninguna puede
+cambiar la estrategia sin autorización específica.
+
+### Congelado
+
+| Qué | Hasta |
+|---|---|
+| Nuevas funcionalidades de Superbot: indicadores, filtros, estrategias | Decisión final |
+| Registro de decisiones | Decisión final. PR #58 abierto y sin fusionar |
+| `trader-news` | Decisión final |
+| Avisos reales y Telegram | Nuevo aviso del propietario |
+| P7, P10 y capital real | Sus gates. P7 sigue bloqueado |
+
+---
+
 ## Estado verificado — 2026-10-06 (actualizado el 2026-10-07)
 
 Comprobado contra el repositorio, la CI y la Pi el 2026-10-06. El 2026-10-07 se fusionó el PR #47
@@ -384,6 +438,8 @@ flowchart LR
 ---
 
 ## Qué hacer ahora, en este orden
+
+> Histórico: desde el 2026-11-05 el orden de trabajo es el de «Estado verificado — 2026-11-05».
 
 Actualizado el 2026-10-06 con D-73 y D-74. La lista anterior (OA-01 a T-013 y P3–P6) está terminada.
 
