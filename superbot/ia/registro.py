@@ -122,7 +122,13 @@ class RegistroIA:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.executescript(_ESQUEMA)
+        self._migrar()
         self._congelar()
+
+    def _migrar(self) -> None:
+        columnas = {fila[1] for fila in self.conn.execute("PRAGMA table_info(ia_llamada)")}
+        if "segundos" not in columnas:
+            self.conn.execute("ALTER TABLE ia_llamada ADD COLUMN segundos REAL")
 
     def _congelar(self) -> None:
         guardada = self.conn.execute("SELECT value FROM ia_meta WHERE key = 'politica'").fetchone()

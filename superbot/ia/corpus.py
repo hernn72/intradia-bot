@@ -8,9 +8,18 @@ from __future__ import annotations
 
 import time
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
-from superbot.ia.asesores import OK, OPORTUNIDAD, RIESGO, ClienteIA, cargar_prompt, esquema_de, validar_dictamen
+from superbot.ia.asesores import (
+    ERROR_LLAMADA,
+    OK,
+    OPORTUNIDAD,
+    RIESGO,
+    ClienteIA,
+    cargar_prompt,
+    esquema_de,
+    validar_dictamen,
+)
 from superbot.ia.paquete import COMPRA, POSICION, Observacion, Paquete, canonico
 from superbot.ia.politica import CAUSA_INVALIDACION, CAUSA_SCORE, CAUSA_SMA, PoliticaIA
 from superbot.ia.registro import RegistroIA
@@ -90,13 +99,20 @@ CASOS: Dict[str, Dict[str, Any]] = {
     "posicion_dos_causas": _posicion(
         "SINT", {**_SMA, CAUSA_INVALIDACION: True}, posicion__sma50=104.0, posicion__invalidacion_apertura=101.0
     ),
-    "posicion_ganadora": _posicion("SINT", _SMA, posicion__sma50=104.0, posicion__resultado_pct=9.0),
-    "posicion_perdedora": _posicion("SINT", _INV, posicion__invalidacion_apertura=101.0, posicion__resultado_pct=-4.9),
+    "posicion_ganadora": _posicion(
+        "SINT", _SMA, posicion__sma50=104.0, posicion__precio_entrada=91.7, posicion__stop=87.1,
+        posicion__invalidacion_apertura=88.0, posicion__resultado_pct=9.05,
+    ),
+    "posicion_perdedora": _posicion(
+        "SINT", _INV, posicion__invalidacion_apertura=101.0, posicion__precio_entrada=105.15, posicion__stop=99.9,
+        posicion__resultado_pct=-4.9,
+    ),
     "posicion_dato_nulo": _posicion("SINT", {**_SMA, CAUSA_SCORE: None}, posicion__sma50=104.0, tecnico__rsi=None),
     "posicion_inyeccion": _posicion("SINT", _SCORE, score__valor=52.0, contexto__motivo=_INYECCION),
     "posicion_exposicion_alta": _posicion("SINT", _SMA, posicion__sma50=104.0, posicion__exposicion_pct=24.0),
     "posicion_cerca_del_stop": _posicion(
-        "SINT", _INV, tecnico__precio=99.1, posicion__cierre=99.1, posicion__invalidacion_apertura=100.5
+        "SINT", _INV, tecnico__precio=99.1, posicion__cierre=99.1, posicion__invalidacion_apertura=100.5,
+        posicion__resultado_pct=-4.71,
     ),
 }
 
@@ -109,12 +125,16 @@ def paquete_de(datos: Mapping[str, Any]) -> Paquete:
     )
 
 
-def ejecutar_corpus(cliente: ClienteIA, politica: PoliticaIA, registro: Optional[RegistroIA] = None) -> Dict[str, Any]:
+def ejecutar_corpus(
+    cliente: ClienteIA, politica: PoliticaIA, registro: Optional[RegistroIA] = None,
+    solo: Optional[Sequence[str]] = None,
+) -> Dict[str, Any]:
     """Pasa los 20 casos. El gasto cuenta contra el presupuesto del mes y cada llamada queda medida."""
 
     llamadas: List[Dict[str, Any]] = []
     mes = datetime.now(timezone.utc).strftime("%Y-%m")
-    for nombre, datos in CASOS.items():
+    seleccion = {nombre: CASOS[nombre] for nombre in solo} if solo else CASOS
+    for nombre, datos in seleccion.items():
         paquete = paquete_de(datos)
         asesores = (OPORTUNIDAD, RIESGO) if paquete.tipo == COMPRA else (RIESGO,)
         for asesor in asesores:
@@ -125,7 +145,18 @@ def ejecutar_corpus(cliente: ClienteIA, politica: PoliticaIA, registro: Optional
             if registro is not None:
                 registro.reservar(mes, reserva)
             inicio = time.monotonic()
-            respuesta = cliente.llamar(system, paquete.mensaje, esquema)
+            try:
+                respuesta = cliente.llamar(system, paquete.mensaje, esquema)
+            except Exception as exc:
+                # Una llamada fallida pudo facturarse: se da por gastado lo reservado.
+                if registro is not None:
+                    registro.conciliar(mes, reserva, reserva)
+                llamadas.append({
+                    "caso": nombre, "asesor": asesor, "estado": ERROR_LLAMADA, "decision": None, "causa": None,
+                    "modelo": None, "stop_reason": None, "segundos": round(time.monotonic() - inicio, 2),
+                    "tokens_entrada": 0, "tokens_salida": 0, "coste_eur": round(reserva, 5), "respuesta": type(exc).__name__,
+                })
+                continue
             segundos = round(time.monotonic() - inicio, 2)
             coste = politica.coste_eur(respuesta.tokens_entrada, respuesta.tokens_salida)
             if registro is not None:
@@ -141,6 +172,6 @@ def ejecutar_corpus(cliente: ClienteIA, politica: PoliticaIA, registro: Optional
     fallos = [llamada for llamada in llamadas if llamada["estado"] != OK]
     casos_fallidos = {fallo["caso"] for fallo in fallos}
     return {
-        "casos": len(CASOS), "aprobados": len(CASOS) - len(casos_fallidos), "llamadas": len(llamadas),
+        "casos": len(seleccion), "aprobados": len(seleccion) - len(casos_fallidos), "llamadas": len(llamadas),
         "coste_eur": round(sum(llamada["coste_eur"] for llamada in llamadas), 4), "fallos": fallos, "detalle": llamadas,
     }

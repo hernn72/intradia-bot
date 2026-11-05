@@ -39,7 +39,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("pasada")
     sub.add_parser("decisiones")
-    sub.add_parser("corpus")
+    sub.add_parser("corpus").add_argument("--solo", help="casos separados por comas")
     args = parser.parse_args(argv)
 
     politica = PoliticaIA()
@@ -53,7 +53,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if cliente is None:
             print(f"Falta {CLAVE_ENV}", file=sys.stderr)
             return 2
-        informe = ejecutar_corpus(cliente, politica, registro)
+        informe = ejecutar_corpus(cliente, politica, registro, args.solo.split(",") if args.solo else None)
         print(json.dumps(informe, ensure_ascii=False, indent=1))
         return 0 if informe["aprobados"] == informe["casos"] else 1
 

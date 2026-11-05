@@ -679,7 +679,36 @@ class TestPasada:
         assert fuentes == {"barras", "contexto"}
 
 
+class TestMigracion:
+    def test_anade_la_columna_a_una_base_antigua(self, tmp_path: Path) -> None:
+        reg = registro(tmp_path)
+        reg.conn.execute("ALTER TABLE ia_llamada DROP COLUMN segundos")
+        reg.close()
+        assert "segundos" in {f[1] for f in registro(tmp_path).conn.execute("PRAGMA table_info(ia_llamada)")}
+
+
 class TestCorpus:
+    def test_un_fallo_de_llamada_concilia_la_reserva(self, tmp_path: Path) -> None:
+        class Roto:
+            def llamar(self, system: str, mensaje: str, esquema: Any) -> RespuestaModelo:
+                raise TimeoutError("x")
+
+        reg = registro(tmp_path)
+        informe = corpus.ejecutar_corpus(Roto(), POLITICA, reg, ["compra_solida"])
+        fila = reg.conn.execute("SELECT reservado_eur, gastado_eur FROM ia_gasto").fetchone()
+        assert informe["aprobados"] == 0 and fila[0] == pytest.approx(0) and fila[1] > 0
+
+    @pytest.mark.parametrize("nombre", [n for n in corpus.CASOS if n.startswith("posicion_")])
+    def test_los_casos_de_posicion_son_coherentes(self, nombre: str) -> None:
+        caso = corpus.CASOS[nombre]
+        p, pred = caso["posicion"], caso["predicados"]
+        assert (p["cierre"] / p["precio_entrada"] - 1) * 100 == pytest.approx(p["resultado_pct"], abs=0.1)
+        assert caso["tecnico"]["precio"] == p["cierre"]
+        assert (p["cierre"] < p["sma50"] * 0.98) is pred[CAUSA_SMA]
+        assert (p["cierre"] < p["invalidacion_apertura"]) is pred[CAUSA_INVALIDACION]
+        if pred[CAUSA_SCORE] is not None:
+            assert (caso["score"]["valor"] < 60) is pred[CAUSA_SCORE]
+
     def test_son_veinte_casos_validos(self) -> None:
         assert len(corpus.CASOS) == 20
         for datos_caso in corpus.CASOS.values():
