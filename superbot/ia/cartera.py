@@ -146,6 +146,111 @@ CREATE TABLE IF NOT EXISTS ia_evento (
     payload TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+-- Reinicio de cartera (dashboard, fase de gestión de capital): una generación es la foto completa
+-- de la cartera en el instante justo antes de archivarla. Las tablas ``_archivo`` son copias
+-- textuales de las tablas en vivo, etiquetadas con su generación: nunca se borra nada, solo se
+-- traslada fuera de las tablas en vivo, así que ninguna consulta ya existente (``posiciones_
+-- abiertas``, ``pendientes_entrada``, etc.) necesita cambiar — por construcción, solo ve la
+-- generación activa. Una posición abierta al reiniciar se archiva TAL CUAL (sigue 'ABIERTA' en el
+-- archivo, nunca se le inventa una venta): es una foto histórica, no un cierre.
+CREATE TABLE IF NOT EXISTS ia_cartera_generacion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    capital_inicial_eur REAL NOT NULL,
+    cash_final_eur REAL NOT NULL,
+    coste_mas_cash_eur REAL NOT NULL,
+    motivo TEXT,
+    actor TEXT,
+    activada_at TEXT,
+    archivada_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ia_posicion_archivo (
+    generacion_id INTEGER NOT NULL REFERENCES ia_cartera_generacion(id),
+    id INTEGER NOT NULL,
+    symbol TEXT NOT NULL,
+    market TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    estado TEXT NOT NULL,
+    units REAL NOT NULL,
+    entry_price REAL NOT NULL,
+    entry_price_eur REAL NOT NULL,
+    entry_session TEXT NOT NULL,
+    stop_verificado_hasta TEXT NOT NULL,
+    decision_apertura_id INTEGER,
+    stop REAL NOT NULL,
+    invalidation_level REAL,
+    entry_max REAL,
+    target1 REAL,
+    target2 REAL,
+    rr_minimo REAL,
+    exit_price REAL,
+    exit_price_eur REAL,
+    exit_session TEXT,
+    motivo_cierre TEXT,
+    pnl_eur REAL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (generacion_id, id)
+);
+CREATE TABLE IF NOT EXISTS ia_orden_archivo (
+    generacion_id INTEGER NOT NULL REFERENCES ia_cartera_generacion(id),
+    id INTEGER NOT NULL,
+    decision_id INTEGER,
+    position_id INTEGER,
+    symbol TEXT NOT NULL,
+    market TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    proposito TEXT NOT NULL,
+    origen TEXT NOT NULL,
+    estado TEXT NOT NULL,
+    target_session TEXT,
+    target_open TEXT,
+    niveles TEXT,
+    equity_before_eur REAL,
+    cash_before_eur REAL,
+    fx_rate REAL,
+    fx_as_of TEXT,
+    requested_units REAL,
+    requested_notional_eur REAL,
+    motivo TEXT,
+    created_at TEXT NOT NULL,
+    resolved_at TEXT,
+    PRIMARY KEY (generacion_id, id)
+);
+CREATE TABLE IF NOT EXISTS ia_movimiento_archivo (
+    generacion_id INTEGER NOT NULL REFERENCES ia_cartera_generacion(id),
+    id INTEGER NOT NULL,
+    tipo TEXT NOT NULL,
+    importe_eur REAL NOT NULL,
+    referencia TEXT,
+    detalle TEXT,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (generacion_id, id)
+);
+CREATE TABLE IF NOT EXISTS ia_fill_archivo (
+    generacion_id INTEGER NOT NULL REFERENCES ia_cartera_generacion(id),
+    id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL,
+    symbol TEXT NOT NULL,
+    lado TEXT NOT NULL,
+    precio REAL NOT NULL,
+    precio_eur REAL NOT NULL,
+    units REAL NOT NULL,
+    importe_eur REAL NOT NULL,
+    comision_eur REAL NOT NULL,
+    deslizamiento_eur REAL NOT NULL,
+    session TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (generacion_id, id)
+);
+CREATE TABLE IF NOT EXISTS ia_evento_archivo (
+    generacion_id INTEGER NOT NULL REFERENCES ia_cartera_generacion(id),
+    id INTEGER NOT NULL,
+    tipo TEXT NOT NULL,
+    symbol TEXT,
+    payload TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (generacion_id, id)
+);
 """
 
 
@@ -569,6 +674,207 @@ class CarteraIA:
             self._evento(conn, "CARTERA_ACTIVADA", None, {"capital_inicial_eur": capital_inicial_eur})
         return True
 
+    # --- gestión de capital (dashboard) -----------------------------------------
+
+    def aportar(self, *, importe_eur: float, motivo: str, actor: str) -> None:
+        """Aportación de capital simulado: nunca cuenta como rentabilidad, solo mueve caja con su
+        propio rastro en ``ia_movimiento`` (igual que la aportación inicial de ``activar``).
+
+        Sin parámetro ``instante``: a diferencia de ``activar``/``reiniciar_cartera`` (que fechan
+        un ``activated_at`` de negocio), una aportación no tiene ningún campo que lo use — su
+        auditoría (``created_at``) es siempre el instante real de la operación.
+        """
+
+        if not (math.isfinite(importe_eur) and importe_eur > 0):
+            raise ValueError(f"importe_eur debe ser positivo y finito, no {importe_eur!r}")
+        with self._transaccion() as conn:
+            fila = conn.execute("SELECT estado FROM ia_cartera WHERE id = 1").fetchone()
+            if fila is None or fila["estado"] != "PAPER":
+                raise CarteraInactiva("no hay una cartera PAPER activa a la que aportar")
+            conn.execute(
+                "UPDATE ia_cartera SET cash_eur = cash_eur + ?, updated_at = ? WHERE id = 1",
+                (importe_eur, _ahora_iso()),
+            )
+            conn.execute(
+                "INSERT INTO ia_movimiento (tipo, importe_eur, referencia, detalle, created_at) "
+                "VALUES ('APORTACION', ?, ?, ?, ?)",
+                (importe_eur, actor, motivo, _ahora_iso()),
+            )
+            self._evento(conn, "APORTACION_CAPITAL", None, {"importe_eur": importe_eur, "actor": actor, "motivo": motivo})
+
+    def retirar(self, *, importe_eur: float, motivo: str, actor: str) -> None:
+        """Retirada de capital simulado: nunca deja la caja negativa. Sin ``instante``, por el
+        mismo motivo que ``aportar``.
+
+        Una orden ``ENTRY`` pendiente no reserva caja por adelantado — su tamaño se calcula contra
+        la equity real en el momento de resolverse (fase 2) —, así que no hay una "reserva" previa
+        que esta retirada pueda vulnerar en sentido estricto: si deja poca caja, la propia
+        resolución de esa orden la rechazará explícitamente por ``CASH_INSUFICIENTE`` (ya probado),
+        nunca de forma silenciosa.
+        """
+
+        if not (math.isfinite(importe_eur) and importe_eur > 0):
+            raise ValueError(f"importe_eur debe ser positivo y finito, no {importe_eur!r}")
+        with self._transaccion() as conn:
+            fila = conn.execute("SELECT estado, cash_eur FROM ia_cartera WHERE id = 1").fetchone()
+            if fila is None or fila["estado"] != "PAPER":
+                raise CarteraInactiva("no hay una cartera PAPER activa de la que retirar")
+            if importe_eur > fila["cash_eur"]:
+                raise EfectivoInsuficiente(
+                    f"no se pueden retirar {importe_eur} EUR: solo hay {fila['cash_eur']} EUR de caja disponibles"
+                )
+            conn.execute(
+                "UPDATE ia_cartera SET cash_eur = cash_eur - ?, updated_at = ? WHERE id = 1",
+                (importe_eur, _ahora_iso()),
+            )
+            conn.execute(
+                "INSERT INTO ia_movimiento (tipo, importe_eur, referencia, detalle, created_at) "
+                "VALUES ('APORTACION', ?, ?, ?, ?)",
+                (-importe_eur, actor, motivo, _ahora_iso()),
+            )
+            self._evento(conn, "RETIRADA_CAPITAL", None, {"importe_eur": importe_eur, "actor": actor, "motivo": motivo})
+
+    def reiniciar_cartera(self, *, capital_inicial_eur: float, motivo: str, actor: str, instante: datetime) -> int:
+        """Archiva la cartera activa entera (posiciones, órdenes, movimientos, fills, eventos) y
+        activa una nueva, vacía, con el capital indicado. Devuelve el ``id`` de la generación
+        archivada.
+
+        Nunca toca ``ia_decision``/``ia_llamada``/``ia_pasada``: el historial de decisiones de la
+        IA es ajeno a cualquier cartera y jamás se pierde ni se mezcla entre generaciones.
+
+        Atómico: todo ocurre en una sola transacción (copiar a las tablas ``_archivo``, vaciar las
+        tablas en vivo, reactivar con el capital nuevo). Si el proceso cae a mitad, nada se habrá
+        confirmado y la cartera sigue exactamente como estaba — el reinicio puede reintentarse sin
+        ningún efecto parcial. Ninguna posición abierta se liquida de forma ficticia: se archiva
+        tal cual, todavía ``ABIERTA``, como una foto histórica.
+
+        Frontera durable para las decisiones (hallazgo de Codex): toda decisión ``COMPRAR``/
+        ``VENDER`` de una pasada activa que todavía no se hubiera materializado (``aplicada = 0``)
+        se marca aplicada aquí mismo, SIN crear ninguna orden — nunca contra el capital de la
+        generación siguiente. Su contenido (dictamen, votos, motivos) no se toca, solo esta
+        marca operativa; combinado con que ``materializar_decision_compra``/``venta`` ya tratan
+        una orden archivada como terminal, ninguna decisión puede generar un efecto económico
+        después de haber cruzado un reinicio, ni por reintento ni por el barrido de recuperación.
+        """
+
+        if not (math.isfinite(capital_inicial_eur) and capital_inicial_eur > 0):
+            raise ValueError(f"capital_inicial_eur debe ser positivo y finito, no {capital_inicial_eur!r}")
+        with self._transaccion() as conn:
+            cartera = conn.execute(
+                "SELECT estado, capital_inicial_eur, cash_eur, activated_at FROM ia_cartera WHERE id = 1"
+            ).fetchone()
+            if cartera is None or cartera["estado"] != "PAPER":
+                raise CarteraInactiva("no hay una cartera PAPER activa que reiniciar")
+            coste_abierto = conn.execute(
+                "SELECT COALESCE(SUM(units * entry_price_eur), 0) FROM ia_posicion WHERE estado = 'ABIERTA'"
+            ).fetchone()[0]
+            coste_mas_cash = cartera["cash_eur"] + coste_abierto
+
+            generacion = conn.execute(
+                "INSERT INTO ia_cartera_generacion (capital_inicial_eur, cash_final_eur, coste_mas_cash_eur, "
+                "motivo, actor, activada_at, archivada_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    cartera["capital_inicial_eur"], cartera["cash_eur"], coste_mas_cash, motivo, actor,
+                    cartera["activated_at"], _ahora_iso(),
+                ),
+            )
+            generacion_id = int(generacion.lastrowid or 0)
+
+            # Ninguna orden pendiente puede sobrevivir al reinicio con posibilidad de ejecutarse
+            # después: se rechaza explícitamente ANTES de archivar, nunca se deja "viva" en el
+            # archivo a la espera de nada.
+            conn.execute(
+                "UPDATE ia_orden SET estado = 'RECHAZADA', motivo = 'CARTERA_REINICIADA', resolved_at = ? "
+                "WHERE estado = 'PENDIENTE'", (_ahora_iso(),),
+            )
+            # Idem para cualquier decisión COMPRAR/VENDER todavía sin materializar: nunca debe
+            # generar una orden contra el capital de la generación siguiente.
+            conn.execute(
+                "UPDATE ia_decision SET aplicada = 1 WHERE aplicada = 0 AND resolucion IN ('COMPRAR', 'VENDER') "
+                "AND pasada_id IN (SELECT id FROM ia_pasada WHERE modo = 'activo')"
+            )
+
+            conn.execute(
+                "INSERT INTO ia_posicion_archivo SELECT ?, id, symbol, market, currency, estado, units, "
+                "entry_price, entry_price_eur, entry_session, stop_verificado_hasta, decision_apertura_id, stop, "
+                "invalidation_level, entry_max, target1, target2, rr_minimo, exit_price, exit_price_eur, "
+                "exit_session, motivo_cierre, pnl_eur, created_at, updated_at FROM ia_posicion",
+                (generacion_id,),
+            )
+            conn.execute(
+                "INSERT INTO ia_orden_archivo SELECT ?, id, decision_id, position_id, symbol, market, currency, "
+                "proposito, origen, estado, target_session, target_open, niveles, equity_before_eur, "
+                "cash_before_eur, fx_rate, fx_as_of, requested_units, requested_notional_eur, motivo, created_at, "
+                "resolved_at FROM ia_orden",
+                (generacion_id,),
+            )
+            conn.execute(
+                "INSERT INTO ia_movimiento_archivo SELECT ?, id, tipo, importe_eur, referencia, detalle, "
+                "created_at FROM ia_movimiento",
+                (generacion_id,),
+            )
+            conn.execute(
+                "INSERT INTO ia_fill_archivo SELECT ?, id, order_id, symbol, lado, precio, precio_eur, units, "
+                "importe_eur, comision_eur, deslizamiento_eur, session, created_at FROM ia_fill",
+                (generacion_id,),
+            )
+            conn.execute(
+                "INSERT INTO ia_evento_archivo SELECT ?, id, tipo, symbol, payload, created_at FROM ia_evento",
+                (generacion_id,),
+            )
+
+            # Orden de borrado por las FK: fills (-> orden), orden (-> posición/decisión), posición.
+            conn.execute("DELETE FROM ia_fill")
+            conn.execute("DELETE FROM ia_orden")
+            conn.execute("DELETE FROM ia_posicion")
+            conn.execute("DELETE FROM ia_movimiento")
+            conn.execute("DELETE FROM ia_evento")
+
+            conn.execute(
+                "UPDATE ia_cartera SET capital_inicial_eur = ?, cash_eur = ?, activated_at = ?, updated_at = ? "
+                "WHERE id = 1",
+                (capital_inicial_eur, capital_inicial_eur, instante.isoformat(), _ahora_iso()),
+            )
+            conn.execute(
+                "INSERT INTO ia_movimiento (tipo, importe_eur, referencia, detalle, created_at) "
+                "VALUES ('APORTACION', ?, ?, ?, ?)",
+                (
+                    capital_inicial_eur, actor,
+                    f"reinicio de cartera (generación {generacion_id} archivada): {motivo}", _ahora_iso(),
+                ),
+            )
+            self._evento(conn, "CARTERA_REINICIADA", None, {
+                "generacion_archivada": generacion_id, "capital_inicial_eur": capital_inicial_eur,
+                "actor": actor, "motivo": motivo,
+            })
+        return generacion_id
+
+    def generaciones_archivadas(self) -> Tuple[Dict[str, Any], ...]:
+        """Las carteras anteriores archivadas, más reciente primero."""
+
+        filas = self.conn.execute(
+            "SELECT * FROM ia_cartera_generacion ORDER BY archivada_at DESC"
+        ).fetchall()
+        return tuple(dict(f) for f in filas)
+
+    def posiciones_de_la_generacion(self, generacion_id: int) -> Tuple[Dict[str, Any], ...]:
+        filas = self.conn.execute(
+            "SELECT * FROM ia_posicion_archivo WHERE generacion_id = ? ORDER BY id", (generacion_id,)
+        ).fetchall()
+        return tuple(dict(f) for f in filas)
+
+    def ordenes_de_la_generacion(self, generacion_id: int) -> Tuple[Dict[str, Any], ...]:
+        filas = self.conn.execute(
+            "SELECT * FROM ia_orden_archivo WHERE generacion_id = ? ORDER BY id", (generacion_id,)
+        ).fetchall()
+        return tuple(dict(f) for f in filas)
+
+    def movimientos_de_la_generacion(self, generacion_id: int) -> Tuple[Dict[str, Any], ...]:
+        filas = self.conn.execute(
+            "SELECT * FROM ia_movimiento_archivo WHERE generacion_id = ? ORDER BY id", (generacion_id,)
+        ).fetchall()
+        return tuple(dict(f) for f in filas)
+
     def cash_eur(self) -> float:
         fila = self.conn.execute("SELECT cash_eur FROM ia_cartera WHERE id = 1").fetchone()
         return float(fila[0]) if fila is not None else 0.0
@@ -735,9 +1041,23 @@ class CarteraIA:
                     f"decisión {decision_id} no es una COMPRAR de {symbol}: resolucion="
                     f"{decision['resolucion']!r} tipo={decision['tipo']!r} symbol={decision['symbol']!r}"
                 )
+            # También en ``ia_orden_archivo`` (hallazgo de Codex): un reinicio de cartera borra la
+            # orden viva tras archivarla, pero la decisión sigue ``aplicada=1``; sin esta segunda
+            # comprobación, repetir la materialización (un reintento, el barrido de recuperación de
+            # una decisión concurrente al reinicio) crearía una ENTRY nueva contra el capital de la
+            # generación siguiente. Una orden archivada, en cualquier estado, es terminal.
             existente = conn.execute(
-                "SELECT 1 FROM ia_orden WHERE decision_id = ? AND proposito = 'ENTRY'", (decision_id,)
+                "SELECT 1 FROM ia_orden WHERE decision_id = ? AND proposito = 'ENTRY' "
+                "UNION SELECT 1 FROM ia_orden_archivo WHERE decision_id = ? AND proposito = 'ENTRY'",
+                (decision_id, decision_id),
             ).fetchone()
+            # Sin ninguna orden (ni viva ni archivada) pero ya ``aplicada=1`` (hallazgo de Codex):
+            # es una decisión neutralizada por un reinicio de cartera (``reiniciar_cartera`` marca
+            # así las que estaban sin aplicar, precisamente para que NUNCA generen una orden), no
+            # una materialización incompleta que haya que terminar ahora. Una llamada en vuelo
+            # (encolada antes del reinicio) que llegue después no debe crear nada.
+            if existente is None and decision["aplicada"] == 1:
+                return
             if existente is None:
                 conflicto = conn.execute(
                     "SELECT 1 FROM ia_orden WHERE symbol = ? AND proposito = 'ENTRY' AND estado = 'PENDIENTE'",
@@ -803,9 +1123,16 @@ class CarteraIA:
                     f"{decision['resolucion']!r} tipo={decision['tipo']!r} symbol={decision['symbol']!r} "
                     f"causa={decision['causa']!r}"
                 )
+            # También en ``ia_orden_archivo``: mismo motivo que en ``materializar_decision_compra``.
             existente = conn.execute(
-                "SELECT 1 FROM ia_orden WHERE decision_id = ? AND proposito = 'EXIT_IA'", (decision_id,)
+                "SELECT 1 FROM ia_orden WHERE decision_id = ? AND proposito = 'EXIT_IA' "
+                "UNION SELECT 1 FROM ia_orden_archivo WHERE decision_id = ? AND proposito = 'EXIT_IA'",
+                (decision_id, decision_id),
             ).fetchone()
+            # Decisión ya neutralizada (sin orden, ``aplicada=1``) por un reinicio de cartera:
+            # igual que en ``materializar_decision_compra``, nunca se crea nada.
+            if existente is None and decision["aplicada"] == 1:
+                return
             if existente is None:
                 conflicto = conn.execute(
                     "SELECT 1 FROM ia_orden WHERE position_id = ? AND proposito = 'EXIT_IA' AND estado = 'PENDIENTE'",
