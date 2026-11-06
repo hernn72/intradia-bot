@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 import pandas as pd
 import pytest
@@ -130,15 +130,6 @@ def _proveedor_ohlc(barras: Dict[str, Dict[date, Tuple[float, float, float]]]) -
     return _Prov()
 
 
-class _FxFake:
-    def __init__(self, tasa_no_eur: Optional[float] = None) -> None:
-        self._tasa_no_eur = tasa_no_eur
-        self.as_of: Optional[pd.Timestamp] = None
-
-    def rate(self, currency: str) -> Optional[float]:
-        return 1.0 if currency == "EUR" else self._tasa_no_eur
-
-
 NIVELES = {"stop": 90.0, "invalidation_level": 90.0, "entry_max": 105.0, "target1": 110.0, "target2": 115.0, "min_rr_ratio": 1.5}
 
 
@@ -153,7 +144,7 @@ def _crear_decision_y_orden(cartera_ia: CarteraIA, reg: Any, symbol: str = "A", 
         decision_ts=T_ACTIVACION.isoformat(), input_hash=f"h-{symbol}", cuantitativo="{}", votos="{}",
         predicados=None, resolucion="COMPRAR", motivo="APROBADA_POR_AMBOS", prioridad="ALTA", causa=None,
     )
-    cartera_ia.crear_orden_entrada_pendiente(
+    cartera_ia.materializar_decision_compra(
         decision_id=decision_id, symbol=symbol, market="NYSE", currency=currency, target_session=SESION_OBJETIVO,
         target_open=APERTURA, niveles=NIVELES, instante=T_ACTIVACION,
     )
@@ -234,12 +225,13 @@ class TestCicloDeEntrada:
         cartera_ia, reg = _cartera(tmp_path)
         cartera_ia.activar(T_ACTIVACION, 10_000.0)
         decision_id = _crear_decision_y_orden(cartera_ia, reg)
-        otra_vez = cartera_ia.crear_orden_entrada_pendiente(
+        primera = cartera_ia.pendientes_entrada()[0]
+        cartera_ia.materializar_decision_compra(
             decision_id=decision_id, symbol="A", market="NYSE", currency="EUR", target_session=SESION_OBJETIVO,
             target_open=APERTURA, niveles=NIVELES, instante=T_ACTIVACION,
         )
         assert len(cartera_ia.pendientes_entrada()) == 1
-        assert otra_vez == cartera_ia.pendientes_entrada()[0].id
+        assert cartera_ia.pendientes_entrada()[0].id == primera.id
 
     def test_se_ejecuta_en_la_apertura_siguiente_con_el_tamano_correcto(self, tmp_path: Any) -> None:
         cartera_ia, reg = _cartera(tmp_path)
@@ -247,7 +239,7 @@ class TestCicloDeEntrada:
         _crear_decision_y_orden(cartera_ia, reg)
         proveedor = _proveedor_ohlc({"A": {SESION_OBJETIVO: (100.0, 95.0, 102.0)}})
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), T_ACTIVACION + timedelta(days=5), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=5), 0, [])
 
         assert resultado.abiertas == ["A"] and resultado.rechazadas == []
         posiciones = cartera_ia.posiciones_abiertas()
@@ -263,7 +255,7 @@ class TestCicloDeEntrada:
         # Abre por encima de entry_max (105) pero por debajo de target2 (115): aísla ABOVE_MAX_ENTRY.
         proveedor = _proveedor_ohlc({"A": {SESION_OBJETIVO: (110.0, 108.0, 111.0)}})
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), T_ACTIVACION + timedelta(days=5), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=5), 0, [])
 
         assert resultado.abiertas == [] and resultado.rechazadas == ["A"]
         assert cartera_ia.posiciones_abiertas() == ()
@@ -287,7 +279,7 @@ class TestCicloDeEntrada:
         _crear_decision_y_orden(cartera_ia, reg)
         proveedor = _proveedor_ohlc({"A": {SESION_OBJETIVO: (100.0, 95.0, 102.0)}})
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), T_ACTIVACION + timedelta(days=5), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=5), 0, [])
 
         assert resultado.rechazadas == ["A"]
         assert cartera_ia.cash_eur() == pytest.approx(50.0)
@@ -300,7 +292,7 @@ class TestCicloDeEntrada:
         _crear_decision_y_orden(cartera_ia, reg, currency="USD")
         proveedor = _proveedor_ohlc({"A": {SESION_OBJETIVO: (100.0, 95.0, 102.0)}})
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(None), T_ACTIVACION + timedelta(days=5), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=5), 0, [])
 
         assert resultado.abiertas == [] and resultado.rechazadas == []
         assert len(cartera_ia.pendientes_entrada()) == 1  # sigue pendiente, no rechazada
@@ -312,7 +304,7 @@ class TestCicloDeEntrada:
         proveedor = _proveedor_ohlc({"A": {SESION_OBJETIVO: (100.0, 95.0, 102.0)}})
 
         # Antes de que cierre la sesión objetivo (causalmente no observable todavía).
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), APERTURA, 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, APERTURA, 0, [])
 
         assert resultado.abiertas == [] and resultado.rechazadas == []
         assert len(cartera_ia.pendientes_entrada()) == 1
@@ -363,7 +355,7 @@ class TestRecuperacionCronologica:
             decision_ts=T_ACTIVACION.isoformat(), input_hash="hA", cuantitativo="{}", votos="{}", predicados=None,
             resolucion="COMPRAR", motivo="APROBADA_POR_AMBOS", prioridad="ALTA", causa=None,
         )
-        cartera_ia.crear_orden_entrada_pendiente(
+        cartera_ia.materializar_decision_compra(
             decision_id=decision_id, symbol="A", market="NYSE", currency="EUR", target_session=date(2026, 11, 2),
             target_open=datetime(2026, 11, 2, 14, 30, tzinfo=timezone.utc), niveles=NIVELES, instante=T_ACTIVACION,
         )
@@ -373,7 +365,7 @@ class TestRecuperacionCronologica:
             "B": {date(2026, 11, 4): (85.0, 80.0, 88.0)},
         })
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), T_ACTIVACION + timedelta(days=10), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=10), 0, [])
 
         assert resultado.abiertas == ["A"]
         assert resultado.cerradas_stop == {"B": date(2026, 11, 4)}
@@ -390,7 +382,7 @@ class TestRecuperacionCronologica:
         # Abre a 100 (por encima del stop 90) pero el mínimo del propio día lo rompe.
         proveedor = _proveedor_ohlc({"A": {SESION_OBJETIVO: (100.0, 85.0, 102.0)}})
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), T_ACTIVACION + timedelta(days=5), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=5), 0, [])
 
         assert resultado.abiertas == ["A"]
         assert resultado.cerradas_stop == {"A": SESION_OBJETIVO}
@@ -457,7 +449,7 @@ class TestOrdenDentroDeLaMismaFecha:
             "B": {SESION_OBJETIVO: (85.0, 80.0, 88.0)},  # hueco bajo el stop: libera ~841,5 EUR
         })
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), T_ACTIVACION + timedelta(days=10), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=10), 0, [])
 
         # Si A hubiese visto la caja ya liberada por B, 50 EUR habrían cabido de sobra.
         assert resultado.rechazadas == ["A"]
@@ -479,7 +471,7 @@ class TestOrdenDentroDeLaMismaFecha:
             decision_ts=T_ACTIVACION.isoformat(), input_hash="hA", cuantitativo="{}", votos="{}", predicados=None,
             resolucion="COMPRAR", motivo="APROBADA_POR_AMBOS", prioridad="ALTA", causa=None,
         )
-        cartera_ia.crear_orden_entrada_pendiente(
+        cartera_ia.materializar_decision_compra(
             decision_id=decision_id, symbol="A", market="NYSE", currency="EUR", target_session=date(2026, 11, 2),
             target_open=datetime(2026, 11, 2, 14, 30, tzinfo=timezone.utc), niveles=NIVELES, instante=T_ACTIVACION,
         )
@@ -490,7 +482,7 @@ class TestOrdenDentroDeLaMismaFecha:
             }
         })
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), T_ACTIVACION + timedelta(days=10), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=10), 0, [])
 
         assert resultado.abiertas == ["A"]
         assert resultado.cerradas_stop == {"A": date(2026, 11, 4)}
@@ -510,7 +502,7 @@ class TestOrdenDentroDeLaMismaFecha:
         _crear_decision_y_orden(cartera_ia, reg)
         proveedor = _proveedor_ohlc({"A": {SESION_OBJETIVO: (100.0, 95.0, 102.0)}})
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), T_ACTIVACION + timedelta(days=5), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=5), 0, [])
 
         assert resultado.rechazadas == ["A"] and resultado.abiertas == []
         assert len(cartera_ia.posiciones_abiertas()) == 1  # sigue siendo la original, no una segunda
@@ -599,7 +591,7 @@ class TestMigracionDesdeFase1:
             "B": {SESION_OBJETIVO: (100.0, 95.0, 102.0)},
         })
 
-        resultado = procesar_pendientes(cartera_ia, proveedor, _FxFake(), T_ACTIVACION + timedelta(days=10), 0, [])
+        resultado = procesar_pendientes(cartera_ia, proveedor, T_ACTIVACION + timedelta(days=10), 0, [])
 
         assert resultado.cerradas_stop == {"A": date(2026, 11, 4)}
         assert resultado.abiertas == ["B"]

@@ -9,7 +9,7 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 import pytest
@@ -901,7 +901,7 @@ def _pasada(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, analisis: List[datos.Analisis], cliente: Any,
     cartera: Optional[EstadoCartera] = None, contexto: Any = CONTEXTO, instante: datetime = T,
     cartera_ia: Any = None, proveedor: Any = None, registro_existente: Optional[RegistroIA] = None,
-    config: Any = None,
+    config: Any = None, reloj: Optional[Callable[[], datetime]] = None,
 ) -> tuple[pasada.ResultadoPasada, RegistroIA]:
     por_simbolo = {a.asset.symbol: a for a in analisis}
 
@@ -919,8 +919,8 @@ def _pasada(
     config = config if config is not None else SimpleNamespace(data_quality=SimpleNamespace(settlement_minutes=0))
     resultado = pasada.ejecutar_pasada(
         config=config, universe=universo, activos=[a.asset for a in analisis], proveedor=proveedor, cliente=cliente,  # type: ignore[arg-type]
-        registro=reg, cartera=cartera or EstadoCartera(10000.0, 10000.0), instante=instante, reloj=lambda: T,
-        cartera_ia=cartera_ia,
+        registro=reg, cartera=cartera or EstadoCartera(10000.0, 10000.0), instante=instante,
+        reloj=reloj if reloj is not None else (lambda: T), cartera_ia=cartera_ia,
     )
     return resultado, reg
 

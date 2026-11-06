@@ -16,7 +16,6 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 from advisor.config import AdvisorConfig
 from advisor.data.calendars import expected_sessions
-from advisor.data.fx import FxConverter
 from advisor.data.market_data import MarketDataProvider
 from advisor.universe.models import Asset, Universe
 from superbot.ia import comite
@@ -34,7 +33,7 @@ from superbot.ia.asesores import (
     version_prompt,
     voto_de,
 )
-from superbot.ia.cartera import CarteraIA, PosicionAbierta, construir_estado_cartera, procesar_pendientes
+from superbot.ia.cartera import CarteraIA, construir_estado_cartera, procesar_pendientes
 from superbot.ia.datos import Analisis, Contexto, ProveedorCrudo, analizar, cargar_contexto
 from superbot.ia.paquete import (
     COMPRA,
@@ -60,12 +59,19 @@ class ResultadoPasada:
     pasada_id: int
     status: str
     compras: List[str] = field(default_factory=list)
+    # Decisión del comité esta pasada (ambos modos); nunca dice si de verdad se ejecutó algo.
     ventas: List[str] = field(default_factory=list)
     incidencias: List[str] = field(default_factory=list)
     # ``compras`` es lo que decide el comité esta pasada; ``aperturas`` es lo que de verdad llegó
     # a abrirse al resolver una orden pendiente (de esta pasada o de una anterior) en su apertura.
     aperturas: List[str] = field(default_factory=list)
     rechazos_entrada: List[str] = field(default_factory=list)
+    # Lo que de verdad se ejecutó esta pasada en modo activo: cierre mecánico por stop (con
+    # prioridad sobre cualquier venta IA pendiente de la misma posición), salida IA ejecutada al
+    # ``Open`` de su sesión objetivo, y salida IA rechazada (p. ej. porque el stop se le adelantó).
+    cerradas_stop: List[str] = field(default_factory=list)
+    salidas_ia: List[str] = field(default_factory=list)
+    rechazos_salida: List[str] = field(default_factory=list)
 
 
 def code_sha(repo: Path = Path(__file__).resolve().parents[2]) -> str:
@@ -255,8 +261,12 @@ class Motor:
         op = analisis.oportunidad
         apertura = {} if posicion is None else {
             "invalidacion_apertura": posicion.invalidation_level, "sesion_senal_apertura": posicion.signal_session,
-            "decision_apertura": posicion.decision_apertura,
+            "decision_apertura": posicion.decision_apertura, "position_id": posicion.id,
         }
+        # Para poder recuperar una decisión COMPRAR/VENDER no aplicada (fase 3, ``cartera.py``
+        # ``recuperar_decisiones_sin_aplicar``) sin volver a mirar el ``Analisis`` original, que no
+        # se persiste: la divisa siempre, y los niveles de entrada solo para una oportunidad de compra.
+        niveles = {} if paquete.tipo != COMPRA else {"niveles": _niveles_de(op.levels)}
         return self.registro.guardar_decision(
             clave=paquete.clave, pasada_id=self.pasada_id, symbol=paquete.symbol, market=paquete.market,
             tipo=paquete.tipo, signal_session=paquete.signal_session.isoformat(),
@@ -265,7 +275,7 @@ class Motor:
             cuantitativo=canonico({
                 "score": op.score.value, "score_modelo": op.score.model_version, "accion_asesor": op.accion,
                 "rr": op.levels.rr_ratio, "invalidacion": op.levels.invalidation_level, "cierre": analisis.close,
-                "sma": analisis.sma, **apertura,
+                "sma": analisis.sma, "currency": analisis.asset.currency, **niveles, **apertura,
             }),
             votos=canonico(votos), predicados=canonico(predicados) if predicados is not None else None,
             resolucion=resolucion.decision, motivo=resolucion.motivo, prioridad=resolucion.prioridad,
@@ -303,19 +313,16 @@ def _evaluar_compras(
                 voto_de(OPORTUNIDAD, dictamenes[OPORTUNIDAD]), voto_de(RIESGO, dictamenes[RIESGO])
             )
             decision_id = motor.registrar(paquete, analisis, dictamenes, resolucion)
-            if cartera_ia is not None and cartera_ia.activa() and resolucion.decision == comite.COMPRAR:
-                orden_id = cartera_ia.crear_orden_entrada_pendiente(
-                    decision_id=decision_id, symbol=symbol, market=analisis.market,
-                    currency=analisis.asset.currency, target_session=analisis.target_session,
-                    target_open=analisis.target_open, niveles=_niveles_de(analisis.oportunidad.levels),
-                    instante=motor.instante,
-                )
-                # ``0`` significa que el símbolo ya tenía otra ENTRY pendiente (otra decisión, otro
-                # día) y esta no creó nada propio: no se marca aplicada sin un efecto durable real.
-                if orden_id:
-                    motor.registro.marcar_aplicada(decision_id)
+            if cartera_ia is not None and cartera_ia.activa():
+                if resolucion.decision == comite.COMPRAR:
+                    cartera_ia.materializar_decision_compra(
+                        decision_id=decision_id, symbol=symbol, market=analisis.market,
+                        currency=analisis.asset.currency, target_session=analisis.target_session,
+                        target_open=analisis.target_open, niveles=_niveles_de(analisis.oportunidad.levels),
+                        instante=motor.instante,
+                    )
                 else:
-                    resultado.incidencias.append(f"{symbol}: COMPRAR sin orden propia; ya había una ENTRY pendiente")
+                    cartera_ia.materializar_decision_sin_efecto(decision_id)
         except Exception as exc:
             # Sin registro completo no hay decisión: la compra simplemente no existe.
             resultado.incidencias.append(f"{symbol}: {type(exc).__name__}: {exc}"[:200])
@@ -327,7 +334,7 @@ def _evaluar_compras(
 
 def _evaluar_posiciones(
     motor: Motor, analizadas: Mapping[str, Analisis], contexto: Contexto, cartera: EstadoCartera,
-    resultado: ResultadoPasada,
+    resultado: ResultadoPasada, cartera_ia: Optional[CarteraIA] = None,
 ) -> None:
     pendientes: List[
         Tuple[PosicionIA, Paquete, Analisis, Mapping[str, Any], comite.Resolucion, Mapping[str, Optional[bool]]]
@@ -377,23 +384,25 @@ def _evaluar_posiciones(
         if resolucion.decision == comite.VENDER and not permitidas[posicion.symbol]:
             resolucion = comite.Resolucion(comite.MANTENER, "LIMITE_DE_VENTAS", causa=resolucion.causa)
         try:
-            motor.registrar(paquete, analisis, votos, resolucion, comprobaciones, posicion)
+            decision_id = motor.registrar(paquete, analisis, votos, resolucion, comprobaciones, posicion)
         except Exception as exc:
             resultado.incidencias.append(f"{posicion.symbol}: {type(exc).__name__}: {exc}"[:200])
             continue
         if resolucion.decision == comite.VENDER:
             resultado.ventas.append(posicion.symbol)
-
-
-def _tasas_eur(posiciones: Tuple[PosicionAbierta, ...], fx: FxConverter) -> Dict[str, float]:
-    tasas: Dict[str, float] = {}
-    for posicion in posiciones:
-        if posicion.currency in tasas:
-            continue
-        tasa = fx.rate(posicion.currency)
-        if tasa is not None:
-            tasas[posicion.currency] = tasa
-    return tasas
+        if cartera_ia is not None and cartera_ia.activa():
+            if resolucion.decision == comite.VENDER:
+                if posicion.id is None:
+                    resultado.incidencias.append(f"{posicion.symbol}: VENDER sin position_id; no se materializa")
+                else:
+                    cartera_ia.materializar_decision_venta(
+                        decision_id=decision_id, position_id=posicion.id, symbol=posicion.symbol,
+                        market=analisis.market, currency=analisis.asset.currency,
+                        target_session=analisis.target_session, target_open=analisis.target_open,
+                        causa=resolucion.causa, instante=motor.instante,
+                    )
+            else:
+                cartera_ia.materializar_decision_sin_efecto(decision_id)
 
 
 def ejecutar_pasada(**argumentos: Any) -> ResultadoPasada:
@@ -424,6 +433,30 @@ def _ejecutar(
     activa = cartera_ia is not None and cartera_ia.activa()
     pasada_id = registro.abrir_pasada(instante, "activo" if activa else "registro", code_sha())
     resultado = ResultadoPasada(pasada_id, "OK")
+
+    # El mantenimiento mecánico de la cartera (recuperar lo no aplicado, resolver lo pendiente,
+    # comprobar los stops obligatorios) no depende de la IA ni del contexto de mercado: se hace
+    # ANTES de intentar cargarlo, para que un fallo repetido de esa carga nunca impida un stop
+    # obligatorio ni deje una venta/compra ya decidida sin su oportunidad de resolverse (hallazgo de
+    # Codex). Usa su PROPIO instante (``mantenimiento_ts``), nunca ``decision_ts``: esta última se
+    # fecha más abajo, después de observar los datos — fecharla aquí haría que toda observación
+    # posterior (inevitable: las descargas tardan) pareciera "posterior a la decisión" y
+    # ``validar_causal`` rechazaría cada paquete (segundo hallazgo de Codex).
+    bloqueadas_fx: Tuple[str, ...] = ()
+    if activa:
+        assert cartera_ia is not None
+        mantenimiento_ts = reloj()
+        cartera_ia.recuperar_decisiones_sin_aplicar(mantenimiento_ts, resultado.incidencias)
+        resultado_proc = procesar_pendientes(
+            cartera_ia, proveedor, mantenimiento_ts, config.data_quality.settlement_minutes, resultado.incidencias
+        )
+        resultado.cerradas_stop.extend(sorted(resultado_proc.cerradas_stop))
+        resultado.aperturas.extend(resultado_proc.abiertas)
+        resultado.rechazos_entrada.extend(resultado_proc.rechazadas)
+        resultado.salidas_ia.extend(resultado_proc.salidas_ia)
+        resultado.rechazos_salida.extend(resultado_proc.rechazos_salida)
+        bloqueadas_fx = tuple(resultado_proc.bloqueadas_fx)
+
     crudo = ProveedorCrudo(proveedor, reloj)
     try:
         contexto = cargar_contexto(crudo, config, universe, instante)
@@ -458,29 +491,23 @@ def _ejecutar(
 
     if activa:
         assert cartera_ia is not None
-        fx = FxConverter(proveedor, base_currency="EUR")
-        resultado_proc = procesar_pendientes(
-            cartera_ia, proveedor, fx, decision_ts, config.data_quality.settlement_minutes, resultado.incidencias
-        )
-        resultado.ventas.extend(sorted(resultado_proc.cerradas_stop))
-        resultado.aperturas.extend(resultado_proc.abiertas)
-        resultado.rechazos_entrada.extend(resultado_proc.rechazadas)
-        tasas = _tasas_eur(cartera_ia.posiciones_abiertas(), fx)
-        ordenes_pendientes = tuple(o.symbol for o in cartera_ia.pendientes_entrada())
+        # Una posición con una ``EXIT_IA`` pendiente ya está en camino de venderse: ni es elegible
+        # para una compra nueva de su símbolo, ni se le debe pedir al comité una segunda decisión de
+        # venta sobre lo mismo mientras la primera no se resuelve.
+        bloqueadas_salida = tuple(o.symbol for o in cartera_ia.pendientes_salida())
+        ordenes_pendientes = tuple(o.symbol for o in cartera_ia.pendientes_entrada()) + bloqueadas_salida
         cartera, incidencias_valoracion = construir_estado_cartera(
-            cartera_ia, analizadas, tasas, ordenes_pendientes=ordenes_pendientes,
-            excluir_de_ia=tuple(resultado_proc.bloqueadas_fx),
+            cartera_ia, analizadas, proveedor, ordenes_pendientes=ordenes_pendientes,
+            excluir_de_ia=bloqueadas_fx + bloqueadas_salida,
         )
         for symbol, motivo in incidencias_valoracion.items():
             resultado.incidencias.append(f"{symbol}: {motivo}")
 
-    _evaluar_posiciones(motor, analizadas, contexto, cartera, resultado)
+    _evaluar_posiciones(motor, analizadas, contexto, cartera, resultado, cartera_ia if activa else None)
     candidatas = [
         a for a in analizadas.values() if motivo_no_elegible(a, cartera, politica, decision_ts) is None
     ]
     _evaluar_compras(motor, elegir_por_plaza(candidatas, politica), contexto, cartera, resultado, cartera_ia if activa else None)
-    if activa:
-        registro.marcar_aplicadas_sin_efecto(pasada_id, ("DESCARTAR", "MANTENER"))
     registro.cerrar_pasada(pasada_id, resultado.status, "; ".join(resultado.incidencias))
     return resultado
 

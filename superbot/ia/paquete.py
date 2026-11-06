@@ -45,6 +45,11 @@ class PosicionIA:
     invalidation_level: Optional[float]
     pnl_pct: float
     exposicion_pct: float
+    # Identificador real en ``ia_posicion`` (fase 3): permite que una decisión VENDER cree una
+    # salida pendiente ligada a ESTA posición concreta, no a su símbolo (dos posiciones sucesivas
+    # del mismo símbolo no deben confundirse). ``None`` fuera de la cartera real (corpus, pruebas
+    # que no pasan por CarteraIA).
+    id: Optional[int] = None
 
 
 @dataclass(frozen=True)

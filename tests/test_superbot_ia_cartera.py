@@ -74,16 +74,6 @@ def _proveedor_ohlc(
     return _Prov()
 
 
-class _FxFake:
-    """Evita depender de ``FxConverter``/red en las pruebas unitarias de ``verificar_stops``."""
-
-    def __init__(self, tasa_no_eur: Optional[float]) -> None:
-        self._tasa_no_eur = tasa_no_eur
-
-    def rate(self, currency: str) -> Optional[float]:
-        return 1.0 if currency == "EUR" else self._tasa_no_eur
-
-
 # --- evaluar_stop (función pura) ---------------------------------------------------
 
 
@@ -244,7 +234,8 @@ class TestConstruirEstadoCartera:
         cartera_ia.activar(T_ACTIVACION, 10_000.0)
         _abrir(cartera_ia, symbol="A", entry_price=100.0, units=10.0)
         analizadas = {"A": _analisis("A", close=110.0)}
-        estado, incidencias = construir_estado_cartera(cartera_ia, analizadas, {"EUR": 1.0})
+        proveedor = _proveedor_ohlc({})  # divisa EUR: fx_en_sesion ni la mira
+        estado, incidencias = construir_estado_cartera(cartera_ia, analizadas, proveedor)
         assert incidencias == {}
         assert estado.cash_eur == pytest.approx(9_000.0)
         assert estado.equity_eur == pytest.approx(9_000.0 + 10 * 110.0)
@@ -255,16 +246,17 @@ class TestConstruirEstadoCartera:
         cartera_ia, _reg = _cartera(tmp_path)
         cartera_ia.activar(T_ACTIVACION, 10_000.0)
         _abrir(cartera_ia, symbol="A", entry_price=100.0, units=10.0)
-        estado, incidencias = construir_estado_cartera(cartera_ia, {}, {"EUR": 1.0})
+        estado, incidencias = construir_estado_cartera(cartera_ia, {}, _proveedor_ohlc({}))
         assert incidencias == {"A": "SIN_VALORACION_CAUSAL"}
         assert estado.posiciones[0].pnl_pct == 0.0
 
     def test_sin_tipo_de_cambio_tampoco_inventa_valoracion(self, tmp_path: Any) -> None:
         cartera_ia, _reg = _cartera(tmp_path)
         cartera_ia.activar(T_ACTIVACION, 10_000.0)
-        _abrir(cartera_ia, symbol="A", entry_price=100.0, units=10.0)
+        _abrir(cartera_ia, symbol="A", entry_price=100.0, units=10.0, currency="USD")
         analizadas = {"A": _analisis("A", close=120.0)}
-        estado, incidencias = construir_estado_cartera(cartera_ia, analizadas, {})
+        proveedor = _proveedor_ohlc({"A": {}})  # sin barra de EURUSD=X: el tipo de cambio no se resuelve
+        estado, incidencias = construir_estado_cartera(cartera_ia, analizadas, proveedor)
         assert incidencias == {"A": "SIN_VALORACION_CAUSAL"}
         assert estado.posiciones[0].pnl_pct == 0.0
 
@@ -273,7 +265,9 @@ class TestConstruirEstadoCartera:
         cartera_ia.activar(T_ACTIVACION, 10_000.0)
         _abrir(cartera_ia, symbol="A", entry_price=100.0, units=10.0)
         analizadas = {"A": _analisis("A", close=110.0)}
-        estado, _incidencias = construir_estado_cartera(cartera_ia, analizadas, {"EUR": 1.0}, excluir_de_ia=("A",))
+        estado, _incidencias = construir_estado_cartera(
+            cartera_ia, analizadas, _proveedor_ohlc({}), excluir_de_ia=("A",)
+        )
         assert estado.posiciones == ()
         assert estado.equity_eur == pytest.approx(9_000.0 + 10 * 110.0)
 
@@ -289,7 +283,7 @@ class TestConstruirEstadoCartera:
             motivo=STOP_TOCADO,
         )
         # Una llamada completamente nueva (como la de una pasada posterior), sin pasar nada explícito.
-        estado, _incidencias = construir_estado_cartera(cartera_ia, {}, {"EUR": 1.0})
+        estado, _incidencias = construir_estado_cartera(cartera_ia, {}, _proveedor_ohlc({}))
         assert estado.ventas_ia == {"A": date(2026, 11, 4)}
 
 
@@ -311,7 +305,8 @@ class TestStopObligatorioEnLaPasada:
         )
 
         assert resultado.status == "OK"
-        assert resultado.ventas == ["A"]
+        assert resultado.cerradas_stop == ["A"]
+        assert resultado.ventas == []
         assert cliente.llamadas == 0
         assert cartera_ia.posiciones_abiertas() == ()
         assert cartera_ia.verificar_invariante_contable()
@@ -417,7 +412,7 @@ class TestStopObligatorioEnLaPasada:
             tmp_path, monkeypatch, [], cliente, cartera_ia=cartera_ia, registro_existente=reg, proveedor=proveedor,
         )
 
-        assert resultado.ventas == ["A"]
+        assert resultado.cerradas_stop == ["A"]
         assert cliente.llamadas == 0
         fila = cartera_ia.conn.execute("SELECT exit_session, exit_price FROM ia_posicion WHERE symbol = 'A'").fetchone()
         assert fila["exit_session"] == "2026-11-04" and fila["exit_price"] == 89.0  # el hueco del día 4, no el del 5
@@ -455,8 +450,9 @@ class TestVerificarStopsCursor:
         _abrir(cartera_ia, symbol="A", stop=90.0, currency="USD")
         instante = T_ACTIVACION + timedelta(days=5)
 
+        # Sin barra de ``EURUSD=X``: el tipo de cambio no se resuelve.
         proveedor_1 = _proveedor_ohlc({"A": {date(2026, 11, 4): (85.0, 80.0, 88.0)}})
-        cerradas_1, bloqueadas_1 = verificar_stops(cartera_ia, proveedor_1, instante, 0, _FxFake(None), [])
+        cerradas_1, bloqueadas_1 = verificar_stops(cartera_ia, proveedor_1, instante, 0, [])
         assert cerradas_1 == {} and bloqueadas_1 == {"A"}
         assert cartera_ia.posiciones_abiertas()[0].stop_verificado_hasta < date(2026, 11, 4)
 
@@ -464,7 +460,7 @@ class TestVerificarStopsCursor:
         proveedor_2 = _proveedor_ohlc(
             {"A": {date(2026, 11, 4): (85.0, 80.0, 88.0), date(2026, 11, 5): (95.0, 93.0, 96.0)}}
         )
-        cerradas_2, bloqueadas_2 = verificar_stops(cartera_ia, proveedor_2, instante, 0, _FxFake(None), [])
+        cerradas_2, bloqueadas_2 = verificar_stops(cartera_ia, proveedor_2, instante, 0, [])
         # Sigue bloqueada por la sesión del día 4: el cursor no saltó a la del día 5 sin resolverla.
         assert bloqueadas_2 == {"A"} and cerradas_2 == {}
 
@@ -473,10 +469,13 @@ class TestVerificarStopsCursor:
         cartera_ia.activar(T_ACTIVACION, 10_000.0)
         _abrir(cartera_ia, symbol="A", stop=90.0, currency="USD")
         instante = T_ACTIVACION + timedelta(days=5)
-        proveedor = _proveedor_ohlc({"A": {date(2026, 11, 4): (85.0, 80.0, 88.0)}})
+        sin_fx = _proveedor_ohlc({"A": {date(2026, 11, 4): (85.0, 80.0, 88.0)}})
+        con_fx = _proveedor_ohlc(
+            {"A": {date(2026, 11, 4): (85.0, 80.0, 88.0)}, "EURUSD=X": {date(2026, 11, 4): (1.1, 1.1, 1.1)}}
+        )
 
-        verificar_stops(cartera_ia, proveedor, instante, 0, _FxFake(None), [])
-        cerradas, bloqueadas = verificar_stops(cartera_ia, proveedor, instante, 0, _FxFake(1.1), [])
+        verificar_stops(cartera_ia, sin_fx, instante, 0, [])
+        cerradas, bloqueadas = verificar_stops(cartera_ia, con_fx, instante, 0, [])
 
         assert cerradas == {"A": date(2026, 11, 4)} and bloqueadas == set()
         assert cartera_ia.posiciones_abiertas() == ()
@@ -484,13 +483,13 @@ class TestVerificarStopsCursor:
     def test_un_minimo_adverso_en_la_propia_sesion_de_entrada_tambien_se_verifica(self, tmp_path: Any) -> None:
         cartera_ia, _reg = _cartera(tmp_path)
         cartera_ia.activar(T_ACTIVACION, 10_000.0)
-        _abrir(cartera_ia, symbol="A", stop=90.0, entry_session=date(2026, 11, 3))
+        _abrir(cartera_ia, symbol="A", stop=90.0, entry_session=date(2026, 11, 3))  # EUR: fx_en_sesion ni la mira
         # El mínimo del propio día de entrada rompe el stop.
         proveedor = _proveedor_ohlc({"A": {date(2026, 11, 3): (99.0, 85.0, 95.0)}})
         incidencias: List[str] = []
 
         cerradas, bloqueadas = verificar_stops(
-            cartera_ia, proveedor, T_ACTIVACION + timedelta(days=5), 0, _FxFake(1.0), incidencias
+            cartera_ia, proveedor, T_ACTIVACION + timedelta(days=5), 0, incidencias
         )
 
         assert cerradas == {"A": date(2026, 11, 3)} and bloqueadas == set()
