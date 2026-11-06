@@ -34,7 +34,7 @@ from superbot.ia.asesores import (
     version_prompt,
     voto_de,
 )
-from superbot.ia.cartera import CarteraIA, PosicionAbierta, construir_estado_cartera, verificar_stops
+from superbot.ia.cartera import CarteraIA, PosicionAbierta, construir_estado_cartera, procesar_pendientes
 from superbot.ia.datos import Analisis, Contexto, ProveedorCrudo, analizar, cargar_contexto
 from superbot.ia.paquete import (
     COMPRA,
@@ -62,6 +62,10 @@ class ResultadoPasada:
     compras: List[str] = field(default_factory=list)
     ventas: List[str] = field(default_factory=list)
     incidencias: List[str] = field(default_factory=list)
+    # ``compras`` es lo que decide el comité esta pasada; ``aperturas`` es lo que de verdad llegó
+    # a abrirse al resolver una orden pendiente (de esta pasada o de una anterior) en su apertura.
+    aperturas: List[str] = field(default_factory=list)
+    rechazos_entrada: List[str] = field(default_factory=list)
 
 
 def code_sha(repo: Path = Path(__file__).resolve().parents[2]) -> str:
@@ -247,13 +251,13 @@ class Motor:
         self, paquete: Paquete, analisis: Analisis, votos: Mapping[str, Optional[Mapping[str, Any]]],
         resolucion: comite.Resolucion, predicados: Optional[Mapping[str, Optional[bool]]] = None,
         posicion: Optional[PosicionIA] = None,
-    ) -> None:
+    ) -> int:
         op = analisis.oportunidad
         apertura = {} if posicion is None else {
             "invalidacion_apertura": posicion.invalidation_level, "sesion_senal_apertura": posicion.signal_session,
             "decision_apertura": posicion.decision_apertura,
         }
-        self.registro.guardar_decision(
+        return self.registro.guardar_decision(
             clave=paquete.clave, pasada_id=self.pasada_id, symbol=paquete.symbol, market=paquete.market,
             tipo=paquete.tipo, signal_session=paquete.signal_session.isoformat(),
             target_session=paquete.target_session.isoformat(), target_open=paquete.target_open.isoformat(),
@@ -269,8 +273,16 @@ class Motor:
         )
 
 
+def _niveles_de(levels: Any) -> Dict[str, Any]:
+    return {
+        "stop": levels.stop, "invalidation_level": levels.invalidation_level, "entry_max": levels.entry_max,
+        "target1": levels.target1, "target2": levels.target2, "min_rr_ratio": levels.min_rr_ratio,
+    }
+
+
 def _evaluar_compras(
-    motor: Motor, elegidas: List[Analisis], contexto: Contexto, cartera: EstadoCartera, resultado: ResultadoPasada
+    motor: Motor, elegidas: List[Analisis], contexto: Contexto, cartera: EstadoCartera, resultado: ResultadoPasada,
+    cartera_ia: Optional[CarteraIA] = None,
 ) -> None:
     aprobadas: List[Tuple[str, comite.Resolucion, float]] = []
     for analisis in elegidas:
@@ -290,7 +302,20 @@ def _evaluar_compras(
             resolucion = comite.resolver_compra(
                 voto_de(OPORTUNIDAD, dictamenes[OPORTUNIDAD]), voto_de(RIESGO, dictamenes[RIESGO])
             )
-            motor.registrar(paquete, analisis, dictamenes, resolucion)
+            decision_id = motor.registrar(paquete, analisis, dictamenes, resolucion)
+            if cartera_ia is not None and cartera_ia.activa() and resolucion.decision == comite.COMPRAR:
+                orden_id = cartera_ia.crear_orden_entrada_pendiente(
+                    decision_id=decision_id, symbol=symbol, market=analisis.market,
+                    currency=analisis.asset.currency, target_session=analisis.target_session,
+                    target_open=analisis.target_open, niveles=_niveles_de(analisis.oportunidad.levels),
+                    instante=motor.instante,
+                )
+                # ``0`` significa que el símbolo ya tenía otra ENTRY pendiente (otra decisión, otro
+                # día) y esta no creó nada propio: no se marca aplicada sin un efecto durable real.
+                if orden_id:
+                    motor.registro.marcar_aplicada(decision_id)
+                else:
+                    resultado.incidencias.append(f"{symbol}: COMPRAR sin orden propia; ya había una ENTRY pendiente")
         except Exception as exc:
             # Sin registro completo no hay decisión: la compra simplemente no existe.
             resultado.incidencias.append(f"{symbol}: {type(exc).__name__}: {exc}"[:200])
@@ -434,13 +459,17 @@ def _ejecutar(
     if activa:
         assert cartera_ia is not None
         fx = FxConverter(proveedor, base_currency="EUR")
-        cerradas_por_stop, bloqueadas_por_fx = verificar_stops(
-            cartera_ia, proveedor, decision_ts, config.data_quality.settlement_minutes, fx, resultado.incidencias
+        resultado_proc = procesar_pendientes(
+            cartera_ia, proveedor, fx, decision_ts, config.data_quality.settlement_minutes, resultado.incidencias
         )
-        resultado.ventas.extend(sorted(cerradas_por_stop))
+        resultado.ventas.extend(sorted(resultado_proc.cerradas_stop))
+        resultado.aperturas.extend(resultado_proc.abiertas)
+        resultado.rechazos_entrada.extend(resultado_proc.rechazadas)
         tasas = _tasas_eur(cartera_ia.posiciones_abiertas(), fx)
+        ordenes_pendientes = tuple(o.symbol for o in cartera_ia.pendientes_entrada())
         cartera, incidencias_valoracion = construir_estado_cartera(
-            cartera_ia, analizadas, tasas, excluir_de_ia=tuple(bloqueadas_por_fx)
+            cartera_ia, analizadas, tasas, ordenes_pendientes=ordenes_pendientes,
+            excluir_de_ia=tuple(resultado_proc.bloqueadas_fx),
         )
         for symbol, motivo in incidencias_valoracion.items():
             resultado.incidencias.append(f"{symbol}: {motivo}")
@@ -449,7 +478,7 @@ def _ejecutar(
     candidatas = [
         a for a in analizadas.values() if motivo_no_elegible(a, cartera, politica, decision_ts) is None
     ]
-    _evaluar_compras(motor, elegir_por_plaza(candidatas, politica), contexto, cartera, resultado)
+    _evaluar_compras(motor, elegir_por_plaza(candidatas, politica), contexto, cartera, resultado, cartera_ia if activa else None)
     if activa:
         registro.marcar_aplicadas_sin_efecto(pasada_id, ("DESCARTAR", "MANTENER"))
     registro.cerrar_pasada(pasada_id, resultado.status, "; ".join(resultado.incidencias))

@@ -873,7 +873,10 @@ def _analisis(
     )
     op = SimpleNamespace(
         snapshot=s,
-        levels=SimpleNamespace(entry_max=101.0, target1=103.0, target2=107.0, rr_ratio=1.5, invalidation_level=95.0),
+        levels=SimpleNamespace(
+            entry_max=101.0, target1=103.0, target2=107.0, rr_ratio=1.5, invalidation_level=95.0, stop=95.0,
+            min_rr_ratio=1.5,
+        ),
         score=SimpleNamespace(value=score, model_version="1.0", missing_dimensions=[]),
         accion="COMPRAR",
         data_freshness=SimpleNamespace(data_quality=SimpleNamespace(execution_readiness=True, indicator_readiness=True)),

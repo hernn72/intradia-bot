@@ -260,6 +260,18 @@ class RegistroIA:
             (pasada_id, *resoluciones),
         )
 
+    def marcar_aplicada(self, decision_id: int) -> None:
+        """Una decisión concreta ya produjo su efecto durable (p. ej. una orden ``ENTRY`` pendiente).
+
+        Misma defensa que ``marcar_aplicadas_sin_efecto``: solo si su pasada es de modo ``'activo'``.
+        """
+
+        self.conn.execute(
+            "UPDATE ia_decision SET aplicada = 1 WHERE id = ? "
+            "AND pasada_id IN (SELECT id FROM ia_pasada WHERE modo = 'activo')",
+            (decision_id,),
+        )
+
     def decisiones(self, pasada_id: Optional[int] = None) -> List[Mapping[str, Any]]:
         consulta = "SELECT * FROM ia_decision"
         parametros: tuple[Any, ...] = ()
