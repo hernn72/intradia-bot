@@ -14,6 +14,9 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import pytest
 
+from advisor.data.calendars import expected_sessions
+from advisor.data.sessions import market_for_symbol
+from advisor.universe.models import Asset, Universe
 from superbot.ia import asesores, comite, corpus, datos, pasada
 from superbot.ia.asesores import OK, OPORTUNIDAD, RIESGO, RespuestaModelo, validar_dictamen
 from superbot.ia.paquete import (
@@ -306,6 +309,407 @@ class TestAdaptador:
             assert not re.search(r"^\s*(from|import)\s.*\brun_analysis\b", codigo, re.M), fichero
             assert "superbot.engine" not in codigo, fichero
             assert "intradia.db" not in codigo and "paper.db" not in codigo, fichero
+
+
+# --- cobertura parcial del contexto Asia: incidente real del 2026-11-05 ----------------
+#
+# Dos pasadas reales (17:22 y 21:50 UTC) abortaron con ``excluded_asia_missing``
+# porque ``510300.SS`` no tenía la barra del 5 de noviembre en el proveedor,
+# aunque ``^HSI``, ``^KS11``, ``^N225`` y ``^TWII`` sí la tenían. Estas pruebas
+# fijan ese comportamiento sin tocar ``advisor/context/point_in_time.py``: la
+# cobertura parcial se decide entera en el adaptador (``superbot/ia/datos.py``).
+
+ASIA_SYMBOLS = ("510300.SS", "^HSI", "^KS11", "^N225", "^TWII")
+VIX_SYMBOL = "^VIX"
+TREND_SYMBOL = "^STOXX50E"
+# Instante real de la primera pasada afectada (2026-11-05, 17:22:06 UTC).
+INSTANTE_INCIDENTE = datetime(2026, 11, 5, 17, 22, 6, tzinfo=timezone.utc)
+
+
+def _sesiones_reales(symbol: str, hasta: date, n: int) -> List[date]:
+    """``n`` sesiones reales de la plaza de ``symbol`` hasta ``hasta`` (calendario
+    real, nunca la red): nunca incluye nada posterior a ``hasta`` (D-50/D-52)."""
+
+    mercado = market_for_symbol(symbol)
+    return expected_sessions(mercado, hasta - timedelta(days=max(n * 3, 90)), hasta)[-n:]
+
+
+def _serie_cierres(symbol: str, hasta: date, n: int, *, saltar: Optional[set] = None) -> pd.Series:
+    saltar = saltar or set()
+    sesiones = [s for s in _sesiones_reales(symbol, hasta, n) if s not in saltar]
+    return pd.Series({pd.Timestamp(s): 100.0 + i * 0.1 for i, s in enumerate(sesiones)}).sort_index()
+
+
+def _historia(serie: pd.Series) -> pd.DataFrame:
+    return pd.DataFrame({"Close": serie})
+
+
+def _cierres_incidente(hasta: date = date(2026, 11, 5), *, faltan: Optional[Dict[str, set]] = None) -> Dict[str, pd.Series]:
+    faltan = faltan or {}
+    cierres = {
+        VIX_SYMBOL: _serie_cierres(VIX_SYMBOL, hasta, 10, saltar=faltan.get(VIX_SYMBOL)),
+        TREND_SYMBOL: _serie_cierres(TREND_SYMBOL, hasta, 210, saltar=faltan.get(TREND_SYMBOL)),
+    }
+    for symbol in ASIA_SYMBOLS:
+        cierres[symbol] = _serie_cierres(symbol, hasta, 10, saltar=faltan.get(symbol))
+    return cierres
+
+
+def _base_provider(cierres: Dict[str, pd.Series], recuperable: Optional[Dict[str, pd.Series]] = None) -> Any:
+    """Simula el proveedor real: la descarga masiva (``period=``) sirve lo que haya en
+    ``cierres`` y, si falta una barra, un segundo intento por rango exacto (``start``/
+    ``end``) solo la entrega si está en ``recuperable`` — igual que el reintento real
+    contra yfinance, que a veces arregla por esa vía un hueco que el período no trae."""
+
+    recuperable = recuperable or {}
+    historias = {symbol: _historia(serie) for symbol, serie in cierres.items()}
+
+    class _Base:
+        def get_raw_history(
+            self, symbol: str, period: str = "2y", interval: str = "1d", *,
+            start: Optional[str] = None, end: Optional[str] = None, drop_na: bool = True,
+        ) -> pd.DataFrame:
+            if start is not None and end is not None:
+                extra = recuperable.get(symbol)
+                momento = pd.Timestamp(start)
+                if extra is None or momento not in extra.index:
+                    raise ValueError(f"sin datos crudos para '{symbol}'")
+                return _historia(extra.loc[[momento]])
+            if symbol not in historias:
+                raise ValueError(f"sin datos crudos para '{symbol}'")
+            return historias[symbol]
+
+    return _Base()
+
+
+def _crudo_incidente(
+    cierres: Dict[str, pd.Series], instante: datetime, *, recuperable: Optional[Dict[str, pd.Series]] = None
+) -> datos.ProveedorCrudo:
+    return datos.ProveedorCrudo(_base_provider(cierres, recuperable), lambda: instante)
+
+
+def _universo_contexto_incidente() -> Universe:
+    def _activo(symbol: str, market: str, currency: str, tz: str, region: str) -> Asset:
+        return Asset(
+            symbol=symbol, name=symbol, asset_class="index", region=region, market=market,
+            currency=currency, timezone=tz, analizable=False,
+        )
+
+    activos = [
+        _activo(VIX_SYMBOL, "CGI", "USD", "America/Chicago", "USA"),
+        _activo(TREND_SYMBOL, "XETRA", "EUR", "Europe/Berlin", "EUROPA"),
+        _activo("510300.SS", "SHH", "CNY", "Asia/Shanghai", "ASIA"),
+        _activo("^HSI", "HKG", "HKD", "Asia/Hong_Kong", "ASIA"),
+        _activo("^KS11", "KSC", "KRW", "Asia/Seoul", "ASIA"),
+        _activo("^N225", "JPX", "JPY", "Asia/Tokyo", "ASIA"),
+        _activo("^TWII", "TAI", "TWD", "Asia/Taipei", "ASIA"),
+    ]
+    return Universe(groups={"contexto": activos})
+
+
+class TestCoberturaAsia:
+    def test_un_proxy_ausente_se_recupera_con_reintento_exacto(self, config: Any) -> None:
+        faltan = {"510300.SS": {date(2026, 11, 5)}}
+        cierres = _cierres_incidente(faltan=faltan)
+        recuperable = {"510300.SS": pd.Series({pd.Timestamp(date(2026, 11, 5)): 4.1})}
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE, recuperable=recuperable)
+
+        resultado, cobertura, _ = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, ASIA_SYMBOLS, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert resultado.calculable is True
+        assert cobertura.estado == "completo"
+        assert cobertura.recuperados == ("510300.SS",)
+        assert cobertura.presentes == ASIA_SYMBOLS
+
+    def test_un_proxy_ausente_sin_recuperacion_es_cobertura_parcial_valida(self, config: Any) -> None:
+        """Reproduce la forma exacta del incidente del 2026-11-05: ``510300.SS`` sin la
+        barra del día, sin nada que un reintento pueda recuperar (hueco genuino del
+        proveedor, como ocurrió en real)."""
+
+        faltan = {"510300.SS": {date(2026, 11, 5)}}
+        cierres = _cierres_incidente(faltan=faltan)
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE)
+
+        resultado, cobertura, _ = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, ASIA_SYMBOLS, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert resultado.calculable is True
+        assert resultado.context is not None and resultado.context.source == "point_in_time"
+        assert resultado.context.asia_change_pct is not None
+        assert cobertura.estado == "parcial_valido"
+        assert cobertura.presentes == tuple(s for s in ASIA_SYMBOLS if s != "510300.SS")
+        assert cobertura.ausentes == (("510300.SS", "falta_ultima_cerrada"),)
+        assert cobertura.recuperados == ()
+
+    def test_varios_proxies_ausentes_fuera_de_tolerancia_es_no_calculable(self, config: Any) -> None:
+        faltan = {"510300.SS": {date(2026, 11, 5)}, "^HSI": {date(2026, 11, 5)}}
+        cierres = _cierres_incidente(faltan=faltan)
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE)
+
+        resultado, cobertura, _ = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, ASIA_SYMBOLS, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert resultado.calculable is False
+        assert cobertura.estado == "no_calculable"
+        assert {s for s, _m in cobertura.ausentes} == {"510300.SS", "^HSI"}
+
+    def test_region_imprescindible_vix_sin_datos_bloquea_aunque_asia_este_completa(self, config: Any) -> None:
+        """VIX no es un proxy Asia: la tolerancia de cobertura parcial no lo toca, y la
+        auditoría de cobertura sigue reflejando que Asia estaba completa (hallazgo de
+        Codex: antes ``presentes``/``ausentes`` se vaciaban aquí sin motivo)."""
+
+        cierres = _cierres_incidente()
+        cierres[VIX_SYMBOL] = pd.Series(dtype="float64")
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE)
+
+        resultado, cobertura, _ = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, ASIA_SYMBOLS, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert resultado.calculable is False
+        assert cobertura.estado == "no_calculable"
+        assert cobertura.recuperados == ()
+        assert cobertura.presentes == ASIA_SYMBOLS
+        assert cobertura.ausentes == ()
+
+    def test_region_imprescindible_tendencia_sin_datos_bloquea_aunque_asia_este_completa(self, config: Any) -> None:
+        """Lo mismo que el caso de VIX, pero con la tendencia (``^STOXX50E``): tampoco es
+        un proxy Asia y tampoco debe beneficiarse de su tolerancia."""
+
+        cierres = _cierres_incidente()
+        cierres[TREND_SYMBOL] = pd.Series(dtype="float64")
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE)
+
+        resultado, cobertura, _ = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, ASIA_SYMBOLS, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert resultado.calculable is False
+        assert cobertura.estado == "no_calculable"
+        assert cobertura.recuperados == ()
+        assert cobertura.presentes == ASIA_SYMBOLS
+        assert cobertura.ausentes == ()
+
+    @pytest.mark.parametrize("simbolo_ausente", ASIA_SYMBOLS)
+    def test_cualquier_proxy_asia_se_trata_igual_no_hay_excepcion_por_nombre(
+        self, config: Any, simbolo_ausente: str,
+    ) -> None:
+        """Ningún proxy está exento por su nombre: lo mismo que ocurrió con
+        ``510300.SS`` debe ocurrir igual si el que falta es cualquier otro."""
+
+        faltan = {simbolo_ausente: {date(2026, 11, 5)}}
+        cierres = _cierres_incidente(faltan=faltan)
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE)
+
+        resultado, cobertura, _ = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, ASIA_SYMBOLS, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert resultado.calculable is True
+        assert cobertura.estado == "parcial_valido"
+        assert cobertura.presentes == tuple(s for s in ASIA_SYMBOLS if s != simbolo_ausente)
+        assert cobertura.ausentes == ((simbolo_ausente, "falta_ultima_cerrada"),)
+
+    @pytest.mark.parametrize(
+        ("n_proxies", "n_ausentes", "calculable_esperado"),
+        [
+            (5, 1, True),   # 5 // 3 = 1 de tolerancia: el caso real del incidente.
+            (5, 2, False),  # una más y ya supera la tolerancia.
+            (3, 1, True),   # 3 // 3 = 1: se tolera una ausencia.
+            (3, 2, False),  # dos de tres ya es la mayoría.
+            (2, 1, False),  # 2 // 3 = 0: con menos de 3 proxies no se tolera nada.
+        ],
+    )
+    def test_frontera_de_la_tolerancia_depende_del_numero_de_proxies_no_del_nombre(
+        self, config: Any, n_proxies: int, n_ausentes: int, calculable_esperado: bool,
+    ) -> None:
+        # Subconjuntos de los 5 proxies reales: la frontera depende solo de cuántos
+        # hay configurados, nunca de cuáles son (D-50/D-52 no distingue por nombre).
+        simbolos = ASIA_SYMBOLS[:n_proxies]
+        ausentes_elegidos = set(simbolos[:n_ausentes])
+        faltan = {s: {date(2026, 11, 5)} for s in ausentes_elegidos}
+        cierres = _cierres_incidente(faltan=faltan)
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE)
+
+        resultado, cobertura, _ = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, simbolos, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert resultado.calculable is calculable_esperado
+        assert cobertura.estado == ("parcial_valido" if calculable_esperado else "no_calculable")
+
+    def test_barra_recuperada_pero_aun_rechazada_no_cuenta_como_recuperada(self, config: Any) -> None:
+        """Hallazgo de Codex: una barra que el reintento entrega pero que el resolver
+        sigue rechazando (p. ej. cierre anterior <= 0) no debe figurar en
+        ``recuperados`` a la vez que en ``ausentes``."""
+
+        cierres = _cierres_incidente()
+        serie = cierres["510300.SS"].copy()
+        serie[pd.Timestamp(date(2026, 11, 4))] = 0.0  # cierre anterior presente pero inválido
+        cierres["510300.SS"] = serie
+        # El reintento "recupera" la misma sesión, pero sigue siendo <= 0: el resolver
+        # la sigue rechazando por la misma razón original (``previous_close <= 0``).
+        recuperable = {"510300.SS": pd.Series({pd.Timestamp(date(2026, 11, 4)): 0.0})}
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE, recuperable=recuperable)
+
+        _resultado, cobertura, _closes = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, ASIA_SYMBOLS, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert "510300.SS" not in cobertura.recuperados
+        assert any(symbol == "510300.SS" for symbol, _motivo in cobertura.ausentes)
+        assert not (set(cobertura.recuperados) & {s for s, _m in cobertura.ausentes})
+
+    def test_asia_change_pct_es_la_media_exacta_de_los_proxies_presentes_sin_imputar_nada(
+        self, config: Any,
+    ) -> None:
+        """Nunca convertir una ausencia en señal favorable: lo comprueba recalculando
+        la media fuera del adaptador y comparándola bit a bit."""
+
+        faltan = {"510300.SS": {date(2026, 11, 5)}}
+        cierres = _cierres_incidente(faltan=faltan)
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE)
+
+        resultado, cobertura, _ = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, ASIA_SYMBOLS, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert cobertura.estado == "parcial_valido"
+        cambios = []
+        for symbol in cobertura.presentes:
+            serie = cierres[symbol]
+            ultimo, anterior = serie.iloc[-1], serie.iloc[-2]
+            cambios.append((ultimo / anterior - 1.0) * 100.0)
+        esperado = sum(cambios) / len(cambios)
+        assert resultado.context is not None
+        assert resultado.context.asia_change_pct == pytest.approx(esperado)
+
+    def test_recuperacion_se_fecha_en_el_reintento_no_en_la_descarga_inicial(self, config: Any) -> None:
+        """A través de ``cargar_contexto`` completo (hallazgo de Codex: la recuperación
+        solo se probaba vía ``_resolver_cobertura_asia``, sin verificar la ``Observacion``
+        ni su fecha de observación)."""
+
+        faltan = {"510300.SS": {date(2026, 11, 5)}}
+        cierres = _cierres_incidente(faltan=faltan)
+        recuperable = {"510300.SS": pd.Series({pd.Timestamp(date(2026, 11, 5)): 4.1})}
+        universo = _universo_contexto_incidente()
+
+        secuencia = [INSTANTE_INCIDENTE + timedelta(seconds=i) for i in range(20)]
+        momentos = iter(secuencia)
+        base = _base_provider(cierres, recuperable)
+        crudo = datos.ProveedorCrudo(base, lambda: next(momentos))
+
+        contexto = datos.cargar_contexto(crudo, config, universo, INSTANTE_INCIDENTE)
+
+        assert contexto.cobertura_asia.estado == "completo"
+        assert contexto.cobertura_asia.recuperados == ("510300.SS",)
+        observacion = next(o for o in contexto.observaciones if o.symbol == "510300.SS")
+        # Las 7 primeras marcas de reloj (índices 0-6) fechan la descarga masiva de
+        # VIX, tendencia y los 5 proxies Asia; la octava (índice 7) es la única que
+        # puede fechar la recuperación, posterior a todas ellas.
+        assert observacion.observed_at == secuencia[7]
+        assert observacion.available_at <= INSTANTE_INCIDENTE
+
+    def test_contexto_completo_sin_ausencias_no_cambia_de_comportamiento(self, config: Any) -> None:
+        cierres = _cierres_incidente()
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE)
+
+        resultado, cobertura, _ = datos._resolver_cobertura_asia(
+            crudo, config.market_context, config.data_quality.settlement_minutes, ASIA_SYMBOLS, dict(cierres),
+            INSTANTE_INCIDENTE,
+        )
+
+        assert resultado.calculable is True
+        assert cobertura.estado == "completo"
+        assert cobertura.presentes == ASIA_SYMBOLS
+        assert cobertura.recuperados == ()
+
+    def test_el_reintento_nunca_pide_una_sesion_posterior_a_la_exigida(self) -> None:
+        """Datos atrasados o posteriores a la decisión: el reintento solo puede pedir
+        exactamente la sesión que ``point_in_time`` ya declaró exigible, nunca una
+        ventana más ancha que adelante información futura (D-50/D-52)."""
+
+        pedidos: List[tuple] = []
+
+        class _Base:
+            def get_raw_history(self, symbol: str, *, start: str, end: str, **_: Any) -> pd.DataFrame:
+                pedidos.append((symbol, start, end))
+                raise ValueError("sin datos")
+
+        crudo = datos.ProveedorCrudo(_Base(), lambda: INSTANTE_INCIDENTE)
+        sesion = date(2026, 11, 5)
+
+        resultado = datos._recuperar_barra_asia(crudo, "510300.SS", sesion)
+
+        assert resultado is None
+        assert pedidos == [("510300.SS", "2026-11-05", "2026-11-06")]
+
+    def test_reproduce_el_incidente_real_del_5_de_noviembre_sin_abortar(self, config: Any) -> None:
+        """A través de ``cargar_contexto`` completo: antes del arreglo esto lanzaba
+        ``ContextoNoCalculable`` dos veces el mismo día (17:22 y 21:50 UTC). Los datos
+        del escenario no incluyen nada del 6 de noviembre: a la hora de la decisión,
+        ese día aún no existía."""
+
+        faltan = {"510300.SS": {date(2026, 11, 5)}}
+        cierres = _cierres_incidente(faltan=faltan)
+        crudo = _crudo_incidente(cierres, INSTANTE_INCIDENTE)
+        universo = _universo_contexto_incidente()
+
+        contexto = datos.cargar_contexto(crudo, config, universo, INSTANTE_INCIDENTE)
+
+        assert contexto.cobertura_asia.estado == "parcial_valido"
+        assert contexto.mercado.source == "point_in_time"
+        simbolos_usados = {o.symbol for o in contexto.observaciones}
+        assert simbolos_usados == {VIX_SYMBOL, TREND_SYMBOL, "^HSI", "^KS11", "^N225", "^TWII"}
+        assert "510300.SS" not in simbolos_usados
+        for observacion in contexto.observaciones:
+            assert observacion.available_at <= INSTANTE_INCIDENTE
+            assert observacion.observed_at <= INSTANTE_INCIDENTE
+
+    def test_pasada_con_varios_activos_solo_algunos_elegibles_bajo_cobertura_parcial(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config: Any,
+    ) -> None:
+        """Punto 6: con el contexto en cobertura parcial, la pasada sigue evaluando
+        varios activos y la elegibilidad real (``motivo_no_elegible``) sigue
+        funcionando sin cambios."""
+
+        faltan = {"510300.SS": {date(2026, 11, 5)}}
+        cierres = _cierres_incidente(faltan=faltan)
+        base = _base_provider(cierres)
+        universo = _universo_contexto_incidente()
+
+        elegible = _analisis("A", score=72.0)
+        descartado = _analisis("B", score=40.0)  # por debajo de score_min: SCORE_BAJO
+        por_simbolo = {"A": elegible, "B": descartado}
+        monkeypatch.setattr(pasada, "analizar", lambda asset, *a: por_simbolo[asset.symbol])
+
+        # ``T`` (21:45 UTC del 2026-11-05), no ``INSTANTE_INCIDENTE``: es el instante que
+        # usan las observaciones de ``_analisis()`` en el resto de la suite, y sigue
+        # siendo el mismo día del hueco real de ``510300.SS``.
+        reg = registro(tmp_path)
+        resultado = pasada.ejecutar_pasada(
+            config=config, universe=universo, activos=[elegible.asset, descartado.asset], proveedor=base,
+            cliente=ClienteFalso(por_defecto=compra_ok()), registro=reg, cartera=EstadoCartera(10000.0, 10000.0),
+            instante=T, reloj=lambda: T,
+        )
+
+        assert resultado.status == "OK"
+        assert resultado.compras == ["A"]
+        decididos = {fila["symbol"] for fila in reg.decisiones()}
+        assert decididos == {"A"}
 
 
 # --- dictaminar: matriz de fallos -------------------------------------------------------

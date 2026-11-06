@@ -117,7 +117,7 @@ def _datos_base(analisis: Analisis, contexto: Contexto, cartera: EstadoCartera, 
         "contexto": {
             "fuente": m.source, "estado": m.label, "motivo": m.reason, "vix": _redondeado(m.vix_value),
             "vix_umbral": _redondeado(m.vix_threshold), "tendencia_alcista": m.trend_up,
-            "asia_pct": _redondeado(m.asia_change_pct),
+            "asia_pct": _redondeado(m.asia_change_pct), "asia_cobertura": contexto.cobertura_asia.estado,
         },
         "cartera": cartera.resumen(),
     }
