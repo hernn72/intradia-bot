@@ -377,3 +377,114 @@ class TestFronteraDeDecisionesEntreGeneraciones:
 
         assert cartera_ia.pendientes_salida() == ()
         assert reg.conn.execute("SELECT COUNT(*) FROM ia_orden WHERE decision_id = ?", (decision_id,)).fetchone()[0] == 0
+
+
+class TestLecturasParaElDashboard:
+    def test_posiciones_cerradas_lista_lo_cerrado_mas_reciente_primero(self, tmp_path: Path) -> None:
+        cartera_ia, _reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        _abrir(cartera_ia, symbol="A", entry_price=100.0, units=1.0)
+        posicion = cartera_ia.posiciones_abiertas()[0]
+        cartera_ia.cerrar_posicion(
+            posicion, exit_price=110.0, exit_price_eur=110.0, exit_session=SESION_OBJETIVO,
+            origen="STOP_OBLIGATORIO", motivo="STOP_TOCADO",
+        )
+
+        cerradas = cartera_ia.posiciones_cerradas()
+
+        assert len(cerradas) == 1 and cerradas[0]["symbol"] == "A" and cerradas[0]["estado"] == "CERRADA"
+        assert cartera_ia.posiciones_abiertas() == ()
+
+    def test_ordenes_y_fills_y_eventos_recientes_devuelven_lo_registrado(self, tmp_path: Path) -> None:
+        cartera_ia, _reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        _abrir(cartera_ia, symbol="A", entry_price=100.0, units=1.0)
+
+        ordenes = cartera_ia.ordenes_recientes()
+        fills = cartera_ia.fills_recientes()
+        eventos = cartera_ia.eventos_recientes()
+
+        assert len(ordenes) == 1 and ordenes[0]["symbol"] == "A" and ordenes[0]["proposito"] == "ENTRY"
+        assert len(fills) == 1 and fills[0]["lado"] == "COMPRA"
+        assert any(e["tipo"] == "POSICION_ABIERTA" for e in eventos)
+
+    def test_el_limite_se_respeta(self, tmp_path: Path) -> None:
+        cartera_ia, _reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        for symbol in ("A", "B", "C"):
+            _abrir(cartera_ia, symbol=symbol, entry_price=100.0, units=1.0)
+
+        assert len(cartera_ia.ordenes_recientes(limite=2)) == 2
+        assert len(cartera_ia.fills_recientes(limite=2)) == 2
+
+    def test_el_limite_por_estado_no_oculta_una_pendiente_antigua(self, tmp_path: Path) -> None:
+        """Hallazgo de Codex: filtrar por estado DESPUÉS de aplicar el límite global podía ocultar
+        una orden PENDIENTE antigua detrás de muchas EJECUTADA recientes."""
+
+        cartera_ia, reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        _comprar_pendiente(cartera_ia, reg, symbol="PEND", target_session=date(2026, 11, 6))
+        for symbol in ("A", "B", "C"):  # tres ENTRY ya EJECUTADA, más recientes que la pendiente
+            _abrir(cartera_ia, symbol=symbol, entry_price=100.0, units=1.0)
+
+        pendientes = cartera_ia.ordenes_recientes(limite=2, estado="PENDIENTE")
+
+        assert len(pendientes) == 1 and pendientes[0]["symbol"] == "PEND"
+
+    def test_pasadas_y_gasto_total_del_registro(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        reg.abrir_pasada(T_ACTIVACION, "activo", "sha1")
+        reg.reservar("2026-11", 1.0)
+        reg.conciliar("2026-11", 1.0, 0.4321)
+
+        pasadas = reg.pasadas()
+
+        assert len(pasadas) == 1 and pasadas[0]["modo"] == "activo"
+        assert reg.gasto_total() == pytest.approx(0.4321)
+
+    def test_decisiones_recientes_del_registro_esta_acotada_y_ordenada(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        for n in range(3):
+            reg.conn.execute(
+                "INSERT INTO ia_paquete (input_hash, tipo, symbol, contenido) VALUES (?, 'COMPRA', 'A', '{}')",
+                (f"h{n}",),
+            )
+            pasada_id = reg.abrir_pasada(T_ACTIVACION, "activo", "sha")
+            reg.guardar_decision(
+                clave=f"A|{n}|2026-11-05|2026-11-06|x", pasada_id=pasada_id, symbol="A", market="NYSE",
+                tipo="COMPRA", signal_session="2026-11-05", target_session="2026-11-06",
+                target_open="2026-11-06T14:30:00+00:00", decision_ts=T_ACTIVACION.isoformat(),
+                input_hash=f"h{n}", cuantitativo="{}", votos="{}", predicados=None,
+                resolucion="DESCARTAR", motivo=f"motivo-{n}", prioridad="BAJA", causa=None,
+            )
+
+        recientes = reg.decisiones_recientes(limite=2)
+
+        assert len(recientes) == 2
+        assert recientes[0]["motivo"] == "motivo-2"  # más reciente primero
+
+
+class TestResumenCerradasYCapitalNeto:
+    def test_resumen_cerradas_agrega_sin_cargar_filas(self, tmp_path: Path) -> None:
+        cartera_ia, _reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        _abrir(cartera_ia, symbol="A", entry_price=100.0, units=1.0)
+        posicion = cartera_ia.posiciones_abiertas()[0]
+        cartera_ia.cerrar_posicion(
+            posicion, exit_price=110.0, exit_price_eur=110.0, exit_session=SESION_OBJETIVO,
+            origen="STOP_OBLIGATORIO", motivo="m",
+        )
+
+        num_cerradas, pnl = cartera_ia.resumen_cerradas()
+
+        assert num_cerradas == 1 and pnl == pytest.approx(10.0)
+
+    def test_capital_neto_aportado_incluye_activacion_aportes_y_retiradas(self, tmp_path: Path) -> None:
+        cartera_ia, _reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        cartera_ia.aportar(importe_eur=2_000.0, motivo="x", actor="y")
+        cartera_ia.retirar(importe_eur=500.0, motivo="x", actor="y")
+
+        assert cartera_ia.capital_neto_aportado_eur() == pytest.approx(11_500.0)

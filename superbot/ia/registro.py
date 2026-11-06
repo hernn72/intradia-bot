@@ -280,8 +280,33 @@ class RegistroIA:
             parametros = (pasada_id,)
         return [dict(fila) for fila in self.conn.execute(consulta + " ORDER BY id", parametros)]
 
+    def decisiones_recientes(self, limite: int = 200) -> List[Mapping[str, Any]]:
+        """Como ``decisiones()`` pero acotada en SQL (dashboard): nunca carga todo el histórico
+        para mostrar solo las últimas. Más reciente primero."""
+
+        return [
+            dict(f) for f in self.conn.execute(
+                "SELECT * FROM ia_decision ORDER BY decision_ts DESC, id DESC LIMIT ?", (limite,)
+            )
+        ]
+
     def llamadas(self, pasada_id: int) -> List[Mapping[str, Any]]:
         return [dict(f) for f in self.conn.execute("SELECT * FROM ia_llamada WHERE pasada_id = ? ORDER BY id", (pasada_id,))]
+
+    def pasadas(self, limite: int = 50) -> List[Mapping[str, Any]]:
+        """Las últimas pasadas (estado operativo y errores), más reciente primero (dashboard)."""
+
+        return [
+            dict(f) for f in self.conn.execute(
+                "SELECT * FROM ia_pasada ORDER BY started_at DESC, id DESC LIMIT ?", (limite,)
+            )
+        ]
+
+    def gasto_total(self) -> float:
+        """Coste real acumulado (todos los meses), sin contar lo meramente reservado."""
+
+        fila = self.conn.execute("SELECT COALESCE(SUM(gastado_eur), 0) FROM ia_gasto").fetchone()
+        return float(fila[0])
 
 
 def ventana_cache(ahora: datetime, politica: PoliticaIA) -> datetime:

@@ -896,6 +896,69 @@ class CarteraIA:
             for f in filas
         )
 
+    def posiciones_cerradas(self, limite: int = 100) -> Tuple[Dict[str, Any], ...]:
+        """Las posiciones cerradas de la generación activa, más reciente primero (dashboard)."""
+
+        filas = self.conn.execute(
+            "SELECT * FROM ia_posicion WHERE estado = 'CERRADA' ORDER BY exit_session DESC, id DESC LIMIT ?",
+            (limite,),
+        ).fetchall()
+        return tuple(dict(f) for f in filas)
+
+    def resumen_cerradas(self) -> Tuple[int, float]:
+        """(número de posiciones cerradas, P&L realizado total) de la generación activa, en una
+        sola agregación SQL — nunca carga las filas (``posiciones_cerradas`` sí, y está acotada a
+        propósito; esto es lo que necesita un KPI, sin ese límite)."""
+
+        fila = self.conn.execute(
+            "SELECT COUNT(*), COALESCE(SUM(pnl_eur), 0) FROM ia_posicion WHERE estado = 'CERRADA'"
+        ).fetchone()
+        return int(fila[0]), float(fila[1])
+
+    def capital_neto_aportado_eur(self) -> float:
+        """Suma de toda aportación/retirada de capital (tipo ``APORTACION`` en ``ia_movimiento``,
+        con su signo: la activación inicial y cada ``aportar``/``retirar`` posterior) de la
+        generación activa. Nunca es rentabilidad: es la base contra la que se mide, para que una
+        aportación o una retirada no se confundan con una ganancia o una pérdida."""
+
+        fila = self.conn.execute(
+            "SELECT COALESCE(SUM(importe_eur), 0) FROM ia_movimiento WHERE tipo = 'APORTACION'"
+        ).fetchone()
+        return float(fila[0])
+
+    def ordenes_recientes(self, limite: int = 100, estado: Optional[str] = None) -> Tuple[Dict[str, Any], ...]:
+        """Las órdenes de la generación activa, más reciente primero. Con ``estado``, el límite se
+        aplica DENTRO de ese estado (una PENDIENTE antigua nunca queda oculta detrás de 100
+        EJECUTADA recientes, si se listan cada una con su propia llamada)."""
+
+        if estado is not None:
+            filas = self.conn.execute(
+                "SELECT * FROM ia_orden WHERE estado = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+                (estado, limite),
+            ).fetchall()
+        else:
+            filas = self.conn.execute(
+                "SELECT * FROM ia_orden ORDER BY created_at DESC, id DESC LIMIT ?", (limite,)
+            ).fetchall()
+        return tuple(dict(f) for f in filas)
+
+    def fills_recientes(self, limite: int = 100) -> Tuple[Dict[str, Any], ...]:
+        """Los fills (compras y ventas ya ejecutadas) de la generación activa, más reciente primero."""
+
+        filas = self.conn.execute(
+            "SELECT * FROM ia_fill ORDER BY created_at DESC, id DESC LIMIT ?", (limite,)
+        ).fetchall()
+        return tuple(dict(f) for f in filas)
+
+    def eventos_recientes(self, limite: int = 100) -> Tuple[Dict[str, Any], ...]:
+        """El registro de auditoría (incluidas las acciones administrativas) de la generación
+        activa, más reciente primero."""
+
+        filas = self.conn.execute(
+            "SELECT * FROM ia_evento ORDER BY created_at DESC, id DESC LIMIT ?", (limite,)
+        ).fetchall()
+        return tuple(dict(f) for f in filas)
+
     def abrir_posicion(
         self, *, symbol: str, market: str, currency: str, units: float, entry_price: float, entry_price_eur: float,
         entry_session: date, decision_apertura_id: Optional[int], stop: float, invalidation_level: Optional[float],
