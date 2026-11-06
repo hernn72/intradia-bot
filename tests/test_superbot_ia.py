@@ -863,7 +863,10 @@ class TestPresupuesto:
 # --- pasada completa ----------------------------------------------------------------------
 
 
-def _analisis(symbol: str, market: str = "NYSE", score: float = 72.0, close: float = 100.0, sma: Optional[float] = 90.0) -> datos.Analisis:
+def _analisis(
+    symbol: str, market: str = "NYSE", score: float = 72.0, close: float = 100.0, sma: Optional[float] = 90.0,
+    open_: Optional[float] = None, low: Optional[float] = None,
+) -> datos.Analisis:
     s = SimpleNamespace(
         price=close, ema_fast=97.0, ema_slow=93.0, sma_long=88.0, rsi=61.0, atr=2.4, macd_hist=0.3, volume_ratio=1.2,
         gap_pct=0.1, return_short=5.0, return_medium=9.0, return_long=20.0, volatility_pct=25.0, relative_strength=2.0, bars=250,
@@ -878,7 +881,8 @@ def _analisis(symbol: str, market: str = "NYSE", score: float = 72.0, close: flo
     asset = SimpleNamespace(symbol=symbol, name=symbol, asset_class="stock", region="USA", currency="USD", trade_republic="yes")
     return datos.Analisis(
         asset=asset, oportunidad=op, market=market, signal_session=date(2026, 11, 5),  # type: ignore[arg-type]
-        target_session=date(2026, 11, 6), target_open=APERTURA, close=close, sma=sma,
+        target_session=date(2026, 11, 6), target_open=APERTURA, close=close,
+        open=close if open_ is None else open_, low=close if low is None else low, sma=sma,
         observaciones=(Observacion("barras", symbol, "2026-11-05", T - timedelta(minutes=30), T, "h"),),
     )
 
@@ -893,6 +897,8 @@ CONTEXTO = datos.Contexto(
 def _pasada(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, analisis: List[datos.Analisis], cliente: Any,
     cartera: Optional[EstadoCartera] = None, contexto: Any = CONTEXTO, instante: datetime = T,
+    cartera_ia: Any = None, proveedor: Any = None, registro_existente: Optional[RegistroIA] = None,
+    config: Any = None,
 ) -> tuple[pasada.ResultadoPasada, RegistroIA]:
     por_simbolo = {a.asset.symbol: a for a in analisis}
 
@@ -904,10 +910,14 @@ def _pasada(
     monkeypatch.setattr(pasada, "cargar_contexto", cargar)
     monkeypatch.setattr(pasada, "analizar", lambda asset, *a: por_simbolo[asset.symbol])
     universo = SimpleNamespace(get=lambda symbol: por_simbolo[symbol].asset if symbol in por_simbolo else None)
-    reg = registro(tmp_path)
+    reg = registro_existente if registro_existente is not None else registro(tmp_path)
+    # ``cargar_contexto``/``analizar`` están sustituidos y no miran ``config``; el modo activo sí lee
+    # ``config.data_quality.settlement_minutes`` para el stop obligatorio, así que necesita un valor real.
+    config = config if config is not None else SimpleNamespace(data_quality=SimpleNamespace(settlement_minutes=0))
     resultado = pasada.ejecutar_pasada(
-        config=None, universe=universo, activos=[a.asset for a in analisis], proveedor=None, cliente=cliente,  # type: ignore[arg-type]
+        config=config, universe=universo, activos=[a.asset for a in analisis], proveedor=proveedor, cliente=cliente,  # type: ignore[arg-type]
         registro=reg, cartera=cartera or EstadoCartera(10000.0, 10000.0), instante=instante, reloj=lambda: T,
+        cartera_ia=cartera_ia,
     )
     return resultado, reg
 

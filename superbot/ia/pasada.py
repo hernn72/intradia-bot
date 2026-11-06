@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 from advisor.config import AdvisorConfig
 from advisor.data.calendars import expected_sessions
+from advisor.data.fx import FxConverter
 from advisor.data.market_data import MarketDataProvider
 from advisor.universe.models import Asset, Universe
 from superbot.ia import comite
@@ -33,6 +34,7 @@ from superbot.ia.asesores import (
     version_prompt,
     voto_de,
 )
+from superbot.ia.cartera import CarteraIA, PosicionAbierta, construir_estado_cartera, verificar_stops
 from superbot.ia.datos import Analisis, Contexto, ProveedorCrudo, analizar, cargar_contexto
 from superbot.ia.paquete import (
     COMPRA,
@@ -358,8 +360,19 @@ def _evaluar_posiciones(
             resultado.ventas.append(posicion.symbol)
 
 
+def _tasas_eur(posiciones: Tuple[PosicionAbierta, ...], fx: FxConverter) -> Dict[str, float]:
+    tasas: Dict[str, float] = {}
+    for posicion in posiciones:
+        if posicion.currency in tasas:
+            continue
+        tasa = fx.rate(posicion.currency)
+        if tasa is not None:
+            tasas[posicion.currency] = tasa
+    return tasas
+
+
 def ejecutar_pasada(**argumentos: Any) -> ResultadoPasada:
-    """Pasada en modo ``registro``, en exclusiva. El modo ``activo`` llega con la Entrega C."""
+    """Pasada en modo ``registro``, en exclusiva. El modo ``activo`` llega con ``cartera_ia`` activada."""
 
     registro: RegistroIA = argumentos["registro"]
     with registro.exclusivo() as libre:
@@ -380,9 +393,11 @@ def _ejecutar(
     instante: datetime,
     reloj: Callable[[], datetime],
     politica: Optional[PoliticaIA] = None,
+    cartera_ia: Optional[CarteraIA] = None,
 ) -> ResultadoPasada:
     politica = politica or registro.politica
-    pasada_id = registro.abrir_pasada(instante, "registro", code_sha())
+    activa = cartera_ia is not None and cartera_ia.activa()
+    pasada_id = registro.abrir_pasada(instante, "activo" if activa else "registro", code_sha())
     resultado = ResultadoPasada(pasada_id, "OK")
     crudo = ProveedorCrudo(proveedor, reloj)
     try:
@@ -394,7 +409,11 @@ def _ejecutar(
         return resultado
 
     analizadas: Dict[str, Analisis] = {}
-    tenidas = {p.symbol for p in cartera.posiciones}
+    tenidas = (
+        {p.symbol for p in cartera_ia.posiciones_abiertas()}
+        if activa and cartera_ia is not None
+        else {p.symbol for p in cartera.posiciones}
+    )
     objetivo = {a.symbol: a for a in activos}
     for symbol in tenidas:
         asset = universe.get(symbol)
@@ -411,11 +430,28 @@ def _ejecutar(
     decision_ts = reloj()
     registro.fechar_decision(pasada_id, decision_ts)
     motor = Motor(registro, cliente, politica, pasada_id, decision_ts, reloj)
+
+    if activa:
+        assert cartera_ia is not None
+        fx = FxConverter(proveedor, base_currency="EUR")
+        cerradas_por_stop, bloqueadas_por_fx = verificar_stops(
+            cartera_ia, proveedor, decision_ts, config.data_quality.settlement_minutes, fx, resultado.incidencias
+        )
+        resultado.ventas.extend(sorted(cerradas_por_stop))
+        tasas = _tasas_eur(cartera_ia.posiciones_abiertas(), fx)
+        cartera, incidencias_valoracion = construir_estado_cartera(
+            cartera_ia, analizadas, tasas, excluir_de_ia=tuple(bloqueadas_por_fx)
+        )
+        for symbol, motivo in incidencias_valoracion.items():
+            resultado.incidencias.append(f"{symbol}: {motivo}")
+
     _evaluar_posiciones(motor, analizadas, contexto, cartera, resultado)
     candidatas = [
         a for a in analizadas.values() if motivo_no_elegible(a, cartera, politica, decision_ts) is None
     ]
     _evaluar_compras(motor, elegir_por_plaza(candidatas, politica), contexto, cartera, resultado)
+    if activa:
+        registro.marcar_aplicadas_sin_efecto(pasada_id, ("DESCARTAR", "MANTENER"))
     registro.cerrar_pasada(pasada_id, resultado.status, "; ".join(resultado.incidencias))
     return resultado
 

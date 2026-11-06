@@ -281,6 +281,8 @@ class Analisis:
     target_session: date
     target_open: datetime
     close: float
+    open: float
+    low: float
     sma: Optional[float]
     observaciones: Tuple[Observacion, ...]
 
@@ -357,6 +359,8 @@ def analizar(
         target_session=target,
         target_open=apertura,
         close=float(barras["Close"].iloc[-1]),
+        open=float(barras["Open"].iloc[-1]),
+        low=float(barras["Low"].iloc[-1]),
         sma=None if pd.isna(media) else float(media),
         observaciones=tuple(observaciones),
     )

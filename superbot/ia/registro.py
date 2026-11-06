@@ -241,6 +241,25 @@ class RegistroIA:
             cursor = conn.execute(f"INSERT INTO ia_decision ({columnas}) VALUES ({huecos})", tuple(campos.values()))
         return int(cursor.lastrowid or 0)
 
+    def marcar_aplicadas_sin_efecto(self, pasada_id: int, resoluciones: tuple[str, ...]) -> None:
+        """``DESCARTAR``/``MANTENER`` no crean ningún efecto durable: marcarlas aplicadas es su único rastro.
+
+        Una posición que el stop obligatorio ya cerró no pasa por aquí: no
+        llega a generar una decisión de tipo ``POSICION`` esta pasada (ver
+        ``superbot.ia.cartera``), así que no hay nada que marcar para ella.
+        Comprueba por sí misma que ``pasada_id`` es de modo ``'activo'``:
+        ninguna decisión de una pasada ``'registro'`` (incluidas las 1.862 ya
+        existentes de la Entrega B) debe poder marcarse aplicada, ni siquiera
+        por un uso indebido de este método con un ``pasada_id`` antiguo.
+        """
+
+        marcador = ", ".join("?" for _ in resoluciones)
+        self.conn.execute(
+            f"UPDATE ia_decision SET aplicada = 1 WHERE pasada_id = ? AND resolucion IN ({marcador}) "
+            "AND pasada_id IN (SELECT id FROM ia_pasada WHERE modo = 'activo')",
+            (pasada_id, *resoluciones),
+        )
+
     def decisiones(self, pasada_id: Optional[int] = None) -> List[Mapping[str, Any]]:
         consulta = "SELECT * FROM ia_decision"
         parametros: tuple[Any, ...] = ()
