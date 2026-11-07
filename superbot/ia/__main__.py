@@ -1,4 +1,8 @@
-"""CLI de la Entrega B: ``python -m superbot.ia pasada|decisiones|corpus``. No crea órdenes."""
+"""CLI de Superbot IA: ``python -m superbot.ia pasada|decisiones|corpus|dashboard|telegram``.
+
+``pasada`` nunca activa la cartera paper por sí sola (modo ``registro`` siempre, salvo que algo
+externo ya la hubiera activado) — eso sigue exigiendo un llamador explícito, conforme a que la
+cartera operativa no se activa en producción sin autorización."""
 
 from __future__ import annotations
 
@@ -14,7 +18,9 @@ from advisor.data.market_data import MarketDataProvider
 from advisor.universe.loader import load_universe
 from superbot.config import SuperbotConfig
 from superbot.data import select_assets
+from superbot.ia import telegram as telegram_mod
 from superbot.ia.asesores import ClienteAnthropic, ClienteIA
+from superbot.ia.cartera import CarteraIA
 from superbot.ia.corpus import ejecutar_corpus
 from superbot.ia.paquete import EstadoCartera
 from superbot.ia.pasada import ejecutar_pasada
@@ -40,6 +46,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     sub.add_parser("pasada")
     sub.add_parser("decisiones")
     sub.add_parser("corpus").add_argument("--solo", help="casos separados por comas")
+    parser_dashboard = sub.add_parser("dashboard")
+    parser_dashboard.add_argument("--host", default="127.0.0.1")
+    parser_dashboard.add_argument("--port", type=int, default=8766)
+    parser_telegram = sub.add_parser("telegram")
+    parser_telegram.add_argument("--test", action="store_true", help="envía un mensaje de prueba en vez de vaciar la cola")
     args = parser.parse_args(argv)
 
     politica = PoliticaIA()
@@ -47,6 +58,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.cmd == "decisiones":
         for fila in registro.decisiones():
             print(f"{fila['symbol']} {fila['tipo']} {fila['target_session']}: {fila['resolucion']} ({fila['motivo']})")
+        return 0
+    if args.cmd == "dashboard":
+        from superbot.ia.dashboard import serve
+
+        serve(args.db, politica, host=args.host, port=args.port)
+        return 0
+    if args.cmd == "telegram":
+        notifier = telegram_mod.notifier_from_env()
+        if args.test:
+            ok = notifier.send_message(f"{telegram_mod.HEADER}\n\nMensaje de prueba.")
+            print("Enviado" if ok else "No se pudo enviar (¿Telegram configurado?)")
+            return 0 if ok else 1
+        cartera_ia = CarteraIA(registro.conn)
+        contadores = telegram_mod.flush(cartera_ia, notifier)
+        print(json.dumps(contadores, ensure_ascii=False))
         return 0
     cliente = _cliente(politica)
     if args.cmd == "corpus":

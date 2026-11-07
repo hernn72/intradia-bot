@@ -36,6 +36,11 @@ from superbot.ia.datos import Analisis
 from superbot.ia.paquete import EstadoCartera, PosicionIA
 from superbot.ia.politica import CAUSAS
 
+# Un reclamo de notificación (``ia_notificacion.estado = 'ENVIANDO'``) sin resolver más tiempo que
+# esto se considera abandonado (el proceso que lo hizo murió) y vuelve a ofrecerse: generoso frente
+# al timeout HTTP de ``TelegramNotifier`` (10 s) para no competir con un envío todavía en curso.
+RECLAMO_NOTIFICACION_EXPIRA = timedelta(minutes=5)
+
 _ESQUEMA_CARTERA = """
 CREATE TABLE IF NOT EXISTS ia_cartera (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -145,6 +150,28 @@ CREATE TABLE IF NOT EXISTS ia_evento (
     symbol TEXT,
     payload TEXT NOT NULL,
     created_at TEXT NOT NULL
+);
+-- Avisos de Telegram (dashboard/pasada): un único mensaje por pasada que tuvo algo que contar
+-- (nunca una fila por cada decisión ni por cada activo descartado). ``clave`` es la defensa de
+-- idempotencia -- "pasada:<id>" para el resumen de una ejecución, "pasada:<id>:error" para un
+-- fallo, "resumen:<fecha>" para el periódico -- así que encolar dos veces el mismo evento real
+-- nunca duplica el aviso. ``estado`` empieza en PENDIENTE y solo lo cambia ``flush()``; una
+-- FALLIDA sigue contando como pendiente de reintento (nunca se pierde un aviso por un fallo de
+-- red), pero flush() nunca reenvía una ya ENVIADA.
+CREATE TABLE IF NOT EXISTS ia_notificacion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    clave TEXT NOT NULL UNIQUE,
+    tipo TEXT NOT NULL CHECK (tipo IN ('OPERACIONES', 'ERROR', 'RESUMEN')),
+    texto TEXT NOT NULL,
+    -- ENVIANDO: reclamada por un flush() en curso (evita que dos flush() concurrentes recojan y
+    -- envíen la misma fila dos veces); notificaciones_pendientes() no la devuelve mientras el
+    -- reclamo siga vigente. Si el proceso que la reclamó muere antes de resolverla, el reclamo
+    -- caduca pasado RECLAMO_NOTIFICACION_EXPIRA (ver reclamado_en) y vuelve a ofrecerse: sin esto,
+    -- una caída justo ahí la habría perdido para siempre (segundo hallazgo de Codex).
+    estado TEXT NOT NULL CHECK (estado IN ('PENDIENTE', 'ENVIANDO', 'ENVIADA', 'FALLIDA')),
+    created_at TEXT NOT NULL,
+    enviado_at TEXT,
+    reclamado_en TEXT
 );
 -- Reinicio de cartera (dashboard, fase de gestión de capital): una generación es la foto completa
 -- de la cartera en el instante justo antes de archivarla. Las tablas ``_archivo`` son copias
@@ -507,17 +534,26 @@ class CarteraIA:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
-        if self._orden_antigua_pendiente_de_migrar():
+        orden_pendiente = self._orden_antigua_pendiente_de_migrar()
+        notificacion_pendiente = self._notificacion_antigua_pendiente_de_migrar()
+        if orden_pendiente or notificacion_pendiente:
             try:
                 self.conn.execute("PRAGMA foreign_keys = OFF")
-                self._renombrar_orden_antigua()
+                if orden_pendiente:
+                    self._renombrar_orden_antigua()
+                if notificacion_pendiente:
+                    self._renombrar_notificacion_antigua()
                 self.conn.executescript(_ESQUEMA_CARTERA)
-                self._migrar_datos_orden_antigua()
+                if orden_pendiente:
+                    self._migrar_datos_orden_antigua()
+                if notificacion_pendiente:
+                    self._migrar_datos_notificacion_antigua()
             finally:
                 self.conn.execute("PRAGMA foreign_keys = ON")
         else:
             self.conn.executescript(_ESQUEMA_CARTERA)
         self._migrar_columnas_fill()
+        self._migrar_columna_notificacion_reclamado_en()
 
     # Marca literal del CHECK ya relajado (fase 3): si el texto de ``ia_orden`` no la contiene,
     # el CHECK sigue siendo el estricto de la fase 2 (``PENDIENTE`` exigía ``position_id IS NULL``
@@ -617,12 +653,79 @@ class CarteraIA:
         )
         self.conn.execute("DROP TABLE ia_orden_v1")
 
+    # ``ia_notificacion`` nació en esta misma entrega con el estado ``ENVIANDO`` todavía sin
+    # añadir a su CHECK (hallazgo de Codex): una base creada con esa primera forma no admitiría
+    # luego la reclamación de un aviso. Nada referencia esta tabla con una FK, así que la
+    # reconstrucción es más simple que la de ``ia_orden``: un simple renombrar basta.
+
+    def _notificacion_antigua_pendiente_de_migrar(self) -> bool:
+        if self.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ia_notificacion_v1'"
+        ).fetchone():
+            return True
+        fila = self.conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'ia_notificacion'"
+        ).fetchone()
+        if fila is None:
+            return False
+        return "ENVIANDO" not in fila[0]
+
+    def _renombrar_notificacion_antigua(self) -> None:
+        existe_v1 = self.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ia_notificacion_v1'"
+        ).fetchone()
+        if existe_v1 is None:
+            existe_vieja = self.conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'ia_notificacion'"
+            ).fetchone()
+            if existe_vieja is None or "ENVIANDO" in existe_vieja[0]:
+                return  # no existe todavía, o ya es la forma actual: nada que renombrar
+            self.conn.execute("ALTER TABLE ia_notificacion RENAME TO ia_notificacion_v1")
+            return
+        existe_vieja = self.conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'ia_notificacion'"
+        ).fetchone()
+        if existe_vieja is not None and "ENVIANDO" not in existe_vieja[0]:
+            self.conn.execute("DROP TABLE ia_notificacion")
+
+    def _migrar_datos_notificacion_antigua(self) -> None:
+        existe_v1 = self.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ia_notificacion_v1'"
+        ).fetchone()
+        if existe_v1 is None:
+            return
+        self.conn.execute(
+            "INSERT INTO ia_notificacion (id, clave, tipo, texto, estado, created_at, enviado_at) "
+            "SELECT id, clave, tipo, texto, estado, created_at, enviado_at FROM ia_notificacion_v1 "
+            "WHERE NOT EXISTS (SELECT 1 FROM ia_notificacion existente WHERE existente.id = ia_notificacion_v1.id)"
+        )
+        self.conn.execute("DROP TABLE ia_notificacion_v1")
+
     def _migrar_columnas_fill(self) -> None:
         columnas = {fila[1] for fila in self.conn.execute("PRAGMA table_info(ia_fill)")}
         if "comision_eur" not in columnas:
             self.conn.execute("ALTER TABLE ia_fill ADD COLUMN comision_eur REAL NOT NULL DEFAULT 0")
         if "deslizamiento_eur" not in columnas:
             self.conn.execute("ALTER TABLE ia_fill ADD COLUMN deslizamiento_eur REAL NOT NULL DEFAULT 0")
+
+    def _migrar_columna_notificacion_reclamado_en(self) -> None:
+        """Hueco intermedio real (hallazgo de Codex): una ``ia_notificacion`` cuyo CHECK ya
+        admitiera ``ENVIANDO`` pero sin la columna ``reclamado_en`` (entre dos versiones de esta
+        misma entrega) no la detectaba ``_notificacion_antigua_pendiente_de_migrar`` -- que solo
+        mira el CHECK -- y ``notificaciones_pendientes()`` fallaba con ``OperationalError``. Un
+        simple ``ALTER TABLE ADD COLUMN`` basta aquí (no hace falta reconstruir la tabla para una
+        columna nueva, a diferencia de relajar un CHECK). Cualquier fila YA ``ENVIANDO`` bajo ese
+        esquema intermedio se fecha como caducada de inmediato (con ``created_at``, siempre
+        anterior a ahora): sin esto, su ``reclamado_en`` quedaría ``NULL`` y ninguna comparación
+        ``reclamado_en < umbral`` la recuperaría jamás."""
+
+        columnas = {fila[1] for fila in self.conn.execute("PRAGMA table_info(ia_notificacion)")}
+        if "reclamado_en" in columnas:
+            return
+        self.conn.execute("ALTER TABLE ia_notificacion ADD COLUMN reclamado_en TEXT")
+        self.conn.execute(
+            "UPDATE ia_notificacion SET reclamado_en = created_at WHERE estado = 'ENVIANDO' AND reclamado_en IS NULL"
+        )
 
     @contextmanager
     def _transaccion(self) -> Iterator[sqlite3.Connection]:
@@ -958,6 +1061,88 @@ class CarteraIA:
             "SELECT * FROM ia_evento ORDER BY created_at DESC, id DESC LIMIT ?", (limite,)
         ).fetchall()
         return tuple(dict(f) for f in filas)
+
+    # --- notificaciones (Telegram) -----------------------------------------------
+
+    def encolar_notificacion(
+        self, *, clave: str, tipo: str, texto: str, creado_en: Optional[str] = None,
+    ) -> bool:
+        """Encola un aviso con ``clave`` única: devuelve ``False`` sin tocar nada si ya existía
+        (idempotente — repetir el mismo evento real nunca duplica el aviso).
+
+        ``creado_en``, si se da, fecha ``created_at`` con ese instante de NEGOCIO en vez del
+        reloj real — lo usa el resumen periódico, cuyo intervalo se mide contra el instante de la
+        pasada (``mantenimiento_ts``), nunca contra el reloj de la máquina que lo procesa.
+        """
+
+        # Un único INSERT atómico (hallazgo de Codex): comprobar con un SELECT y luego insertar
+        # deja una ventana entre ambas sentencias -- esta conexión no envuelve esto en su propia
+        # ``_transaccion()`` -- donde dos llamadas con la misma clave podían chocar con
+        # ``IntegrityError`` en vez de que la segunda, sin más, devolviera ``False``.
+        cursor = self.conn.execute(
+            "INSERT INTO ia_notificacion (clave, tipo, texto, estado, created_at) "
+            "VALUES (?, ?, ?, 'PENDIENTE', ?) ON CONFLICT (clave) DO NOTHING",
+            (clave, tipo, texto, creado_en if creado_en is not None else _ahora_iso()),
+        )
+        return cursor.rowcount > 0
+
+    def notificaciones_pendientes(self) -> Tuple[Dict[str, Any], ...]:
+        """``PENDIENTE`` o ``FALLIDA`` (un fallo de envío se reintenta; nunca se pierde), más
+        cualquier ``ENVIANDO`` cuyo reclamo ya haya CADUCADO (hallazgo de Codex: si el proceso
+        que la reclamó murió antes de resolverla -- antes de llamar a Telegram, o incluso
+        después pero antes del ``UPDATE`` final --, debe volver a ofrecerse, nunca perderse para
+        siempre). En orden de creación."""
+
+        umbral = (datetime.now(timezone.utc) - RECLAMO_NOTIFICACION_EXPIRA).isoformat()
+        filas = self.conn.execute(
+            "SELECT * FROM ia_notificacion WHERE estado IN ('PENDIENTE', 'FALLIDA') "
+            "OR (estado = 'ENVIANDO' AND reclamado_en < ?) ORDER BY id",
+            (umbral,),
+        ).fetchall()
+        return tuple(dict(f) for f in filas)
+
+    def reclamar_notificacion(self, notificacion_id: int) -> bool:
+        """Pasa a ``ENVIANDO`` (con ``reclamado_en`` fechado ahora) solo si seguía ``PENDIENTE``/
+        ``FALLIDA``, o si era ``ENVIANDO`` pero su reclamo anterior ya caducó: un ``UPDATE`` con
+        ``WHERE`` atómico, así que si dos ``flush()`` corren a la vez, solo uno de los dos la
+        reclama cada vez, nunca se envía el mismo aviso dos veces por esa vía. Lo que esto NO
+        elimina es la ventana, inevitable con la API de Telegram, entre que confirma el envío y
+        que se marca ``ENVIADA`` en la base -- esa sigue siendo entrega "al menos una vez", igual
+        que ya acepta ``superbot/notify.py``."""
+
+        umbral = (datetime.now(timezone.utc) - RECLAMO_NOTIFICACION_EXPIRA).isoformat()
+        cursor = self.conn.execute(
+            "UPDATE ia_notificacion SET estado = 'ENVIANDO', reclamado_en = ? WHERE id = ? AND "
+            "(estado IN ('PENDIENTE', 'FALLIDA') OR (estado = 'ENVIANDO' AND reclamado_en < ?))",
+            (_ahora_iso(), notificacion_id, umbral),
+        )
+        return cursor.rowcount > 0
+
+    def marcar_notificacion(self, notificacion_id: int, estado: str) -> None:
+        self.conn.execute(
+            "UPDATE ia_notificacion SET estado = ?, enviado_at = ? WHERE id = ?",
+            (estado, _ahora_iso(), notificacion_id),
+        )
+
+    def ultima_posicion_cerrada_de(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """La CERRADA más reciente de este símbolo exacto, sin el límite global de
+        ``posiciones_cerradas`` (hallazgo de Codex: con ese límite, una posición que se cierra
+        de verdad podía quedar fuera si otros 200 símbolos se habían cerrado más tarde)."""
+
+        fila = self.conn.execute(
+            "SELECT * FROM ia_posicion WHERE symbol = ? AND estado = 'CERRADA' ORDER BY id DESC LIMIT 1",
+            (symbol,),
+        ).fetchone()
+        return dict(fila) if fila is not None else None
+
+    def ultimo_resumen_enviado_en(self) -> Optional[str]:
+        """``created_at`` del último resumen periódico YA ENCOLADO (enviado o no): para decidir si
+        ya toca encolar el siguiente, sin depender de que Telegram lo haya entregado todavía."""
+
+        fila = self.conn.execute(
+            "SELECT created_at FROM ia_notificacion WHERE tipo = 'RESUMEN' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        return str(fila[0]) if fila is not None else None
 
     def abrir_posicion(
         self, *, symbol: str, market: str, currency: str, units: float, entry_price: float, entry_price_eur: float,

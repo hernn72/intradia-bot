@@ -18,7 +18,7 @@ from advisor.config import AdvisorConfig
 from advisor.data.calendars import expected_sessions
 from advisor.data.market_data import MarketDataProvider
 from advisor.universe.models import Asset, Universe
-from superbot.ia import comite
+from superbot.ia import comite, telegram
 from superbot.ia.asesores import (
     ERROR_LLAMADA,
     OK,
@@ -464,6 +464,11 @@ def _ejecutar(
         resultado.status = "ERROR"
         resultado.incidencias.append(f"contexto: {type(exc).__name__}: {exc}"[:300])
         registro.cerrar_pasada(pasada_id, "ERROR", resultado.incidencias[-1])
+        if activa:
+            assert cartera_ia is not None
+            # El mantenimiento (stops, órdenes) ya pudo haber ejecutado operaciones reales antes
+            # de este fallo: se avisa de ambas cosas, nunca solo del error.
+            telegram.encolar_notificaciones_de_la_pasada(cartera_ia, resultado, mantenimiento_ts)
         return resultado
 
     analizadas: Dict[str, Analisis] = {}
@@ -509,6 +514,9 @@ def _ejecutar(
     ]
     _evaluar_compras(motor, elegir_por_plaza(candidatas, politica), contexto, cartera, resultado, cartera_ia if activa else None)
     registro.cerrar_pasada(pasada_id, resultado.status, "; ".join(resultado.incidencias))
+    if activa:
+        assert cartera_ia is not None
+        telegram.encolar_notificaciones_de_la_pasada(cartera_ia, resultado, mantenimiento_ts)
     return resultado
 
 
