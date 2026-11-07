@@ -471,7 +471,9 @@ def serve(db_path: str | Path, politica: Any, host: str = "127.0.0.1", port: int
             self.send_header("Content-Length", "0")
             self.end_headers()
 
-        def _accion_admin(self, accion: Callable[[CarteraIA, Dict[str, str], str], str]) -> None:
+        def _accion_admin(
+            self, accion: Callable[[CarteraIA, Dict[str, str], str], str], exclusiva: bool = False,
+        ) -> None:
             if not self._origen_valido():
                 self.send_response(403)
                 self.send_header("Content-Length", "0")
@@ -485,7 +487,18 @@ def serve(db_path: str | Path, politica: Any, host: str = "127.0.0.1", port: int
             try:
                 cartera_ia = CarteraIA(registro.conn)
                 try:
-                    mensaje = accion(cartera_ia, campos, actor)
+                    # Un reinicio nunca puede cruzarse con una pasada en curso: comparte el mismo
+                    # candado exclusivo de ``pasada.ejecutar_pasada`` (hallazgo de Codex) — si no,
+                    # una decisión que la pasada registre justo después del reinicio podría
+                    # materializarse contra el capital de la generación nueva.
+                    if exclusiva:
+                        with registro.exclusivo() as libre:
+                            if not libre:
+                                mensaje = "No se pudo completar: hay una pasada en curso, inténtalo de nuevo."
+                            else:
+                                mensaje = accion(cartera_ia, campos, actor)
+                    else:
+                        mensaje = accion(cartera_ia, campos, actor)
                 except (ValueError, CarteraInactiva, EfectivoInsuficiente) as exc:
                     mensaje = f"No se pudo completar: {exc}"
             finally:
@@ -498,7 +511,7 @@ def serve(db_path: str | Path, politica: Any, host: str = "127.0.0.1", port: int
             elif self.path == "/retirar":
                 self._accion_admin(_accion_retirar)
             elif self.path == "/reiniciar":
-                self._accion_admin(_accion_reiniciar)
+                self._accion_admin(_accion_reiniciar, exclusiva=True)
             else:
                 self.send_error(404)
 

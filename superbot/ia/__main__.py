@@ -85,6 +85,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     config = load_config("config.yaml")
     universe = load_universe(config.universe_path)
+    # Reconoce una cartera YA activada (por el dashboard, aparte): esto nunca la activa por sí
+    # mismo, solo evita que el CLI ignore para siempre una activación hecha por otro medio.
+    cartera_ia = CarteraIA(registro.conn)
     resultado = ejecutar_pasada(
         config=config,
         universe=universe,
@@ -96,6 +99,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         instante=_ahora(),
         reloj=_ahora,
         politica=politica,
+        cartera_ia=cartera_ia,
     )
     print(json.dumps({"pasada": resultado.pasada_id, "status": resultado.status, "compras": resultado.compras,
                       "ventas": resultado.ventas, "incidencias": len(resultado.incidencias)}, ensure_ascii=False))

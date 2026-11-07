@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -349,3 +350,92 @@ class TestServidorHttpReal:
             assert respuesta.status == 403
         finally:
             conexion is not None and conexion.close()
+
+    def test_un_reinicio_se_bloquea_mientras_hay_una_pasada_en_curso(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Hallazgo de Codex: un reinicio administrativo que se cruzara con una pasada activa
+        podría dejar que una decisión registrada justo después del reinicio se materializara
+        contra el capital de la generación nueva. El reinicio debe compartir el mismo candado
+        exclusivo que ``pasada.ejecutar_pasada`` y rendirse, sin tocar nada, si lo encuentra
+        ocupado — nunca intentarlo de todos modos."""
+
+        import http.client
+        import socket
+        import threading
+
+        from superbot.ia import dashboard as dashboard_mod
+        from superbot.ia.politica import PoliticaIA
+        from superbot.ia.registro import RegistroIA
+
+        db = tmp_path / "servidor_reinicio.db"
+        politica = PoliticaIA()
+        reg = RegistroIA(db, politica)
+        CarteraIA(reg.conn).activar(T_ACTIVACION, 10_000.0)
+
+        monkeypatch.setenv(USUARIO_ENV, "propietario")
+        monkeypatch.setenv(CLAVE_ENV, "secreta123")
+
+        with socket.socket() as sonda:
+            sonda.bind(("127.0.0.1", 0))
+            puerto = sonda.getsockname()[1]
+
+        hilo = threading.Thread(
+            target=dashboard_mod.serve, args=(db, politica, "127.0.0.1", puerto), daemon=True,
+        )
+        hilo.start()
+        try:
+            conexion: Any = None
+            for _ in range(50):
+                try:
+                    conexion = http.client.HTTPConnection("127.0.0.1", puerto, timeout=1)
+                    conexion.request("GET", "/healthz")
+                    conexion.getresponse().read()
+                    break
+                except (ConnectionRefusedError, OSError):
+                    conexion = None
+                    import time as _time
+                    _time.sleep(0.05)
+            assert conexion is not None, "el servidor no llegó a arrancar"
+
+            import base64
+            credenciales = base64.b64encode(b"propietario:secreta123").decode("ascii")
+            # Simula una pasada en curso: el mismo candado exclusivo, en otra conexión al mismo
+            # fichero, tal como lo tomaría un proceso ``python -m superbot.ia pasada`` real.
+            with reg.exclusivo() as libre:
+                assert libre
+                conexion.request(
+                    "POST", "/reiniciar",
+                    body="capital_inicial_eur=5000&motivo=prueba&confirmar=SI",
+                    headers={"Authorization": f"Basic {credenciales}"},
+                )
+                respuesta = conexion.getresponse()
+                respuesta.read()
+                ubicacion = respuesta.getheader("Location")
+                assert respuesta.status == 303 and ubicacion is not None
+                conexion.request("GET", ubicacion)
+                respuesta = conexion.getresponse()
+                cuerpo = respuesta.read().decode("utf-8")
+                assert "pasada en curso" in cuerpo
+
+            # Nada se tocó: sigue la misma generación, sin archivar, con el capital original.
+            cartera_ia = CarteraIA(reg.conn)
+            assert cartera_ia.generaciones_archivadas() == ()
+            fila = reg.conn.execute("SELECT capital_inicial_eur FROM ia_cartera WHERE id = 1").fetchone()
+            assert fila["capital_inicial_eur"] == pytest.approx(10_000.0)
+
+            # Liberado el candado, el reinicio ya se aplica con normalidad.
+            conexion.request(
+                "POST", "/reiniciar", body="capital_inicial_eur=5000&motivo=prueba&confirmar=SI",
+                headers={"Authorization": f"Basic {credenciales}"},
+            )
+            respuesta = conexion.getresponse()
+            respuesta.read()
+            ubicacion = respuesta.getheader("Location")
+            conexion.request("GET", ubicacion)
+            respuesta = conexion.getresponse()
+            cuerpo = respuesta.read().decode("utf-8")
+            assert "reiniciada" in cuerpo
+        finally:
+            conexion is not None and conexion.close()
+            reg.close()
