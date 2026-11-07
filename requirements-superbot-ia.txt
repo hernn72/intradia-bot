@@ -1,0 +1,3 @@
+# Superbot IA. Aparte de requirements.txt: el asesor y T-024 no cambian de entorno.
+-r requirements.txt
+anthropic>=1.2.0  # output_config.format y output_config.effort

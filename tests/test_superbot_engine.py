@@ -262,9 +262,12 @@ def test_no_se_puede_inicializar_dos_veces(tmp_path: Path) -> None:
 
 def test_superbot_no_importa_t025_ni_la_investigacion() -> None:
     raiz = Path(__file__).resolve().parent.parent / "superbot"
-    prohibidos = ("paper", "advisor.research", "advisor.analysis.scoring", "advisor.analysis.opportunity")
+    siempre = ("paper", "advisor.research")
+    # D-81: superbot_ia_v1 usa Score v1 a propósito, y solo desde superbot/ia. T-025 y la investigación, nunca.
+    fuera_de_ia = (*siempre, "advisor.analysis.scoring", "advisor.analysis.opportunity")
     culpables = []
     for ruta in sorted(raiz.rglob("*.py")):
+        prohibidos = siempre if ruta.parent.name == "ia" else fuera_de_ia
         for nodo in ast.walk(ast.parse(ruta.read_text(encoding="utf-8"))):
             modulos: List[str] = []
             if isinstance(nodo, ast.Import):

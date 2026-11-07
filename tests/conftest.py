@@ -73,11 +73,22 @@ class FakeProvider:
         interval: str = "1d",
         *,
         drop_na: bool = True,
+        start: Optional[str] = None,
+        end: Optional[str] = None,
     ) -> pd.DataFrame:
         self.calls.append(symbol)
         if symbol not in self.raw_histories:
             raise ValueError(f"sin datos crudos para '{symbol}'")
         history = self.raw_histories[symbol]
+        if start is not None and end is not None:
+            # Espeja la petición por rango exacto del proveedor real: el
+            # recurso de recuperación de una barra ausente la pide así.
+            tz = history.index.tz
+            inicio = pd.Timestamp(start, tz=tz) if tz is not None else pd.Timestamp(start)
+            fin = pd.Timestamp(end, tz=tz) if tz is not None else pd.Timestamp(end)
+            history = history.loc[(history.index >= inicio) & (history.index < fin)]
+            if history.empty:
+                raise ValueError(f"No se han recibido datos para el símbolo '{symbol}'")
         if drop_na and "Close" in history.columns:
             return history.dropna(subset=["Close"])
         return history

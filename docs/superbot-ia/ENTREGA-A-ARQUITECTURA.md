@@ -2,6 +2,12 @@
 
 Fecha: 2026-11-05. Sustituye como objetivo a `fase-ia/AUDITORIA-Y-DISENO-IA-SUPERBOT.md`, que queda como auditoría. Nada implementado. Sin capital real.
 
+## 0. Objetivo final
+
+**El único producto final es Superbot IA.** iTrade, intradia-bot y el Superbot técnico son proyectos de desarrollo: aportan código, asesores, modelos y gestión de riesgo.
+
+En la Raspberry Pi quedará **un solo sistema**, con análisis cuantitativo, asesores IA, comité, gestión de riesgo, una única cartera paper, dashboard, mensajes de Telegram y servicios propios. El Mac es solo desarrollo y mantenimiento: ninguna operación ordinaria depende de él. T-024 y T-025 se mantienen hasta su cierre formal o una cancelación expresa.
+
 ## 1. Conclusiones
 
 1. **La arquitectura es viable reutilizando la mayor parte.** Lo nuevo son el adaptador cuantitativo, los asesores, el comité y el registro.
@@ -156,6 +162,20 @@ Un solo frente, una rama, y ninguna funcionalidad fuera de esta tabla.
 | **B. Asesores y comité** | Adaptador causal, paquete, 2 asesores, comité, predicados de venta, registro. Sin tocar la cartera ni `advisor/` | Pruebas verdes. Corpus congelado de 20 casos (no inventa, no usa datos ausentes, no altera cifras) con 20 de 20. 100 % de esas respuestas validan el esquema. Matriz de fallos: en compra acaba sin compra, en venta acaba en `MANTENER`. Cada causa probada verdadera, falsa y con dato ausente. 0 paquetes con `available_at` posterior y 100 % con `context.source = point_in_time`. Una pasada real por plaza registrada completa. Coste por pasada medido; reserva y cambio de mes probados |
 | **C. Cartera y dashboard** | Política en el motor, base nueva, exposición y kill switch como subconjunto paper, dashboard con decisiones, replay de ventas | Con `itrade_trend_v1`, iguales en valor `fills`, `orders`, `positions`, `signals` y `equity_snapshots`, en orden canónico y sin `id`, `created_at` ni `run_id`. 10 sesiones simuladas sin descuadre. 0 duplicados por clave. 0 órdenes tras la apertura objetivo. Cada orden enlaza con su decisión. Replay sintético de las 3 causas y sus fallos. Probados: precedencia del stop, límite de 1 venta, espera de recompra, caducidad, `REGISTRO_INCOMPLETO`, IA sin efecto en stop y tamaño, negativa a mezclar políticas, y reversión desde un estado con posición abierta y orden pendiente. Revisión de Codex sin críticos abiertos |
 | **D. Verificación y despliegue** | Despliegue, modo `registro`, activación, seguimiento y análisis posterior | En `registro`: al menos 5 sesiones y 30 decisiones de compra, de todas las plazas con candidatos, 100 % válidas, registradas y antes de la apertura; 0 duplicados; coste bajo el tope. `SIA_T0` registrado al activar, con autorización. 20 sesiones en `activo` con informe frente a `EUNL.DE`, y cada venta IA con predicado verificado. Primer análisis posterior sin cambio automático de reglas |
+
+**Criterio final de aceptación.** La Entrega D no se cierra hasta demostrar en la Pi:
+
+| Requisito | Prueba |
+|---|---|
+| Funciona de forma autónoma | Temporizadores propios; 20 sesiones sin intervención ni el Mac |
+| Los asesores intervienen de verdad | Decisiones registradas que cambian órdenes y ventas reales en paper |
+| Compra y vende en paper según decisiones y riesgo | Cada orden enlaza con su decisión y su control |
+| Conserva efectivo, posiciones, operaciones y rentabilidad | Efectivo igual a capital más fills, sin descuadre |
+| Envía los mensajes de Telegram | Mensajes reales recibidos para compra, venta, stop y fallo |
+| El dashboard permite seguir toda la actividad | Operaciones, decisiones, dictámenes y resultados visibles |
+| Se recupera de reinicios y errores | Reinicio de la Pi y fallos de API y de datos, sin pérdida ni duplicados |
+| No depende de servicios de los bots anteriores | Funciona con esos servicios parados; clave y configuración propias |
+| No quedan otros bots en producción | Asesor y iTrade retirados tras validar; T-024 y T-025 aparte |
 
 ## 8. Decisiones del propietario (2026-11-05)
 
