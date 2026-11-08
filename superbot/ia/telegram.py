@@ -14,6 +14,8 @@ import os
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+import requests
+
 from advisor.telegram.notifier import TelegramNotifier
 from superbot.ia.cartera import CarteraIA
 from superbot.ia.dashboard import build_stats
@@ -22,11 +24,15 @@ if TYPE_CHECKING:
     # Solo para anotar tipos: importar pasada.py en tiempo de ejecución crearía un ciclo
     # (pasada.py importa este módulo para encolar los avisos al final de cada pasada).
     from superbot.ia.pasada import ResultadoPasada
+    from superbot.ia.registro import RegistroIA
 
 HEADER = "🧪 SUPERBOT IA\nPAPER OPERACIONAL — NO VALIDADA PARA CAPITAL REAL"
 BOT_TOKEN_ENV = "SUPERBOT_IA_TELEGRAM_BOT_TOKEN"
 CHAT_ID_ENV = "SUPERBOT_IA_TELEGRAM_CHAT_ID"
 INTERVALO_RESUMEN = timedelta(days=1)
+COMANDO_DASHBOARD = "/dashboard"
+_OFFSET_META_KEY = "telegram_update_offset"
+_GETUPDATES_TIMEOUT_SECONDS = 10
 
 
 def _num(value: float, digits: int = 2) -> str:
@@ -196,7 +202,63 @@ def flush(cartera_ia: CarteraIA, notifier: TelegramNotifier) -> Dict[str, int]:
     return contadores
 
 
+def _offset_guardado(registro: RegistroIA) -> int:
+    fila = registro.conn.execute("SELECT value FROM ia_meta WHERE key = ?", (_OFFSET_META_KEY,)).fetchone()
+    return int(fila[0]) if fila is not None else 0
+
+
+def _guardar_offset(registro: RegistroIA, offset: int) -> None:
+    registro.conn.execute(
+        "INSERT INTO ia_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (_OFFSET_META_KEY, str(offset)),
+    )
+
+
+def atender_comandos(registro: RegistroIA, notifier: TelegramNotifier, dashboard_url: str) -> int:
+    """Responde ``/dashboard`` con la URL del dashboard, para cuando se olvide.
+
+    Sondeo corto (``timeout=0``, nunca long-polling): pensado para llamarse desde el mismo timer
+    periódico que ya vacía la cola de avisos, así que nunca bloquea más de unos segundos. Solo
+    atiende mensajes del ``chat_id`` configurado (hallazgo de Codex): cualquier otro remitente que
+    descubriera el bot se ignora sin respuesta, para que no pueda usarlo para sondear nada. El
+    ``offset`` de Telegram se guarda en ``ia_meta`` (misma base que el resto del registro) para no
+    reprocesar ni perder mensajes entre pasadas del timer.
+    """
+
+    if not notifier.enabled:
+        return 0
+    offset = _offset_guardado(registro)
+    try:
+        respuesta = requests.get(
+            TelegramNotifier.BASE_URL.format(token=notifier.bot_token, method="getUpdates"),
+            params={"offset": offset, "timeout": 0},
+            timeout=_GETUPDATES_TIMEOUT_SECONDS,
+        )
+        respuesta.raise_for_status()
+        datos = respuesta.json()
+    except requests.RequestException:
+        return 0
+    if not datos.get("ok"):
+        return 0
+    enviados = 0
+    max_update_id = offset - 1
+    for actualizacion in datos.get("result", []):
+        max_update_id = max(max_update_id, int(actualizacion["update_id"]))
+        mensaje = actualizacion.get("message") or {}
+        chat = mensaje.get("chat") or {}
+        texto = (mensaje.get("text") or "").strip()
+        if str(chat.get("id")) != str(notifier.chat_id):
+            continue
+        primera_palabra = texto.split()[0] if texto else ""
+        if primera_palabra == COMANDO_DASHBOARD and notifier.send_message(f"Dashboard de Superbot IA: {dashboard_url}"):
+            enviados += 1
+    if max_update_id >= offset:
+        _guardar_offset(registro, max_update_id + 1)
+    return enviados
+
+
 __all__ = [
+    "atender_comandos",
     "encolar_error_pasada",
     "encolar_notificaciones_de_la_pasada",
     "encolar_resumen_pasada",
