@@ -302,20 +302,28 @@ def render_html(cartera_ia: CarteraIA, registro: RegistroIA, now_label: str, men
     ejecutadas = cartera_ia.ordenes_recientes(100, estado="EJECUTADA") if stats["activa"] else ()
     rechazadas = cartera_ia.ordenes_recientes(100, estado="RECHAZADA") if stats["activa"] else ()
     aviso_html = f'<div class="aviso">{_text(mensaje)}</div>' if mensaje else ""
+    titulo_gestion = (
+        "Gestión de capital (requiere autenticación)"
+        if _credenciales_configuradas() is not None
+        else "Gestión de capital (acceso abierto en tu LAN, sin usuario ni contraseña)"
+    )
+    # Sin usuario/contraseña, la confirmación del navegador (hallazgo de Codex) es la única
+    # barrera entre un clic accidental y un movimiento real de capital: se exige en los tres
+    # formularios, no solo en "reiniciar" (que además exige escribir "SI" en el servidor).
     admin_forms = "" if not stats["activa"] else f"""
     <section>
-      <h2>Gestión de capital (requiere autenticación)</h2>
-      <form class="admin" method="post" action="/aportar">
+      <h2>{_text(titulo_gestion)}</h2>
+      <form class="admin" method="post" action="/aportar" onsubmit="return confirm('¿Confirmas la APORTACIÓN de capital a la cartera paper?');">
         <label>Importe EUR<input type="number" name="importe_eur" step="0.01" min="0.01" required></label>
         <label>Motivo<input type="text" name="motivo" required></label>
         <button type="submit">Aportar</button>
       </form>
-      <form class="admin" method="post" action="/retirar">
+      <form class="admin" method="post" action="/retirar" onsubmit="return confirm('¿Confirmas la RETIRADA de capital de la cartera paper?');">
         <label>Importe EUR<input type="number" name="importe_eur" step="0.01" min="0.01" required></label>
         <label>Motivo<input type="text" name="motivo" required></label>
         <button type="submit">Retirar</button>
       </form>
-      <form class="admin reiniciar" method="post" action="/reiniciar">
+      <form class="admin reiniciar" method="post" action="/reiniciar" onsubmit="return confirm('¿Confirmas el REINICIO de la cartera? Archiva todo lo actual.');">
         <label>Capital inicial nuevo EUR<input type="number" name="capital_inicial_eur" step="0.01" min="0.01" required></label>
         <label>Motivo<input type="text" name="motivo" required></label>
         <label>Escribe "{CONFIRMACION_REINICIO}" para confirmar<input type="text" name="confirmar" required></label>
@@ -369,12 +377,22 @@ def _credenciales_configuradas() -> Optional[Tuple[str, str]]:
     return (usuario, clave) if usuario and clave else None
 
 
+ACTOR_SIN_AUTENTICAR = "lan-sin-auth"
+
+
 def _autenticado(header_autorizacion: Optional[str]) -> Optional[str]:
-    """``None`` si no autentica; si autentica, el nombre de usuario (para auditar ``actor``)."""
+    """``None`` si no autentica; si autentica, el nombre de usuario (para auditar ``actor``).
+
+    Sin ``SUPERBOT_IA_DASHBOARD_USUARIO``/``CLAVE`` configurados, el dashboard se sirve SIN
+    autenticación (decisión explícita del propietario, 2026-11-08, para acceso directo desde
+    cualquier dispositivo de su LAN doméstica): toda acción administrativa se permite y se audita
+    con el actor fijo ``ACTOR_SIN_AUTENTICAR``. Configurar esas dos variables vuelve a exigir
+    Basic Auth, igual que antes.
+    """
 
     credenciales = _credenciales_configuradas()
     if credenciales is None:
-        return None  # sin usuario/clave configurados, las acciones administrativas quedan cerradas
+        return ACTOR_SIN_AUTENTICAR
     if not header_autorizacion or not header_autorizacion.startswith("Basic "):
         return None
     try:

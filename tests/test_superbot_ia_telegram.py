@@ -26,6 +26,14 @@ class _NotifierFalso:
         self.enabled = enabled
         self.falla = falla
         self.enviados: List[str] = []
+        self.bot_token: str | None = None
+        self.chat_id: str | None = None
+
+    def send_message(self, texto: str) -> bool:
+        if self.falla:
+            return False
+        self.enviados.append(texto)
+        return True
 
     def send_long_message(self, texto: str) -> bool:
         if self.falla:
@@ -457,3 +465,100 @@ class TestMigracionDeLaTablaDeNotificaciones:
         cartera_otra_vez = CarteraIA(reg.conn)  # como si se reabriera el proceso
 
         assert cartera_otra_vez.conn.execute("SELECT COUNT(*) FROM ia_notificacion").fetchone()[0] == 0
+
+
+class _RespuestaFalsa:
+    def __init__(self, payload: dict) -> None:
+        self._payload = payload
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> dict:
+        return self._payload
+
+
+class TestAtenderComandos:
+    """``/dashboard`` responde con la URL, solo al chat configurado, sin reprocesar mensajes."""
+
+    def test_sin_telegram_configurado_no_hace_ninguna_peticion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        reg = registro(tmp_path)
+        llamado = False
+
+        def _get(*args: object, **kwargs: object) -> _RespuestaFalsa:
+            nonlocal llamado
+            llamado = True
+            return _RespuestaFalsa({"ok": True, "result": []})
+
+        monkeypatch.setattr(telegram.requests, "get", _get)
+        notifier = _NotifierFalso(enabled=False)
+
+        assert telegram.atender_comandos(reg, notifier, "http://192.168.1.113:8766") == 0
+        assert llamado is False
+
+    def test_comando_dashboard_del_chat_configurado_responde_con_la_url(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        reg = registro(tmp_path)
+        notifier = _NotifierFalso()
+        notifier.bot_token = "token-falso"
+        notifier.chat_id = "5502578663"
+
+        def _get(*args: object, **kwargs: object) -> _RespuestaFalsa:
+            return _RespuestaFalsa({
+                "ok": True,
+                "result": [{
+                    "update_id": 10,
+                    "message": {"chat": {"id": 5502578663}, "text": "/dashboard"},
+                }],
+            })
+
+        monkeypatch.setattr(telegram.requests, "get", _get)
+
+        enviados = telegram.atender_comandos(reg, notifier, "http://192.168.1.113:8766")
+
+        assert enviados == 1
+        assert notifier.enviados == ["Dashboard de Superbot IA: http://192.168.1.113:8766"]
+        assert telegram._offset_guardado(reg) == 11  # nunca reprocesa este update_id
+
+    def test_mensaje_de_otro_chat_se_ignora_sin_responder(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        reg = registro(tmp_path)
+        notifier = _NotifierFalso()
+        notifier.bot_token = "token-falso"
+        notifier.chat_id = "5502578663"
+
+        def _get(*args: object, **kwargs: object) -> _RespuestaFalsa:
+            return _RespuestaFalsa({
+                "ok": True,
+                "result": [{
+                    "update_id": 20,
+                    "message": {"chat": {"id": 999999}, "text": "/dashboard"},
+                }],
+            })
+
+        monkeypatch.setattr(telegram.requests, "get", _get)
+
+        assert telegram.atender_comandos(reg, notifier, "http://192.168.1.113:8766") == 0
+        assert notifier.enviados == []
+        assert telegram._offset_guardado(reg) == 21  # el update se consume igual, nunca se reintenta
+
+    def test_un_fallo_de_red_no_lanza_y_devuelve_cero(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import requests as requests_mod
+
+        reg = registro(tmp_path)
+        notifier = _NotifierFalso()
+        notifier.bot_token = "token-falso"
+        notifier.chat_id = "5502578663"
+
+        def _get(*args: object, **kwargs: object) -> _RespuestaFalsa:
+            raise requests_mod.RequestException("sin red")
+
+        monkeypatch.setattr(telegram.requests, "get", _get)
+
+        assert telegram.atender_comandos(reg, notifier, "http://192.168.1.113:8766") == 0

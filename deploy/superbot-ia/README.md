@@ -15,7 +15,7 @@ La instalación usa el checkout y el entorno propios de la Pi:
 |---|---|
 | `superbot-ia-pasada.timer` → `superbot-ia-pasada.service` | Ejecuta `python -m superbot.ia ... pasada` lun-vie a las 07:00, 08:30, 14:30 y 21:00 `Europe/London`. |
 | `superbot-ia-telegram.timer` → `superbot-ia-telegram.service` | Vacía la cola de avisos pendientes cada 10 minutos. |
-| `superbot-ia-dashboard.service` | Sirve el dashboard en `127.0.0.1:8766`; sus acciones administrativas requieren las credenciales del `.env`. |
+| `superbot-ia-dashboard.service` | Sirve el dashboard en `192.168.1.113:8766` (la LAN de la Pi, nunca `0.0.0.0`); sin `SUPERBOT_IA_DASHBOARD_USUARIO`/`CLAVE` en el `.env`, sus acciones administrativas quedan abiertas sin autenticación (decisión del propietario, 2026-11-08). |
 
 La pasada no lleva `SuccessExitStatus=2`: si el candado está ocupado devuelve
 el fallo normal de `ejecutar_pasada` y queda registrado en el journal/log; el
@@ -25,9 +25,12 @@ siguiente disparo del timer lo reintentará.
 
 Copiar `superbot-ia.env.example` en la Pi como
 `/home/fer/superbot-ia-forward/superbot-ia.env`, rellenarlo y dejarlo en
-`0600`. En este despliegue, `SUPERBOT_IA_TELEGRAM_BOT_TOKEN` y
-`SUPERBOT_IA_TELEGRAM_CHAT_ID` deben reutilizar los mismos valores que ya están
-en `/home/fer/superbot-forward/superbot.env`.
+`0600`. `SUPERBOT_IA_TELEGRAM_BOT_TOKEN`/`CHAT_ID` son del bot propio y
+exclusivo de Superbot IA (el bot del Superbot antiguo tenía el token
+revocado cuando se intentó reutilizar, 2026-11-08). Dejar
+`SUPERBOT_IA_DASHBOARD_USUARIO`/`CLAVE` en blanco a propósito: así el
+dashboard queda abierto, sin contraseña, para cualquier dispositivo de la
+LAN — ver la sección "Dashboard" más abajo.
 
 El wrapper `bin/pasada.sh` lee `ANTHROPIC_API_KEY` de
 `/home/fer/intradia-bot/.env` y la reexporta como `SUPERBOT_IA_API_KEY` solo al
@@ -72,6 +75,16 @@ fichero de entorno y ejecutar:
 sudo -u fer bash -lc 'set -a; source /home/fer/superbot-ia-forward/superbot-ia.env; set +a; exec /home/fer/superbot-ia-venv/bin/python -B -m superbot.ia --db /home/fer/superbot-ia-forward/datos/superbot_ia.db telegram --test'
 ```
 
+## Comando de Telegram `/dashboard`
+
+Si `SUPERBOT_IA_DASHBOARD_URL` está rellenado en el `.env`, cada vez que
+corre `superbot-ia-telegram.timer` (cada 10 min) también atiende los mensajes
+pendientes del chat configurado: si alguno es `/dashboard`, responde con esa
+URL. Cualquier mensaje de un chat distinto al configurado se ignora sin
+respuesta. No hace falta ningún comando nuevo para probarlo: basta con
+escribirle `/dashboard` al bot y esperar al siguiente disparo del timer (o
+lanzarlo a mano con `sudo systemctl start superbot-ia-telegram.service`).
+
 No activar ni reactivar `superbot-paper.timer`. Tampoco tocar
 `intradia-t024-checkpoint`, `intradia-t025-paper`, `intradia-bot`,
 `intradia-bot-event` ni `superbot-dashboard`: son unidades de otros despliegues.
@@ -79,16 +92,24 @@ No activar ni reactivar `superbot-paper.timer`. Tampoco tocar
 ## Dashboard
 
 El puerto de Superbot IA es **8766**, nunca 8765 (8765 pertenece al Superbot
-técnico antiguo). El servicio escucha en `127.0.0.1`, como el dashboard
-antiguo. Para consultarlo desde un portátil, usar un túnel SSH, por ejemplo:
+técnico antiguo). Decisión del propietario (2026-11-08): el servicio escucha
+directamente en `192.168.1.113` (la LAN de la Pi), nunca en `0.0.0.0`, así
+que no es alcanzable desde Internet salvo que el router tenga ese puerto
+reenviado (revisarlo aparte, no hay forma de comprobarlo desde la Pi misma).
+Sin `SUPERBOT_IA_DASHBOARD_USUARIO`/`CLAVE`, no pide usuario ni contraseña:
+se abre directamente desde cualquier dispositivo de la LAN en
 
-```bash
-ssh -L 8766:127.0.0.1:8766 fer@<pi>
+```
+http://192.168.1.113:8766
 ```
 
-Exponerlo directamente en la LAN es una decisión aparte: requiere cambiar la
-dirección de escucha de la unidad y revisar antes las credenciales del
-dashboard.
+Las acciones que tocan capital (aportar, retirar, reiniciar) piden
+confirmación en el propio navegador antes de enviarse (además de la
+confirmación escrita "SI" que ya exige el reinicio en el servidor); la
+defensa contra peticiones cruzadas desde otra página (`Origin`) sigue activa
+igual que antes. Volver a exigir usuario/contraseña es tan simple como
+rellenar `SUPERBOT_IA_DASHBOARD_USUARIO`/`CLAVE` en el `.env` y reiniciar el
+servicio.
 
 ## Activación explícita de la cartera
 

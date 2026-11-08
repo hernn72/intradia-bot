@@ -72,6 +72,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 0 if ok else 1
         cartera_ia = CarteraIA(registro.conn)
         contadores = telegram_mod.flush(cartera_ia, notifier)
+        dashboard_url = os.getenv("SUPERBOT_IA_DASHBOARD_URL", "").strip()
+        if dashboard_url:
+            contadores["COMANDOS_RESPONDIDOS"] = telegram_mod.atender_comandos(registro, notifier, dashboard_url)
         print(json.dumps(contadores, ensure_ascii=False))
         return 0
     cliente = _cliente(politica)

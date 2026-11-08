@@ -11,6 +11,7 @@ import pytest
 
 from superbot.ia.cartera import CarteraIA
 from superbot.ia.dashboard import (
+    ACTOR_SIN_AUTENTICAR,
     CLAVE_ENV,
     USUARIO_ENV,
     _accion_aportar,
@@ -157,9 +158,11 @@ class TestRenderHtml:
         assert "A" in pagina  # el símbolo aparece en alguna tabla
         assert "OPORTUNIDAD: COMPRAR" in pagina  # hallazgo de Codex: los votos, no solo la resolución
         assert "RIESGO: COMPRAR" in pagina
-        assert '<form class="admin" method="post" action="/aportar">' in pagina
-        assert '<form class="admin" method="post" action="/retirar">' in pagina
-        assert '<form class="admin reiniciar" method="post" action="/reiniciar">' in pagina
+        # Solo la acción y la clase, no el atributo onsubmit completo (hallazgo de Codex de la
+        # confirmación del navegador añadida junto con el acceso sin autenticación en LAN).
+        assert 'class="admin" method="post" action="/aportar"' in pagina
+        assert 'class="admin" method="post" action="/retirar"' in pagina
+        assert 'class="admin reiniciar" method="post" action="/reiniciar"' in pagina
         # La auditoría (reinicio, aportación inicial) aparece en el propio dashboard.
         assert "CARTERA_REINICIADA" in pagina
 
@@ -174,12 +177,16 @@ class TestRenderHtml:
 
 
 class TestAutenticacion:
-    def test_sin_credenciales_configuradas_nunca_autentica(
+    def test_sin_credenciales_configuradas_autentica_siempre_sin_auth(
         self, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        """Decisión del propietario (2026-11-08): sin usuario/clave configurados, el dashboard
+        queda abierto en su LAN — con o sin cabecera ``Authorization``."""
+
         monkeypatch.delenv(USUARIO_ENV, raising=False)
         monkeypatch.delenv(CLAVE_ENV, raising=False)
-        assert _autenticado("Basic " + _b64("usuario:clave")) is None
+        assert _autenticado("Basic " + _b64("usuario:clave")) == ACTOR_SIN_AUTENTICAR
+        assert _autenticado(None) == ACTOR_SIN_AUTENTICAR
 
     def test_credenciales_correctas_autentican_con_el_usuario(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(USUARIO_ENV, "propietario")
@@ -348,6 +355,67 @@ class TestServidorHttpReal:
             respuesta = conexion.getresponse()
             respuesta.read()
             assert respuesta.status == 403
+        finally:
+            conexion is not None and conexion.close()
+
+    def test_sin_credenciales_configuradas_las_acciones_admin_funcionan_sin_auth(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Decisión del propietario (2026-11-08): sin ``SUPERBOT_IA_DASHBOARD_USUARIO``/``CLAVE``
+        configurados, una acción administrativa real (``/aportar``) funciona sin cabecera
+        ``Authorization`` — la defensa CSRF por ``Origin`` sigue activa."""
+
+        import http.client
+        import socket
+        import threading
+
+        from superbot.ia import dashboard as dashboard_mod
+        from superbot.ia.politica import PoliticaIA
+        from superbot.ia.registro import RegistroIA
+
+        db = tmp_path / "servidor_sin_auth.db"
+        politica = PoliticaIA()
+        reg = RegistroIA(db, politica)
+        CarteraIA(reg.conn).activar(T_ACTIVACION, 10_000.0)
+        reg.close()
+
+        monkeypatch.delenv(USUARIO_ENV, raising=False)
+        monkeypatch.delenv(CLAVE_ENV, raising=False)
+
+        with socket.socket() as sonda:
+            sonda.bind(("127.0.0.1", 0))
+            puerto = sonda.getsockname()[1]
+
+        hilo = threading.Thread(
+            target=dashboard_mod.serve, args=(db, politica, "127.0.0.1", puerto), daemon=True,
+        )
+        hilo.start()
+        try:
+            conexion = None
+            for _ in range(50):
+                try:
+                    conexion = http.client.HTTPConnection("127.0.0.1", puerto, timeout=1)
+                    conexion.request("GET", "/healthz")
+                    conexion.getresponse().read()
+                    break
+                except (ConnectionRefusedError, OSError):
+                    conexion = None
+                    import time as _time
+                    _time.sleep(0.05)
+            assert conexion is not None, "el servidor no llegó a arrancar"
+
+            conexion.request("POST", "/aportar", body="importe_eur=100&motivo=sin-auth")
+            respuesta = conexion.getresponse()
+            respuesta.read()
+            assert respuesta.status == 303  # nunca 401: sin credenciales configuradas, se permite
+
+            conexion.request(
+                "POST", "/aportar", body="importe_eur=100&motivo=cruzado",
+                headers={"Origin": "http://atacante.ejemplo"},
+            )
+            respuesta = conexion.getresponse()
+            respuesta.read()
+            assert respuesta.status == 403  # la defensa CSRF no depende de si hay auth
         finally:
             conexion is not None and conexion.close()
 
