@@ -1,0 +1,13 @@
+[Unit]
+Description=Superbot IA - dashboard paper visible (acciones administrativas protegidas)
+After=network-online.target
+
+[Service]
+User=fer
+WorkingDirectory=/home/fer/superbot-ia-forward
+EnvironmentFile=/home/fer/superbot-ia-forward/superbot-ia.env
+ExecStart=/home/fer/superbot-ia-venv/bin/python -m superbot.ia --db /home/fer/superbot-ia-forward/datos/superbot_ia.db dashboard --host 127.0.0.1 --port 8766
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

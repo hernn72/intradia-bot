@@ -1,0 +1,17 @@
+[Unit]
+Description=Superbot IA - pasada paper operacional (no validada para capital real)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=fer
+WorkingDirectory=/home/fer/superbot-ia-forward
+EnvironmentFile=-/home/fer/superbot-ia-forward/superbot-ia.env
+# La clave de Anthropic se inyecta solo durante la ejecución por el wrapper.
+# 3000 s: margen amplio para la descarga de datos y las llamadas de la pasada.
+TimeoutStartSec=3000
+StandardOutput=append:/home/fer/superbot-ia-forward/logs/pasada.log
+StandardError=append:/home/fer/superbot-ia-forward/logs/pasada.log
+ExecStart=/home/fer/superbot-ia-forward/bin/pasada.sh
+

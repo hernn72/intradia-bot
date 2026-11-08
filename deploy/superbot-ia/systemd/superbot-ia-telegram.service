@@ -1,0 +1,14 @@
+[Unit]
+Description=Superbot IA - vaciado de avisos pendientes de Telegram
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=fer
+WorkingDirectory=/home/fer/superbot-ia-forward
+EnvironmentFile=/home/fer/superbot-ia-forward/superbot-ia.env
+StandardOutput=append:/home/fer/superbot-ia-forward/logs/telegram.log
+StandardError=append:/home/fer/superbot-ia-forward/logs/telegram.log
+ExecStart=/home/fer/superbot-ia-forward/bin/telegram-flush.sh
+
