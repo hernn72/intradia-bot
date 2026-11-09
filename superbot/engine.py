@@ -35,8 +35,9 @@ from typing import Dict, List, Optional, Protocol, Set
 
 import pandas as pd
 
-from superbot import notify
+from superbot import decisions, notify
 from superbot.config import CostParams, SuperbotConfig
+from superbot.decisions import Decision, NullRecorder
 from superbot.store import SuperbotStore, utcnow_iso
 from superbot.strategy import evaluate, initial_levels, momentum_score, trailed_stop
 
@@ -73,6 +74,8 @@ class ProcessResult:
     operations: List[str] = field(default_factory=list)
     # Símbolos sin procesar desde un split que no se pudo decidir.
     held: List[str] = field(default_factory=list)
+    # Pérdida de trazabilidad del registro de decisiones; las operaciones siguen en pie.
+    trace_lost: Optional[str] = None
 
 
 class _UndecidedSplit(Exception):
@@ -130,9 +133,10 @@ def split_ratio(value: object) -> float:
 
 
 class PaperEngine:
-    def __init__(self, store: SuperbotStore) -> None:
+    def __init__(self, store: SuperbotStore, recorder: Optional[NullRecorder] = None) -> None:
         self.store = store
         self.config: SuperbotConfig = store.config()
+        self.recorder = recorder or NullRecorder()
 
     # --- entrada ------------------------------------------------------------
 
@@ -156,6 +160,7 @@ class PaperEngine:
 
     def _process(self, series: Dict[str, BarSeries], fx: FxSource, run_id: int, today: date,
                  entries: bool, held: Dict[str, date]) -> ProcessResult:
+        self.recorder.reset()
         if not entries:
             # Un símbolo sin posición no avanza: sus órdenes se ejecutan en su sesión
             # cuando vuelva una ejecución sana, dimensionadas con el efectivo de ese
@@ -225,6 +230,7 @@ class PaperEngine:
                     self._snapshot(ctx)
                 result.bars += len(symbols)
                 result.dates.append(session)
+            result.trace_lost = self.recorder.flush(conn, run_id, entries)
             if result.operations:
                 conn.execute(
                     "INSERT OR IGNORE INTO notifications (key, created_at, kind, text, status) "
@@ -525,12 +531,18 @@ class PaperEngine:
                 "SELECT 1 FROM positions WHERE symbol = ? AND exit_date = ?", (symbol, ctx.session.isoformat())
             ).fetchone()
             if exited_today is not None:
+                self.recorder.record(lambda: self._exit_day_decision(ctx, symbol, row))
                 return None
         signal = evaluate(row, self.config.strategy, has_position)
-        if signal.action == "HOLD" or self._has_pending(ctx, symbol, signal.action):
+        if signal.action == "HOLD":
+            return None
+        if self._has_pending(ctx, symbol, signal.action):
+            if signal.action == "BUY":
+                self._record(ctx, symbol, decisions.ORDER_PENDING, signal.reason)
             return None
         if signal.action == "BUY":
             if symbol in ctx.stale:
+                self._record(ctx, symbol, decisions.STALE_BAR, signal.reason)
                 return None
             close = ctx.series[symbol].frame["Close"].loc[: ctx.session]
             return _BuyCandidate(symbol, signal.reason, momentum_score(close, self.config.strategy))
@@ -539,6 +551,20 @@ class PaperEngine:
             ctx.emit(f"ORDEN VENTA {symbol}: {signal.reason}")
         return None
 
+    def _record(self, ctx: _Session, symbol: str, reason: str, detail: str = "",
+                momentum: Optional[float] = None, rank: Optional[int] = None,
+                slots: Optional[int] = None) -> None:
+        session = ctx.session
+        self.recorder.record(lambda: Decision(session, symbol, reason, detail, momentum, rank, slots))
+
+    def _exit_day_decision(self, ctx: _Session, symbol: str, row: pd.Series) -> Optional[Decision]:
+        """La sesión de una salida no evalúa señales: solo para el registro, sin efecto en nada."""
+
+        signal = evaluate(row, self.config.strategy, False)
+        if signal.action != "BUY":
+            return None
+        return Decision(ctx.session, symbol, decisions.EXITED_TODAY, signal.reason)
+
     def _has_pending(self, ctx: _Session, symbol: str, side: str) -> bool:
         row = ctx.conn.execute(
             "SELECT 1 FROM orders WHERE symbol = ? AND side = ? AND status = 'PENDING'", (symbol, side)
@@ -546,8 +572,6 @@ class PaperEngine:
         return row is not None
 
     def _place_buys(self, ctx: _Session, candidates: List[_BuyCandidate]) -> None:
-        if not ctx.entries:
-            return
         """Como iTrade: las compras de mayor momentum primero, y solo las que caben.
 
         Huecos = máximo de posiciones − abiertas − compras ya pendientes; y como
@@ -556,7 +580,18 @@ class PaperEngine:
         a competir en la sesión siguiente.
         """
 
-        candidates = [c for c in candidates if self._affordable(ctx, c.symbol)]
+        if not ctx.entries:
+            for candidate in candidates:
+                self._record(ctx, candidate.symbol, decisions.NO_ENTRIES, candidate.reason, candidate.momentum)
+            return
+        affordable = []
+        for candidate in candidates:
+            if self._affordable(ctx, candidate.symbol):
+                affordable.append(candidate)
+            else:
+                reason = decisions.NOT_AFFORDABLE if ctx.fx_rate(candidate.symbol) else decisions.NO_FX
+                self._record(ctx, candidate.symbol, reason, candidate.reason, candidate.momentum)
+        candidates = affordable
         if not candidates:
             return
         sizing = self.config.sizing
@@ -570,11 +605,16 @@ class PaperEngine:
             key=lambda c: (c.momentum if c.momentum is not None else float("-inf"), c.symbol),
             reverse=True,
         )
-        for candidate in ranked[: max(slots, 0)]:
+        for position, candidate in enumerate(ranked[: max(slots, 0)], start=1):
             symbol = candidate.symbol
             order_id = self._place_order(ctx, symbol, "BUY", candidate.reason, candidate.momentum)
             if order_id is not None:
                 ctx.emit(f"ORDEN COMPRA {symbol}: {candidate.reason}")
+            reason = decisions.ORDER_CREATED if order_id is not None else decisions.DUPLICATE
+            self._record(ctx, symbol, reason, candidate.reason, candidate.momentum, position, slots)
+        for position, candidate in enumerate(ranked[max(slots, 0):], start=max(slots, 0) + 1):
+            reason = decisions.RANKING if slots > 0 else decisions.NO_SLOT
+            self._record(ctx, candidate.symbol, reason, candidate.reason, candidate.momentum, position, slots)
 
     def _budget(self, cash: float) -> float:
         cfg = self.config

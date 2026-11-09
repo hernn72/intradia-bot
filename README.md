@@ -302,6 +302,12 @@ Los errores operativos tienen avisos propios, apagados por defecto
 `SUPERBOT_ALERTAS_BOT_TOKEN` y `SUPERBOT_ALERTAS_CHAT_ID`). Si Python no llega a
 arrancar no hay aviso: solo se ve en `systemctl`.
 
+`SUPERBOT_REGISTRO=1` guarda cada señal de compra evaluada, aceptada o descartada,
+con fecha, símbolo, decisión y motivo (`decision_log`); `python -m superbot decisiones`
+la resume. El motor nunca lee ese registro. Si falla, las operaciones se confirman
+igual y la pérdida queda declarada en `decision_runs`, en el detalle de la ejecución
+y como aviso. El historial no se borra solo; el comando vigila el tamaño de la base.
+
 Hasta el 10 % de símbolos sin datos y sin posición no cambia el estado: aparecen en
 el detalle y un símbolo con barras caducadas no se procesa.
 
