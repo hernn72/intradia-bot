@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import parse_qs, urlencode, urlparse
 
+from superbot.ia import medicion
 from superbot.ia.cartera import CarteraIA, CarteraInactiva, EfectivoInsuficiente
 from superbot.ia.registro import RegistroIA
 
@@ -122,16 +123,65 @@ def build_stats(cartera_ia: CarteraIA) -> Dict[str, Any]:
     }
 
 
-def _posiciones_abiertas_table(cartera_ia: CarteraIA) -> str:
-    body = [
-        [
+def _posiciones_abiertas_table(cartera_ia: CarteraIA, medida: Optional[medicion.Medicion] = None) -> str:
+    # Solo se muestra el valor de una foto que corresponde a ESTA posición. Una abierta después de
+    # la última foto queda sin valorar, nunca con las cifras de otra anterior del mismo valor.
+    valoradas = {v["position_id"]: v for v in (medida.posiciones if medida is not None else ()) if v["valorada"]}
+    body = []
+    for p in cartera_ia.posiciones_abiertas():
+        coste = p.units * p.entry_price_eur
+        foto = valoradas.get(p.id)
+        resultado = None if foto is None or coste <= 0 else foto["valor_eur"] / coste - 1.0
+        body.append([
             _td(p.symbol), _td(p.entry_session.isoformat()), _td(_num(p.units, 4), "num"),
             _td(f"{_num(p.entry_price)} {p.currency}", "num"), _td(f"{_num(p.stop)} {p.currency}", "num"),
-            _td(_eur(p.units * p.entry_price_eur), "num"),
-        ]
-        for p in cartera_ia.posiciones_abiertas()
-    ]
-    return _table(["Símbolo", "Entrada", "Unidades", "Precio entrada", "Stop vigente", "Coste EUR"], body)
+            _td(_eur(coste), "num"), _td(_eur(None if foto is None else foto["valor_eur"]), "num"),
+            _td(_pct(resultado), f"num {_signed_class(resultado)}"),
+            _td("" if foto is None else (foto["session"] or "a coste: aún sin cierre propio")),
+        ])
+    return _table(
+        ["Símbolo", "Entrada", "Unidades", "Precio entrada", "Stop vigente", "Coste EUR", "Valor EUR", "Resultado",
+         "Cierre usado"],
+        body,
+    )
+
+
+def _kpis_medicion(medida: Optional[medicion.Medicion]) -> str:
+    if medida is None:
+        return '<div class="aviso">Todavía no hay ninguna valoración a mercado: se guarda una en cada pasada.</div>'
+    diferencia = (
+        None if medida.rentabilidad_neta is None or medida.rentabilidad_referencia is None
+        else medida.rentabilidad_neta - medida.rentabilidad_referencia
+    )
+    costes = medida.costes_ejecucion_eur + medida.gasto_api_eur
+    kpis = "".join([
+        _kpi("Equity a mercado", _eur(medida.equity_eur), _signed_class(medida.rentabilidad)),
+        _kpi("Rentabilidad a mercado", _pct(medida.rentabilidad), _signed_class(medida.rentabilidad)),
+        _kpi("Costes estimados (órdenes + API)", _eur(costes), _signed_class(-costes)),
+        _kpi("Equity neta de costes", _eur(medida.equity_neta_eur), _signed_class(medida.rentabilidad_neta)),
+        _kpi("Rentabilidad neta", _pct(medida.rentabilidad_neta), _signed_class(medida.rentabilidad_neta)),
+        _kpi(f"{medida.referencia_symbol} con el mismo capital", _eur(medida.referencia_eur),
+             _signed_class(medida.rentabilidad_referencia)),
+        _kpi(f"Rentabilidad de {medida.referencia_symbol}", _pct(medida.rentabilidad_referencia),
+             _signed_class(medida.rentabilidad_referencia)),
+        _kpi(f"Diferencia neta frente a {medida.referencia_symbol}", _pct(diferencia), _signed_class(diferencia)),
+        _kpi("Caída máxima (neta)", _pct(medida.caida_maxima), _signed_class(medida.caida_maxima)),
+    ])
+    sin_valorar = (
+        f" {medida.sin_valorar} posición(es) sin cotización o tipo de cambio cuentan a su coste." if medida.sin_valorar else ""
+    )
+    referencia = (
+        f" {_text(medida.referencia_symbol)} al cierre del {_text(medida.referencia_session)}."
+        if medida.referencia_session else f" {_text(medida.referencia_symbol)} sin cotización en esta foto."
+    )
+    nota = (
+        f"Valorado en la pasada de {_text(medida.instante)}, con el último cierre de cada plaza ({medida.fotos} fotos)."
+        f"{referencia}"
+        f"{_text(sin_valorar)} Costes estimados: {_num(medicion.COMISION_EUR_POR_ORDEN)} EUR por orden y "
+        f"{_num(medicion.DESLIZAMIENTO_PCT_POR_LADO)} % de deslizamiento por lado (supuestos, no medidos), más el gasto "
+        f"real de API desde la activación. La contabilidad de arriba no los descuenta."
+    )
+    return f'<div class="kpis">{kpis}</div><div class="muted">{nota}</div>'
 
 
 def _posiciones_cerradas_table(cartera_ia: CarteraIA) -> str:
@@ -164,7 +214,7 @@ def _fills_table(fills: Sequence[Mapping[str, Any]]) -> str:
     body = [
         [
             _td(f["session"]), _td(f["symbol"]), _td(f["lado"]), _td(_num(f["units"], 4), "num"),
-            _td(f"{_num(f['precio'])} EUR", "num"), _td(_eur(f["importe_eur"]), "num"),
+            _td(_eur(f["precio_eur"]), "num"), _td(_eur(f["importe_eur"]), "num"),
         ]
         for f in fills
     ]
@@ -281,6 +331,10 @@ form.reiniciar button { background: var(--red); }
 def render_html(cartera_ia: CarteraIA, registro: RegistroIA, now_label: str, mensaje: str = "") -> str:
     stats = build_stats(cartera_ia)
     gasto_total = registro.gasto_total()
+    medida = medicion.leer_medicion(registro.conn) if stats["activa"] else None
+    seccion_medicion = (
+        f"<section><h2>Medición a mercado</h2>{_kpis_medicion(medida)}</section>" if stats["activa"] else ""
+    )
     if not stats["activa"]:
         banner = '<div class="banner inactiva">CARTERA INACTIVA — Superbot IA no ha activado todavía ninguna cartera paper</div>'
         kpis = ""
@@ -351,8 +405,9 @@ def render_html(cartera_ia: CarteraIA, registro: RegistroIA, now_label: str, men
     {banner}
     {aviso_html}
     <div class="kpis">{kpis}</div>
+    {seccion_medicion}
     {admin_forms}
-    <section><h2>Posiciones abiertas</h2>{_posiciones_abiertas_table(cartera_ia)}</section>
+    <section><h2>Posiciones abiertas</h2>{_posiciones_abiertas_table(cartera_ia, medida)}</section>
     <section><h2>Posiciones cerradas</h2>{_posiciones_cerradas_table(cartera_ia)}</section>
     <section><h2>Órdenes pendientes</h2>{_ordenes_table(pendientes)}</section>
     <section><h2>Órdenes ejecutadas</h2>{_ordenes_table(ejecutadas)}</section>

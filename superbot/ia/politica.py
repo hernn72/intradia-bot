@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
+from typing import Optional
 
 POLICY_ID = "superbot_ia_v1"
 SCHEMA_VERSION = "1"
@@ -24,7 +25,8 @@ class PoliticaIA:
     score_venta: float = 60.0
     max_ventas_por_pasada: int = 1
     espera_recompra_sesiones: int = 5
-    tope_eur_mes: float = 5.0
+    # ``None`` es sin tope: el gasto se sigue reservando y registrando, pero no bloquea llamadas.
+    tope_eur_mes: Optional[float] = None
     cache_horas: int = 24
     modelo: str = "claude-opus-5-5"
     max_tokens: int = 4000

@@ -111,6 +111,25 @@ igual que antes. Volver a exigir usuario/contraseña es tan simple como
 rellenar `SUPERBOT_IA_DASHBOARD_USUARIO`/`CLAVE` en el `.env` y reiniciar el
 servicio.
 
+## Cambio de parámetros de la política
+
+La base guarda congelados los parámetros de `PoliticaIA` con los que se creó. Si
+una versión nueva del código los cambia, **todo** deja de abrir la base
+(`PoliticaDistinta`): la pasada, el dashboard y Telegram. El cambio se aplica una
+sola vez, con los servicios parados y una copia de la base hecha antes:
+
+```bash
+sudo systemctl stop superbot-ia-pasada.timer superbot-ia-telegram.timer superbot-ia-dashboard.service
+cp /home/fer/superbot-ia-forward/datos/superbot_ia.db /home/fer/superbot-ia-forward/datos/superbot_ia.db.antes-de-migrar
+/home/fer/superbot-ia-venv/bin/python -B -m superbot.ia --db /home/fer/superbot-ia-forward/datos/superbot_ia.db migrar-politica --motivo "…"
+sudo systemctl start superbot-ia-dashboard.service superbot-ia-pasada.timer superbot-ia-telegram.timer
+```
+
+Imprime los parámetros que cambian y deja la política anterior, la nueva y el
+motivo en `ia_politica_cambio`. Se niega si hay una pasada en curso. Para volver
+al código anterior hay que restaurar la copia, o devolver a `ia_meta` el valor
+`anterior` de esa tabla.
+
 ## Activación explícita de la cartera
 
 La cartera nace inactiva. Ni `pasada` ni el dashboard llaman a

@@ -1710,9 +1710,59 @@ def _ventas_ia_recientes(cartera_ia: CarteraIA) -> Dict[str, date]:
     return {f["symbol"]: date.fromisoformat(f["ultima"]) for f in filas}
 
 
+@dataclass(frozen=True)
+class ValorPosicion:
+    """Valor de una posición abierta al último cierre ya analizado en la pasada.
+
+    ``valorada`` falso significa que no había análisis o tipo de cambio de esa sesión: la
+    posición cuenta entonces a su coste de entrada, sin ganancia ni pérdida inventada.
+    """
+
+    position_id: int
+    symbol: str
+    units: float
+    # Sesión del cierre usado; ``None`` cuando la posición cuenta a su coste.
+    session: Optional[date]
+    precio_eur: float
+    valor_eur: float
+    coste_eur: float
+    valorada: bool
+
+
+def valorar_abiertas(
+    cartera_ia: CarteraIA, analizadas: Mapping[str, Analisis], proveedor: MarketDataProvider,
+) -> Tuple[ValorPosicion, ...]:
+    """Cada posición abierta al cierre de SU PROPIA ``signal_session`` y con el cambio de esa sesión."""
+
+    valores: List[ValorPosicion] = []
+    for posicion in cartera_ia.posiciones_abiertas():
+        analisis = analizadas.get(posicion.symbol)
+        fx_resultado = fx_en_sesion(proveedor, posicion.currency, analisis.signal_session) if analisis else None
+        coste = posicion.units * posicion.entry_price_eur
+        if analisis is None or fx_resultado is None:
+            valores.append(ValorPosicion(
+                posicion.id, posicion.symbol, posicion.units, None, posicion.entry_price_eur, coste, coste, False,
+            ))
+        elif analisis.signal_session < posicion.entry_session:
+            # El último cierre analizado es anterior a la compra: valorarla con él le atribuiría
+            # como resultado el hueco entre ese cierre y su propia apertura de entrada. Todavía no
+            # hay ningún cierre suyo, así que vale lo que costó y eso no es un dato que falte.
+            valores.append(ValorPosicion(
+                posicion.id, posicion.symbol, posicion.units, None, posicion.entry_price_eur, coste, coste, True,
+            ))
+        else:
+            precio_eur = analisis.close * fx_resultado.tasa
+            valores.append(ValorPosicion(
+                posicion.id, posicion.symbol, posicion.units, analisis.signal_session, precio_eur,
+                posicion.units * precio_eur, coste, True,
+            ))
+    return tuple(valores)
+
+
 def construir_estado_cartera(
     cartera_ia: CarteraIA, analizadas: Mapping[str, Analisis], proveedor: MarketDataProvider,
     ordenes_pendientes: Tuple[str, ...] = (), excluir_de_ia: Tuple[str, ...] = (),
+    valores: Optional[Tuple[ValorPosicion, ...]] = None,
 ) -> Tuple[EstadoCartera, Dict[str, str]]:
     """``EstadoCartera`` que ven los asesores, valorado causalmente con lo ya analizado en esta pasada.
 
@@ -1733,24 +1783,22 @@ def construir_estado_cartera(
 
     cash = cartera_ia.cash_eur()
     abiertas = cartera_ia.posiciones_abiertas()
+    if valores is None:
+        valores = valorar_abiertas(cartera_ia, analizadas, proveedor)
+    por_symbol = {valor.symbol: valor for valor in valores}
     incidencias: Dict[str, str] = {}
     valores_eur: Dict[str, float] = {}
     pnl_pct_por_symbol: Dict[str, float] = {}
     for posicion in abiertas:
-        analisis = analizadas.get(posicion.symbol)
-        fx_resultado = fx_en_sesion(proveedor, posicion.currency, analisis.signal_session) if analisis else None
-        if analisis is None or fx_resultado is None:
+        valor = por_symbol[posicion.symbol]
+        if not valor.valorada:
             incidencias[posicion.symbol] = "SIN_VALORACION_CAUSAL"
-            valor_actual_eur = posicion.entry_price_eur
-            valores_eur[posicion.symbol] = posicion.units * posicion.entry_price_eur
-        else:
-            valor_actual_eur = analisis.close * fx_resultado.tasa
-            valores_eur[posicion.symbol] = posicion.units * valor_actual_eur
+        valores_eur[posicion.symbol] = valor.valor_eur
         # En EUR, no en precio nativo (hallazgo de Codex): con precio nativo sin cambios pero el
         # tipo de cambio movido, el precio nativo no refleja ninguna pérdida o ganancia real, pero
         # el equity en EUR sí la sufre — la IA debe ver la misma cifra que el equity que se le muestra.
         pnl_pct_por_symbol[posicion.symbol] = (
-            100.0 * (valor_actual_eur - posicion.entry_price_eur) / posicion.entry_price_eur
+            100.0 * (valor.precio_eur - posicion.entry_price_eur) / posicion.entry_price_eur
             if posicion.entry_price_eur else 0.0
         )
 
@@ -2228,6 +2276,7 @@ __all__ = [
     "ResultadoGate",
     "ResultadoProcesamiento",
     "ResultadoStop",
+    "ValorPosicion",
     "calcular_tamano_entrada",
     "construir_estado_cartera",
     "evaluar_gate_apertura",
@@ -2236,5 +2285,6 @@ __all__ = [
     "procesar_pendientes",
     "resolver_entradas_del_dia",
     "resolver_salidas_del_dia",
+    "valorar_abiertas",
     "verificar_stops",
 ]

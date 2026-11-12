@@ -93,6 +93,15 @@ CREATE TABLE IF NOT EXISTS ia_gasto (
     gastado_eur REAL NOT NULL DEFAULT 0
 );
 """
+_ESQUEMA_POLITICA_CAMBIO = """
+CREATE TABLE IF NOT EXISTS ia_politica_cambio (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    anterior TEXT NOT NULL,
+    nueva TEXT NOT NULL,
+    motivo TEXT NOT NULL,
+    created_at TEXT NOT NULL
+)
+"""
 
 
 def ahora_iso() -> str:
@@ -113,6 +122,74 @@ class LlamadaGuardada:
     salida: Dict[str, Any]
 
 
+def _politica_json(politica: PoliticaIA) -> str:
+    return json.dumps({"id": POLICY_ID, "params": json.loads(politica.to_json())}, sort_keys=True)
+
+
+def _candado(path: Path) -> Path:
+    return path.with_name(path.name + ".lock")
+
+
+def migrar_politica(path: str | Path, politica: PoliticaIA, motivo: str) -> Optional[Dict[str, Any]]:
+    """Cambia los parámetros congelados de una base ya creada, dejando constancia del cambio.
+
+    Es el único camino para que una base siga abriéndose tras cambiar ``PoliticaIA``: abrirla
+    sin migrar sigue fallando con ``PoliticaDistinta``. Devuelve los parámetros que cambian, o
+    ``None`` si la base ya estaba al día. No cambia de política (``POLICY_ID``) ni crea la base.
+    """
+
+    ruta = check_db_path(Path(path))
+    if not motivo.strip():
+        raise ValueError("falta el motivo del cambio de política")
+    if not ruta.exists():
+        raise FileNotFoundError(ruta)
+    nueva = _politica_json(politica)
+    with open(_candado(ruta), "w") as candado:
+        try:
+            fcntl.flock(candado, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError("hay una pasada en curso: la política no se cambia a mitad") from None
+        conn = sqlite3.connect(ruta, timeout=30, isolation_level=None)
+        try:
+            # Nada se crea antes de saber que la base es de Superbot IA: un ``--db`` equivocado
+            # se rechaza sin dejarle ni una tabla.
+            es_propia = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ia_meta'"
+            ).fetchone()
+            if es_propia is None:
+                raise PoliticaDistinta(f"{ruta} no es una base de Superbot IA")
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                guardada = conn.execute("SELECT value FROM ia_meta WHERE key = 'politica'").fetchone()
+                if guardada is None:
+                    raise PoliticaDistinta(f"{ruta} no tiene política congelada: no es una base de Superbot IA")
+                anterior = json.loads(guardada[0])
+                if anterior.get("id") != POLICY_ID:
+                    raise PoliticaDistinta(f"{ruta} pertenece a la política {anterior.get('id')!r}")
+                if guardada[0] == nueva:
+                    conn.execute("ROLLBACK")
+                    return None
+                conn.execute(_ESQUEMA_POLITICA_CAMBIO)
+                conn.execute(
+                    "INSERT INTO ia_politica_cambio (anterior, nueva, motivo, created_at) VALUES (?, ?, ?, ?)",
+                    (guardada[0], nueva, motivo.strip(), ahora_iso()),
+                )
+                conn.execute("UPDATE ia_meta SET value = ? WHERE key = 'politica'", (nueva,))
+            except BaseException:
+                if conn.in_transaction:
+                    conn.execute("ROLLBACK")
+                raise
+            conn.execute("COMMIT")
+        finally:
+            conn.close()
+    antes, despues = anterior["params"], json.loads(nueva)["params"]
+    return {
+        clave: {"antes": antes.get(clave), "despues": despues.get(clave)}
+        for clave in sorted(set(antes) | set(despues))
+        if antes.get(clave) != despues.get(clave) or (clave in antes) != (clave in despues)
+    }
+
+
 class RegistroIA:
     def __init__(self, path: str | Path, politica: PoliticaIA) -> None:
         self.path = check_db_path(Path(path))
@@ -122,6 +199,7 @@ class RegistroIA:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.executescript(_ESQUEMA)
+        self.conn.execute(_ESQUEMA_POLITICA_CAMBIO)
         self._migrar()
         self._congelar()
 
@@ -132,11 +210,14 @@ class RegistroIA:
 
     def _congelar(self) -> None:
         guardada = self.conn.execute("SELECT value FROM ia_meta WHERE key = 'politica'").fetchone()
-        actual = json.dumps({"id": POLICY_ID, "params": json.loads(self.politica.to_json())}, sort_keys=True)
+        actual = _politica_json(self.politica)
         if guardada is None:
             self.conn.execute("INSERT INTO ia_meta (key, value) VALUES ('politica', ?)", (actual,))
         elif guardada[0] != actual:
-            raise PoliticaDistinta(f"{self.path} se creó con otra política o parámetros")
+            raise PoliticaDistinta(
+                f"{self.path} se creó con otra política o parámetros; un cambio deliberado se aplica con "
+                "`python -m superbot.ia --db ... migrar-politica --motivo ...`"
+            )
 
     def close(self) -> None:
         self.conn.close()
@@ -145,7 +226,7 @@ class RegistroIA:
     def exclusivo(self) -> Iterator[bool]:
         """Una pasada cada vez: dos procesos no pueden gastar ni decidir a la vez."""
 
-        with open(self.path.with_name(self.path.name + ".lock"), "w") as candado:
+        with open(_candado(self.path), "w") as candado:
             try:
                 fcntl.flock(candado, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
@@ -189,8 +270,9 @@ class RegistroIA:
         with self._transaccion() as conn:
             conn.execute("INSERT OR IGNORE INTO ia_gasto (mes) VALUES (?)", (mes,))
             fila = conn.execute("SELECT reservado_eur, gastado_eur FROM ia_gasto WHERE mes = ?", (mes,)).fetchone()
-            if fila[0] + fila[1] + importe > self.politica.tope_eur_mes:
-                raise PresupuestoAgotado(f"{mes}: {fila[1]:.4f} EUR gastados, tope {self.politica.tope_eur_mes}")
+            tope = self.politica.tope_eur_mes
+            if tope is not None and fila[0] + fila[1] + importe > tope:
+                raise PresupuestoAgotado(f"{mes}: {fila[1]:.4f} EUR gastados, tope {tope}")
             conn.execute("UPDATE ia_gasto SET reservado_eur = reservado_eur + ? WHERE mes = ?", (importe, mes))
 
     def conciliar(self, mes: str, reservado: float, real: float) -> None:
@@ -302,6 +384,14 @@ class RegistroIA:
             )
         ]
 
+    def gasto_desde(self, desde: str) -> float:
+        """Coste real de las llamadas hechas desde ``desde`` (ISO UTC), p. ej. la activación de la cartera."""
+
+        fila = self.conn.execute(
+            "SELECT COALESCE(SUM(coste_eur), 0) FROM ia_llamada WHERE created_at >= ?", (desde,)
+        ).fetchone()
+        return float(fila[0])
+
     def gasto_total(self) -> float:
         """Coste real acumulado (todos los meses), sin contar lo meramente reservado."""
 
@@ -313,4 +403,12 @@ def ventana_cache(ahora: datetime, politica: PoliticaIA) -> datetime:
     return ahora - timedelta(hours=politica.cache_horas)
 
 
-__all__ = ["SCHEMA_VERSION", "LlamadaGuardada", "PoliticaDistinta", "PresupuestoAgotado", "RegistroIA", "ventana_cache"]
+__all__ = [
+    "SCHEMA_VERSION",
+    "LlamadaGuardada",
+    "PoliticaDistinta",
+    "PresupuestoAgotado",
+    "RegistroIA",
+    "migrar_politica",
+    "ventana_cache",
+]

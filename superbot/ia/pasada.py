@@ -18,7 +18,7 @@ from advisor.config import AdvisorConfig
 from advisor.data.calendars import expected_sessions
 from advisor.data.market_data import MarketDataProvider
 from advisor.universe.models import Asset, Universe
-from superbot.ia import comite, telegram
+from superbot.ia import comite, medicion, telegram
 from superbot.ia.asesores import (
     ERROR_LLAMADA,
     OK,
@@ -33,7 +33,7 @@ from superbot.ia.asesores import (
     version_prompt,
     voto_de,
 )
-from superbot.ia.cartera import CarteraIA, construir_estado_cartera, procesar_pendientes
+from superbot.ia.cartera import CarteraIA, construir_estado_cartera, procesar_pendientes, valorar_abiertas
 from superbot.ia.datos import Analisis, Contexto, ProveedorCrudo, analizar, cargar_contexto
 from superbot.ia.paquete import (
     COMPRA,
@@ -304,14 +304,22 @@ def _evaluar_compras(
                 continue
             validar_causal(paquete)
             motor.registro.guardar_paquete(paquete)
-            dictamenes = {asesor: motor.dictaminar(asesor, paquete) for asesor in (OPORTUNIDAD, RIESGO)}
+            # La compra exige a los dos asesores, así que un descarte del primero ya la resuelve:
+            # el de riesgo solo se consulta (y se paga) cuando su voto puede cambiar el resultado.
+            oportunidad = motor.dictaminar(OPORTUNIDAD, paquete)
+            dictamenes: Dict[str, Optional[Mapping[str, Any]]] = {OPORTUNIDAD: oportunidad}
+            if oportunidad is not None and oportunidad["decision"] == comite.COMPRAR:
+                dictamenes[RIESGO] = motor.dictaminar(RIESGO, paquete)
             if any(dictamen is None for dictamen in dictamenes.values()):
                 # Sin compra y sin decisión: la clave queda libre para reintentar en la pasada siguiente.
                 resultado.incidencias.append(f"{symbol}: falta dictamen válido; sin decisión")
                 continue
-            resolucion = comite.resolver_compra(
-                voto_de(OPORTUNIDAD, dictamenes[OPORTUNIDAD]), voto_de(RIESGO, dictamenes[RIESGO])
-            )
+            if RIESGO in dictamenes:
+                resolucion = comite.resolver_compra(
+                    voto_de(OPORTUNIDAD, dictamenes[OPORTUNIDAD]), voto_de(RIESGO, dictamenes[RIESGO])
+                )
+            else:
+                resolucion = comite.Resolucion(comite.DESCARTAR, "RECHAZADA_POR_ASESOR")
             decision_id = motor.registrar(paquete, analisis, dictamenes, resolucion)
             if cartera_ia is not None and cartera_ia.activa():
                 if resolucion.decision == comite.COMPRAR:
@@ -501,12 +509,20 @@ def _ejecutar(
         # venta sobre lo mismo mientras la primera no se resuelve.
         bloqueadas_salida = tuple(o.symbol for o in cartera_ia.pendientes_salida())
         ordenes_pendientes = tuple(o.symbol for o in cartera_ia.pendientes_entrada()) + bloqueadas_salida
+        valores = valorar_abiertas(cartera_ia, analizadas, proveedor)
         cartera, incidencias_valoracion = construir_estado_cartera(
             cartera_ia, analizadas, proveedor, ordenes_pendientes=ordenes_pendientes,
-            excluir_de_ia=bloqueadas_fx + bloqueadas_salida,
+            excluir_de_ia=bloqueadas_fx + bloqueadas_salida, valores=valores,
         )
         for symbol, motivo in incidencias_valoracion.items():
             resultado.incidencias.append(f"{symbol}: {motivo}")
+        try:
+            medicion.registrar_valoracion(
+                registro, cartera_ia, valores, crudo, pasada_id, decision_ts, config.data_quality.settlement_minutes
+            )
+        except Exception as exc:
+            # La medición solo observa: perder una foto nunca puede costar una decisión ni un stop.
+            logger.warning("valoración de la pasada %s sin guardar: %s: %s", pasada_id, type(exc).__name__, exc)
 
     _evaluar_posiciones(motor, analizadas, contexto, cartera, resultado, cartera_ia if activa else None)
     candidatas = [

@@ -134,7 +134,7 @@ D-81 enmienda D-38, D-73, D-75, D-76, D-78, D-79 y la línea B, y fija el alcanc
 - Por llamada: campos de D-12, respuesta cruda y validada, tokens, coste, `request_id`.
 - **Datos admitidos:** cuantitativos del motor, cartera y contexto de mercado con fecha verificable. Nada del conocimiento propio del modelo. Noticias y fundamentales no entran: no hay fuente verificada, y `trader-news` sigue fuera.
 - El paquete se rechaza si algún dato es posterior a la decisión. El motor cancela toda orden creada después de la apertura de su sesión objetivo.
-- Superbot usa clave de API propia y tope de 5 €/mes por mes UTC. Las llamadas son en serie, bajo el bloqueo del proceso. Antes de cada una se reserva en la base su coste máximo; si no cabe, no se llama. Tras la respuesta se concilia con el coste real. Sin presupuesto no hay decisiones nuevas de IA; las protecciones siguen. No se instrumenta el asesor, que no debe alterarse: el total frente a los 10 €/mes de D-38 se revisa en la consola de la API. Caché persistente de 24 horas por `input_hash`. D-81 enmienda D-38.
+- Superbot usa clave de API propia. El tope de 5 €/mes por mes UTC se retiró en D-82 (2026-11-12); lo que sigue describe el mecanismo, que se conserva para un tope futuro. Las llamadas son en serie, bajo el bloqueo del proceso. Antes de cada una se reserva en la base su coste máximo; si no cabe, no se llama. Tras la respuesta se concilia con el coste real. Sin presupuesto no hay decisiones nuevas de IA; las protecciones siguen. No se instrumenta el asesor, que no debe alterarse: el total frente a los 10 €/mes de D-38 se revisa en la consola de la API. Caché persistente de 24 horas por `input_hash`. D-81 enmienda D-38.
 
 ## 6. Modos
 
