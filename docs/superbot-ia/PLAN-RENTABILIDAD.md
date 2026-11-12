@@ -47,12 +47,26 @@ Límites conocidos:
   del 11 y `EUNL.DE` al del 10. El dashboard enseña el cierre usado en cada lado.
 - Una pasada sin análisis o sin cambio de una posición la cuenta a su coste y lo declara.
 
-**Contrafactual de los descartes — AUTORIZADO el 2026-11-12, en construcción.** Es la prueba
+**Contrafactual de los descartes — AUTORIZADO y HECHO el 2026-11-12** (`superbot/ia/contrafactual.py`). Es la prueba
 que dice si la IA aporta algo: comparar qué hicieron después las candidatas que aprobó frente a
 las que descartó (51 descartes y 11 aprobadas registrados ese día, con sus niveles). Enseña
 desenlaces de candidatas del Score v1 que el bot no compró, un canal lateral más ancho que el
 que D-81 aceptó para T-025; el propietario lo acepta expresamente (D-82 §7). Las sesiones ya
 estaban `CONSUMIDA` desde `SIA_T0`, así que el coste adicional es para la ceguera de T-025.
+
+Cada decisión de compra se sigue como si se hubiera comprado en la apertura de su sesión
+objetivo, con el mismo gate y el mismo stop que la cartera y los niveles congelados al decidir, y
+se cierra por stop o a las 20 sesiones. Comprobado contra la realidad: reproduce las 11 órdenes
+reales (5 ejecutadas, 6 rechazadas por `ABOVE_MAX_ENTRY`) con sus precios de entrada.
+
+Primera lectura (copia de producción, 2026-11-12, posiciones de 1 a 2 sesiones de vida): las 5
+aprobadas ejecutables van −0,61 % de media; las 18 descartadas ejecutables, +0,96 %. **No
+demuestra nada todavía**: muestra mínima, periodos solapados y valores repetidos. Sí deja un
+dato firme: el gate de apertura deja fuera a más de la mitad en los dos grupos (6 de 11 y 21 de
+39), así que el hallazgo 6 pesa tanto como el criterio de la IA.
+
+Qué mirar cuando haya muestra (antes de leerlo, fijar el criterio en la fase 4): diferencia de
+retorno medio y de R medio entre grupos, por valores distintos y no por decisiones.
 
 ## Fase 1 — Que la IA quepa en el presupuesto · HECHA en parte
 
@@ -107,4 +121,5 @@ de Telegram, o un bróker con API. Con 5.000 € los costes fijos pesan: decidir
 | Fecha | Qué |
 |---|---|
 | 2026-11-12 | Revisión inicial y plan. Fase 0 y parte de la fase 1 implementadas (D-82): 400 pruebas de `superbot/ia` y 2.098 de toda la batería antes de la revisión, comprobado con una copia de la base de producción y datos reales |
+| 2026-11-12 | Contrafactual de aprobadas frente a descartadas construido (D-82 §7), verificado contra las 11 órdenes reales |
 | 2026-11-12 | Revisión independiente: sin críticos ni importantes; 4 menores corregidos con prueba (foto partida por una aportación simultánea, referencia que caducaba a los 2 años, `migrar-politica` que creaba tablas en una base ajena, «cierre usado» inventado en posiciones a coste). Pendiente la revisión cruzada de Codex antes de fusionar |

@@ -18,7 +18,7 @@ from advisor.config import AdvisorConfig
 from advisor.data.calendars import expected_sessions
 from advisor.data.market_data import MarketDataProvider
 from advisor.universe.models import Asset, Universe
-from superbot.ia import comite, medicion, telegram
+from superbot.ia import comite, contrafactual, medicion, telegram
 from superbot.ia.asesores import (
     ERROR_LLAMADA,
     OK,
@@ -523,6 +523,14 @@ def _ejecutar(
         except Exception as exc:
             # La medición solo observa: perder una foto nunca puede costar una decisión ni un stop.
             logger.warning("valoración de la pasada %s sin guardar: %s: %s", pasada_id, type(exc).__name__, exc)
+        try:
+            ventana = config.horizonte(politica.horizonte)
+            contrafactual.actualizar(
+                registro.conn, crudo, universe, decision_ts, ventana.period, ventana.interval,
+                config.data_quality.settlement_minutes,
+            )
+        except Exception as exc:
+            logger.warning("contrafactual de la pasada %s sin actualizar: %s: %s", pasada_id, type(exc).__name__, exc)
 
     _evaluar_posiciones(motor, analizadas, contexto, cartera, resultado, cartera_ia if activa else None)
     candidatas = [
