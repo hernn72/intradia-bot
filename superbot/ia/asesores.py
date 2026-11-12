@@ -149,7 +149,24 @@ def _valor_en(datos: Any, ruta: str) -> Any:
     return actual
 
 
-def _texto_valido(frases: List[str]) -> Optional[str]:
+def _valores_con_digitos(datos: Mapping[str, Any]) -> Optional[re.Pattern[str]]:
+    """Los valores del paquete cuyo propio nombre lleva dígitos (``MUV2.DE``, ``7203.T``).
+
+    Nombrar una posición de la cartera es nombrar un dato, no escribir una cifra: sin esto, el
+    dictamen de riesgo se invalidaba cada vez que la cartera tenía un valor así.
+    """
+
+    posiciones = datos.get("cartera", {}).get("posiciones") or []
+    nombres = {datos.get("activo", {}).get("valor")} | {p.get("valor") for p in posiciones if isinstance(p, Mapping)}
+    con_digitos = sorted(
+        (n for n in nombres if isinstance(n, str) and any(c.isdigit() for c in n)), key=len, reverse=True
+    )
+    if not con_digitos:
+        return None
+    return re.compile(r"(?<![A-Za-z0-9])(?:" + "|".join(re.escape(n) for n in con_digitos) + r")(?![A-Za-z0-9])")
+
+
+def _texto_valido(frases: List[str], valores: Optional[re.Pattern[str]] = None) -> Optional[str]:
     """Sin cifras: una cifra no se puede atar a su dato, así que el texto solo nombra campos.
 
     La lista de términos externos es una red de seguridad, no una garantía: un sinónimo
@@ -159,7 +176,8 @@ def _texto_valido(frases: List[str]) -> Optional[str]:
     for frase in frases:
         if _EXTERNO.search(frase):
             return DATO_EXTERNO
-        if any(caracter.isdigit() for caracter in _INDICADORES.sub("", frase)):
+        sin_nombres = _INDICADORES.sub("", frase if valores is None else valores.sub("", frase))
+        if any(caracter.isdigit() for caracter in sin_nombres):
             return CIFRA_AJENA
     return None
 
@@ -211,7 +229,7 @@ def validar_dictamen(texto: str, paquete: Paquete, stop_reason: Optional[str]) -
 
     if not all(_hoja_valida(paquete.datos, ruta) for ruta in data["datos_citados"]):
         return CITA_INEXISTENTE, None
-    fallo = _texto_valido(data["motivos"] + data["riesgos"])
+    fallo = _texto_valido(data["motivos"] + data["riesgos"], _valores_con_digitos(paquete.datos))
     if fallo is not None:
         return fallo, None
     return OK, data

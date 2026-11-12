@@ -2484,6 +2484,27 @@ No se autoriza abrir desenlaces de T-025. B2, S2 y C0 siguen sellados en `paper.
 
 **9. Revisión.** Codex revisó la Entrega A y este texto en tres rondas y una confirmación final, y terminó con dictamen APROBADA, sin críticos ni importantes abiertos.
 
+### D-82 — 2026-11-12 — Superbot IA: sin tope de gasto, medición a mercado y plan de rentabilidad
+
+Decisión del propietario tras la primera revisión de `superbot_ia_v1` en activo (4,5 sesiones, 5 posiciones, 144 llamadas, 4,07 € gastados). Enmienda D-81 y D-38 solo en lo que sigue.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**1. Tope de gasto.** Se retira el tope de 5 €/mes de `superbot_ia_v1` (`PoliticaIA.tope_eur_mes = None`). El gasto se sigue reservando y registrando llamada a llamada. Consecuencia aceptada: el gasto esperado, unos 10 €/mes tras el punto 3, alcanza por sí solo la cifra global de 10 €/mes de D-38, que deja de ser un límite para Superbot y queda como referencia a revisar en la consola de la API.
+
+**2. Cambio de parámetros auditado.** Una base ya creada no se abre con otros parámetros (`PoliticaDistinta`), como hasta ahora. El cambio deliberado se aplica con `python -m superbot.ia --db … migrar-politica --motivo …`, que exige el candado de la pasada y deja la política anterior, la nueva y el motivo en `ia_politica_cambio`. No cambia `POLICY_ID`.
+
+**3. Llamadas que dejan de pagarse, sin cambiar ninguna resolución.**
+- El asesor de riesgo solo se consulta en compra si el de oportunidad vota `COMPRAR`. La compra exige a los dos, así que un descarte del primero ya la resuelve. En las 62 decisiones de compra reales, riesgo no vetó ninguna compra que oportunidad aprobara y 51 consultas no podían cambiar el resultado. El voto de riesgo deja de constar en los descartes.
+- El validador admite en el texto el nombre de un valor del propio paquete aunque lleve dígitos (`MUV2.DE`). Las 8 respuestas reales rechazadas por `CIFRA_EN_TEXTO` eran ese caso; reprocesadas, las 8 validan y las otras 136 no cambian.
+
+**4. Medición.** Cada pasada en activo guarda en `ia_valoracion` el valor a mercado de la cartera, lo que valdrían los mismos flujos de capital en `EUNL.DE`, los costes de ejecución estimados (1 € por orden y 0,10 % por lado: supuestos, no medidas) y el gasto real de API desde la activación. El dashboard lo muestra junto a la contabilidad a coste, que no cambia. Una posición cuyo último cierre analizado es anterior a su compra se valora a su coste, también en lo que ve la IA.
+
+**5. Plan.** `docs/superbot-ia/PLAN-RENTABILIDAD.md` sustituye como orden de trabajo al criterio de 20 sesiones de la Entrega D, que no basta para concluir nada. Sus fases 2 en adelante (noticias y fundamentales para los asesores, cambios de entrada y salida, capital real) **no quedan autorizadas por esta decisión**: noticias y fundamentales siguen bloqueados por la Línea B hasta una decisión propia.
+
+**6. Lo que no cambia.** El código, la metodología y los desenlaces sellados en `paper.db` de T-024 y T-025. El stop obligatorio, el tamaño y el comité. La etiqueta **«SUPERBOT IA — PAPER, NO VALIDADA PARA CAPITAL REAL»**. El motor cuantitativo sigue sin ventaja demostrada (D-70).
+
+**7. Contrafactual de los descartes (enmienda a D-81 §2 y §6).** El propietario autoriza calcular y mostrar qué hicieron después las candidatas de compra que el comité descartó, junto a las que aprobó, para saber si los asesores filtran mejor que el azar. Acepta expresamente que es un canal lateral más ancho que el de D-81: enseña desenlaces de candidatas del Score v1 que `superbot_ia_v1` no compró, sobre el mismo universo que C0, B2 y S2. No se lee `paper.db` ni se abre ningún desenlace de T-025; todo sale de `ia_decision` y de barras de mercado. Cualquier resultado de T-024 o T-025 que incluya sesiones desde el 2026-11-12 cita también esta enmienda. Se descarta por ahora la espera tras un descarte: cambiaría operaciones y se decide con el contrafactual.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

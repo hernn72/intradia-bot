@@ -1,4 +1,4 @@
-"""CLI de Superbot IA: ``python -m superbot.ia pasada|decisiones|corpus|dashboard|telegram``.
+"""CLI de Superbot IA: ``python -m superbot.ia pasada|decisiones|corpus|dashboard|telegram|migrar-politica``.
 
 ``pasada`` nunca activa la cartera paper por sí sola (modo ``registro`` siempre, salvo que algo
 externo ya la hubiera activado) — eso sigue exigiendo un llamador explícito, conforme a que la
@@ -25,7 +25,7 @@ from superbot.ia.corpus import ejecutar_corpus
 from superbot.ia.paquete import EstadoCartera
 from superbot.ia.pasada import ejecutar_pasada
 from superbot.ia.politica import PoliticaIA
-from superbot.ia.registro import RegistroIA
+from superbot.ia.registro import RegistroIA, migrar_politica
 
 CLAVE_ENV = "SUPERBOT_IA_API_KEY"
 
@@ -51,9 +51,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser_dashboard.add_argument("--port", type=int, default=8766)
     parser_telegram = sub.add_parser("telegram")
     parser_telegram.add_argument("--test", action="store_true", help="envía un mensaje de prueba en vez de vaciar la cola")
+    parser_migrar = sub.add_parser("migrar-politica", help="aplica a la base los parámetros actuales de PoliticaIA")
+    parser_migrar.add_argument("--motivo", required=True)
     args = parser.parse_args(argv)
 
     politica = PoliticaIA()
+    if args.cmd == "migrar-politica":
+        # Antes de abrir el registro: con parámetros distintos, abrirlo es justo lo que falla.
+        cambios = migrar_politica(args.db, politica, args.motivo)
+        print(json.dumps({"cambios": cambios or {}}, ensure_ascii=False, sort_keys=True))
+        return 0
     registro = RegistroIA(args.db, politica)
     if args.cmd == "decisiones":
         for fila in registro.decisiones():
