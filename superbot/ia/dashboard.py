@@ -156,25 +156,27 @@ def _contrafactual_section(grupos: Sequence[contrafactual.Grupo]) -> str:
     body = [
         [
             _td(_GRUPO_LABEL.get(g.resolucion, g.resolucion)), _td(g.decisiones, "num"), _td(g.valores, "num"),
-            _td(g.no_ejecutables, "num"), _td(g.seguidas, "num"), _td(g.stops, "num"),
+            _td(g.no_ejecutables, "num"), _td(g.sin_datos, "num"), _td(g.seguidas, "num"), _td(g.stops, "num"),
             _td(_puntos(g.retorno_medio_pct), f"num {_signed_class(g.retorno_medio_pct)}"),
             _td(_puntos(g.retorno_mediano_pct), f"num {_signed_class(g.retorno_mediano_pct)}"),
             _td(_puntos(g.positivas_pct), "num"), _td("N/D" if g.r_medio is None else _num(g.r_medio), "num"),
             _td(f"{_puntos(g.retorno_corto_medio_pct)} ({g.cortas})", "num"),
+            _td(f"{_puntos(g.retorno_cerradas_pct)} ({g.cerradas})", "num"),
         ]
         for g in grupos
     ]
     tabla = _table(
-        ["Grupo", "Decisiones", "Valores distintos", "No ejecutables en la apertura", "Seguidas", "Stops",
+        ["Grupo", "Decisiones", "Valores distintos", "No ejecutables en la apertura", "Sin datos", "Seguidas", "Stops",
          "Retorno medio", "Retorno mediano", "En positivo", "R medio",
-         f"Retorno medio a {contrafactual.HORIZONTE_CORTO} sesiones (n)"],
-        body, empty="Todavía no hay decisiones de compra con sesión objetivo cerrada.",
+         f"Retorno medio a {contrafactual.HORIZONTE_CORTO} sesiones (n)", "Retorno medio de las cerradas (n)"],
+        body,
     )
     nota = (
         "Cada decisión de compra se sigue como si se hubiera comprado en la apertura de su sesión objetivo, con el "
         "mismo gate de apertura y el mismo stop que la cartera, y se cierra por stop o a las "
-        f"{contrafactual.HORIZONTE_SESIONES} sesiones; mientras tanto cuenta a su último cierre. En divisa del valor, "
-        "sin costes. Las decisiones no son independientes: un mismo valor se evalúa en sesiones seguidas y los "
+        f"{contrafactual.HORIZONTE_SESIONES} sesiones; mientras tanto cuenta a su último cierre, así que el retorno "
+        "medio mezcla posiciones recién abiertas con cerradas: las dos últimas columnas son las comparables. En "
+        "divisa del valor, sin costes y sin las ventas de la IA. Las decisiones no son independientes: un mismo valor se evalúa en sesiones seguidas y los "
         "periodos se solapan, así que una diferencia pequeña entre los dos grupos no demuestra nada."
     )
     return f'{tabla}<div class="muted">{_text(nota)}</div>'

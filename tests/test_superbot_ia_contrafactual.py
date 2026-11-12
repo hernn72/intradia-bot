@@ -38,7 +38,37 @@ class TestSimular:
 
     def test_no_entra_en_otra_sesion_si_falta_la_objetivo(self) -> None:
         barras = _barras((98.0, 97.0, 99.0), desde=OBJETIVO + timedelta(days=1))
-        assert simular(NIVELES, barras, OBJETIVO).estado == SIN_BARRA_DE_ENTRADA
+        d = simular(NIVELES, barras, OBJETIVO)
+        assert d.estado == SIN_BARRA_DE_ENTRADA and not d.final
+
+    def test_la_barra_de_entrada_que_llega_tarde_todavia_se_usa(self) -> None:
+        tarde = _barras((98.0, 97.0, 99.0), (99.0, 98.0, 100.94))
+        assert simular(NIVELES, tarde[1:], OBJETIVO).estado == SIN_BARRA_DE_ENTRADA
+        assert simular(NIVELES, tarde, OBJETIVO).estado == ABIERTA
+
+    def test_un_hueco_de_entrada_solo_es_definitivo_pasado_el_margen(self) -> None:
+        posteriores = _barras(*[(98.0, 97.0, 99.0)] * contrafactual.MARGEN_SESIONES, desde=OBJETIVO + timedelta(days=1))
+        assert not simular(NIVELES, posteriores[:-1], OBJETIVO).final
+        assert simular(NIVELES, posteriores, OBJETIVO).final
+
+    def test_un_dato_roto_en_el_recorrido_se_reintenta_y_conserva_el_retorno_corto(self) -> None:
+        limpias = [(98.0, 97.0, 99.0)] * 7
+        d = simular(NIVELES, _barras(*limpias, (99.0, float("nan"), 99.0)), OBJETIVO)
+        assert d.estado == contrafactual.DATOS_INCOMPLETOS and not d.final and d.retorno_pct is None
+        assert d.retorno_corto_pct == pytest.approx(100.0 * (99.0 / 98.0 - 1.0))
+        arreglada = simular(NIVELES, _barras(*limpias, (99.0, 98.0, 99.0)), OBJETIVO)
+        assert arreglada.estado == ABIERTA and arreglada.retorno_pct is not None
+
+    def test_un_dato_roto_que_no_se_arregla_acaba_siendo_definitivo(self) -> None:
+        muchas = [(98.0, float("nan"), 99.0)] + [(98.0, 97.0, 99.0)] * (
+            contrafactual.HORIZONTE_SESIONES + contrafactual.MARGEN_SESIONES
+        )
+        assert simular(NIVELES, _barras(*muchas), OBJETIVO).final
+
+    @pytest.mark.parametrize("dias, estado", [(0, contrafactual.SPLIT_POSTERIOR), (1, contrafactual.SPLIT_POSTERIOR), (-1, ABIERTA)])
+    def test_un_split_desde_la_sesion_objetivo_excluye_la_decision(self, dias: int, estado: str) -> None:
+        d = simular(NIVELES, _barras((98.0, 97.0, 99.0), (99.0, 98.0, 100.0)), OBJETIVO, [OBJETIVO + timedelta(days=dias)])
+        assert d.estado == estado and d.final == (estado != ABIERTA) and (d.retorno_pct is None) == (estado != ABIERTA)
 
     def test_una_apertura_por_encima_del_maximo_no_es_ejecutable(self) -> None:
         d = simular(NIVELES, _barras((102.0, 101.0, 104.0)), OBJETIVO)
@@ -72,7 +102,7 @@ class TestSimular:
 
     def test_niveles_incompletos_no_inventan_resultado(self) -> None:
         d = simular({"stop": 95.0}, _barras((98.0, 97.0, 99.0)), OBJETIVO)
-        assert d.estado == contrafactual.DATOS_INCOMPLETOS and d.retorno_pct is None
+        assert d.estado == contrafactual.DATOS_INCOMPLETOS and d.retorno_pct is None and d.final
 
 
 def _decidir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, respuestas: Dict[str, Any]) -> Any:
@@ -131,6 +161,43 @@ class TestActualizarYResumen:
 
         aprobadas, descartadas = contrafactual.resumen(reg.conn)
         assert aprobadas.retorno_medio_pct == pytest.approx(10.0) and descartadas.r_medio == pytest.approx(-1.0)
+
+    def test_una_barra_sin_cerrar_no_se_usa(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """La barra de la sesión objetivo tocaría el stop, pero a esa hora aún no ha cerrado."""
+
+        reg = _decidir(tmp_path, monkeypatch, {"SAP.DE": compra_ok()})
+        reg.conn.execute("UPDATE ia_decision SET market = 'XETRA'")
+        barras = {"SAP.DE": {date(2026, 11, 5): (98.0, 97.0, 99.0), OBJETIVO: (98.0, 90.0, 91.0)}}
+        cierre = datetime(2026, 11, 6, 16, 30, tzinfo=timezone.utc)  # 17:30 de Berlín
+        crudo = lambda: datos.ProveedorCrudo(_proveedor_ohlc(barras), lambda: cierre)  # noqa: E731
+
+        contrafactual.actualizar(reg.conn, crudo(), _universo(), cierre + timedelta(minutes=19), "1y", "1d", 20)
+        antes = reg.conn.execute("SELECT estado FROM ia_contrafactual").fetchone()[0]
+        contrafactual.actualizar(reg.conn, crudo(), _universo(), cierre + timedelta(minutes=21), "1y", "1d", 20)
+        despues = reg.conn.execute("SELECT estado FROM ia_contrafactual").fetchone()[0]
+
+        assert (antes, despues) == (PENDIENTE, STOP)
+
+    def test_una_fila_ilegible_no_impide_seguir_a_las_demas(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        reg = _decidir(tmp_path, monkeypatch, self.RESPUESTAS)
+        reg.conn.execute("UPDATE ia_decision SET cuantitativo = '{roto' WHERE symbol = 'A'")
+
+        assert _actualizar(reg, {"B": {OBJETIVO: (98.0, 97.0, 99.0)}}, self.DESPUES) == 1
+
+    def test_el_resumen_separa_cerradas_y_sin_datos(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        reg = _decidir(tmp_path, monkeypatch, self.RESPUESTAS)
+        barras = {
+            "A": {date(2026, 11, 9): (98.0, 97.0, 99.0)},
+            "B": {OBJETIVO: (98.0, 97.0, 99.0), date(2026, 11, 9): (99.0, 94.0, 96.0)},
+        }
+        _actualizar(reg, barras, self.DESPUES)
+
+        aprobadas, descartadas = contrafactual.resumen(reg.conn)
+
+        assert (aprobadas.decisiones, aprobadas.sin_datos, aprobadas.seguidas, aprobadas.cerradas) == (1, 1, 0, 0)
+        assert aprobadas.retorno_cerradas_pct is None
+        assert (descartadas.cerradas, descartadas.sin_datos) == (1, 0)
+        assert descartadas.retorno_cerradas_pct == pytest.approx(100.0 * (95.0 / 98.0 - 1.0))
 
     def test_una_decision_pendiente_no_cuenta_en_el_resumen(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         reg = _decidir(tmp_path, monkeypatch, self.RESPUESTAS)

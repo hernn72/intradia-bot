@@ -526,7 +526,7 @@ def _ejecutar(
         try:
             ventana = config.horizonte(politica.horizonte)
             contrafactual.actualizar(
-                registro.conn, crudo, universe, decision_ts, ventana.period, ventana.interval,
+                registro.conn, crudo, universe, instante, ventana.period, ventana.interval,
                 config.data_quality.settlement_minutes,
             )
         except Exception as exc:
