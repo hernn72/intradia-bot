@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from superbot.ia import medicion
+from superbot.ia import contrafactual, medicion
 from superbot.ia.cartera import CarteraIA, CarteraInactiva, EfectivoInsuficiente
 from superbot.ia.registro import RegistroIA
 
@@ -144,6 +144,42 @@ def _posiciones_abiertas_table(cartera_ia: CarteraIA, medida: Optional[medicion.
          "Cierre usado"],
         body,
     )
+
+
+_GRUPO_LABEL = {"COMPRAR": "Aprobadas por el comité", "DESCARTAR": "Descartadas"}
+
+
+def _contrafactual_section(grupos: Sequence[contrafactual.Grupo]) -> str:
+    def _puntos(value: Optional[float]) -> str:
+        return "N/D" if value is None else f"{_num(value)} %"
+
+    body = [
+        [
+            _td(_GRUPO_LABEL.get(g.resolucion, g.resolucion)), _td(g.decisiones, "num"), _td(g.valores, "num"),
+            _td(g.no_ejecutables, "num"), _td(g.sin_datos, "num"), _td(g.seguidas, "num"), _td(g.stops, "num"),
+            _td(_puntos(g.retorno_medio_pct), f"num {_signed_class(g.retorno_medio_pct)}"),
+            _td(_puntos(g.retorno_mediano_pct), f"num {_signed_class(g.retorno_mediano_pct)}"),
+            _td(_puntos(g.positivas_pct), "num"), _td("N/D" if g.r_medio is None else _num(g.r_medio), "num"),
+            _td(f"{_puntos(g.retorno_corto_medio_pct)} ({g.cortas})", "num"),
+            _td(f"{_puntos(g.retorno_cerradas_pct)} ({g.cerradas})", "num"),
+        ]
+        for g in grupos
+    ]
+    tabla = _table(
+        ["Grupo", "Decisiones", "Valores distintos", "No ejecutables en la apertura", "Sin datos", "Seguidas", "Stops",
+         "Retorno medio", "Retorno mediano", "En positivo", "R medio",
+         f"Retorno medio a {contrafactual.HORIZONTE_CORTO} sesiones (n)", "Retorno medio de las cerradas (n)"],
+        body,
+    )
+    nota = (
+        "Cada decisión de compra se sigue como si se hubiera comprado en la apertura de su sesión objetivo, con el "
+        "mismo gate de apertura y el mismo stop que la cartera, y se cierra por stop o a las "
+        f"{contrafactual.HORIZONTE_SESIONES} sesiones; mientras tanto cuenta a su último cierre, así que el retorno "
+        "medio mezcla posiciones recién abiertas con cerradas: las dos últimas columnas son las comparables. En "
+        "divisa del valor, sin costes y sin las ventas de la IA. Las decisiones no son independientes: un mismo valor se evalúa en sesiones seguidas y los "
+        "periodos se solapan, así que una diferencia pequeña entre los dos grupos no demuestra nada."
+    )
+    return f'{tabla}<div class="muted">{_text(nota)}</div>'
 
 
 def _kpis_medicion(medida: Optional[medicion.Medicion]) -> str:
@@ -333,7 +369,10 @@ def render_html(cartera_ia: CarteraIA, registro: RegistroIA, now_label: str, men
     gasto_total = registro.gasto_total()
     medida = medicion.leer_medicion(registro.conn) if stats["activa"] else None
     seccion_medicion = (
-        f"<section><h2>Medición a mercado</h2>{_kpis_medicion(medida)}</section>" if stats["activa"] else ""
+        f"<section><h2>Medición a mercado</h2>{_kpis_medicion(medida)}</section>"
+        "<section><h2>¿Filtra bien la IA? Aprobadas frente a descartadas</h2>"
+        f"{_contrafactual_section(contrafactual.resumen(registro.conn))}</section>"
+        if stats["activa"] else ""
     )
     if not stats["activa"]:
         banner = '<div class="banner inactiva">CARTERA INACTIVA — Superbot IA no ha activado todavía ninguna cartera paper</div>'
