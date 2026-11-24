@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from superbot.ia import medicion
+from superbot.ia import contrafactual, medicion
 from superbot.ia.cartera import CarteraIA, CarteraInactiva, EfectivoInsuficiente
 from superbot.ia.registro import RegistroIA
 
@@ -144,6 +144,27 @@ def _posiciones_abiertas_table(cartera_ia: CarteraIA, medida: Optional[medicion.
          "Cierre usado"],
         body,
     )
+
+
+_GRUPO_LABEL = {"COMPRAR": "Aprobadas por el comité", "DESCARTAR": "Descartadas"}
+
+
+def _contrafactual_section(grupos: Sequence[contrafactual.Grupo]) -> str:
+    # Sellado por D-83: solo lo que no depende de lo que hizo el precio después de la entrada. Ni
+    # retornos, ni stops, ni cuántas se han cerrado ya (una cerrada antes del horizonte es un stop).
+    body = [
+        [
+            _td(_GRUPO_LABEL.get(g.resolucion, g.resolucion)), _td(g.decisiones, "num"), _td(g.valores, "num"),
+            _td(g.no_ejecutables, "num"),
+        ]
+        for g in grupos
+    ]
+    tabla = _table(["Grupo", "Decisiones", "Valores distintos", "No ejecutables en la apertura"], body)
+    nota = (
+        "Recogiendo datos. Los resultados están sellados hasta la lectura única fijada en "
+        "docs/superbot-ia/CRITERIO-CONTRAFACTUAL.md (D-83): mirarlos antes invalidaría la prueba."
+    )
+    return f'{tabla}<div class="muted">{_text(nota)}</div>'
 
 
 def _kpis_medicion(medida: Optional[medicion.Medicion]) -> str:
@@ -333,7 +354,10 @@ def render_html(cartera_ia: CarteraIA, registro: RegistroIA, now_label: str, men
     gasto_total = registro.gasto_total()
     medida = medicion.leer_medicion(registro.conn) if stats["activa"] else None
     seccion_medicion = (
-        f"<section><h2>Medición a mercado</h2>{_kpis_medicion(medida)}</section>" if stats["activa"] else ""
+        f"<section><h2>Medición a mercado</h2>{_kpis_medicion(medida)}</section>"
+        "<section><h2>¿Filtra bien la IA? Aprobadas frente a descartadas</h2>"
+        f"{_contrafactual_section(contrafactual.resumen(registro.conn))}</section>"
+        if stats["activa"] else ""
     )
     if not stats["activa"]:
         banner = '<div class="banner inactiva">CARTERA INACTIVA — Superbot IA no ha activado todavía ninguna cartera paper</div>'
