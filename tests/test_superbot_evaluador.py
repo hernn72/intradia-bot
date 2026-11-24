@@ -373,6 +373,7 @@ def test_fase_uno_clasifica_cada_caso(tmp_path: Path) -> None:
         ("maduros", "DATOS_INCOMPLETOS", 0, 24, "falta"), ("maduros", "ABIERTA", 0, 26, "excluida"),
         ("maduros", "DATOS_INCOMPLETOS", 1, 26, "excluida"), ("maduros", "STOP", 1, 26, "usable_declarada"),
         ("maduros", "SPLIT_POSTERIOR", 1, 26, "declarada_sin_efecto"),
+        ("maduros", "SIN_BARRA_DE_ENTRADA", 1, 25, "excluida"), ("maduros", "SIN_BARRA_DE_ENTRADA", 0, 25, "excluida"),
         ("maduros", "SIN_BARRA_DE_ENTRADA", 0, 25, "DATOS_INCOMPLETOS"),
         ("sin_entrada", "SIN_BARRA_DE_ENTRADA", 1, 25, "SIN_BARRA_DE_ENTRADA"),
         ("sin_entrada", "SIN_BARRA_DE_ENTRADA", 1, 24, "falta"), ("maduros", "SIN_BARRA_DE_ENTRADA", 1, 24, "falta"),
@@ -495,7 +496,9 @@ def test_leer_casos_incluye_abierta_solo_en_carteras(tmp_path: Path) -> None:
         (decision_id, "ABIERTA", "COMPRAR", SESIONES[0].isoformat(), "ABIERTA"),
     )
     reg.conn.commit()
-    casos, candidatas, _retornos, error, _omitidos = evaluacion._leer_casos(reg.path, [], {})
+    casos, candidatas, _retornos, error, _omitidos = evaluacion._leer_casos(
+        reg.path, [], {}, datetime(2026, 12, 10, 20, tzinfo=timezone.utc),
+    )
     assert casos == []
     assert error is None
     assert len(candidatas) == 1
@@ -751,7 +754,9 @@ def test_abierta_de_produccion_conserva_ultimo_cierre_y_entra_en_cartera(tmp_pat
     ).fetchone()
     assert tuple(fila[:2]) == ("ABIERTA", 0)
     assert fila[2] is not None and fila[3] is not None
-    _metrica, candidatas, _retornos, error, _omitidos = evaluacion._leer_casos(reg.path, [], {})
+    _metrica, candidatas, _retornos, error, _omitidos = evaluacion._leer_casos(
+        reg.path, [], {}, datetime(2026, 12, 10, 20, tzinfo=timezone.utc),
+    )
     assert error is None
     assert [caso.decision_id for caso in candidatas] == [decision_id]
     assert candidatas[0].sesion_salida is None and candidatas[0].salida is None

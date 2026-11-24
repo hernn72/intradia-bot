@@ -177,7 +177,8 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
   `SIN_DATOS` o `EXCLUSION` con sesión, precio de entrada y precio final (puede ser 0). Con `EXCLUSION` entra en la
   métrica con ese precio y las reglas de §4, aunque el cobro sea posterior a la sesión 20. Un stop anterior manda. La entrada es la que guardó el bot; la
   declarada solo suple su falta y tiene que coincidir (0,5 %) con la apertura de la cosecha. El precio final se
-  declara en la escala de la entrada, deshaciendo cualquier split intermedio.
+  declara en la escala de la entrada, deshaciendo cualquier split intermedio. `EXCLUSION` resuelve lo que
+  falta (`DATOS_INCOMPLETOS` o `SIN_BARRA_DE_ENTRADA` con entrada ejecutable), no un split ni una apertura invalidada.
 - La lista de valores truncados sale del calendario y de precios de mercado, nunca del desenlace sellado.
 
 ### 9.3. Qué cuenta como dato inválido

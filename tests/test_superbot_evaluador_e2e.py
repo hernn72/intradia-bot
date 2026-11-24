@@ -686,10 +686,14 @@ class TestDejaDeCotizar:
         assert r["excluidos"] == {"COMPRAR": {"DATOS_INCOMPLETOS": 1}, "DESCARTAR": {}} and r["n"]["COMPRAR"] == 35
         assert r["estimador"] == pytest.approx(a_mano(self.casos()[1:], 0.0), abs=1e-12)
         assert r["episodios_truncados"][0]["tipo"] == "SIN_DATOS" and r["con_resultado_de_exclusion"] == []
+        assert r["omitidos_en_carteras"] == [1]
+        for cartera in r["carteras"].values():
+            assert "A0" not in {o["symbol"] for o in cartera["operaciones"]}
 
     @pytest.mark.parametrize("precio", [0.0, 12.5])
     @pytest.mark.parametrize("estado,entrada", [
         (contrafactual.ABIERTA, 100.0), (contrafactual.PENDIENTE, None), (contrafactual.DATOS_INCOMPLETOS, 100.0),
+        (contrafactual.SIN_BARRA_DE_ENTRADA, None),
     ])
     def test_la_perdida_de_una_exclusion_entra_en_la_metrica(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, precio: float, estado: str, entrada: float | None,
@@ -752,6 +756,7 @@ class TestDejaDeCotizar:
     ) -> None:
         r = montar(tmp_path, monkeypatch, self.casos()).evaluar()
         assert r["excluidos"]["COMPRAR"] == {"DATOS_INCOMPLETOS": 1} and r["episodios_truncados"] == []
+        assert r["omitidos_en_carteras"] == [1]
 
     @pytest.mark.parametrize("hueco", [
         {"estado": contrafactual.HORIZONTE, "final": 1, "hasta": XETRA[20], "barras": 20, "salida": 1e6},

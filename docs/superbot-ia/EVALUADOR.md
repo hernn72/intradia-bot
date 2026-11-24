@@ -45,7 +45,7 @@ segundo clon permitiría repetir el cálculo, con idéntico resultado.
 | Serie ausente, que empieza tarde o con sesiones repetidas | Solo si se identifica y justifica; se omite en las dos carteras y no se admite listar una que está |
 | Desenlace con huecos | `sesiones` y `hasta_session` guardadas deben cuadrar con el calendario; si no, dato inválido y fuera de carteras |
 | Entrada de una exclusión | La guardada; se publica en `entradas_de_exclusiones` |
-| Un caso sin desenlace utilizable | Se omite en las dos carteras y se publica su identificador |
+| Un caso sin desenlace utilizable, también el que sigue abierto pasadas 20 sesiones | Se omite en las dos carteras y se publica su identificador |
 | Fallo de carteras o §7 | Se publica y el veredicto sale igual, salvo que toque divisa o referencia: `INCONCLUSO` |
 
 Detalles fijados al implementar D-88: K cuenta bloques con casos utilizables; mínimos de 4 bloques y 3 por grupo,

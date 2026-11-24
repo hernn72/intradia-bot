@@ -422,6 +422,11 @@ def _resultado_inconcluso(
     return datos
 
 
+def _sesiones_cerradas(market: str, entrada: date, instante: datetime) -> int:
+    ultima = latest_expected_closed_session(market, instante, settlement_minutes=madurez.SETTLEMENT_MINUTES)
+    return 0 if ultima is None else len(expected_sessions(market, entrada, ultima))
+
+
 def _sin_huecos(market: str, entrada: date, estado: str, hasta: Any, barras: Any) -> bool:
     """Si el desenlace guardado vio una barra por cada sesión de su plaza.
 
@@ -490,7 +495,8 @@ def _fase1(
         elif estado not in {NO_EJECUTABLE, *_EXCLUIDOS}:
             estado = DATOS_INCOMPLETOS
         declarada = determinaciones.get(episodio.decision_id)
-        if estado == DATOS_INCOMPLETOS and declarada is not None and declarada.tipo == EXCLUSION:
+        # Falta de datos: lo que una exclusión declarada resuelve. Un split o una apertura invalidada, no.
+        if estado in {DATOS_INCOMPLETOS, SIN_BARRA_DE_ENTRADA} and declarada is not None and declarada.tipo == EXCLUSION:
             usables.append(episodio)
             con_exclusion.append(episodio.decision_id)
             continue
@@ -797,7 +803,7 @@ def _abrir(raiz: Path, identidades: Mapping[str, Any], instante: datetime) -> No
 
 
 def _leer_casos(
-    db: Path, usables: Sequence[Episodio], exclusiones: Mapping[int, Determinacion],
+    db: Path, usables: Sequence[Episodio], exclusiones: Mapping[int, Determinacion], instante: datetime,
 ) -> Tuple[List[Caso], List[Caso], Dict[int, float], Optional[str], List[int]]:
     """Casos de la métrica, casos de carteras, R de cada uno, errores solo de carteras y omitidos en ellas."""
 
@@ -822,7 +828,10 @@ def _leer_casos(
         cerrado = final == 1 and estado in {STOP, HORIZONTE} and _sin_huecos(
             str(f[2]), date.fromisoformat(str(f[4])), estado, f[11], f[13],
         )
-        abierto = final == 0 and estado == ABIERTA and f[9] is not None
+        # Pasadas sus 20 sesiones, una posición sin desenlace no está abierta: le faltan datos.
+        abierto = final == 0 and estado == ABIERTA and f[9] is not None and _sesiones_cerradas(
+            str(f[2]), date.fromisoformat(str(f[4])), instante,
+        ) < HORIZONTE_SESIONES
         if not cerrado and declarada is None and not abierto:
             if decision_id in ids:
                 raise EvaluacionDenegada("estado final inesperado")
@@ -952,7 +961,7 @@ def evaluar(
             raise EvaluacionDenegada(f"la identidad {clave} cambió antes de abrir")
     _abrir(raiz, identidades, instante_apertura)
     casos, candidatas, retornos_r, error_carteras, omitidos = _leer_casos(
-        db, usables, {i: determinaciones[i] for i in con_exclusion},
+        db, usables, {i: determinaciones[i] for i in con_exclusion}, instante_evaluacion,
     )
     monedas = sorted({c.currency for c in candidatas if c.currency != "EUR"})
     series_fx = {moneda: _serie(vintage, f"EUR{moneda}=X", "", fx=True) for moneda in monedas}
