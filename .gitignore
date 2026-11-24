@@ -14,3 +14,7 @@ data/vintages/*
 !data/vintages/*/
 data/vintages/*/*
 !data/vintages/*/manifest.json
+
+# Cosechas del laboratorio de Superbot IA: solo se versiona el manifiesto.
+data/vintages-lab/*/*
+!data/vintages-lab/*/manifest.json
