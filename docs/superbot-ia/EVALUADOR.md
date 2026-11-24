@@ -25,7 +25,7 @@ Todos: `python -m superbot_lab.evaluar --db COPIA --cosecha-raiz DIR <orden>`, d
 
 Puertas, en orden: autorización idéntica a `HEAD` y coincidente; sin apertura ni resultado previos; git limpio;
 congelación intacta, toca evaluar y los episodios cuadran con `madurez`; 30 por grupo. La base se abre en solo
-lectura por fases: en la 0 no se lee la tabla sellada; en la 1, solo estado y validez; en la 2, todo, y solo
+lectura por fases: en la 0 no se lee la tabla sellada; en la 1, solo estado y validez (incluidas cuántas sesiones duró); en la 2, todo, y solo
 después de escribir `apertura.json`. Si algo falla tras abrir, no hay segunda ejecución.
 
 Es una defensa contra errores, **no una barrera**: quien edite el código o abra la base a mano puede leerla, y un
@@ -43,6 +43,8 @@ segundo clon permitiría repetir el cálculo, con idéntico resultado.
 | `EUNL.DE` | Solo barras de sesiones oficiales de Xetra; una barra en festivo se ignora |
 | Carteras | Tamaño con 5.000 EUR fijos; efectivo de una salida, disponible al día siguiente; abiertas, a mercado |
 | Serie ausente o que empieza tarde | Solo si se identifica y justifica; se omite en las dos carteras y no se admite listar una que está |
+| Desenlace con huecos | `sesiones` y `hasta_session` guardadas deben cuadrar con el calendario; si no, dato inválido y fuera de carteras |
+| Entrada de una exclusión | La guardada; se publica en `entradas_de_exclusiones` |
 | Un caso sin desenlace utilizable | Se omite en las dos carteras y se publica su identificador |
 | Fallo de carteras o §7 | Se publica y el veredicto sale igual, salvo que toque divisa o referencia: `INCONCLUSO` |
 
@@ -65,7 +67,7 @@ bloques contiguos sube al 9–14 %**: es el límite principal.
 
 Revisado con ejecuciones de punta a punta que usan el `contrafactual.actualizar` de producción y un proveedor defectuoso
 (huecos, NaN, aperturas revisadas, splits, apagones, exclusiones): ningún fallo tras abrir y todos los estimadores
-coinciden con un cálculo aparte. Con 25 y el intervalo actual, una conclusión falsa en 24; con el percentil, 14 en 47.
+coinciden con un cálculo aparte. Con el intervalo actual, 4 conclusiones falsas en 47; con el percentil, 14 en 47.
 Aun así es sintético: no prueba que los datos reales lleguen completos. Los festivos dependen de `exchange_calendars`,
 cuya versión se fija en la autorización. La métrica usa los desenlaces que guardó el bot, no los recalcula. El precio
 de una exclusión lo aporta el propietario: el evaluador exige fuente y rango, no puede verificarlo.

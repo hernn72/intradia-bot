@@ -145,7 +145,9 @@ def _git(raiz: Path, *argumentos: str, comprobar: bool = True) -> str:
 
 
 def _autor(fase: int) -> Callable[[int, Optional[str], Optional[str], Optional[str], Optional[str]], int]:
-    columnas_fase1 = {"decision_id", "estado", "final", "resolucion", "target_session"}
+    columnas_fase1 = {
+        "decision_id", "estado", "final", "resolucion", "target_session", "sesiones", "hasta_session",
+    }
 
     def autorizar(
         accion: int, tabla: Optional[str], columna: Optional[str], _base: Optional[str], _disparador: Optional[str],
@@ -420,6 +422,21 @@ def _resultado_inconcluso(
     return datos
 
 
+def _sin_huecos(market: str, entrada: date, estado: str, hasta: Any, barras: Any) -> bool:
+    """Si el desenlace guardado vio una barra por cada sesión de su plaza.
+
+    Producción sigue las barras que le sirve el proveedor: con un hueco, su «sesión 20» es la 21 y un stop de
+    la sesión perdida no existe. Sobra o falta una barra y el desenlace no es el del criterio.
+    """
+
+    try:
+        sesiones = expected_sessions(market, entrada, date.fromisoformat(str(hasta)))
+        vistas = int(barras)
+    except (TypeError, ValueError):
+        return False
+    return len(sesiones) == vistas and (estado != HORIZONTE or vistas == HORIZONTE_SESIONES)
+
+
 def _fase1(
     db: Path, lista: Sequence[Episodio], determinaciones: Mapping[int, Determinacion], rechazadas: Sequence[int],
 ) -> Tuple[List[Episodio], Dict[str, Dict[str, int]], List[int]]:
@@ -429,7 +446,7 @@ def _fase1(
     with abrir_fase(db, 1) as conn:
         filas = conn.execute(
             "SELECT c.decision_id,c.estado,c.final,c.resolucion,c.target_session,d.resolucion,d.target_session,"
-            "d.target_open,d.market FROM ia_contrafactual c "
+            "d.target_open,d.market,c.sesiones,c.hasta_session FROM ia_contrafactual c "
             "JOIN ia_decision d ON d.id=c.decision_id JOIN ia_pasada p ON p.id=d.pasada_id "
             "WHERE d.tipo='COMPRA' AND p.decision_ts>=?",
             (madurez.CORTE.isoformat(timespec="seconds"),),
@@ -445,7 +462,10 @@ def _fase1(
             expected_sessions(str(fila[8]), sesion, sesion)
         except (TypeError, ValueError, KeyError) as exc:
             raise EvaluacionDenegada("decisión de fase 1 ilegible") from exc
-        estados[int(fila[0])] = (str(fila[1]), int(fila[2]))
+        estado, final = str(fila[1]), int(fila[2])
+        if estado in {STOP, HORIZONTE} and not _sin_huecos(str(fila[8]), sesion, estado, fila[10], fila[9]):
+            estado, final = DATOS_INCOMPLETOS, 0
+        estados[int(fila[0])] = (estado, final)
     excluidos: Dict[str, Dict[str, int]] = {"COMPRAR": {}, "DESCARTAR": {}}
     usables: List[Episodio] = []
     con_exclusion: List[int] = []
@@ -455,11 +475,11 @@ def _fase1(
         if episodio.categoria == "sin_entrada" and episodio.decision_id in rechazadas:
             continue
         estado, final = estados.get(episodio.decision_id, (DATOS_INCOMPLETOS, 0))
-        if not final:
+        if not final or estado == SIN_BARRA_DE_ENTRADA:
             if episodio.sesiones < SESIONES_DE_ESPERA:
                 faltan += 1
                 continue
-            estado = DATOS_INCOMPLETOS
+            estado = estado if final else DATOS_INCOMPLETOS
         if episodio.categoria == "sin_entrada":
             if estado == NO_EJECUTABLE:
                 continue
@@ -641,6 +661,20 @@ def episodios_truncados(vintage: VintageLoad, lista: Sequence[Episodio]) -> List
     return salida
 
 
+def _apertura_original(vintage: VintageLoad, episodio: Episodio) -> Optional[float]:
+    """Apertura de la sesión de entrada en la cosecha, en la escala de entonces."""
+
+    if episodio.symbol not in vintage.by_symbol:
+        return None
+    serie = _serie(vintage, episodio.symbol, episodio.market)
+    if episodio.sesion not in serie.fechas:
+        return None
+    apertura = serie.aperturas[serie.fechas.index(episodio.sesion)]
+    for fecha_split, ratio in serie.splits:
+        apertura *= ratio if fecha_split > episodio.sesion else 1.0
+    return apertura
+
+
 def _rechazadas_por_gate(
     vintage: VintageLoad, lista: Sequence[Episodio], cuantitativos: Mapping[int, Mapping[str, Any]],
 ) -> List[int]:
@@ -648,14 +682,9 @@ def _rechazadas_por_gate(
 
     salida = []
     for episodio in lista:
-        if episodio.categoria != "sin_entrada" or episodio.symbol not in vintage.by_symbol:
+        apertura = _apertura_original(vintage, episodio) if episodio.categoria == "sin_entrada" else None
+        if apertura is None:
             continue
-        serie = _serie(vintage, episodio.symbol, episodio.market)
-        if episodio.sesion not in serie.fechas:
-            continue
-        apertura = serie.aperturas[serie.fechas.index(episodio.sesion)]
-        for fecha_split, ratio in serie.splits:
-            apertura *= ratio if fecha_split > episodio.sesion else 1.0
         niveles = cuantitativos[episodio.decision_id]["niveles"]
         try:
             minimo = niveles.get("min_rr_ratio")
@@ -671,9 +700,10 @@ def _rechazadas_por_gate(
 
 
 def _determinaciones(
-    autorizacion: Mapping[str, Any], truncados: Sequence[Episodio], cuantitativos: Mapping[int, Mapping[str, Any]],
-    ultimo_dia: date,
+    autorizacion: Mapping[str, Any], vintage: VintageLoad, lista: Sequence[Episodio],
+    cuantitativos: Mapping[int, Mapping[str, Any]], ultimo_dia: date,
 ) -> Dict[int, Determinacion]:
+    truncados = episodios_truncados(vintage, lista)
     hechas: Dict[int, Determinacion] = {}
     try:
         for dato in autorizacion.get("episodios_truncados", []):
@@ -690,6 +720,9 @@ def _determinaciones(
                 )
                 episodio = next(e for e in truncados if e.decision_id == decision)
                 stop = float(cuantitativos[decision]["niveles"]["stop"])
+                publicada = _apertura_original(vintage, episodio)
+                if publicada is not None and not math.isclose(d.precio_entrada, publicada, rel_tol=0.005):
+                    raise ValueError
                 if d.sesion_salida is None or not (
                     episodio.sesion <= d.sesion_salida <= ultimo_dia and math.isfinite(d.precio_entrada)
                     and d.precio_entrada > stop and math.isfinite(d.precio_salida) and d.precio_salida >= 0
@@ -729,7 +762,7 @@ def _preparar(
         str(autorizacion["cosecha"]), cosecha_raiz, decisiones, instante, cuantitativos, list(ausentes),
     )
     determinaciones = _determinaciones(
-        autorizacion, episodios_truncados(vintage, lista), cuantitativos, instante.astimezone(timezone.utc).date(),
+        autorizacion, vintage, lista, cuantitativos, instante.astimezone(timezone.utc).date(),
     )
     return vintage, referencia, determinaciones, _rechazadas_por_gate(vintage, lista, cuantitativos), ausentes
 
@@ -760,7 +793,7 @@ def _leer_casos(
     with abrir_fase(db, 2) as conn:
         filas = conn.execute(
             "SELECT d.id,d.symbol,d.market,d.resolucion,d.target_session,d.target_open,d.cuantitativo,"
-            "c.estado,c.final,c.entrada,c.salida,c.hasta_session,c.retorno_r "
+            "c.estado,c.final,c.entrada,c.salida,c.hasta_session,c.retorno_r,c.sesiones "
             "FROM ia_decision d JOIN ia_pasada p ON p.id=d.pasada_id "
             "JOIN ia_contrafactual_entrada e ON e.decision_id=d.id "
             "LEFT JOIN ia_contrafactual c ON c.decision_id=d.id "
@@ -774,7 +807,9 @@ def _leer_casos(
     omitidos: List[int] = []
     for f in filas:
         decision_id, estado, final, declarada = int(f[0]), str(f[7]), f[8], exclusiones.get(int(f[0]))
-        cerrado = final == 1 and estado in {STOP, HORIZONTE}
+        cerrado = final == 1 and estado in {STOP, HORIZONTE} and _sin_huecos(
+            str(f[2]), date.fromisoformat(str(f[4])), estado, f[11], f[13],
+        )
         abierto = final == 0 and estado == ABIERTA and f[9] is not None
         if not cerrado and declarada is None and not abierto:
             if decision_id in ids:
@@ -967,6 +1002,7 @@ def evaluar(
         "excluidos": excluidos,
         "coste_api": {"euros": euros_api, "por_nocional_aprobado": coste_api},
         "carteras": detalle_carteras, "omitidos_en_carteras": omitidos,
+        "entradas_de_exclusiones": {c.decision_id: c.entrada for c in casos if c.estado == EXCLUSION},
         "secundario": detalle_secundario, "identidades": identidades, **detalle,
     }
     if _sha(db) != str(autorizacion["base_sha256"]):

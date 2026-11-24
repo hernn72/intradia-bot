@@ -169,11 +169,14 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
 ### 9.2. Episodios sin cotizaciones
 
 - Se esperan **25 sesiones** de la plaza, contando la de entrada como la 1. Antes, la evaluación espera.
+- Lo mismo vale para `SIN_BARRA_DE_ENTRADA` y para un `STOP` u `HORIZONTE` guardado con huecos: el bot cuenta las
+  barras que recibe, así que con una sesión perdida su salida no es la de la sesión 20 o falta un stop.
 - Pasadas, si el episodio sigue sin completarse, es `DATOS_INCOMPLETOS` y cuenta en el 5 % de su grupo.
 - **Exclusión de cotización con resultado económico identificable:** no se descarta. Si el valor deja de tener barras
   antes de su sesión 20, el propietario declara en la autorización, con fuente y justificación y **antes de abrir**,
   `SIN_DATOS` o `EXCLUSION` con sesión, precio de entrada y precio final (puede ser 0). Con `EXCLUSION` entra en la
-  métrica con ese precio y las reglas de §4, aunque el cobro sea posterior a la sesión 20. Un stop anterior manda.
+  métrica con ese precio y las reglas de §4, aunque el cobro sea posterior a la sesión 20. Un stop anterior manda. La entrada es la que guardó el bot; la
+  declarada solo suple su falta y tiene que coincidir (0,5 %) con la apertura de la cosecha.
 - La lista de valores truncados sale del calendario y de precios de mercado, nunca del desenlace sellado.
 
 ### 9.3. Qué cuenta como dato inválido
@@ -184,6 +187,7 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
 | Sin entrada tras 20 sesiones porque faltan los datos | Sí |
 | Entrada válida que el proveedor invalida después | Sí |
 | `SIN_BARRA_DE_ENTRADA`, `SPLIT_POSTERIOR`, `DATOS_INCOMPLETOS` | Sí |
+| Desenlace guardado con huecos: no vio una barra por cada sesión de la plaza | Sí, como `DATOS_INCOMPLETOS` |
 
 El porcentaje es inválidos entre inválidos más utilizables de ese grupo.
 

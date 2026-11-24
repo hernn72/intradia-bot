@@ -50,6 +50,7 @@ class C:
     cuando: datetime = TRAS_CORTE
     hasta: date | None = None
     retorno: Any = 0.0
+    barras: int | None = None
 
 
 def fx(moneda: str, dia: date) -> float:
@@ -117,9 +118,10 @@ def base(tmp: Path, casos: Sequence[C], api: float = 0.0) -> Path:
         )
         reg.conn.execute(
             "INSERT INTO ia_contrafactual (decision_id, symbol, resolucion, target_session, estado, entrada, salida, "
-            "hasta_session, retorno_pct, retorno_r, final, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'x')",
+            "hasta_session, retorno_pct, retorno_r, final, sesiones, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'x')",
             (decision, c.symbol, c.grupo, c.sesion.isoformat(), c.estado, c.entrada, c.salida, ultima(c).isoformat(),
-             c.retorno, c.retorno, c.final),
+             c.retorno, c.retorno, c.final,
+             len(expected_sessions(c.market, c.sesion, ultima(c))) if c.barras is None else c.barras),
         )
     pasada = reg.abrir_pasada(T, "activo", "sha")
     if api:
@@ -662,7 +664,7 @@ class TestDejaDeCotizar:
     @pytest.mark.parametrize("cambio", [
         {"justificacion": " "}, {"fuente": ""}, {"tipo": "OTRO"}, {"decision_id": 2}, {"decision_id": "x"},
         {"sesion_salida": "2026-11-01"}, {"sesion_salida": "2027-06-01"}, {"precio_salida": -1}, {"precio_entrada": 90.0},
-        {"precio_salida": "nan"},
+        {"precio_salida": "nan"}, {"precio_entrada": 100.6}, {"precio_entrada": 99.4},
     ])
     def test_declaraciones_invalidas(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cambio: dict[str, Any],
@@ -685,6 +687,26 @@ class TestDejaDeCotizar:
     ) -> None:
         r = montar(tmp_path, monkeypatch, self.casos()).evaluar()
         assert r["excluidos"]["COMPRAR"] == {"DATOS_INCOMPLETOS": 1} and r["episodios_truncados"] == []
+
+    @pytest.mark.parametrize("hueco", [
+        {"estado": contrafactual.HORIZONTE, "final": 1, "hasta": XETRA[20], "barras": 20, "salida": 1e6},
+        {"estado": contrafactual.STOP, "final": 1, "hasta": XETRA[9], "barras": 9, "salida": 1e6},
+    ])
+    def test_un_desenlace_con_huecos_no_entra_en_la_metrica_ni_en_carteras(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, hueco: dict[str, Any],
+    ) -> None:
+        r = montar(tmp_path, monkeypatch, self.casos(**hueco)).evaluar()
+        assert r["excluidos"]["COMPRAR"] == {"DATOS_INCOMPLETOS": 1} and r["omitidos_en_carteras"] == [1]
+        assert r["estimador"] == pytest.approx(a_mano(self.casos()[1:], 0.0), abs=1e-12)
+
+    def test_manda_la_entrada_guardada_y_se_publica(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        declarada = declarar(
+            self.casos(), "A0", "EXCLUSION", sesion_salida=XETRA[40].isoformat(), precio_entrada=100.4, precio_salida=50.0,
+        )
+        r = self.montar(tmp_path, monkeypatch, declarada).evaluar()
+        real = [C("A0", "COMPRAR", salida=50.0, hasta=XETRA[40]), *self.casos()[1:]]
+        assert r["entradas_de_exclusiones"] == {1: 100.0}
+        assert r["estimador"] == pytest.approx(a_mano(real, 0.0), abs=1e-12)
 
     def test_sin_fila_tampoco_bloquea(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         def sin_fila(donde: Path, casos: Sequence[C], api: float) -> Path:
@@ -715,6 +737,18 @@ class TestSinEntrada:
     def test_la_que_falta_por_datos_si(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         sin_barra = {c.symbol: quita(XETRA[0], XETRA[0]) for c in self.extra(2)}
         r = montar(tmp_path, monkeypatch, [*poblacion(), *self.extra(2)], alterar=sin_barra).evaluar()
+        assert r["motivo"] == "DATOS" and r["excluidos"]["COMPRAR"] == {contrafactual.SIN_BARRA_DE_ENTRADA: 2}
+
+    def test_el_gate_se_comprueba_en_la_escala_anterior_al_split(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def con_split(b: pd.DataFrame) -> pd.DataFrame:  # 2:1 posterior: la cosecha trae la mitad de 100
+            return b.assign(**{"Open": 50.0, "Close": 50.0, "High": 51.0, "Low": 49.0, "Stock Splits": [
+                2.0 if m.date() == XETRA[9] else 0.0 for m in b.index
+            ]})
+
+        partidas = {c.symbol: con_split for c in self.extra(2)}
+        r = montar(tmp_path, monkeypatch, [*poblacion(), *self.extra(2)], alterar=partidas).evaluar()
         assert r["motivo"] == "DATOS" and r["excluidos"]["COMPRAR"] == {contrafactual.SIN_BARRA_DE_ENTRADA: 2}
 
     def test_las_rechazadas_en_su_momento_no_penalizan(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

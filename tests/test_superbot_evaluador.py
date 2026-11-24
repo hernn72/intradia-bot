@@ -371,7 +371,9 @@ def test_fase_uno_clasifica_cada_caso(tmp_path: Path) -> None:
         ("maduros", "DATOS_INCOMPLETOS", 1, 26, "excluida"), ("maduros", "STOP", 1, 26, "usable_declarada"),
         ("maduros", "SPLIT_POSTERIOR", 1, 26, "declarada_sin_efecto"),
         ("maduros", "SIN_BARRA_DE_ENTRADA", 0, 25, "DATOS_INCOMPLETOS"),
-        ("sin_entrada", "SIN_BARRA_DE_ENTRADA", 1, 21, "SIN_BARRA_DE_ENTRADA"), ("sin_entrada", "NO_EJECUTABLE", 1, 21, "nada"),
+        ("sin_entrada", "SIN_BARRA_DE_ENTRADA", 1, 25, "SIN_BARRA_DE_ENTRADA"),
+        ("sin_entrada", "SIN_BARRA_DE_ENTRADA", 1, 24, "falta"), ("maduros", "SIN_BARRA_DE_ENTRADA", 1, 24, "falta"),
+        ("sin_entrada", "SPLIT_POSTERIOR", 1, 21, "SPLIT_POSTERIOR"), ("sin_entrada", "NO_EJECUTABLE", 1, 21, "nada"),
         ("sin_entrada", "PENDIENTE", 0, 25, "DATOS_INCOMPLETOS"), ("sin_entrada", "PENDIENTE", 0, 24, "falta"),
         ("sin_entrada", None, 0, 22, "rechazada"), ("sin_entrada", "SIN_BARRA_DE_ENTRADA", 1, 22, "rechazada"),
     ]
@@ -379,9 +381,10 @@ def test_fase_uno_clasifica_cada_caso(tmp_path: Path) -> None:
         _decision(reg, f"S{indice}", SESIONES[0], "COMPRAR")
         if estado is not None:
             reg.conn.execute(
-                "INSERT INTO ia_contrafactual(decision_id,symbol,resolucion,target_session,estado,final,updated_at) "
-                "VALUES((SELECT MAX(id) FROM ia_decision),?,'COMPRAR',?,?,?,'x')",
-                (f"S{indice}", SESIONES[0].isoformat(), estado, final),
+                "INSERT INTO ia_contrafactual(decision_id,symbol,resolucion,target_session,estado,final,sesiones,"
+                "hasta_session,updated_at) VALUES((SELECT MAX(id) FROM ia_decision),?,'COMPRAR',?,?,?,?,?,'x')",
+                (f"S{indice}", SESIONES[0].isoformat(), estado, final, 20 if estado == "HORIZONTE" else 3,
+                 SESIONES[19 if estado == "HORIZONTE" else 2].isoformat()),
             )
     reg.conn.commit()
     ids = [int(f[0]) for f in reg.conn.execute("SELECT id FROM ia_decision ORDER BY id")]
@@ -401,6 +404,53 @@ def test_fase_uno_clasifica_cada_caso(tmp_path: Path) -> None:
         destino = "SPLIT_POSTERIOR" if destino == "declarada_sin_efecto" else destino
         esperado = {} if destino in {"usable", "excluida", "usable_declarada", "nada", "rechazada"} else {destino: 1}
         assert excluidos == {"COMPRAR": esperado, "DESCARTAR": {}}, destino
+
+
+@pytest.mark.parametrize("estado,hasta,barras,entero", [
+    ("HORIZONTE", 19, 20, True), ("HORIZONTE", 20, 20, False), ("HORIZONTE", 18, 20, False), ("HORIZONTE", 18, 19, False),
+    ("HORIZONTE", 20, 21, False), ("STOP", 0, 1, True), ("STOP", 6, 7, True), ("STOP", 6, 6, False), ("STOP", 6, 8, False),
+    ("STOP", None, 3, False), ("STOP", 6, None, False),
+])
+def test_un_desenlace_con_huecos_no_es_el_del_criterio(
+    estado: str, hasta: int | None, barras: int | None, entero: bool,
+) -> None:
+    sesiones = expected_sessions("XETRA", D0, D0 + timedelta(days=60))
+    fecha = None if hasta is None else sesiones[hasta].isoformat()
+    assert evaluacion._sin_huecos("XETRA", D0, estado, fecha, barras) is entero
+
+
+def test_el_hueco_de_produccion_se_detecta_y_espera_veinticinco_sesiones(tmp_path: Path) -> None:
+    """El caso que encontró Codex: ``actualizar`` sin una sesión intermedia cierra en la 21."""
+
+    from superbot.ia import contrafactual
+    from tests.test_superbot_ia_madurez import NIVELES, SESIONES, _base, _decision
+
+    reg = _base(tmp_path)
+    _decision(reg, "S", SESIONES[0], "COMPRAR", None)
+    reg.conn.execute("UPDATE ia_decision SET cuantitativo=?", (json.dumps({"niveles": NIVELES}),))
+    con_hueco = [d for i, d in enumerate(SESIONES[:30]) if i != 7]
+
+    class Proveedor:
+        def get_history(self, *_args: object, **_kwargs: object) -> pd.DataFrame:
+            return pd.DataFrame(
+                {"Open": 98.0, "High": 99.0, "Low": 97.0, "Close": 98.0, "Stock Splits": 0.0}, index=pd.DatetimeIndex(con_hueco),
+            )
+
+    class Universo:
+        def get(self, _symbol: str) -> None:
+            return None
+
+    contrafactual.actualizar(reg.conn, Proveedor(), Universo(), datetime(2027, 2, 1, tzinfo=timezone.utc), "1y", "1d", 20)
+    reg.conn.commit()
+    fila = reg.conn.execute("SELECT decision_id,estado,final,hasta_session FROM ia_contrafactual").fetchone()
+    assert tuple(fila)[1:] == ("HORIZONTE", 1, SESIONES[20].isoformat())
+    for sesiones, espera in ((24, True), (25, False)):
+        lista = [Episodio(int(fila[0]), "S", "XETRA", "COMPRAR", SESIONES[0], "maduros", sesiones)]
+        if espera:
+            with pytest.raises(evaluacion.EvaluacionDenegada, match="faltan 1"):
+                evaluacion._fase1(reg.path, lista, {}, [])
+        else:
+            assert evaluacion._fase1(reg.path, lista, {}, [])[1]["COMPRAR"] == {"DATOS_INCOMPLETOS": 1}
 
 
 def test_una_exclusion_declarada_sin_datos_si_cuenta_como_dato_invalido(tmp_path: Path) -> None:
