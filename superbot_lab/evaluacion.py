@@ -570,7 +570,20 @@ def _cubre(vintage: VintageLoad, symbol: str, market: str, sesion: date) -> bool
     if symbol not in vintage.by_symbol:
         return False
     serie = _serie(vintage, symbol, market)
-    return any(math.isfinite(c) and c > 0 for d, c in zip(serie.fechas, serie.cierres) if d <= sesion)
+    return len(set(serie.fechas)) == len(serie.fechas) and any(
+        math.isfinite(c) and c > 0 for d, c in zip(serie.fechas, serie.cierres) if d <= sesion
+    )
+
+
+def series_inservibles(vintage: VintageLoad, decisiones: Sequence[sqlite3.Row]) -> List[str]:
+    """Valores con entrada ejecutable cuya serie falta, empieza tarde o repite sesiones."""
+
+    primeras: Dict[Tuple[str, str], date] = {}
+    for fila in decisiones:
+        if fila[5] == 1:
+            clave, sesion = (str(fila[1]), str(fila[2])), date.fromisoformat(str(fila[3]))
+            primeras[clave] = min(sesion, primeras.get(clave, sesion))
+    return sorted({s for (s, market), sesion in primeras.items() if not _cubre(vintage, s, market, sesion)})
 
 
 def _comprobar_cosecha(
@@ -602,13 +615,9 @@ def _comprobar_cosecha(
         tuple(referencia.cierres[i] for i in en_sesion), referencia.splits,
     )
     ejecutables = [fila for fila in decisiones if fila[5] == 1]
-    primeras: Dict[Tuple[str, str], date] = {}
-    for fila in ejecutables:
-        clave, sesion = (str(fila[1]), str(fila[2])), date.fromisoformat(str(fila[3]))
-        primeras[clave] = min(sesion, primeras.get(clave, sesion))
-    inservibles = {symbol for (symbol, market), sesion in primeras.items() if not _cubre(vintage, symbol, market, sesion)}
+    inservibles = set(series_inservibles(vintage, decisiones))
     if inservibles - set(series_ausentes):
-        raise EvaluacionDenegada("series ausentes o que empiezan tarde: " + ", ".join(
+        raise EvaluacionDenegada("series ausentes, que empiezan tarde o con sesiones repetidas: " + ", ".join(
             sorted(inservibles - set(series_ausentes))
         ))
     if set(series_ausentes) - inservibles:
@@ -634,6 +643,9 @@ def _comprobar_cosecha(
         if simbolo not in vintage.by_symbol:
             raise EvaluacionDenegada(f"falta {simbolo} en la cosecha")
         serie_fx = _serie(vintage, simbolo, "", fx=True)
+        # Dos valores para un mismo día dejarían el cambio al azar del orden; repetir el mismo no afecta.
+        if len(set(serie_fx.fechas)) != len(set(zip(serie_fx.fechas, serie_fx.cierres))):
+            raise EvaluacionDenegada(f"{simbolo} tiene dos valores para el mismo día")
         for desplazamiento in range((fecha_instante - primer_dia).days + 1):
             dia = primer_dia + timedelta(days=desplazamiento)
             if fx_de(serie_fx.fechas, serie_fx.cierres, dia, moneda) is None:

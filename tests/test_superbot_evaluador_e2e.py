@@ -398,6 +398,58 @@ class TestCobertura:
         r = montar(tmp_path, monkeypatch, casos, alterar={"EUNL.DE": con_barra_falsa}).evaluar()
         assert r["estimador"] == pytest.approx(a_mano(casos, 0.0), abs=1e-12)
 
+    @pytest.mark.parametrize("valor,denegada", [(10.0, True), (None, False)])
+    def test_dos_cambios_para_el_mismo_dia(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, valor: float | None, denegada: bool,
+    ) -> None:
+        def repetido(b: pd.DataFrame) -> pd.DataFrame:
+            fila = next(i for i, m in enumerate(b.index) if m.date() == XETRA[0])
+            copia = b.iloc[[fila]]
+            return pd.concat([b, copia if valor is None else copia.assign(Open=valor, High=valor, Low=valor, Close=valor)])
+
+        lab = montar(tmp_path, monkeypatch, poblacion(), alterar={"EURUSD=X": repetido})
+        if denegada:
+            with pytest.raises(evaluacion.EvaluacionDenegada, match="dos valores"):
+                lab.evaluar()
+            assert not lab.apertura.exists() and set(lab.fases) == {0}
+        else:
+            assert lab.evaluar()["estimador"] == pytest.approx(a_mano(poblacion(), 0.0), abs=1e-12)
+
+    def test_un_valor_con_sesiones_repetidas_se_autoriza_fuera_de_carteras(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repetida = {"A0": lambda b: pd.concat([b, b.iloc[[20]].assign(Close=1.0, Low=0.5)])}
+        lab = montar(tmp_path, monkeypatch, poblacion(), alterar=repetida)
+        with pytest.raises(evaluacion.EvaluacionDenegada, match="repetidas: A0"):
+            lab.evaluar()
+        autorizar(lab.raiz, lab.db, next(iter(lab.cosechas.iterdir())).name, series_ausentes={"A0": "repite una sesión"})
+        assert lab.evaluar()["estimador"] == pytest.approx(a_mano(poblacion(), 0.0), abs=1e-12)
+
+    @pytest.mark.parametrize("que,esperado", [
+        ("tarde", ["A0"]), ("ausente", ["A0"]), ("fx", None), ("eunl", None),
+    ])
+    def test_congelar_avisa_de_lo_que_evaluar_exigira(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, que: str, esperado: list[str] | None,
+    ) -> None:
+        lab = montar(tmp_path, monkeypatch, poblacion())
+        alterar: dict[str, Any] = {
+            "tarde": {"A0": quita(INICIO, XETRA[3])}, "ausente": {"A0": quita(INICIO, date(2100, 1, 1))},
+            "fx": {"EURUSD=X": quita(XETRA[30], XETRA[45])}, "eunl": {"EUNL.DE": quita(XETRA[9], XETRA[9])},
+        }[que]
+
+        def congela() -> dict[str, Any]:
+            return cli.congelar(
+                lab.db, tmp_path / "otras", raiz=lab.raiz, reloj=lambda: T + timedelta(days=1),
+                proveedor=Proveedor({c.symbol: c.market for c in poblacion()}, alterar),
+            )
+
+        if esperado is None:
+            with pytest.raises(evaluacion.EvaluacionDenegada):
+                congela()
+        else:
+            assert congela()["series_ausentes"] == esperado
+        assert set(lab.fases) == {0}
+
     def test_no_se_puede_autorizar_la_ausencia_de_un_valor_que_esta(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -676,6 +728,18 @@ class TestDejaDeCotizar:
         with pytest.raises(evaluacion.EvaluacionDenegada, match="episodios_truncados"):
             lab.evaluar()
         assert not lab.apertura.exists() and set(lab.fases) == {0}
+
+    def test_sin_apertura_publica_la_entrada_declarada_tiene_que_superar_el_stop(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        declarada = declarar(
+            self.casos(), "A0", "EXCLUSION", sesion_salida=XETRA[40].isoformat(), precio_entrada=90.0, precio_salida=1.0,
+        )
+        lab = montar(
+            tmp_path, monkeypatch, self.casos(), sin=["A0"], series_ausentes={"A0": "deslistada"}, truncados=[declarada],
+        )
+        with pytest.raises(evaluacion.EvaluacionDenegada, match="episodios_truncados"):
+            lab.evaluar()
 
     def test_no_se_declara_lo_que_tiene_datos(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         lab = montar(tmp_path, monkeypatch, poblacion(), truncados=[declarar(poblacion(), "A3")])

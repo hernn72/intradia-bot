@@ -43,11 +43,9 @@ def congelar(
         ).fetchall()
     simbolos = {REFERENCIA}
     pares_fx: set[str] = set()
-    valores: set[str] = set()
     for symbol, texto in filas:
         valor = str(symbol)
         simbolos.add(valor)
-        valores.add(valor)
         try:
             datos = json.loads(texto)
             moneda = str(datos["currency"])
@@ -67,16 +65,21 @@ def congelar(
         root_dir=cosecha_raiz, downloaded_at=ahora,
         request_context={"uso": "evaluación final contrafactual Superbot IA"},
     )
-    ausentes = sorted(valores & set(resultado.failed))
     salida: Dict[str, Any] = {
         "cosecha": resultado.data_vintage_id, "instante": instante.isoformat(),
-        "base_sha256": evaluacion._sha(db), "failed": resultado.failed, "series_ausentes": ausentes,
+        "base_sha256": evaluacion._sha(db), "failed": resultado.failed,
     }
     criticos = ({REFERENCIA} | pares_fx) & set(resultado.failed)
     if criticos:
         detalle = ", ".join(f"{s}: {m}" for s, m in sorted(resultado.failed.items()))
         raise evaluacion.EvaluacionDenegada("failed: " + detalle)
     vintage = load_vintage(resultado.data_vintage_id, root_dir=cosecha_raiz)
+    decisiones = evaluacion._decisiones_compra(db)
+    salida["series_ausentes"] = evaluacion.series_inservibles(vintage, decisiones)
+    evaluacion._comprobar_cosecha(
+        resultado.data_vintage_id, cosecha_raiz, decisiones, instante,
+        evaluacion._cuantitativos(db, [int(f[0]) for f in decisiones]), salida["series_ausentes"],
+    )
     # Lo que la autorización tendrá que justificar: solo calendario y precios de mercado.
     salida["episodios_truncados"] = [
         {"decision_id": e.decision_id, "symbol": e.symbol, "sesion_entrada": e.sesion.isoformat(),
