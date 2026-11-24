@@ -71,10 +71,10 @@ def _fechas(index: pd.Index, market: str) -> List[date]:
 
 
 def serie_de(asset: Any, barras: pd.DataFrame, market: str) -> Serie:
-    columnas = ("Open", "High", "Low", "Close")
+    apertura, maximo, minimo, cierre = (tuple(float(v) for v in barras[c]) for c in ("Open", "High", "Low", "Close"))
     return Serie(
-        asset.symbol, market, asset.currency, tuple(_fechas(barras.index, market)),
-        *(tuple(float(v) for v in barras[c]) for c in columnas), minuto_apertura=_minuto_apertura(market),
+        asset.symbol, market, asset.currency, tuple(_fechas(barras.index, market)), apertura, maximo, minimo, cierre,
+        _minuto_apertura(market),
     )
 
 
