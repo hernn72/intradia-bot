@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, Optional, Sequence
 
 from advisor.config import load_config
 from advisor.data.market_data import MarketDataProvider
-from advisor.research.vintage import freeze_vintage
+from advisor.research.vintage import freeze_vintage, load_vintage
 from superbot.ia import madurez
 from superbot.ia.medicion import REFERENCIA
 from superbot_lab import evaluacion
@@ -33,7 +33,7 @@ def congelar(
         raise evaluacion.EvaluacionDenegada("aún no están completas las barras del día del instante")
     evaluacion._sin_salidas(raiz)
     evaluacion._git_limpio(raiz)
-    evaluacion._puerta_madurez(db, instante)
+    _cuenta, lista = evaluacion._puerta_madurez(db, instante)
     with evaluacion.abrir_fase(db, 0) as conn:
         filas = conn.execute(
             "SELECT DISTINCT d.symbol,d.cuantitativo FROM ia_decision d JOIN ia_pasada p ON p.id=d.pasada_id "
@@ -68,7 +68,7 @@ def congelar(
         request_context={"uso": "evaluación final contrafactual Superbot IA"},
     )
     ausentes = sorted(valores & set(resultado.failed))
-    salida = {
+    salida: Dict[str, Any] = {
         "cosecha": resultado.data_vintage_id, "instante": instante.isoformat(),
         "base_sha256": evaluacion._sha(db), "failed": resultado.failed, "series_ausentes": ausentes,
     }
@@ -76,6 +76,13 @@ def congelar(
     if criticos:
         detalle = ", ".join(f"{s}: {m}" for s, m in sorted(resultado.failed.items()))
         raise evaluacion.EvaluacionDenegada("failed: " + detalle)
+    vintage = load_vintage(resultado.data_vintage_id, root_dir=cosecha_raiz)
+    # Lo que la autorización tendrá que justificar: solo calendario y precios de mercado.
+    salida["episodios_truncados"] = [
+        {"decision_id": e.decision_id, "symbol": e.symbol, "sesion_entrada": e.sesion.isoformat(),
+         "sesion_20": None if e.fin is None else e.fin.isoformat()}
+        for e in evaluacion.episodios_truncados(vintage, lista)
+    ]
     return salida
 
 

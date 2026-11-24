@@ -2558,6 +2558,21 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 Escrito y probado solo con datos sintéticos; se niega a ejecutarse sin una autorización comiteada que fije criterio, código, base, cosecha, instante y entorno. El criterio (D-84) no cambia. Quedan para el propietario, antes de que haya casos maduros: qué hacer con un valor que deja de cotizar, y si el intervalo percentil, que con 6 o 7 bloques equivale a un 87 %, se sustituye. Interpretaciones por ratificar y procedimiento: `docs/superbot-ia/EVALUADOR.md`.
 
+### D-88 — 2026-11-24 — Superbot IA: se modifica D-84 antes de tener casos maduros
+
+Decisión del propietario, con los resultados sellados. Modifica el criterio del contrafactual en tres puntos; el texto original se conserva en `CRITERIO-CONTRAFACTUAL.md` y la modificación está en su §9.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**1. Intervalo.** El percentil del 95 % se sustituye por t con jackknife por bloques de 4 semanas y K−1 grados. Motivo: con 6 o 7 bloques el percentil daba 12–14 % de conclusiones falsas en datos sintéticos; el t, 4–6 %. Sin bloques suficientes (4 en total, 3 por grupo), `INCONCLUSO`.
+
+**2. Sin cotizaciones.** Tras 25 sesiones de plaza, `DATOS_INCOMPLETOS` y al 5 %. Una exclusión con resultado económico identificable no se descarta: se declara con fuente antes de abrir y entra en la métrica.
+
+**3. Interpretaciones.** Ratificadas las de `EVALUADOR.md` §3: un rechazo normal del gate no penaliza el 5 %; las series ausentes se justifican y se omiten igual en las dos carteras; un fallo secundario no cambia el veredicto salvo que toque datos compartidos.
+
+**4. Sin cambios.** Métrica, costes, madurez, 30 y 50 por grupo, 2027-05-31, 5 % y los tres veredictos. Las carteras no deciden.
+
+**5. Autorización.** Fusionar la PR #72 cumplidas las condiciones del propietario. **No** autoriza ejecutar el evaluador sobre datos reales, crear la autorización, revelar resultados, tocar la estrategia o los 5.000 EUR, simular más, activar H1 o H3 ni desactivar asesores.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

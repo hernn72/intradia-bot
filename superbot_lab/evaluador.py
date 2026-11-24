@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import bisect
 import math
-import random
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
@@ -14,9 +13,15 @@ from superbot.ia.madurez import CORTE
 from superbot.ia.medicion import coste_orden_eur
 
 CAPITAL_EUR = 5_000.0
-REPLICAS = 10_000
-SEMILLA = 20261124
 SEMANAS_POR_BLOQUE = 4
+NIVEL = 0.95
+# Con menos, quedan menos de tres grados de libertad y el intervalo depende de un par de bloques.
+MIN_BLOQUES = 4
+MIN_BLOQUES_POR_GRUPO = 3
+
+
+class DatoCompartidoInvalido(ValueError):
+    """Falla un dato que también usa la métrica principal: el cambio de divisa o la referencia."""
 
 
 @dataclass(frozen=True)
@@ -55,8 +60,8 @@ class Observacion:
 class Intervalo:
     bajo: Optional[float]
     alto: Optional[float]
-    validas: int
-    descartadas: int
+    bloques: int
+    error_tipico: Optional[float]
 
 
 @dataclass(frozen=True)
@@ -140,35 +145,56 @@ def bloque_de(sesion: date) -> int:
     return distancia // (7 * SEMANAS_POR_BLOQUE)
 
 
-def intervalo_bloques(
-    aprobados: Sequence[Observacion], descartados: Sequence[Observacion], coste_api: float, *,
-    replicas: int = REPLICAS, semilla: int = SEMILLA,
+def cuantil_t(p: float, grados: int) -> float:
+    """Cuantil de la t de Student con grados enteros, por bisección de su distribución exacta."""
+
+    def acumulada(t: float) -> float:
+        angulo = math.atan(t / math.sqrt(grados))
+        coseno = math.cos(angulo)
+        impar = grados % 2
+        termino, suma = coseno if impar else 1.0, 0.0
+        for k in range(impar, grados - 1, 2):
+            suma += termino
+            termino *= coseno**2 * (k + 1) / (k + 2)
+        parte = (angulo + math.sin(angulo) * suma) * 2 / math.pi if impar else math.sin(angulo) * suma
+        return 0.5 + parte / 2
+
+    bajo, alto = 0.0, 1e6
+    for _ in range(200):
+        medio = (bajo + alto) / 2
+        bajo, alto = (medio, alto) if acumulada(medio) < p else (bajo, medio)
+    return (bajo + alto) / 2
+
+
+def inferencia_posible(aprobadas: Sequence[date], descartadas: Sequence[date]) -> bool:
+    """Bloques suficientes, en total y en cada grupo. Solo mira las sesiones de entrada."""
+
+    grupos = [{bloque_de(sesion) for sesion in sesiones} for sesiones in (aprobadas, descartadas)]
+    return len(grupos[0] | grupos[1]) >= MIN_BLOQUES and all(len(grupo) >= MIN_BLOQUES_POR_GRUPO for grupo in grupos)
+
+
+def intervalo_jackknife(
+    aprobados: Sequence[Observacion], descartados: Sequence[Observacion], coste_api: float,
 ) -> Intervalo:
-    por_bloque_a: Dict[int, list[Observacion]] = {}
-    por_bloque_d: Dict[int, list[Observacion]] = {}
-    for destino, casos in ((por_bloque_a, aprobados), (por_bloque_d, descartados)):
-        for caso in casos:
-            bloque = bloque_de(caso.sesion)
-            destino.setdefault(bloque, []).append(caso)
-    bloques = sorted(set(por_bloque_a) | set(por_bloque_d))
-    if not bloques:
-        return Intervalo(None, None, 0, replicas)
-    azar = random.Random(semilla)
-    valores: list[float] = []
-    descartadas_n = 0
-    for _ in range(replicas):
-        elegidos = [bloques[azar.randrange(len(bloques))] for _ in bloques]
-        muestra_a = [caso for bloque in elegidos for caso in por_bloque_a.get(bloque, ())]
-        muestra_d = [caso for bloque in elegidos for caso in por_bloque_d.get(bloque, ())]
-        if not muestra_a or not muestra_d:
-            descartadas_n += 1
-        else:
-            valores.append(estimador(muestra_a, muestra_d, coste_api))
-    if descartadas_n > replicas * 0.05 or not valores:
-        return Intervalo(None, None, len(valores), descartadas_n)
-    valores.sort()
-    n = len(valores)
-    return Intervalo(valores[math.floor(0.025 * n)], valores[math.ceil(0.975 * n) - 1], n, descartadas_n)
+    """t de Student con K-1 grados y jackknife que quita un bloque cada vez (D-88)."""
+
+    bloques = sorted({bloque_de(caso.sesion) for caso in (*aprobados, *descartados)})
+    k = len(bloques)
+    if not inferencia_posible([c.sesion for c in aprobados], [c.sesion for c in descartados]):
+        return Intervalo(None, None, k, None)
+    centro = estimador(aprobados, descartados, coste_api)
+    sin_bloque = [
+        estimador(
+            [c for c in aprobados if bloque_de(c.sesion) != bloque],
+            [c for c in descartados if bloque_de(c.sesion) != bloque], coste_api,
+        )
+        for bloque in bloques
+    ]
+    error = math.sqrt((k - 1) / k * sum((valor - centro) ** 2 for valor in sin_bloque))
+    if not math.isfinite(error) or error <= 1e-12:
+        return Intervalo(None, None, k, None)  # sin variación entre bloques no hay con qué medir el error
+    margen = cuantil_t((1 + NIVEL) / 2, k - 1) * error
+    return Intervalo(centro - margen, centro + margen, k, error)
 
 
 def veredicto(ic: Intervalo | Tuple[float, float] | None) -> str:
@@ -260,7 +286,7 @@ def _cartera(
                 continue
             tasa = cambio(caso, dia)
             if tasa is None:
-                raise ValueError(f"falta FX de {caso.currency} para {dia}")
+                raise DatoCompartidoInvalido(f"falta FX de {caso.currency} para {dia}")
             unidades, nocional = calcular_tamano_entrada(CAPITAL_EUR, caso.entrada, caso.stop, tasa)
             coste = coste_orden_eur(nocional)
             if unidades <= 0 or nocional + coste > cash:
@@ -273,7 +299,7 @@ def _cartera(
                 continue
             tasa = cambio(caso, dia)
             if tasa is None:
-                raise ValueError(f"falta FX de {caso.currency} para {dia}")
+                raise DatoCompartidoInvalido(f"falta FX de {caso.currency} para {dia}")
             importe = posicion.unidades * caso.salida * tasa
             coste = coste_orden_eur(importe)
             siguiente = next((d for d in dias if d > dia), None)
@@ -289,7 +315,9 @@ def _cartera(
             caso = posicion.caso
             precio = _precio_original(series[caso.symbol], dia)
             tasa = cambio(caso, dia)
-            if precio is None or tasa is None:
+            if tasa is None:
+                raise DatoCompartidoInvalido(f"falta FX de {caso.currency} para {dia}")
+            if precio is None:
                 raise ValueError(f"falta valoración de {caso.symbol} para {dia}")
             exposicion += posicion.unidades * precio * tasa
         patrimonio = cash + sum(pendientes.values()) + exposicion
@@ -322,7 +350,8 @@ def secundario(casos: Sequence[Caso], retornos_r: Mapping[int, float], no_ejecut
 
 
 __all__ = [
-    "CAPITAL_EUR", "REPLICAS", "SEMILLA", "Caso", "Intervalo", "Observacion", "OperacionCartera",
-    "ResultadoCartera", "SeriePrecios", "bloque_de", "carteras", "coste_api_por_aprobado", "estimador",
-    "exceso_neto", "fx_de", "intervalo_bloques", "secundario", "veredicto",
+    "CAPITAL_EUR", "MIN_BLOQUES", "MIN_BLOQUES_POR_GRUPO", "NIVEL", "Caso", "DatoCompartidoInvalido", "Intervalo", "Observacion",
+    "OperacionCartera", "ResultadoCartera", "SeriePrecios", "bloque_de", "carteras", "coste_api_por_aprobado",
+    "cuantil_t", "estimador", "exceso_neto", "fx_de", "inferencia_posible", "intervalo_jackknife", "secundario",
+    "veredicto",
 ]

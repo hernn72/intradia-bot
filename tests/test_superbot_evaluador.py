@@ -32,10 +32,12 @@ from superbot_lab.evaluador import (
     bloque_de,
     carteras,
     coste_api_por_aprobado,
+    cuantil_t,
     estimador,
     exceso_neto,
     fx_de,
-    intervalo_bloques,
+    inferencia_posible,
+    intervalo_jackknife,
     veredicto,
 )
 
@@ -208,23 +210,67 @@ def test_referencia_con_split_posterior_usa_una_escala_coherente() -> None:
 @pytest.mark.parametrize(
     "ic,esperado",
     [
-        (Intervalo(0.01, 0.02, 1, 0), "LA IA APORTA"),
-        (Intervalo(-0.02, 0.0, 1, 0), "LA IA NO APORTA"),
-        (Intervalo(0.0, 0.02, 1, 0), "INCONCLUSO"),
-        (Intervalo(-0.01, 0.01, 1, 0), "INCONCLUSO"),
+        (Intervalo(0.01, 0.02, 4, 0.1), "LA IA APORTA"),
+        (Intervalo(-0.02, 0.0, 4, 0.1), "LA IA NO APORTA"),
+        (Intervalo(0.0, 0.02, 4, 0.1), "INCONCLUSO"),
+        (Intervalo(-0.01, 0.01, 4, 0.1), "INCONCLUSO"),
+        (Intervalo(None, None, 3, None), "INCONCLUSO"),
     ],
 )
 def test_veredictos_y_frontera_cero(ic: Intervalo, esperado: str) -> None:
     assert veredicto(ic) == esperado
 
 
-def test_bloques_son_reproducibles_y_el_coste_api_es_constante() -> None:
-    lunes = CORTE.date() - timedelta(days=CORTE.date().weekday())
-    aprobadas = [Observacion(lunes, 0.10, 500.0), Observacion(lunes + timedelta(days=28), 0.20, 500.0)]
-    descartadas = [Observacion(lunes, 0.0, 500.0), Observacion(lunes + timedelta(days=28), 0.0, 500.0)]
-    uno = intervalo_bloques(aprobadas, descartadas, 0.01, replicas=500)
-    assert uno == intervalo_bloques(aprobadas, descartadas, 0.01, replicas=500)
-    assert uno.validas == 500 and uno.bajo is not None and uno.alto is not None
+LUNES = CORTE.date() - timedelta(days=CORTE.date().weekday())
+
+
+def _obs(bloque: int, exceso: float, dia: int = 0) -> Observacion:
+    return Observacion(LUNES + timedelta(days=28 * bloque + dia), exceso, 500.0)
+
+
+def test_cuantil_t_contra_la_tabla_publicada() -> None:
+    tabla = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 10: 2.228, 30: 2.042, 120: 1.980}
+    assert {g: round(cuantil_t(0.975, g), 3) for g in tabla} == tabla
+
+
+def test_jackknife_a_mano_con_cuatro_bloques() -> None:
+    # Un caso por bloque y grupo: quitar el bloque k deja la media de los otros tres.
+    efectos = [0.01, 0.03, 0.02, 0.06]
+    ic = intervalo_jackknife([_obs(b, e) for b, e in enumerate(efectos)], [_obs(b, 0.0) for b in range(4)], 0.0)
+    centro = 0.03
+    sin = [(0.12 - e) / 3 for e in efectos]
+    error = math.sqrt(3 / 4 * sum((v - centro) ** 2 for v in sin))
+    assert ic.bloques == 4 and ic.error_tipico == pytest.approx(error)
+    assert (ic.bajo, ic.alto) == (pytest.approx(centro - 3.18244631 * error), pytest.approx(centro + 3.18244631 * error))
+
+
+def test_jackknife_quita_el_bloque_a_los_dos_grupos_y_el_bloque_vacio_no_cuenta() -> None:
+    aprobadas = [_obs(0, 0.10), _obs(0, 0.20, 3), _obs(2, 0.05), _obs(3, 0.0), _obs(5, 0.07)]
+    descartadas = [_obs(0, 0.01), _obs(2, 0.04, 9), _obs(3, 0.02), _obs(5, -0.03)]
+    ic = intervalo_jackknife(aprobadas, descartadas, 0.01)
+    centro = estimador(aprobadas, descartadas, 0.01)
+    sin = [
+        estimador([c for c in aprobadas if bloque_de(c.sesion) != b], [c for c in descartadas if bloque_de(c.sesion) != b], 0.01)
+        for b in (0, 2, 3, 5)
+    ]
+    error = math.sqrt(3 / 4 * sum((v - centro) ** 2 for v in sin))
+    assert ic.bloques == 4 and ic.error_tipico == pytest.approx(error)
+    assert intervalo_jackknife(aprobadas[::-1], descartadas[::-1], 0.01).error_tipico == pytest.approx(error)
+
+
+@pytest.mark.parametrize("aprobadas,descartadas,posible", [
+    ((0, 1, 2, 3), (0, 1, 2, 3), True), ((0, 1, 2), (0, 1, 2), False), ((0, 1, 2), (1, 2, 3), True),
+    ((0,), (0, 1, 2, 3), False), ((0, 1, 2, 3), (2, 3), False), ((0, 1, 2, 3), (1, 2, 3), True), ((0, 4, 9), (1, 4, 9), True),
+])
+def test_bloques_minimos(aprobadas: tuple[int, ...], descartadas: tuple[int, ...], posible: bool) -> None:
+    a, d = [_obs(b, 0.01 * b) for b in aprobadas], [_obs(b, -0.02 * b * b) for b in descartadas]
+    assert inferencia_posible([c.sesion for c in a], [c.sesion for c in d]) is posible
+    assert (intervalo_jackknife(a, d, 0.0).bajo is not None) is posible
+
+
+def test_sin_variacion_entre_bloques_no_hay_intervalo() -> None:
+    ic = intervalo_jackknife([_obs(b, 0.05) for b in range(5)], [_obs(b, 0.01) for b in range(5)], 0.0)
+    assert ic.bajo is None and veredicto(ic) == "INCONCLUSO"
 
 
 def test_api_se_resta_solo_a_las_aprobadas() -> None:
@@ -235,23 +281,6 @@ def test_api_se_resta_solo_a_las_aprobadas() -> None:
     assert estimador(aprobadas, descartadas, coste) == pytest.approx(0.09)
 
 
-def test_bloques_sin_un_grupo_superan_el_cinco_por_ciento() -> None:
-    lunes = CORTE.date() - timedelta(days=CORTE.date().weekday())
-    aprobadas = [Observacion(lunes, 0.1, 500.0)]
-    descartadas = [Observacion(lunes + timedelta(days=28), 0.0, 500.0)]
-    assert intervalo_bloques(aprobadas, descartadas, 0.0, replicas=1000).bajo is None
-
-
-def test_cinco_por_ciento_exacto_de_replicas_es_valido_y_superarlo_no() -> None:
-    lunes = CORTE.date() - timedelta(days=CORTE.date().weekday())
-    aprobadas = [Observacion(lunes + timedelta(days=28 * i), 0.1, 1.0) for i in range(2)]
-    descartadas = [Observacion(lunes + timedelta(days=28 * i), 0.0, 1.0) for i in range(3)]
-    exacto = intervalo_bloques(aprobadas, descartadas, 0.0, replicas=20, semilla=11)
-    superado = intervalo_bloques(aprobadas, descartadas, 0.0, replicas=20, semilla=6)
-    assert exacto.descartadas == 1 and exacto.bajo is not None
-    assert superado.descartadas == 2 and superado.bajo is None
-
-
 def test_bloque_anterior_al_corte_es_error_y_frontera_domingo_lunes() -> None:
     lunes = CORTE.date() - timedelta(days=CORTE.date().weekday())
     assert bloque_de(lunes + timedelta(days=27)) == 0
@@ -260,50 +289,18 @@ def test_bloque_anterior_al_corte_es_error_y_frontera_domingo_lunes() -> None:
         bloque_de(lunes - timedelta(days=1))
 
 
-def test_percentil_por_rango_mas_cercano_es_calculable() -> None:
-    lunes = CORTE.date() - timedelta(days=CORTE.date().weekday())
-    aprobadas = [Observacion(lunes, float(i), 1.0) for i in range(1, 5)]
-    descartadas = [Observacion(lunes, 0.0, 1.0)]
-    ic = intervalo_bloques(aprobadas, descartadas, 0.0, replicas=40)
-    assert ic == Intervalo(2.5, 2.5, 40, 0)
-
-
-def test_percentil_exacto_usa_floor_y_ceil_sobre_las_validas() -> None:
-    lunes = CORTE.date() - timedelta(days=CORTE.date().weekday())
-    aprobadas = [Observacion(lunes + timedelta(days=28 * i), float(10**i), 1.0) for i in range(7)]
-    descartadas = [Observacion(lunes + timedelta(days=28 * i), 0.0, 1.0) for i in range(7)]
-    replicas = 137
-    azar = random.Random(20261124)
-    valores = []
-    for _ in range(replicas):
-        elegidos = [azar.randrange(7) for _ in range(7)]
-        valores.append(sum(10**i for i in elegidos) / 7)
-    valores.sort()
-    ic = intervalo_bloques(aprobadas, descartadas, 0.0, replicas=replicas)
-    assert (ic.bajo, ic.alto) == (
-        valores[math.floor(0.025 * replicas)], valores[math.ceil(0.975 * replicas) - 1],
-    )
-
-
 def test_cinco_por_ciento_exacto_no_invalida_y_treinta_exacto_basta() -> None:
-    usables = [
-        Episodio(i, f"{grupo}{i}", "XETRA", grupo, D0, "maduros")
-        for grupo in ("COMPRAR", "DESCARTAR") for i in range(30)
-    ]
-    assert _inconcluso_previo(usables, usables, {"COMPRAR": {}, "DESCARTAR": {}}) is None
-    amplios = [
-        Episodio(i, f"{grupo}{i}", "XETRA", grupo, D0, "maduros")
-        for grupo in ("COMPRAR", "DESCARTAR") for i in range(38)
-    ]
-    lista = [*amplios]
-    for grupo in ("COMPRAR", "DESCARTAR"):
-        lista.extend(Episodio(1000 + i, f"X{grupo}{i}", "XETRA", grupo, D0, "sin_entrada") for i in range(2))
-    excluidos = {
-        "COMPRAR": {"SIN_BARRA_DE_ENTRADA": 2}, "DESCARTAR": {"SIN_BARRA_DE_ENTRADA": 2},
-    }
-    assert _inconcluso_previo(lista, amplios, excluidos) is None
-    excluidos["COMPRAR"]["SIN_BARRA_DE_ENTRADA"] = 3
-    assert _inconcluso_previo(lista, amplios, excluidos) == "DATOS"
+    def usables(por_grupo: int) -> list[Episodio]:
+        return [
+            Episodio(i, f"{grupo}{i}", "XETRA", grupo, LUNES + timedelta(days=28 * (i % 4)), "maduros")
+            for grupo in ("COMPRAR", "DESCARTAR") for i in range(por_grupo)
+        ]
+
+    nada: dict[str, dict[str, int]] = {"COMPRAR": {}, "DESCARTAR": {}}
+    assert _inconcluso_previo(usables(30), nada) is None
+    assert _inconcluso_previo(usables(29), nada) == "MUESTRA"
+    assert _inconcluso_previo(usables(38), {**nada, "COMPRAR": {"SPLIT_POSTERIOR": 1, "DATOS_INCOMPLETOS": 1}}) is None
+    assert _inconcluso_previo(usables(37), {**nada, "DESCARTAR": {"NO_EJECUTABLE": 2}}) == "DATOS"
 
 
 def test_autorizador_separa_las_tres_fases(tmp_path: Path) -> None:
@@ -360,34 +357,64 @@ def test_huella_evaluador_cubre_dependencias_congeladas(tmp_path: Path) -> None:
     assert evaluacion.huella_evaluador(tmp_path) != antes
 
 
-def test_fase_uno_excluye_no_ejecutable_y_rechaza_contradiccion_sin_entrada(tmp_path: Path) -> None:
+def test_fase_uno_clasifica_cada_caso(tmp_path: Path) -> None:
     from tests.test_superbot_ia_madurez import SESIONES, _base, _decision
 
     reg = _base(tmp_path)
-    _decision(reg, "A", SESIONES[0], "COMPRAR")
-    _decision(reg, "B", SESIONES[0], "DESCARTAR")
-    ids = [int(f[0]) for f in reg.conn.execute("SELECT id FROM ia_decision ORDER BY id")]
-    reg.conn.executemany(
-        "INSERT INTO ia_contrafactual(decision_id,symbol,resolucion,target_session,estado,final,updated_at) "
-        "VALUES(?,?,?,?,?,1,'x')",
-        [(ids[0], "A", "COMPRAR", SESIONES[0].isoformat(), "NO_EJECUTABLE"),
-         (ids[1], "B", "DESCARTAR", SESIONES[0].isoformat(), "STOP")],
-    )
-    reg.conn.commit()
-    lista = [
-        Episodio(ids[0], "A", "XETRA", "COMPRAR", D0, "maduros"),
-        Episodio(ids[1], "B", "XETRA", "DESCARTAR", D0, "sin_entrada"),
+    #          categoría      estado                  final  sesiones   dónde acaba
+    casos = [
+        ("maduros", "NO_EJECUTABLE", 1, 22, "NO_EJECUTABLE"), ("maduros", "SPLIT_POSTERIOR", 1, 22, "SPLIT_POSTERIOR"),
+        ("maduros", "STOP", 1, 20, "usable"), ("maduros", "HORIZONTE", 1, 30, "usable"),
+        ("maduros", "ABIERTA", 0, 25, "DATOS_INCOMPLETOS"), ("maduros", "ABIERTA", 0, 24, "falta"),
+        ("maduros", None, 0, 25, "DATOS_INCOMPLETOS"), ("maduros", "PENDIENTE", 0, 40, "DATOS_INCOMPLETOS"),
+        ("maduros", "DATOS_INCOMPLETOS", 0, 24, "falta"), ("maduros", "ABIERTA", 0, 26, "excluida"),
+        ("maduros", "DATOS_INCOMPLETOS", 1, 26, "excluida"), ("maduros", "STOP", 1, 26, "usable_declarada"),
+        ("maduros", "SPLIT_POSTERIOR", 1, 26, "declarada_sin_efecto"),
+        ("maduros", "SIN_BARRA_DE_ENTRADA", 0, 25, "DATOS_INCOMPLETOS"),
+        ("sin_entrada", "SIN_BARRA_DE_ENTRADA", 1, 21, "SIN_BARRA_DE_ENTRADA"), ("sin_entrada", "NO_EJECUTABLE", 1, 21, "nada"),
+        ("sin_entrada", "PENDIENTE", 0, 25, "DATOS_INCOMPLETOS"), ("sin_entrada", "PENDIENTE", 0, 24, "falta"),
+        ("sin_entrada", None, 0, 22, "rechazada"), ("sin_entrada", "SIN_BARRA_DE_ENTRADA", 1, 22, "rechazada"),
     ]
-    with pytest.raises(evaluacion.EvaluacionDenegada, match="contradicción") as error:
-        evaluacion._fase1(reg.path, lista)
-    assert "STOP" not in str(error.value)
-    reg.conn.execute("UPDATE ia_contrafactual SET estado='SIN_BARRA_DE_ENTRADA' WHERE decision_id=?", (ids[1],))
+    for indice, (_categoria, estado, final, _sesiones, _fin) in enumerate(casos):
+        _decision(reg, f"S{indice}", SESIONES[0], "COMPRAR")
+        if estado is not None:
+            reg.conn.execute(
+                "INSERT INTO ia_contrafactual(decision_id,symbol,resolucion,target_session,estado,final,updated_at) "
+                "VALUES((SELECT MAX(id) FROM ia_decision),?,'COMPRAR',?,?,?,'x')",
+                (f"S{indice}", SESIONES[0].isoformat(), estado, final),
+            )
     reg.conn.commit()
-    usables, excluidos = evaluacion._fase1(reg.path, lista)
-    assert usables == []
-    assert excluidos == {
-        "COMPRAR": {"NO_EJECUTABLE": 1}, "DESCARTAR": {"SIN_BARRA_DE_ENTRADA": 1},
-    }
+    ids = [int(f[0]) for f in reg.conn.execute("SELECT id FROM ia_decision ORDER BY id")]
+    for decision, (categoria, _estado, _final, sesiones, destino) in zip(ids, casos):
+        lista = [Episodio(decision, "S", "XETRA", "COMPRAR", D0, categoria, sesiones)]
+        declaradas = {decision: evaluacion.Determinacion(decision, evaluacion.EXCLUSION, "j", "f", D0, 100.0, 0.0)} if (
+            destino in {"excluida", "usable_declarada", "declarada_sin_efecto"}) else {}
+        rechazadas = [decision] if destino == "rechazada" else []
+        if destino == "falta":
+            with pytest.raises(evaluacion.EvaluacionDenegada, match=r"^faltan 1 casos por completar$"):
+                evaluacion._fase1(reg.path, lista, declaradas, rechazadas)
+            continue
+        usables, excluidos, exclusiones = evaluacion._fase1(reg.path, lista, declaradas, rechazadas)
+        assert bool(usables) is (destino in {"usable", "excluida", "usable_declarada"}), destino
+        assert exclusiones == ([decision] if destino == "excluida" else []), destino
+        # Tras un split, el precio declarado no está en la escala de la entrada: sigue siendo dato inválido.
+        destino = "SPLIT_POSTERIOR" if destino == "declarada_sin_efecto" else destino
+        esperado = {} if destino in {"usable", "excluida", "usable_declarada", "nada", "rechazada"} else {destino: 1}
+        assert excluidos == {"COMPRAR": esperado, "DESCARTAR": {}}, destino
+
+
+def test_una_exclusion_declarada_sin_datos_si_cuenta_como_dato_invalido(tmp_path: Path) -> None:
+    from tests.test_superbot_ia_madurez import SESIONES, _base, _decision
+
+    reg = _base(tmp_path)
+    _decision(reg, "S", SESIONES[0], "DESCARTAR")
+    reg.conn.commit()
+    decision = int(reg.conn.execute("SELECT MAX(id) FROM ia_decision").fetchone()[0])
+    declarada = {decision: evaluacion.Determinacion(decision, evaluacion.SIN_DATOS, "j", "f")}
+    lista = [Episodio(decision, "S", "XETRA", "DESCARTAR", D0, "maduros", 25)]
+    assert evaluacion._fase1(reg.path, lista, declarada, []) == (
+        [], {"COMPRAR": {}, "DESCARTAR": {"DATOS_INCOMPLETOS": 1}}, [],
+    )
 
 
 def test_cuantitativo_incompleto_se_rechaza_antes_de_apertura(tmp_path: Path) -> None:
@@ -415,7 +442,7 @@ def test_leer_casos_incluye_abierta_solo_en_carteras(tmp_path: Path) -> None:
         (decision_id, "ABIERTA", "COMPRAR", SESIONES[0].isoformat(), "ABIERTA"),
     )
     reg.conn.commit()
-    casos, candidatas, _retornos, error = evaluacion._leer_casos(reg.path, [])
+    casos, candidatas, _retornos, error, _omitidos = evaluacion._leer_casos(reg.path, [], {})
     assert casos == []
     assert error is None
     assert len(candidatas) == 1
@@ -671,7 +698,7 @@ def test_abierta_de_produccion_conserva_ultimo_cierre_y_entra_en_cartera(tmp_pat
     ).fetchone()
     assert tuple(fila[:2]) == ("ABIERTA", 0)
     assert fila[2] is not None and fila[3] is not None
-    _metrica, candidatas, _retornos, error = evaluacion._leer_casos(reg.path, [])
+    _metrica, candidatas, _retornos, error, _omitidos = evaluacion._leer_casos(reg.path, [], {})
     assert error is None
     assert [caso.decision_id for caso in candidatas] == [decision_id]
     assert candidatas[0].sesion_salida is None and candidatas[0].salida is None

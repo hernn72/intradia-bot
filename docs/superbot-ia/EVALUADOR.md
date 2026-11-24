@@ -1,9 +1,9 @@
-# Superbot IA — evaluador final del contrafactual (D-87)
+# Superbot IA — evaluador final del contrafactual (D-87, D-88)
 
 **SUPERBOT IA — PAPER, NO VALIDADA PARA CAPITAL REAL.**
 _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
 
-Implementa `CRITERIO-CONTRAFACTUAL.md`, que manda y no cambia. Código: `superbot_lab/{evaluador,evaluacion,evaluar}.py`,
+Implementa `CRITERIO-CONTRAFACTUAL.md` con su §9 (D-88), que manda. Código: `superbot_lab/{evaluador,evaluacion,evaluar}.py`,
 que producción no importa. **No se ha ejecutado sobre resultados reales y hoy se niega a hacerlo**: falta
 `AUTORIZACION-EVALUACION.json`, que solo se escribe cuando el propietario autorice la evaluación.
 
@@ -14,7 +14,9 @@ que producción no importa. **No se ha ejecutado sobre resultados reales y hoy s
 2. A partir del día siguiente a T, `congelar` descarga `EUNL.DE`, los pares y los valores hasta el día de T. Solo
    mira decisiones y si la apertura fue ejecutable.
 3. `identidades` da lo que la autorización debe llevar: criterio, código, base, T y entorno. Se añaden `cosecha`,
-   `autoriza: true` y, si hace falta, `series_ausentes`. El propietario la ratifica y se comitea.
+   `autoriza: true` y, si `congelar` los señala, `series_ausentes` (valor y justificación) y `episodios_truncados`
+   (`decision_id`, `tipo`, `justificacion`, `fuente`; con `EXCLUSION`, además `sesion_salida`, `precio_entrada` y
+   `precio_salida`). El propietario la ratifica y se comitea.
 4. `puertas` comprueba; `evaluar` ejecuta una vez y escribe `evidence/superbot-ia/contrafactual/`.
 
 Todos: `python -m superbot_lab.evaluar --db COPIA --cosecha-raiz DIR <orden>`, desde la raíz del repositorio.
@@ -29,41 +31,41 @@ después de escribir `apertura.json`. Si algo falla tras abrir, no hay segunda e
 Es una defensa contra errores, **no una barrera**: quien edite el código o abra la base a mano puede leerla, y un
 segundo clon permitiría repetir el cálculo, con idéntico resultado.
 
-## 3. Interpretaciones que el criterio no fijaba (pendientes de ratificar)
+## 3. Interpretaciones ratificadas (D-88)
 
-| Asunto | Lo implementado |
+| Asunto | Aplicado |
 |---|---|
-| Percentil | Rango más cercano: posiciones ⌊0,025 n⌋ y ⌈0,975 n⌉−1 de las réplicas válidas |
-| Coste de API | Todas las llamadas de compra desde el corte hasta T; constante en las réplicas |
-| `INCONCLUSO` por muestra, datos o bloques | No lee rendimientos: no publica medias ni carteras (§6 las pide «junto al resultado») |
-| Sin entrada tras 20 sesiones | Cuenta como dato no válido de su grupo, en el 5 % |
-| Apertura que el proveedor corrige después | Si la entrada constó y luego el estado es `NO_EJECUTABLE`: dato no válido, en el 5 % |
+| Intervalo | t con jackknife por bloques; el percentil queda retirado |
+| Coste de API | Todas las llamadas de compra desde el corte hasta T; constante al quitar bloques |
+| `INCONCLUSO` por muestra, datos o bloques | No lee rendimientos ni publica medias o carteras |
+| Sin entrada tras 20 sesiones | Dato inválido solo si falta por los datos; si el gate habría rechazado la apertura de la cosecha, no |
+| Apertura que el proveedor invalida después | Dato inválido |
 | `EUNL.DE` | Solo barras de sesiones oficiales de Xetra; una barra en festivo se ignora |
 | Carteras | Tamaño con 5.000 EUR fijos; efectivo de una salida, disponible al día siguiente; abiertas, a mercado |
-| Serie de un valor ausente o que empieza tarde | Solo si se lista en la autorización, y no se admite listar uno que sí tiene datos; se omite en las dos carteras y no toca la métrica |
-| Carteras o §7 fallan | Se publica el error y el veredicto sale igual |
+| Serie ausente o que empieza tarde | Solo si se identifica y justifica; se omite en las dos carteras y no se admite listar una que está |
+| Un caso sin desenlace utilizable | Se omite en las dos carteras y se publica su identificador |
+| Fallo de carteras o §7 | Se publica y el veredicto sale igual, salvo que toque divisa o referencia: `INCONCLUSO` |
 
-## 4. Decisiones del propietario, antes de que haya casos maduros
+Detalles fijados al implementar D-88: K cuenta bloques con casos utilizables; mínimos de 4 bloques y 3 por grupo,
+por calibración; 25 sesiones contando la de entrada; una declaración es obligatoria para todo valor truncado, haya
+saltado o no su stop, para que la lista no revele nada.
 
-**4.1 Valor que deja de cotizar con el episodio abierto.** Nunca completa sus 20 sesiones, queda `ABIERTA` y hoy
-**bloquea la evaluación sin salida**. El criterio no lo prevé y el evaluador no lo inventa. Opción propuesta:
-pasadas 25 sesiones de calendario sin completarse, `DATOS_INCOMPLETOS` y al 5 %.
+## 4. Calibración del intervalo (datos inventados, 50 por grupo, dispersión supuesta del 7 %)
 
-**4.2 El intervalo es demasiado estrecho con 6 o 7 bloques.** Con datos inventados (50 por grupo, dispersión
-supuesta del 7 %, 1.500 repeticiones, sin efecto real), conclusiones falsas sumando las dos:
+| Intervalo | Conclusiones falsas, 6–7 bloques | Detecta +2 / +4 / +6 puntos (6 bloques) |
+|---|---|---|
+| Percentil (retirado) | 12–14 % | 41 / 86 / 99 % |
+| t con jackknife | 4–6 % | 22 / 63 / 92 % |
 
-| Intervalo | 6 bloques | 7 bloques | Detecta +2 / +4 / +6 puntos (6 bloques) |
-|---|---|---|---|
-| Percentil (criterio actual) | 12–14 % | 12–14 % | 41 / 86 / 99 % |
-| t con los mismos bloques (jackknife, K−1 grados) | 5–6 % | 4–6 % | 22 / 61 / 92 % |
-
-El 95 % nominal equivale a un 87 %. El t lo corrige perdiendo potencia: más `INCONCLUSO`. Calibración en
-`evidence/superbot-ia/calibracion-evaluador/`. En 47 evaluaciones sintéticas completas sin efecto real, con
-entradas repartidas en pocos bloques desiguales, 14 (30 %) concluyeron algo falso: puede ser peor. Hoy el código aplica el criterio tal como está.
+Con 4 o 5 bloques, repartos desiguales, colas pesadas o un bloque que concentra la mitad de un grupo, el t sigue en
+3–6 %. Con un grupo en solo 2 bloques sube al 6–7 %: por eso se exigen 3. **Con dependencia fuerte entre
+bloques contiguos sube al 9–14 %**: es el límite principal.
 
 ## 5. Límites
 
-Revisado con 55 ejecuciones de punta a punta que usan el `contrafactual.actualizar` de producción y un proveedor
-defectuoso (huecos, NaN, aperturas revisadas, splits, apagones): ningún fallo tras abrir, y en las 29 con
-estimador de la última tanda coincide con un cálculo aparte. Aun así es sintético: no prueba que los datos reales lleguen completos. Los festivos dependen de `exchange_calendars`, cuya
-versión se fija en la autorización. La métrica usa los desenlaces que guardó el bot, no los recalcula.
+Revisado con ejecuciones de punta a punta que usan el `contrafactual.actualizar` de producción y un proveedor defectuoso
+(huecos, NaN, aperturas revisadas, splits, apagones, exclusiones): ningún fallo tras abrir y todos los estimadores
+coinciden con un cálculo aparte. Con 25 y el intervalo actual, una conclusión falsa en 24; con el percentil, 14 en 47.
+Aun así es sintético: no prueba que los datos reales lleguen completos. Los festivos dependen de `exchange_calendars`,
+cuya versión se fija en la autorización. La métrica usa los desenlaces que guardó el bot, no los recalcula. El precio
+de una exclusión lo aporta el propietario: el evaluador exige fuente y rango, no puede verificarlo.
