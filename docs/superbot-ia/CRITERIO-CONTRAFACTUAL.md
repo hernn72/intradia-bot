@@ -141,3 +141,4 @@ expresamente que el resultado pueda ser `INCONCLUSO`. No se sabe si se alcanzar�
 | 2026-11-24 | Criterio escrito con los resultados sellados |
 | 2026-11-24 | **Corte:** la Pi ejecuta `2e26f65` desde las 09:55:03 UTC; entran las decisiones fechadas desde entonces |
 | 2026-11-24 | Criterio ratificado por el propietario (D-84): solo decide el intervalo, las carteras son contraste y `LA IA NO APORTA` se separa de `INCONCLUSO`. Programa de madurez escrito |
+| 2026-11-24 | Regla del 5 % de datos no válidos por grupo (§5) ratificada por el propietario (D-85), con 0 casos en ambos grupos |

@@ -1,0 +1,446 @@
+{
+ "cosecha": "4506dc5df60bb1f6cbdaf6755e1b60c65c1ed25a1598e8f53f6afdf0e984869c",
+ "prereg_sha256": "5923ee1e476027165060a438d8610782579221771726265c8b40c2d5ec075f8d",
+ "code_sha": "1f290aee9cbd0102300103066e28524949731380",
+ "nivel": 0.9944444444444445,
+ "datos": {
+  "sin_datos": [],
+  "fichas": 120732,
+  "faltan": {
+   "contexto": 7344
+  },
+  "valores": 90
+ },
+ "5a": {
+  "BASE": {
+   "equity_final": -1.1011191987236597,
+   "exceso_eur": -5249.118489956571,
+   "caida_maxima": -1.0002202238397446,
+   "exposicion_media": 0.21239539884606215,
+   "operaciones": 2296,
+   "positivas": 528,
+   "candidatas": 13064,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 6697,
+    "SIN_EFECTIVO": 3917,
+    "INVALID_STOP": 110,
+    "INVALID_TARGET": 44
+   },
+   "costes_eur": 5577.342250069458,
+   "abiertas": 0
+  },
+  "E1_MARGEN_025": {
+   "equity_final": 0.13208046896715053,
+   "exceso_eur": -5173.738623081061,
+   "caida_maxima": -0.9999735839062066,
+   "exposicion_media": 0.2191108705565971,
+   "operaciones": 2304,
+   "positivas": 531,
+   "candidatas": 12933,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 3244,
+    "SIN_EFECTIVO": 7237,
+    "INVALID_STOP": 99,
+    "INVALID_TARGET": 49
+   },
+   "costes_eur": 5585.7330573816835,
+   "abiertas": 0,
+   "diferencia_eur": 75.37986687551027,
+   "ic": [
+    -724.4490567955417,
+    927.547587500718
+   ]
+  },
+  "E2_MARGEN_050": {
+   "equity_final": -1.4636322502070946,
+   "exceso_eur": -5067.271204042397,
+   "caida_maxima": -1.0002927264500414,
+   "exposicion_media": 0.21062831646918997,
+   "operaciones": 2228,
+   "positivas": 505,
+   "candidatas": 12871,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 1354,
+    "SIN_EFECTIVO": 9152,
+    "INVALID_STOP": 90,
+    "INVALID_TARGET": 47
+   },
+   "costes_eur": 5385.076946504233,
+   "abiertas": 0,
+   "diferencia_eur": 181.84728591417388,
+   "ic": [
+    -895.3925396794939,
+    1293.6757076161937
+   ]
+  },
+  "E3_LIMITE_DIA": {
+   "equity_final": -0.8520919204161761,
+   "exceso_eur": -5015.225688581143,
+   "caida_maxima": -1.0001704183840832,
+   "exposicion_media": 0.1920656826700894,
+   "operaciones": 2137,
+   "positivas": 457,
+   "candidatas": 13138,
+   "rechazadas": {
+    "LIMITE_NO_TOCADO": 2621,
+    "SIN_EFECTIVO": 8285,
+    "INVALID_STOP": 95
+   },
+   "costes_eur": 5158.865092922156,
+   "abiertas": 0,
+   "diferencia_eur": 233.8928013754272,
+   "ic": [
+    -796.5495789763446,
+    1337.3745770473397
+   ]
+  },
+  "H1_60_55": {
+   "equity_final": 3461.5461412330746,
+   "exceso_eur": -2620.079508426126,
+   "caida_maxima": -0.33745469850268117,
+   "exposicion_media": 0.5951177211329646,
+   "operaciones": 1285,
+   "positivas": 418,
+   "candidatas": 13991,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 7166,
+    "SIN_EFECTIVO": 5378,
+    "INVALID_STOP": 108,
+    "INVALID_TARGET": 45
+   },
+   "costes_eur": 3559.0525950506476,
+   "abiertas": 9,
+   "diferencia_eur": 2629.0389815304447,
+   "ic": [
+    95.19180590199062,
+    4997.035844751211
+   ]
+  },
+  "H2_65_60": {
+   "equity_final": 1741.4250681685025,
+   "exceso_eur": -3813.2638709592143,
+   "caida_maxima": -0.6551882630785169,
+   "exposicion_media": 0.2684981113021989,
+   "operaciones": 1661,
+   "positivas": 538,
+   "candidatas": 5695,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 2969,
+    "SIN_EFECTIVO": 964,
+    "INVALID_STOP": 63,
+    "INVALID_TARGET": 31
+   },
+   "costes_eur": 4332.401526866793,
+   "abiertas": 7,
+   "diferencia_eur": 1435.854618997356,
+   "ic": [
+    -10.406209344569845,
+    2905.221908499898
+   ]
+  },
+  "H3_65_55": {
+   "equity_final": 4935.095982548608,
+   "exceso_eur": -1327.6100469087555,
+   "caida_maxima": -0.23987203889781716,
+   "exposicion_media": 0.5798682919759933,
+   "operaciones": 949,
+   "positivas": 329,
+   "candidatas": 6046,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 3160,
+    "SIN_EFECTIVO": 1831,
+    "INVALID_STOP": 64,
+    "INVALID_TARGET": 34
+   },
+   "costes_eur": 2713.9714559191825,
+   "abiertas": 8,
+   "diferencia_eur": 3921.508443047815,
+   "ic": [
+    1131.8446571914083,
+    6662.609778480699
+   ]
+  },
+  "X1_OBJETIVO": {
+   "equity_final": 0.2550179171631206,
+   "exceso_eur": -5234.068309586125,
+   "caida_maxima": -0.9999489964165674,
+   "exposicion_media": 0.1918220513346434,
+   "operaciones": 2269,
+   "positivas": 547,
+   "candidatas": 13383,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 6842,
+    "SIN_EFECTIVO": 4118,
+    "INVALID_STOP": 109,
+    "INVALID_TARGET": 45
+   },
+   "costes_eur": 5527.714474875165,
+   "abiertas": 0,
+   "diferencia_eur": 15.050180370445668,
+   "ic": [
+    -853.3356556159752,
+    867.4067176181608
+   ]
+  },
+  "X2_STOP_MOVIL": {
+   "equity_final": -1.745464868491883,
+   "exceso_eur": -5300.576412346434,
+   "caida_maxima": -1.0003486885334505,
+   "exposicion_media": 0.21118896033434206,
+   "operaciones": 2315,
+   "positivas": 533,
+   "candidatas": 13051,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 6702,
+    "SIN_EFECTIVO": 3883,
+    "INVALID_STOP": 108,
+    "INVALID_TARGET": 43
+   },
+   "costes_eur": 5655.048382910028,
+   "abiertas": 0,
+   "diferencia_eur": -51.457922389863676,
+   "ic": [
+    -642.040948692505,
+    466.8615421720645
+   ]
+  },
+  "X3_20_SESIONES": {
+   "equity_final": 0.7381385875894994,
+   "exceso_eur": -5237.661683842479,
+   "caida_maxima": -0.9998523722824821,
+   "exposicion_media": 0.21065038145939666,
+   "operaciones": 2290,
+   "positivas": 533,
+   "candidatas": 13095,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 6713,
+    "SIN_EFECTIVO": 3939,
+    "INVALID_STOP": 109,
+    "INVALID_TARGET": 44
+   },
+   "costes_eur": 5561.5723425761,
+   "abiertas": 0,
+   "diferencia_eur": 11.456806114091815,
+   "ic": [
+    -163.59758629081804,
+    158.13372643183476
+   ]
+  }
+ },
+ "2a": {
+  "BASE": {
+   "equity_final": 2566.4410210877413,
+   "exceso_eur": -2826.459522573414,
+   "caida_maxima": -0.4965352572086812,
+   "exposicion_media": 0.42771667081237985,
+   "operaciones": 1213,
+   "positivas": 413,
+   "candidatas": 5283,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 2732,
+    "SIN_EFECTIVO": 1269,
+    "INVALID_STOP": 46,
+    "INVALID_TARGET": 16
+   },
+   "costes_eur": 3265.3252319094004,
+   "abiertas": 7
+  },
+  "E1_MARGEN_025": {
+   "equity_final": 2567.12848614582,
+   "exceso_eur": -2790.102943435493,
+   "caida_maxima": -0.4945694561281482,
+   "exposicion_media": 0.4704703699865974,
+   "operaciones": 1316,
+   "positivas": 445,
+   "candidatas": 4972,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 1290,
+    "SIN_EFECTIVO": 2301,
+    "INVALID_STOP": 39,
+    "INVALID_TARGET": 18
+   },
+   "costes_eur": 3537.3075633077697,
+   "abiertas": 8,
+   "diferencia_eur": 36.35657913792034,
+   "ic": [
+    -858.9171380992103,
+    976.4252688510767
+   ]
+  },
+  "E2_MARGEN_050": {
+   "equity_final": 2275.2804251584867,
+   "exceso_eur": -2919.726390959413,
+   "caida_maxima": -0.5556048500835693,
+   "exposicion_media": 0.4651332409995681,
+   "operaciones": 1350,
+   "positivas": 447,
+   "candidatas": 4801,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 545,
+    "SIN_EFECTIVO": 2849,
+    "INVALID_STOP": 37,
+    "INVALID_TARGET": 14
+   },
+   "costes_eur": 3580.638915976872,
+   "abiertas": 6,
+   "diferencia_eur": -93.26686838599922,
+   "ic": [
+    -1201.2499580996073,
+    1108.9132208925482
+   ]
+  },
+  "E3_LIMITE_DIA": {
+   "equity_final": 2597.4644737769686,
+   "exceso_eur": -2752.435856114485,
+   "caida_maxima": -0.5005153574152833,
+   "exposicion_media": 0.49211916082323875,
+   "operaciones": 1315,
+   "positivas": 428,
+   "candidatas": 4974,
+   "rechazadas": {
+    "LIMITE_NO_TOCADO": 1016,
+    "SIN_EFECTIVO": 2594,
+    "INVALID_STOP": 40
+   },
+   "costes_eur": 3568.367923716567,
+   "abiertas": 9,
+   "diferencia_eur": 74.0236664589286,
+   "ic": [
+    -1353.9239335262039,
+    1484.005821245381
+   ]
+  },
+  "H1_60_55": {
+   "equity_final": 4630.280015859614,
+   "exceso_eur": -813.0011902314966,
+   "caida_maxima": -0.24741125548161091,
+   "exposicion_media": 0.7307590727354797,
+   "operaciones": 608,
+   "positivas": 200,
+   "candidatas": 5955,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 3099,
+    "SIN_EFECTIVO": 2170,
+    "INVALID_STOP": 52,
+    "INVALID_TARGET": 17
+   },
+   "costes_eur": 1736.6883813982702,
+   "abiertas": 9,
+   "diferencia_eur": 2013.458332341917,
+   "ic": [
+    353.97789380595566,
+    3965.541116990017
+   ]
+  },
+  "H2_65_60": {
+   "equity_final": 3749.682224778439,
+   "exceso_eur": -1661.355474528673,
+   "caida_maxima": -0.288529158229316,
+   "exposicion_media": 0.38247777407175615,
+   "operaciones": 788,
+   "positivas": 280,
+   "candidatas": 2347,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 1236,
+    "SIN_EFECTIVO": 280,
+    "INVALID_TARGET": 9,
+    "INVALID_STOP": 27
+   },
+   "costes_eur": 2217.92673382293,
+   "abiertas": 7,
+   "diferencia_eur": 1165.1040480447405,
+   "ic": [
+    75.31803219807534,
+    2356.2731353103773
+   ]
+  },
+  "H3_65_55": {
+   "equity_final": 5211.804201334991,
+   "exceso_eur": -230.69927704085978,
+   "caida_maxima": -0.18383341680110743,
+   "exposicion_media": 0.6805541832463661,
+   "operaciones": 454,
+   "positivas": 156,
+   "candidatas": 2526,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 1337,
+    "SIN_EFECTIVO": 688,
+    "INVALID_TARGET": 11,
+    "INVALID_STOP": 28
+   },
+   "costes_eur": 1313.388799703105,
+   "abiertas": 8,
+   "diferencia_eur": 2595.7602455325537,
+   "ic": [
+    663.928067382874,
+    4893.406517605303
+   ]
+  },
+  "X1_OBJETIVO": {
+   "equity_final": 2053.790749252894,
+   "exceso_eur": -3335.8591592134762,
+   "caida_maxima": -0.593804566060594,
+   "exposicion_media": 0.3913700006403044,
+   "operaciones": 1289,
+   "positivas": 438,
+   "candidatas": 5191,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 2712,
+    "SIN_EFECTIVO": 1124,
+    "INVALID_STOP": 45,
+    "INVALID_TARGET": 15
+   },
+   "costes_eur": 3423.781073022988,
+   "abiertas": 6,
+   "diferencia_eur": -509.3996366400624,
+   "ic": [
+    -1230.3317694422326,
+    121.64169520286018
+   ]
+  },
+  "X2_STOP_MOVIL": {
+   "equity_final": 2424.0672635760952,
+   "exceso_eur": -2949.9318829825734,
+   "caida_maxima": -0.5244043503226643,
+   "exposicion_media": 0.41033519396266166,
+   "operaciones": 1239,
+   "positivas": 412,
+   "candidatas": 5230,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 2718,
+    "SIN_EFECTIVO": 1207,
+    "INVALID_STOP": 45,
+    "INVALID_TARGET": 14
+   },
+   "costes_eur": 3319.8373751841696,
+   "abiertas": 7,
+   "diferencia_eur": -123.47236040915988,
+   "ic": [
+    -512.3202286154998,
+    228.56557360792584
+   ]
+  },
+  "X3_20_SESIONES": {
+   "equity_final": 2634.886099999778,
+   "exceso_eur": -2772.1481184476497,
+   "caida_maxima": -0.4831423346535655,
+   "exposicion_media": 0.4337016346040365,
+   "operaciones": 1212,
+   "positivas": 417,
+   "candidatas": 5278,
+   "rechazadas": {
+    "ABOVE_MAX_ENTRY": 2734,
+    "SIN_EFECTIVO": 1263,
+    "INVALID_STOP": 46,
+    "INVALID_TARGET": 16
+   },
+   "costes_eur": 3274.0792725572687,
+   "abiertas": 7,
+   "diferencia_eur": 54.31140412576396,
+   "ic": [
+    -23.636972166635815,
+    263.8545324959938
+   ]
+  }
+ }
+}
