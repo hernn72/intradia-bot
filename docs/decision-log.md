@@ -2551,6 +2551,13 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 `MERECE VALIDACIÓN`: `H1_60_55` y `H3_65_55`. `SIN EVIDENCIA`: las otras siete. Ninguna `DESCARTADA`. **Ninguna bate a `EUNL.DE`** en 5 ni en 2 años, y la regla actual simulada se arruina en 5 años por costes, vendiendo siempre que un predicado es cierto, cosa que el bot real no hace. No se implanta nada ni cambia la estrategia activa; la validación independiente es decisión aparte. Detalle en `docs/superbot-ia/SIMULACIONES-RESULTADO.md`.
 
+### D-87 — 2026-11-24 — Superbot IA: evaluador final desarrollado, sin ejecutar
+
+El propietario autoriza desarrollar el evaluador y **no** ejecutarlo sobre resultados reales, modificar las reglas ni desplegar variantes.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Escrito y probado solo con datos sintéticos; se niega a ejecutarse sin una autorización comiteada que fije criterio, código, base, cosecha, instante y entorno. El criterio (D-84) no cambia. Quedan para el propietario, antes de que haya casos maduros: qué hacer con un valor que deja de cotizar, y si el intervalo percentil, que con 6 o 7 bloques equivale a un 87 %, se sustituye. Interpretaciones por ratificar y procedimiento: `docs/superbot-ia/EVALUADOR.md`.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
