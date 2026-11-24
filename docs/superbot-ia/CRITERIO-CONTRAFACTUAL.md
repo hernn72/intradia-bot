@@ -50,8 +50,8 @@ visible en la cartera, así que el grupo aprobado no es del todo ciego.
 
 **Episodio** (unidad de análisis): la primera decisión **ejecutable** de un valor, sea cual sea su
 resolución; su grupo es esa resolución y no cambia por lo que se decida después. Las decisiones
-posteriores del mismo valor hasta 20 sesiones de su plaza después de esa entrada se ignoran; el
-siguiente episodio empieza después. Una no ejecutable en la apertura no abre episodio: se cuenta.
+posteriores del mismo valor hasta la sesión 20 de su plaza, contando la de entrada como la 1, se
+ignoran; el siguiente episodio empieza después. Una no ejecutable en la apertura no abre episodio: se cuenta.
 
 **Exceso neto** = retorno del valor menos retorno de `EUNL.DE` en el mismo tramo, en EUR:
 - Valor: precio por el cambio de cierre diario de yfinance (`fx_en_sesion`, el de la cartera) de la
@@ -92,9 +92,13 @@ muestra no se llena de stops recientes ni depende de resultados. Se evalúa:
 - el **2027-05-31**, lo que ocurra antes.
 
 Con menos de 30 maduros en algún grupo en esa fecha: `INCONCLUSO`. El aviso lo da
-`superbot/ia/madurez.py`, que solo cuenta: no lee precios, retornos ni si saltó un stop.
+`superbot/ia/madurez.py`, que solo cuenta: lee si cada apertura pasó el gate y el calendario, nunca la
+tabla de desenlaces. Si lo que decide operaciones deja de ser lo del corte, avisa y no pide evaluar.
+Antes de evaluar hay que esperar a tener las barras de los 20 días de todos los maduros.
 
-`SIN_BARRA_DE_ENTRADA`, `SPLIT_POSTERIOR` y `DATOS_INCOMPLETOS` se excluyen y se cuentan por grupo. Si
+`SIN_BARRA_DE_ENTRADA`, `SPLIT_POSTERIOR` y `DATOS_INCOMPLETOS` se excluyen al evaluar (el aviso no los
+conoce; los mínimos se comprueban después de excluirlos) y se cuentan por grupo. Excluir un caso con
+entrada no libera sus 20 sesiones. Si
 superan el 5 % de un grupo, los datos no valen para concluir y el resultado es `INCONCLUSO`.
 
 ## 6. Qué se concluye
@@ -106,7 +110,7 @@ intervalo del 95 % del efecto neto de la selección (§4):
 |---|---|---|
 | `LA IA APORTA` | Todo el intervalo por encima de cero | Se conservan los asesores y sigue la validación |
 | `LA IA NO APORTA` | Todo el intervalo en cero o por debajo | Se desactivan los asesores de compra (§6 bis) |
-| `INCONCLUSO` | El intervalo incluye valores positivos y negativos, menos de 30 maduros en algún grupo, o datos no válidos (§4 y §5) | No se desactivan los asesores por este resultado |
+| `INCONCLUSO` | Cualquier otro caso: el intervalo incluye valores positivos y no positivos, menos de 30 maduros en algún grupo, o datos no válidos (§4 y §5) | No se desactivan los asesores por este resultado |
 
 Junto al resultado se publican el exceso neto medio de cada grupo y el contraste de §4 bis. `LA IA APORTA`
 no basta para capital real: la fase 4 del plan sigue exigiendo batir a `EUNL.DE`. Tras la evaluación no

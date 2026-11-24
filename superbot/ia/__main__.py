@@ -9,8 +9,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sqlite3
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import List, Optional
 
 from advisor.config import load_config
@@ -63,13 +65,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         cambios = migrar_politica(args.db, politica, args.motivo)
         print(json.dumps({"cambios": cambios or {}}, ensure_ascii=False, sort_keys=True))
         return 0
+    if args.cmd == "madurez":
+        # Solo lectura: una ruta equivocada tiene que fallar, no crear una base vacía que diga «0 casos».
+        conn = sqlite3.connect(f"{Path(args.db).resolve().as_uri()}?mode=ro", uri=True)
+        try:
+            print(json.dumps(madurez.contar(conn, _ahora()).como_dict(), ensure_ascii=False, indent=1))
+        finally:
+            conn.close()
+        return 0
     registro = RegistroIA(args.db, politica)
     if args.cmd == "decisiones":
         for fila in registro.decisiones():
             print(f"{fila['symbol']} {fila['tipo']} {fila['target_session']}: {fila['resolucion']} ({fila['motivo']})")
-        return 0
-    if args.cmd == "madurez":
-        print(json.dumps(madurez.contar(registro.conn, _ahora()).como_dict(), ensure_ascii=False, indent=1))
         return 0
     if args.cmd == "dashboard":
         from superbot.ia.dashboard import serve

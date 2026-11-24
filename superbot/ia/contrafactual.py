@@ -64,6 +64,14 @@ CREATE TABLE IF NOT EXISTS ia_contrafactual (
     final INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL
 );
+-- Un hecho que no depende de lo que hizo el precio después: si la apertura pasó el gate. Se escribe una
+-- sola vez, la primera que se ve, y no se borra aunque el proveedor retire la barra. Es lo único que lee
+-- ``madurez.py``: una fila de ``ia_contrafactual`` que retrocede o no según haya saltado el stop la delataría.
+CREATE TABLE IF NOT EXISTS ia_contrafactual_entrada (
+    decision_id INTEGER PRIMARY KEY REFERENCES ia_decision(id),
+    ejecutable INTEGER NOT NULL CHECK (ejecutable IN (0, 1)),
+    observada_en TEXT NOT NULL
+);
 """
 
 Barra = Tuple[date, float, float, float]
@@ -177,13 +185,14 @@ def actualizar(
 
     asegurar_esquema(conn)
     pendientes = conn.execute(
-        "SELECT d.id, d.symbol, d.market, d.resolucion, d.target_session, d.cuantitativo FROM ia_decision d "
-        "LEFT JOIN ia_contrafactual c ON c.decision_id = d.id "
-        "WHERE d.tipo = 'COMPRA' AND COALESCE(c.final, 0) = 0 ORDER BY d.id"
+        "SELECT d.id, d.symbol, d.market, d.resolucion, d.target_session, d.cuantitativo, COALESCE(c.final, 0) "
+        "FROM ia_decision d LEFT JOIN ia_contrafactual c ON c.decision_id = d.id "
+        "LEFT JOIN ia_contrafactual_entrada e ON e.decision_id = d.id "
+        "WHERE d.tipo = 'COMPRA' AND (COALESCE(c.final, 0) = 0 OR e.decision_id IS NULL) ORDER BY d.id"
     ).fetchall()
     series: Dict[Tuple[str, str], Optional[Tuple[List[Barra], List[date]]]] = {}
     tocadas = 0
-    for decision_id, symbol, market, resolucion, target_session, cuantitativo in pendientes:
+    for decision_id, symbol, market, resolucion, target_session, cuantitativo, final in pendientes:
         try:
             niveles = json.loads(cuantitativo).get("niveles")
             objetivo = date.fromisoformat(target_session)
@@ -198,6 +207,14 @@ def actualizar(
         if serie is None:
             continue
         d = simular(niveles, serie[0], objetivo, serie[1])
+        if d.entrada is not None or d.estado == NO_EJECUTABLE:
+            conn.execute(
+                "INSERT INTO ia_contrafactual_entrada (decision_id, ejecutable, observada_en) VALUES (?, ?, ?) "
+                "ON CONFLICT(decision_id) DO NOTHING",
+                (decision_id, int(d.entrada is not None), datetime.now(timezone.utc).isoformat(timespec="seconds")),
+            )
+        if final:
+            continue
         conn.execute(
             "INSERT INTO ia_contrafactual (decision_id, symbol, resolucion, target_session, estado, motivo_gate, "
             "entrada, salida, sesiones, hasta_session, retorno_pct, retorno_r, retorno_corto_pct, final, updated_at) "

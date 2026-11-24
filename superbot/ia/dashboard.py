@@ -157,11 +157,11 @@ def _madurez_section(cuenta: Optional[madurez.Madurez]) -> str:
     body = [
         [
             _td(etiqueta), _td(f"{g.maduros} de {madurez.OBJETIVO_POR_GRUPO}", "num"), _td(g.madurando, "num"),
-            _td(g.excluidos, "num"), _td(g.no_ejecutables, "num"),
+            _td(g.no_ejecutables, "num"), _td(g.sin_entrada, "num"),
         ]
         for etiqueta, g in (("Aprobadas por el comité", cuenta.aprobadas), ("Descartadas", cuenta.descartadas))
     ]
-    tabla = _table(["Grupo", "Casos maduros", "Madurando", "Excluidos por datos", "No ejecutables en la apertura"], body)
+    tabla = _table(["Grupo", "Casos maduros", "Madurando", "No ejecutables en la apertura", "Sin dato de apertura"], body)
     avisos = "".join(f'<div class="aviso">{_text(texto)}</div>' for _clave, texto in madurez.texto_avisos(cuenta))
     nota = (
         f"Recogiendo datos desde el {madurez.CORTE.date().isoformat()}. Los resultados están sellados hasta la única "
