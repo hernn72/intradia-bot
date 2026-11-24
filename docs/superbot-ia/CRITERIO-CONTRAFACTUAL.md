@@ -47,7 +47,7 @@ Limitaciones: un valor ya en cartera, pendiente o en espera de recompra no llega
 candidata sin dictamen válido no tiene decisión. El resultado real de las compras ejecutadas sigue
 visible en la cartera, así que el grupo aprobado no es del todo ciego.
 
-## 4. Métrica primaria
+## 4. Métrica primaria: ¿elige bien?
 
 **Episodio** (unidad de análisis): la primera decisión **ejecutable** de un valor, sea cual sea su
 resolución; su grupo es esa resolución y no cambia por lo que se decida después. Las decisiones
@@ -55,9 +55,10 @@ posteriores del mismo valor hasta 20 sesiones de su plaza después de esa entrad
 siguiente episodio empieza después. Una no ejecutable en la apertura no abre episodio: se cuenta.
 
 **Exceso neto** = retorno del valor menos retorno de `EUNL.DE` en el mismo tramo, en EUR:
-- Valor: cambio de la sesión de entrada y de la de salida (si falta, el último de los 5 días
-  anteriores). Se **restan** 0,10 % por lado y 1 € por orden, sobre el nocional que la regla de tamaño
-  daría con 5.000 €.
+- Valor: precio por el cambio de cierre diario de yfinance (`fx_en_sesion`, el de la cartera) de la
+  sesión de entrada y de la de salida; si falta, el último de los 5 días naturales anteriores. Unidades:
+  la regla de tamaño (0,5 % de riesgo, máximo 10 %) con 5.000 € fijos. Se **restan** 0,10 % del importe
+  por lado y 1 € por orden, en EUR, entre el nocional de entrada.
 - `EUNL.DE`: de la primera apertura de Xetra en la sesión de entrada o después, al último cierre de
   Xetra en la de salida o antes; 0,10 % por lado. Si no queda ningún tramo, 0.
 - Precios sin dividendos en ambos grupos: perjudica algo a los valores frente al fondo, igual en los dos.
@@ -66,8 +67,21 @@ siguiente episodio empieza después. Una no ejecutable en la apertura no abre ep
 coste de API: euros de todas las llamadas de compra de la ventana, válidas o no, entre la suma de los
 nocionales de los aprobados.
 
-**Incertidumbre:** intervalo del 95 % por remuestreo de bloques de 4 semanas naturales de la sesión de
-entrada (10.000 réplicas, semilla 20261124).
+**Incertidumbre:** intervalo percentil del 95 % por remuestreo con reemplazo de bloques (10.000 réplicas,
+semilla 20261124). Bloques consecutivos de 4 semanas ISO desde el lunes de la semana del corte, según
+la sesión de entrada; el último puede quedar incompleto y los vacíos no cuentan. Se remuestrean los
+mismos bloques para los dos grupos. Una réplica sin algún grupo se descarta; si son más del 5 %, el
+resultado es `INCONCLUSO`.
+
+## 4 bis. Segunda condición: ¿mejora la cartera, con las mismas restricciones?
+
+Dos carteras simuladas de 5.000 € desde el corte hasta la lectura, con las mismas candidatas, gate,
+stop, salida, tamaños y costes: una compra todo (**sin IA**), la otra solo lo aprobado (**con IA**,
+restando además el gasto de API de compra). Las candidatas de la misma sesión se atienden por apertura y
+luego por score descendente y símbolo; si no cabe en el efectivo, no se compra, y no se repite un valor ya
+en cartera. Cada día se resta al resultado lo que habría rendido `EUNL.DE` con **la misma exposición
+del cierre anterior**, así que el efectivo no suma ni resta. Se compara el exceso acumulado de las dos.
+Aquí no hay inferencia: es una sola trayectoria y solo puede impedir concluir que la IA aporta.
 
 ## 5. Cuándo se lee: una sola vez
 
@@ -86,7 +100,7 @@ superan el 5 % de un grupo, el resultado es `INCONCLUSO`.
 
 | Resultado | Condición |
 |---|---|
-| `LA IA APORTA` | Límite inferior del intervalo > 0, **y** exceso neto medio de los aprobados > 0 |
+| `LA IA APORTA` | Límite inferior del intervalo > 0, **y** exceso neto medio de los aprobados > 0, **y** exceso de la cartera con IA mayor que el de la cartera sin IA (§4 bis) |
 | `LA IA NO APORTA` | Límite superior del intervalo < 0 |
 | `INCONCLUSO` | Cualquier otro caso |
 
@@ -100,8 +114,6 @@ saldrá casi siempre `INCONCLUSO`. No se sabe si se alcanzarán 50 por grupo en 
 
 ## 7. Secundario (no decide)
 
-- Cartera simulada con IA contra sin IA, con 5.000 €, el mismo límite de efectivo y tamaños, frente a `EUNL.DE`
-  con la misma exposición diaria que cada una.
 - Ventas de la IA: venta real frente a mantener hasta stop o sesión 20.
 - Retorno en R, proporción en positivo, stops y no ejecutables por grupo.
 
