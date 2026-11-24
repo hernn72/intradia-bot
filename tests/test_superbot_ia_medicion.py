@@ -515,6 +515,36 @@ class TestSinRetroceder:
         )
         assert estado.posiciones[0].pnl_pct == pytest.approx(-1.0)
 
+    def test_una_recien_comprada_no_vuelve_a_su_coste_si_se_retira_su_unica_barra(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        reg.conn.execute("UPDATE ia_movimiento SET created_at = ?", (T_ACTIVACION.isoformat(),))
+        _abrir(cartera_ia, symbol="A", entry_price=100.0, units=10.0, entry_session=date(2026, 11, 5))
+        noche = self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA)
+        manana = self._foto(cartera_ia, reg, 99.0, date(2026, 11, 4), *self.COMPLETA)
+
+        assert noche.equity_eur == manana.equity_eur == pytest.approx(10_040.0)
+        assert manana.posiciones[0]["session"] == "2026-11-05" and manana.comparable
+
+    def test_tras_una_foto_sin_valorar_tampoco_retrocede(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _con_posicion(tmp_path)
+        self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA)
+        pasada_id = reg.abrir_pasada(T, "activo", "sha")
+        medicion.registrar_valoracion(
+            reg, cartera_ia, valorar_abiertas(cartera_ia, {}, _proveedor_ohlc({})), _crudo(_referencia(*self.COMPLETA)),
+            pasada_id, T, 0,
+        )
+        sin_valorar = medicion.leer_medicion(reg.conn)
+        assert sin_valorar is not None and sin_valorar.sin_valorar == 1 and not sin_valorar.comparable
+        assert self._foto(cartera_ia, reg, 99.0, date(2026, 11, 4), *self.COMPLETA).equity_eur == pytest.approx(10_040.0)
+
+    def test_una_posicion_a_coste_no_es_comparable(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _cartera(tmp_path)
+        cartera_ia.activar(T_ACTIVACION, 10_000.0)
+        reg.conn.execute("UPDATE ia_movimiento SET created_at = ?", (T_ACTIVACION.isoformat(),))
+        _abrir(cartera_ia, symbol="A", entry_price=100.0, units=10.0, entry_session=date(2026, 11, 5))
+        assert not self._foto(cartera_ia, reg, 104.0, date(2026, 11, 4), *self.COMPLETA).comparable
+
     def test_sesiones_distintas_no_se_restan(self, tmp_path: Path) -> None:
         cartera_ia, reg = _con_posicion(tmp_path)
         medida = self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA[:3])

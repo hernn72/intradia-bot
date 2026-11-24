@@ -179,22 +179,27 @@ def completar_cierres(
 def _sin_retroceder(
     conn: sqlite3.Connection, generacion: str, valores: Sequence[ValorPosicion],
 ) -> List[ValorPosicion]:
-    """Cada posición, con el cierre de la foto anterior si esta pasada solo trae uno más viejo."""
+    """Cada posición, con su último cierre ya visto si esta pasada solo trae uno más viejo.
 
-    fila = conn.execute(
-        "SELECT posiciones FROM ia_valoracion WHERE generacion = ? ORDER BY id DESC LIMIT 1", (generacion,)
-    ).fetchone()
-    previas = {} if fila is None else {p["position_id"]: p for p in json.loads(fila[0])}
+    Cubre también la recién comprada cuya única barra se retira: ``valorar_abiertas`` la devuelve a
+    su coste (valorada, sin sesión). La que no se puede valorar sigue a coste, porque eso se declara.
+    """
+
+    vistos: Dict[int, Mapping[str, Any]] = {}
+    for (texto,) in conn.execute("SELECT posiciones FROM ia_valoracion WHERE generacion = ? ORDER BY id", (generacion,)):
+        for previa in json.loads(texto):
+            anterior = vistos.get(previa["position_id"])
+            if previa["session"] is not None and (anterior is None or previa["session"] >= anterior["session"]):
+                vistos[previa["position_id"]] = previa
     resultado: List[ValorPosicion] = []
     for valor in valores:
-        previa = previas.get(valor.position_id)
-        if (
-            previa is not None and previa["valorada"] and previa["session"] is not None
-            and valor.valorada and valor.session is not None and valor.session.isoformat() < previa["session"]
+        visto = vistos.get(valor.position_id)
+        if visto is not None and valor.valorada and (
+            valor.session is None or valor.session.isoformat() < visto["session"]
         ):
-            precio = float(previa["precio_eur"])
+            precio = float(visto["precio_eur"])
             valor = replace(
-                valor, session=date.fromisoformat(previa["session"]), precio_eur=precio, valor_eur=valor.units * precio,
+                valor, session=date.fromisoformat(visto["session"]), precio_eur=precio, valor_eur=valor.units * precio,
             )
         resultado.append(valor)
     return resultado
@@ -338,7 +343,8 @@ def _comparable(conn: sqlite3.Connection, foto: Mapping[str, Any], posiciones: S
     ).fetchone()[0]
     if ultimo_fill is not None and str(ultimo_fill) > referencia:
         return False
-    return all(p["session"] in (None, referencia) for p in posiciones)
+    # Una posición a coste (``session`` nula) no tiene cierre que comparar con el de la referencia.
+    return all(p["session"] == referencia for p in posiciones)
 
 
 def leer_medicion(conn: sqlite3.Connection) -> Optional[Medicion]:
