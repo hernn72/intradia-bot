@@ -15,6 +15,8 @@ from superbot.ia.medicion import coste_orden_eur
 CAPITAL_EUR = 5_000.0
 SEMANAS_POR_BLOQUE = 4
 NIVEL = 0.95
+# Unidades de divisa por euro: fuera de aquí no es un cambio, sino un dato roto, y cuenta como que falta.
+FX_MINIMO, FX_MAXIMO = 1e-3, 1e5
 # Con menos, quedan menos de tres grados de libertad y el intervalo depende de un par de bloques.
 MIN_BLOQUES = 4
 MIN_BLOQUES_POR_GRUPO = 3
@@ -93,7 +95,7 @@ def fx_de(fechas: Sequence[date], valores: Sequence[float], dia: date, currency:
     limite = dia - timedelta(days=5)
     while indice >= 0 and fechas[indice] >= limite:
         valor = float(valores[indice])
-        if math.isfinite(valor) and valor > 0:
+        if FX_MINIMO <= valor <= FX_MAXIMO:
             return 1.0 / valor
         indice -= 1
     return None
@@ -218,20 +220,6 @@ class _Posicion:
     coste_entrada: float
 
 
-def _precio_original(serie: SeriePrecios, dia: date) -> Optional[float]:
-    indice = bisect.bisect_right(serie.fechas, dia) - 1
-    while indice >= 0:
-        fecha = serie.fechas[indice]
-        precio = float(serie.cierres[indice])
-        if math.isfinite(precio) and precio > 0:
-            for fecha_split, ratio in serie.splits:
-                if fecha_split > fecha:
-                    precio *= ratio
-            return precio
-        indice -= 1
-    return None
-
-
 def _ultimo_cierre(serie: SeriePrecios, dia: date) -> Optional[float]:
     indice = bisect.bisect_right(serie.fechas, dia) - 1
     while indice >= 0:
@@ -240,6 +228,20 @@ def _ultimo_cierre(serie: SeriePrecios, dia: date) -> Optional[float]:
             return precio
         indice -= 1
     return None
+
+
+def _precio_en_escala_de_entrada(serie: SeriePrecios, dia: date, entrada: date) -> Optional[float]:
+    """Último cierre hasta ``dia``, en la escala de las unidades compradas.
+
+    La cosecha viene reescalada por todos los splits: deshacer los posteriores a la entrada, y solo esos,
+    mantiene el producto de unidades por precio antes y después de cada uno.
+    """
+
+    precio = _ultimo_cierre(serie, dia)
+    for fecha_split, ratio in serie.splits:
+        if precio is not None and fecha_split > entrada:
+            precio *= ratio
+    return precio
 
 
 def carteras(
@@ -313,7 +315,7 @@ def _cartera(
         exposicion = 0.0
         for posicion in posiciones.values():
             caso = posicion.caso
-            precio = _precio_original(series[caso.symbol], dia)
+            precio = _precio_en_escala_de_entrada(series[caso.symbol], dia, caso.sesion_entrada)
             tasa = cambio(caso, dia)
             if tasa is None:
                 raise DatoCompartidoInvalido(f"falta FX de {caso.currency} para {dia}")

@@ -351,7 +351,7 @@ def con_nan(b: pd.DataFrame) -> pd.DataFrame:
 
 class TestCobertura:
     @pytest.mark.parametrize("que", [
-        "eunl_cola", "eunl_hueco", "eunl_nan", "eunl_repetida", "peticion", "fx_ausente", "fx_cola", "valor_ausente", "valor_tarde",
+        "eunl_cola", "eunl_hueco", "eunl_nan", "eunl_repetida", "peticion", "fx_ausente", "fx_cola", "fx_roto", "valor_ausente", "valor_tarde",
     ])
     def test_denegada_antes_de_abrir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, que: str) -> None:
         lejos = date(2100, 1, 1)
@@ -359,6 +359,7 @@ class TestCobertura:
             "eunl_cola": {"EUNL.DE": quita(XETRA[-2], lejos)}, "eunl_hueco": {"EUNL.DE": quita(XETRA[9], XETRA[9])},
             "eunl_nan": {"EUNL.DE": con_nan}, "eunl_repetida": {"EUNL.DE": lambda b: pd.concat([b, b.iloc[[20]]])},
             "fx_cola": {"EURUSD=X": quita(T.date() - timedelta(days=9), lejos)},
+            "fx_roto": {"EURUSD=X": lambda b: b.assign(Open=1e-320, High=1e-320, Low=1e-320, Close=1e-320)},
             "valor_tarde": {"A0": quita(INICIO, XETRA[3])},
         }.get(que, {})
         sin = {"fx_ausente": ["EURUSD=X"], "valor_ausente": ["A0"]}.get(que, [])
@@ -849,13 +850,28 @@ class TestCarteras:
                  for i, d in enumerate((D0, self.D1))]
         assert [o.decision_id for o in carteras(casos, {"A": plana}, {}, plana, {}, self.D1)["sin_ia"].operaciones] == [0]
 
-    def test_split_de_un_valor_abierto_y_de_la_referencia(self) -> None:
-        # 2:1 el tercer día: la cosecha ya trae reescalado lo anterior.
-        valor = SeriePrecios((D0, self.D1, self.D2), (50.0, 50.0, 50.0), (50.0, 50.0, 50.0), ((self.D2, 2.0),))
+    @pytest.mark.parametrize("fin", [0, 1, 2])
+    def test_un_split_no_crea_ni_destruye_patrimonio(self, fin: int) -> None:
+        # 2:1 el segundo día y 5:1 el tercero, precio económico plano en 100: la cosecha trae todo a 10.
+        dias = (D0, self.D1, self.D2)
+        valor = SeriePrecios(dias, (10.0,) * 3, (10.0,) * 3, ((self.D1, 2.0), (self.D2, 5.0)))
+        plana = SeriePrecios(dias, (50.0,) * 3, (50.0,) * 3)
+        caso = _caso(salida=None, sesion_salida=None, estado="ABIERTA")
+        hecho = carteras([caso], {"A": valor}, {}, plana, {}, dias[fin])["sin_ia"]
+        assert hecho.patrimonio_final == pytest.approx(5_000 - 1.5)
+
+    def test_un_split_anterior_a_la_entrada_no_se_deshace(self) -> None:
+        valor = SeriePrecios((D0, self.D1), (100.0,) * 2, (100.0,) * 2, ((D0 - timedelta(days=3), 2.0), (D0, 4.0)))
+        hecho = carteras(
+            [_caso(salida=None, sesion_salida=None, estado="ABIERTA")], {"A": valor}, {}, valor, {}, self.D1,
+        )["sin_ia"]
+        assert hecho.patrimonio_final == pytest.approx(5_000 - 1.5)
+
+    def test_split_de_la_referencia(self) -> None:
+        valor = SeriePrecios((D0, self.D1), (100.0,) * 2, (100.0,) * 2)
         referencia = SeriePrecios((D0, self.D1), (50.0, 55.0), (50.0, 55.0), ((self.D1, 2.0),))
         caso = _caso(salida=None, sesion_salida=None, estado="ABIERTA")
         hecho = carteras([caso], {"A": valor}, {}, referencia, {}, self.D1)["sin_ia"]
-        assert hecho.patrimonio_final == pytest.approx(5_000 - 1.5)
         assert hecho.exceso_acumulado == pytest.approx(-1.5 - 500 * 0.10)
 
     def test_sale_en_festivo_de_xetra(self) -> None:

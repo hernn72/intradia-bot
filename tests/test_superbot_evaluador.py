@@ -175,7 +175,10 @@ def test_fx_invierte_el_par_y_solo_retrocede_cinco_dias() -> None:
 
 def test_fx_ignora_valores_invalidos_y_retrocede_hasta_cinco_dias() -> None:
     fechas = [D0 - timedelta(days=2), D0 - timedelta(days=1), D0]
-    assert fx_de(fechas, [2.0, float("nan"), 0.0], D0, "USD") == 0.5
+    for roto in (float("nan"), 0.0, -1.0, 1e-320, 1e-4, 1e6, float("inf")):
+        assert fx_de(fechas, [2.0, roto, 0.0], D0, "USD") == 0.5
+    assert fx_de([D0], [1e-320], D0, "USD") is None
+    assert fx_de([D0], [1e-3], D0, "USD") == 1000.0 and fx_de([D0], [1e5], D0, "USD") == 1e-5
 
 
 def test_exceso_eur_stop_mismo_dia_y_euro_fijo() -> None:

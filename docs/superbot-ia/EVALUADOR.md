@@ -40,7 +40,7 @@ segundo clon permitiría repetir el cálculo, con idéntico resultado.
 | `INCONCLUSO` por muestra, datos o bloques | No lee rendimientos ni publica medias o carteras |
 | Sin entrada tras 20 sesiones | Dato inválido solo si falta por los datos; si el gate habría rechazado la apertura de la cosecha, no |
 | Apertura que el proveedor invalida después | Dato inválido |
-| `EUNL.DE` y divisas | Solo barras de sesiones oficiales de Xetra; sesiones repetidas o dos cambios distintos en un día, denegado |
+| `EUNL.DE` y divisas | Solo barras de sesiones oficiales de Xetra; sesiones repetidas o dos cambios distintos en un día, denegado; un cambio fuera de 0,001–100.000 por euro cuenta como que falta |
 | Carteras | Tamaño con 5.000 EUR fijos; efectivo de una salida, disponible al día siguiente; abiertas, a mercado |
 | Serie ausente, que empieza tarde o con sesiones repetidas | Solo si se identifica y justifica; se omite en las dos carteras y no se admite listar una que está |
 | Desenlace con huecos | `sesiones` y `hasta_session` guardadas deben cuadrar con el calendario; si no, dato inválido y fuera de carteras |
