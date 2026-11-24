@@ -227,7 +227,12 @@ class TestCongelacion:
         (raiz / fichero).write_text((raiz / fichero).read_text(encoding="utf-8") + "\n#x\n", encoding="utf-8")
         assert madurez.huella_estrategia(raiz) != madurez.HUELLA_CONGELADA
 
-    @pytest.mark.parametrize("parametro, rompe", [("tope_eur_mes", False), ("cache_horas", False), ("score_min", True)])
+    @pytest.mark.parametrize("pieza", ["_niveles_de", "_datos_base", "_evaluar_compras", "motivo_no_elegible"])
+    def test_cambiar_lo_que_decide_en_la_pasada_cambia_la_huella(self, monkeypatch: pytest.MonkeyPatch, pieza: str) -> None:
+        monkeypatch.setattr(pasada, pieza, lambda *_a, **_k: None)
+        assert madurez.huella_estrategia() != madurez.HUELLA_CONGELADA
+
+    @pytest.mark.parametrize("parametro, rompe", [("tope_eur_mes", True), ("cache_horas", False), ("score_min", True)])
     def test_solo_rompe_un_parametro_que_decide(self, tmp_path: Path, parametro: str, rompe: bool) -> None:
         reg = _base(tmp_path)
         params = asdict(POLITICA)

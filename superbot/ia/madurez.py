@@ -30,23 +30,28 @@ FECHA_LIMITE = date(2027, 5, 31)
 # El de ``config.yaml``, para quien no carga la configuración (el dashboard).
 SETTLEMENT_MINUTES = 20
 
-# Parámetros de la política que no deciden ninguna operación: cambiarlos no rompe la congelación.
+# Parámetros de la política que no deciden ninguna operación: cambiarlos no rompe la congelación. El tope
+# de gasto no está aquí: al agotarse, deja de haber dictámenes y, con ellos, compras.
 _PARAMETROS_AJENOS = frozenset({
-    "tope_eur_mes", "cache_horas", "eur_por_usd", "usd_millon_entrada", "usd_millon_salida", "margen_tokens_entrada",
+    "cache_horas", "eur_por_usd", "usd_millon_entrada", "usd_millon_salida", "margen_tokens_entrada",
 })
 _RAIZ = Path(__file__).resolve().parents[2]
 _FICHEROS = (
-    "config.yaml", "universe.yaml", "exchange_overrides.yaml", "superbot/config.py", "superbot/data.py",
+    "config.yaml", "universe.yaml", "superbot/config.py", "superbot/data.py",
     "superbot/ia/asesores.py", "superbot/ia/cartera.py", "superbot/ia/comite.py", "superbot/ia/datos.py",
     "superbot/ia/paquete.py", "superbot/ia/predicados.py",
 )
 # La huella de la estrategia en el corte. Una prueba falla si el código se aparta de ella: no se
 # actualiza sin cerrar antes la muestra.
-HUELLA_CONGELADA = "7fab091759159a889dc50003cfdd5a2cba1ba132b6c67ac90e2d1c703773acb7"
+HUELLA_CONGELADA = "cf2ced5f77e0e5a0e70e908c671b9edd98fc4a6023d1813b3557988d0156b699"
 
 
 def huella_estrategia(raiz: Path = _RAIZ) -> str:
-    """Lo que decide operaciones: configuración, universo, análisis, asesores, cartera y elegibilidad."""
+    """Lo que decide operaciones: configuración, universo, análisis, asesores, cartera y elegibilidad.
+
+    Fuera quedan a propósito los cierres extraordinarios de plaza (``exchange_overrides.yaml``): son
+    hechos del calendario, no una decisión.
+    """
 
     from superbot.ia import pasada  # en tiempo de ejecución: ``pasada`` importa este módulo
 
@@ -56,8 +61,12 @@ def huella_estrategia(raiz: Path = _RAIZ) -> str:
     for fichero in ficheros:
         resumen.update(fichero.relative_to(raiz).as_posix().encode() + b"\0" + fichero.read_bytes() + b"\0")
     # ``pasada.py`` también tiene observación y avisos: solo cuenta lo que decide.
-    for pieza in (pasada.motivo_no_elegible, pasada.elegir_por_plaza, pasada.Motor):
+    for pieza in (
+        pasada.motivo_no_elegible, pasada.elegir_por_plaza, pasada.Motor, pasada._niveles_de, pasada._datos_base,
+        pasada._evaluar_compras, pasada._evaluar_posiciones, pasada._redondeado, pasada._paquete,
+    ):
         resumen.update(inspect.getsource(pieza).encode() + b"\0")
+    resumen.update(pasada.BROKER_VERIFICADO.encode() + b"\0")
     resumen.update(json.dumps(_estrategicos(asdict(PoliticaIA())), sort_keys=True).encode())
     return resumen.hexdigest()
 
