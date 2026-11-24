@@ -187,9 +187,13 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
 |---|---|
 | Apertura rechazada por el gate, vista en su día o al comprobarla con la cosecha | No: no hay episodio |
 | Sin entrada tras 20 sesiones porque faltan los datos | Sí |
-| Entrada válida que el proveedor invalida después | Sí |
+| Entrada válida que el proveedor invalida o retira después, aunque el caso ya fuera definitivo | Sí |
 | `SIN_BARRA_DE_ENTRADA`, `SPLIT_POSTERIOR`, `DATOS_INCOMPLETOS` | Sí |
 | Desenlace guardado con huecos: no vio una barra por cada sesión de la plaza | Sí, como `DATOS_INCOMPLETOS` |
+
+La apertura se comprueba igual para todos los casos en la cosecha (con un 0,01 % de holgura frente al ruido
+numérico): mirar solo el estado guardado excluiría el caso que seguía vivo y conservaría el que ya saltó su stop.
+Si la serie no tiene barras a ambos lados de la entrada no se concluye nada. `congelar` lista las afectadas.
 
 El porcentaje es inválidos entre inválidos más utilizables de ese grupo.
 

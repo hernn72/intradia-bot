@@ -416,6 +416,14 @@ class TestCobertura:
         else:
             assert lab.evaluar()["estimador"] == pytest.approx(a_mano(poblacion(), 0.0), abs=1e-12)
 
+    def test_una_serie_que_empieza_tarde_no_es_una_apertura_retirada(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        tarde = {"A0": quita(INICIO, XETRA[3])}
+        r = montar(tmp_path, monkeypatch, poblacion(), alterar=tarde, series_ausentes={"A0": "sin histórico"}).evaluar()
+        assert r["excluidos"]["COMPRAR"] == {} and r["aperturas_invalidadas"] == {}
+        assert r["estimador"] == pytest.approx(a_mano(poblacion(), 0.0), abs=1e-12)
+
     def test_un_valor_con_sesiones_repetidas_se_autoriza_fuera_de_carteras(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -826,6 +834,27 @@ class TestSinEntrada:
         r = montar(tmp_path, monkeypatch, [*poblacion(), *rechazadas]).evaluar()
         assert r["excluidos"]["COMPRAR"] == {} and r["secundario"]["COMPRAR"]["no_ejecutables"] == 30
 
+    @pytest.mark.parametrize("defecto,estado_final", [
+        (quita(XETRA[0], XETRA[0]), contrafactual.SIN_BARRA_DE_ENTRADA),
+        (lambda b: b.assign(Open=125.0, High=126.0), contrafactual.NO_EJECUTABLE),
+    ])
+    @pytest.mark.parametrize("desenlace", [
+        {"estado": contrafactual.HORIZONTE}, {"estado": contrafactual.STOP, "hasta": XETRA[2]},
+        {"estado": contrafactual.ABIERTA, "final": 0},
+    ])
+    def test_la_invalidada_tras_ser_definitiva_penaliza_igual_sea_cual_sea_su_desenlace(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, defecto: Any, estado_final: str, desenlace: dict[str, Any],
+    ) -> None:
+        malas = [C(f"X{i}", "COMPRAR", XETRA[0], 1e6, **desenlace) for i in range(2)]
+        roto = {c.symbol: defecto for c in malas}
+        dos = montar(tmp_path / "1", monkeypatch, [*poblacion(), *malas], alterar=roto).evaluar()
+        assert dos["motivo"] == "DATOS" and dos["excluidos"]["COMPRAR"] == {estado_final: 2}
+        otro_montaje(monkeypatch)
+        una = montar(tmp_path / "2", monkeypatch, [*poblacion(), malas[0]], alterar={"X0": defecto}).evaluar()
+        assert una["excluidos"]["COMPRAR"] == {estado_final: 1} and una["aperturas_invalidadas"] == {73: estado_final}
+        assert una["omitidos_en_carteras"] == [73]
+        assert una["estimador"] == pytest.approx(a_mano(poblacion(), 0.0), abs=1e-12)
+
     def test_la_apertura_invalidada_despues_si_penaliza(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         invalidadas = self.extra(2, estado=contrafactual.NO_EJECUTABLE, ejecutable=1)
         r = montar(tmp_path, monkeypatch, [*poblacion(), *invalidadas]).evaluar()
@@ -908,7 +937,8 @@ class TestCiclo:
             db, tmp_path / "cosechas", raiz=raiz, reloj=lambda: manana,
             proveedor=Proveedor({c.symbol: c.market for c in casos}),
         )
-        assert hecho["failed"] == {} and hecho["series_ausentes"] == hecho["episodios_truncados"] == [] and hecho["instante"] == T.isoformat()
+        assert hecho["failed"] == {} and hecho["series_ausentes"] == hecho["episodios_truncados"] == []
+        assert hecho["aperturas_invalidadas"] == {} and hecho["instante"] == T.isoformat()
         assert "NUNCA" not in (tmp_path / "cosechas" / hecho["cosecha"] / "manifest.json").read_text()
         for orden, codigo in (("identidades", 0), ("puertas", 2)):
             assert cli.main(["--db", str(db), "--cosecha-raiz", str(tmp_path / "cosechas"), orden]) == codigo

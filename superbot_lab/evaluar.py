@@ -76,10 +76,11 @@ def congelar(
     vintage = load_vintage(resultado.data_vintage_id, root_dir=cosecha_raiz)
     decisiones = evaluacion._decisiones_compra(db)
     salida["series_ausentes"] = evaluacion.series_inservibles(vintage, decisiones)
+    cuantitativos = evaluacion._cuantitativos(decisiones)
     evaluacion._comprobar_cosecha(
-        resultado.data_vintage_id, cosecha_raiz, decisiones, instante,
-        evaluacion._cuantitativos(db, [int(f[0]) for f in decisiones]), salida["series_ausentes"],
+        resultado.data_vintage_id, cosecha_raiz, decisiones, instante, cuantitativos, salida["series_ausentes"],
     )
+    salida["aperturas_invalidadas"] = evaluacion.aperturas_invalidadas(vintage, decisiones, cuantitativos)
     # Lo que la autorización tendrá que justificar: solo calendario y precios de mercado.
     salida["episodios_truncados"] = [
         {"decision_id": e.decision_id, "symbol": e.symbol, "sesion_entrada": e.sesion.isoformat(),

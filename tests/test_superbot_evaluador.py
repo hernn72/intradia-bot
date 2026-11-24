@@ -399,9 +399,9 @@ def test_fase_uno_clasifica_cada_caso(tmp_path: Path) -> None:
         rechazadas = [decision] if destino == "rechazada" else []
         if destino == "falta":
             with pytest.raises(evaluacion.EvaluacionDenegada, match=r"^faltan 1 casos por completar$"):
-                evaluacion._fase1(reg.path, lista, declaradas, rechazadas)
+                evaluacion._fase1(reg.path, lista, declaradas, rechazadas, {})
             continue
-        usables, excluidos, exclusiones = evaluacion._fase1(reg.path, lista, declaradas, rechazadas)
+        usables, excluidos, exclusiones = evaluacion._fase1(reg.path, lista, declaradas, rechazadas, {})
         assert bool(usables) is (destino in {"usable", "excluida", "usable_declarada"}), destino
         assert exclusiones == ([decision] if destino == "excluida" else []), destino
         # Tras un split, el precio declarado no está en la escala de la entrada: sigue siendo dato inválido.
@@ -452,9 +452,9 @@ def test_el_hueco_de_produccion_se_detecta_y_espera_veinticinco_sesiones(tmp_pat
         lista = [Episodio(int(fila[0]), "S", "XETRA", "COMPRAR", SESIONES[0], "maduros", sesiones)]
         if espera:
             with pytest.raises(evaluacion.EvaluacionDenegada, match="faltan 1"):
-                evaluacion._fase1(reg.path, lista, {}, [])
+                evaluacion._fase1(reg.path, lista, {}, [], {})
         else:
-            assert evaluacion._fase1(reg.path, lista, {}, [])[1]["COMPRAR"] == {"DATOS_INCOMPLETOS": 1}
+            assert evaluacion._fase1(reg.path, lista, {}, [], {})[1]["COMPRAR"] == {"DATOS_INCOMPLETOS": 1}
 
 
 def test_una_exclusion_declarada_sin_datos_si_cuenta_como_dato_invalido(tmp_path: Path) -> None:
@@ -466,20 +466,40 @@ def test_una_exclusion_declarada_sin_datos_si_cuenta_como_dato_invalido(tmp_path
     decision = int(reg.conn.execute("SELECT MAX(id) FROM ia_decision").fetchone()[0])
     declarada = {decision: evaluacion.Determinacion(decision, evaluacion.SIN_DATOS, "j", "f")}
     lista = [Episodio(decision, "S", "XETRA", "DESCARTAR", D0, "maduros", 25)]
-    assert evaluacion._fase1(reg.path, lista, declarada, []) == (
+    assert evaluacion._fase1(reg.path, lista, declarada, [], {}) == (
         [], {"COMPRAR": {}, "DESCARTAR": {"DATOS_INCOMPLETOS": 1}}, [],
     )
 
 
-def test_cuantitativo_incompleto_se_rechaza_antes_de_apertura(tmp_path: Path) -> None:
-    db = tmp_path / "cuantitativo.db"
-    conn = sqlite3.connect(db)
-    conn.execute("CREATE TABLE ia_decision(id INTEGER, cuantitativo TEXT)")
-    conn.execute("INSERT INTO ia_decision VALUES(1,?)", (json.dumps({"niveles": {"stop": 9}}),))
-    conn.commit()
-    conn.close()
+@pytest.mark.parametrize("texto", [
+    "{", "null", "{}", '{"niveles": {"stop": 9}}', '{"niveles": {"stop": 0}, "currency": "EUR", "score": 1}',
+    '{"niveles": {"stop": 9}, "currency": "", "score": 1}', '{"niveles": {"stop": 9}, "currency": "EUR", "score": NaN}',
+    '{"niveles": {"stop": Infinity}, "currency": "EUR", "score": 1}',
+])
+def test_lo_ilegible_solo_bloquea_si_hubo_entrada(texto: str) -> None:
+    fila = [1, "S", "XETRA", "2026-11-25", texto, 1]
     with pytest.raises(evaluacion.EvaluacionDenegada, match="cuantitativo"):
-        evaluacion._cuantitativos(db, [1])
+        evaluacion._cuantitativos([fila])  # type: ignore[list-item]
+    for ejecutable in (0, None):
+        leidos = evaluacion._cuantitativos([[*fila[:5], ejecutable]])  # type: ignore[list-item]
+        assert not evaluacion._gate_rechaza(100.0, leidos[1]["niveles"])
+
+
+@pytest.mark.parametrize("apertura,rechaza", [
+    (100.0, False), (100.009, False), (100.02, True), (95.0, False), (94.98, True), (94.0, True), (120.0, True),
+])
+def test_el_gate_de_la_cosecha_tolera_el_ruido_del_proveedor(apertura: float, rechaza: bool) -> None:
+    niveles = {"stop": 95.0, "target2": 120.0, "entry_max": 100.0, "min_rr_ratio": 1.5}
+    assert evaluacion._gate_rechaza(apertura, niveles) is rechaza
+
+
+@pytest.mark.parametrize("fase,tabla", [(f, t) for f in (0, 1) for t in ("ia_posicion", "ia_orden")] + [(0, "ia_contrafactual")])
+def test_las_fases_previas_no_leen_posiciones_ni_ordenes(tmp_path: Path, fase: int, tabla: str) -> None:
+    db = tmp_path / "fases.db"
+    with sqlite3.connect(db) as conn:
+        conn.executescript(f"CREATE TABLE {tabla}(valor TEXT); INSERT INTO {tabla} VALUES('VENENO');")
+    with abrir_fase(db, fase) as conn, pytest.raises(sqlite3.DatabaseError):
+        conn.execute(f"SELECT valor FROM {tabla}").fetchone()
 
 
 def test_leer_casos_incluye_abierta_solo_en_carteras(tmp_path: Path) -> None:
@@ -497,7 +517,7 @@ def test_leer_casos_incluye_abierta_solo_en_carteras(tmp_path: Path) -> None:
     )
     reg.conn.commit()
     casos, candidatas, _retornos, error, _omitidos = evaluacion._leer_casos(
-        reg.path, [], {}, datetime(2026, 12, 10, 20, tzinfo=timezone.utc),
+        reg.path, [], {}, datetime(2026, 12, 10, 20, tzinfo=timezone.utc), {},
     )
     assert casos == []
     assert error is None
@@ -755,7 +775,7 @@ def test_abierta_de_produccion_conserva_ultimo_cierre_y_entra_en_cartera(tmp_pat
     assert tuple(fila[:2]) == ("ABIERTA", 0)
     assert fila[2] is not None and fila[3] is not None
     _metrica, candidatas, _retornos, error, _omitidos = evaluacion._leer_casos(
-        reg.path, [], {}, datetime(2026, 12, 10, 20, tzinfo=timezone.utc),
+        reg.path, [], {}, datetime(2026, 12, 10, 20, tzinfo=timezone.utc), {},
     )
     assert error is None
     assert [caso.decision_id for caso in candidatas] == [decision_id]

@@ -39,7 +39,7 @@ segundo clon permitiría repetir el cálculo, con idéntico resultado.
 | Coste de API | Todas las llamadas de compra desde el corte hasta T; constante al quitar bloques |
 | `INCONCLUSO` por muestra, datos o bloques | No lee rendimientos ni publica medias o carteras |
 | Sin entrada tras 20 sesiones | Dato inválido solo si falta por los datos; si el gate habría rechazado la apertura de la cosecha, no |
-| Apertura que el proveedor invalida después | Dato inválido |
+| Apertura que el proveedor invalida o retira después | Dato inválido, sea cual sea su desenlace: se decide con la cosecha |
 | `EUNL.DE` y divisas | Solo barras de sesiones oficiales de Xetra; sesiones repetidas o dos cambios distintos en un día, denegado; un cambio fuera de 0,001–100.000 por euro cuenta como que falta |
 | Carteras | Tamaño con 5.000 EUR fijos; efectivo de una salida, disponible al día siguiente; abiertas, a mercado |
 | Serie ausente, que empieza tarde o con sesiones repetidas | Solo si se identifica y justifica; se omite en las dos carteras y no se admite listar una que está |
@@ -67,7 +67,8 @@ bloques contiguos sube al 9–14 %**: es el límite principal.
 
 Revisado con ejecuciones de punta a punta que usan el `contrafactual.actualizar` de producción y un proveedor defectuoso
 (huecos, NaN, aperturas revisadas, splits, apagones, exclusiones): ningún fallo tras abrir y todos los estimadores
-coinciden con un cálculo aparte. Con el intervalo actual, 4 conclusiones falsas en 47; con el percentil, 14 en 47.
+coinciden con un cálculo aparte. Con el intervalo actual, 8 conclusiones falsas en 85 (9 %, con exclusiones ruinosas añadidas al azar); con el percentil, 14 en 47 (30 %).
 Aun así es sintético: no prueba que los datos reales lleguen completos. Los festivos dependen de `exchange_calendars`,
-cuya versión se fija en la autorización. La métrica usa los desenlaces que guardó el bot, no los recalcula. El precio
-de una exclusión lo aporta el propietario: el evaluador exige fuente y rango, no puede verificarlo.
+cuya versión se fija en la autorización. La métrica usa los desenlaces que guardó el bot, no los recalcula. Queda una
+exclusión que depende en parte del desenlace: un split o un hueco posteriores a un stop ya no lo afectan, y sí al que
+seguía vivo. El precio de una exclusión lo aporta el propietario: el evaluador exige fuente y rango, no puede verificarlo.
