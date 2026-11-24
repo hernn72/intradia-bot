@@ -1,0 +1,38 @@
+{
+ "ejecucion_utc": [
+  "2026-11-24T14:47:03Z",
+  "2026-11-24T14:47:40Z"
+ ],
+ "ejecuciones": 1,
+ "code_sha": "1f290aee9cbd0102300103066e28524949731380",
+ "merge_pr70": "6b958eff23e7d8cdd798a3c9b851669bdf33a0eb",
+ "tree_code_sha": "3de6983907bfbfc70b015168c666780bcbed3c5c",
+ "comando": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B -m superbot_lab correr --prereg-sha256 5923ee1e476027165060a438d8610782579221771726265c8b40c2d5ec075f8d",
+ "prereg_sha256": "5923ee1e476027165060a438d8610782579221771726265c8b40c2d5ec075f8d",
+ "resultado_sha256": "cc7bbcd14e33071d50dfb472e1c800639b12a0a3d59c0865b5341c473fa8f067",
+ "config_sha256": "f230467e958d7a9c0954a179c62b0ab43a6eb6b52754eb20cb97c38b688c5b65",
+ "cosecha": "4506dc5df60bb1f6cbdaf6755e1b60c65c1ed25a1598e8f53f6afdf0e984869c",
+ "cosecha_manifest_sha256": "1257bbe4c426e184f8c69fa038a1bb82d40b72dd6a24fab7da58a4c1be2669ad",
+ "codigo_sha256": "1dde5b0eac3bc2de1aaa17a9023aa07d47756191e1d269262a02bca075667499",
+ "ficheros_laboratorio_sha256": {
+  "superbot_lab/__init__.py": "31205b0cdf5ab86aeddcd1fae1f4843fa7567e7e77b7fc4ab77611da1e444799",
+  "superbot_lab/__main__.py": "60540bb985efd7b8e4cb9504504508cc538465d09c46ade6e2e407860d4802eb",
+  "superbot_lab/datos_lab.py": "8dda36badc5860ca833f47f1d3777fc274a2f986f4af485c219841db545e5ead",
+  "superbot_lab/simulador.py": "e5f019eb20d855bee633121a9f03044ba66037f1619ca6502a9766238180dac3"
+ },
+ "semilla": 20261124,
+ "python": "3.14.6",
+ "plataforma": "macOS-27.2.1-arm64-arm-64bit-Mach-O",
+ "dependencias": {
+  "pandas": "3.1.1",
+  "numpy": "2.5.4",
+  "yfinance": "1.8.0",
+  "PyYAML": "6.0.3",
+  "pydantic": "2.14.3"
+ },
+ "universo_sha256": "4a43be981351724d15a23afe7b073122f04e861f7797fc30c3567457fcadc2d3",
+ "tablas_sha256": "c2de5540faf6768d82c164e86c2c6ab88f9f45b2e736e22f3149b1c84d25fa33",
+ "comprobacion_entradas_sha256": "2f6097ff8ba27ba8bd8ffe23a65c6529e95838809d8794bee537313e9824061f",
+ "copia_externa_cosecha": "idéntica a la copia local (diff -rq)",
+ "pi_sha_tras_ejecutar": "f2d592249922edc3cc1ebb4a2a3550f0ae97c597"
+}

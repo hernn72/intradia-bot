@@ -2544,6 +2544,13 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 **4. D-84.** Ratificada también la regla del 5 %: si los datos no válidos superan el 5 % de un grupo, el resultado es `INCONCLUSO`. Al registrarla, el recuento de madurez era 0 en ambos grupos.
 
+### D-86 — 2026-11-24 — Superbot IA: resultado de las simulaciones de reglas
+
+Ejecutadas una sola vez según D-85 (código `1f290ae`, resultado sha256 `cc7bbcd14e33071d50dfb472e1c800639b12a0a3d59c0865b5341c473fa8f067`).
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+`MERECE VALIDACIÓN`: `H1_60_55` y `H3_65_55`. `SIN EVIDENCIA`: las otras siete. Ninguna `DESCARTADA`. **Ninguna bate a `EUNL.DE`** en 5 ni en 2 años, y la regla actual simulada se arruina en 5 años por costes, vendiendo siempre que un predicado es cierto, cosa que el bot real no hace. No se implanta nada ni cambia la estrategia activa; la validación independiente es decisión aparte. Detalle en `docs/superbot-ia/SIMULACIONES-RESULTADO.md`.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
