@@ -3,9 +3,8 @@
 **SUPERBOT IA — PAPER, NO VALIDADA PARA CAPITAL REAL.**
 _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
 
-Escrito el 2026-11-24. **Estado de los números de §5 y §6: PROPUESTOS, pendientes de que el
-propietario los ratifique. Hasta entonces, y después hasta la lectura de §5, los resultados están
-sellados.**
+Escrito el 2026-11-24 y **ratificado por el propietario ese mismo día (D-84)**, con los resultados
+sellados y sin ningún caso posterior al corte. No se cambia hasta la evaluación.
 
 ## 1. Pregunta
 
@@ -25,7 +24,7 @@ entran en el contraste. Los episodios se forman solo con decisiones posteriores 
 
 **Corte:** entran solo las decisiones de las pasadas ejecutadas con un código que ya contenga el
 contrafactual y el arreglo del validador (`ia_pasada.code_sha`). El primer SHA válido se anota en §8 al
-desplegar. La estrategia queda congelada en la ventana: scores, umbrales, stops, precio máximo de
+desplegar (hecho). La estrategia queda congelada en la ventana: scores, umbrales, stops, precio máximo de
 entrada, tamaños, prompts y modelo. Un cambio en cualquiera de ellos cierra la muestra y abre otra.
 
 ## 3. Qué se compara
@@ -73,52 +72,68 @@ la sesión de entrada; el último puede quedar incompleto y los vacíos no cuent
 mismos bloques para los dos grupos. Una réplica sin algún grupo se descarta; si son más del 5 %, el
 resultado es `INCONCLUSO`.
 
-## 4 bis. Segunda condición: ¿mejora la cartera, con las mismas restricciones?
+## 4 bis. Contraste económico: carteras con las mismas restricciones
 
-Dos carteras simuladas de 5.000 € desde el corte hasta la lectura, con las mismas candidatas, gate,
+Dos carteras simuladas de 5.000 € desde el corte hasta la evaluación, con las mismas candidatas, gate,
 stop, salida, tamaños y costes: una compra todo (**sin IA**), la otra solo lo aprobado (**con IA**,
 restando además el gasto de API de compra). Las candidatas de la misma sesión se atienden por apertura y
 luego por score descendente y símbolo; si no cabe en el efectivo, no se compra, y no se repite un valor ya
 en cartera. Cada día se resta al resultado lo que habría rendido `EUNL.DE` con **la misma exposición
-del cierre anterior**, así que el efectivo no suma ni resta. Se compara el exceso acumulado de las dos.
-Aquí no hay inferencia: es una sola trayectoria y solo puede impedir concluir que la IA aporta.
+del cierre anterior**, así que el efectivo no suma ni resta. Se publica el exceso acumulado de las dos.
 
-## 5. Cuándo se lee: una sola vez
+Es una sola trayectoria, sin inferencia: **se publica siempre junto al resultado y no decide**. Si
+contradice a la métrica principal, se dice.
+
+## 5. Cuándo se evalúa: una sola vez
 
 Un episodio **maduro** lleva 20 sesiones de su plaza desde la entrada, haya saltado o no el stop: así la
-muestra no se llena de stops recientes ni depende de resultados. Se lee:
+muestra no se llena de stops recientes ni depende de resultados. Se evalúa:
 - con **50 episodios maduros en cada grupo**, o
 - el **2027-05-31**, lo que ocurra antes.
 
-Con menos de 30 maduros en algún grupo en esa fecha: `INCONCLUSO`. El aviso de que toca leer lo da un
-programa que solo cuenta maduros por grupo, sin retornos (pendiente de escribir, antes de ratificar).
+Con menos de 30 maduros en algún grupo en esa fecha: `INCONCLUSO`. El aviso lo da
+`superbot/ia/madurez.py`, que solo cuenta: no lee precios, retornos ni si saltó un stop.
 
 `SIN_BARRA_DE_ENTRADA`, `SPLIT_POSTERIOR` y `DATOS_INCOMPLETOS` se excluyen y se cuentan por grupo. Si
-superan el 5 % de un grupo, el resultado es `INCONCLUSO`.
+superan el 5 % de un grupo, los datos no valen para concluir y el resultado es `INCONCLUSO`.
 
 ## 6. Qué se concluye
 
-| Resultado | Condición |
-|---|---|
-| `LA IA APORTA` | Límite inferior del intervalo > 0, **y** exceso neto medio de los aprobados > 0, **y** exceso de la cartera con IA mayor que el de la cartera sin IA (§4 bis) |
-| `LA IA NO APORTA` | Límite superior del intervalo < 0 |
-| `INCONCLUSO` | Cualquier otro caso |
+Demostrar que la IA no aporta y no tener pruebas de que aporte son cosas distintas. Decide solo el
+intervalo del 95 % del efecto neto de la selección (§4):
 
-`LA IA APORTA` no basta para capital real: la fase 4 del plan sigue exigiendo batir a `EUNL.DE`.
-Con `LA IA NO APORTA` se propone apagar los asesores de compra. Con `INCONCLUSO` no se amplía la
-muestra sin una decisión nueva escrita antes de mirar más.
+| Resultado | Condición | Qué se hace |
+|---|---|---|
+| `LA IA APORTA` | Todo el intervalo por encima de cero | Se conservan los asesores y sigue la validación |
+| `LA IA NO APORTA` | Todo el intervalo en cero o por debajo | Se desactivan los asesores de compra (§6 bis) |
+| `INCONCLUSO` | El intervalo incluye valores positivos y negativos, menos de 30 maduros en algún grupo, o datos no válidos (§4 y §5) | No se desactivan los asesores por este resultado |
+
+Junto al resultado se publican el exceso neto medio de cada grupo y el contraste de §4 bis. `LA IA APORTA`
+no basta para capital real: la fase 4 del plan sigue exigiendo batir a `EUNL.DE`. Tras la evaluación no
+se amplía la muestra ni se repite sin una decisión nueva escrita antes de mirar más.
 
 Con 50 por grupo y una dispersión del orden del 7 % por episodio (supuesto, no medido), el error
-típico ronda 1,4 puntos: solo se detectan con fiabilidad diferencias de unos 4. Una ventaja pequeña
-saldrá casi siempre `INCONCLUSO`. No se sabe si se alcanzarán 50 por grupo en el plazo.
+típico ronda 1,4 puntos: solo se detectan con fiabilidad diferencias de unos 4. El propietario acepta
+expresamente que el resultado pueda ser `INCONCLUSO`. No se sabe si se alcanzarán 50 por grupo.
+
+## 6 bis. Qué significa desactivar los asesores de compra
+
+- Dejan de influir en las compras nuevas; pueden seguir ejecutándose en modo observación.
+- Se conservan todos los registros para comparar después.
+- Siguen la gestión de posiciones, los stops y los controles de riesgo.
+- No se apaga el sistema ni se tocan los asesores de venta, que exigen su propia evaluación.
+- Es un cambio controlado y reversible, documentado, que abre una fase de evaluación nueva sin alterar los
+  resultados de esta.
 
 ## 7. Secundario (no decide)
 
-- Ventas de la IA: venta real frente a mantener hasta stop o sesión 20.
+- Ventas de la IA: venta real frente a mantener hasta stop o sesión 20 (descriptivo; no evalúa a esos asesores).
 - Retorno en R, proporción en positivo, stops y no ejecutables por grupo.
 
 ## 8. Registro
 
 | Fecha | Qué |
 |---|---|
-| 2026-11-24 | Criterio escrito con los resultados sellados. Números de §5 y §6 pendientes de ratificar |
+| 2026-11-24 | Criterio escrito con los resultados sellados |
+| 2026-11-24 | **Corte:** la Pi ejecuta `2e26f65` desde las 09:55:03 UTC; entran las decisiones fechadas desde entonces |
+| 2026-11-24 | Criterio ratificado por el propietario (D-84): solo decide el intervalo, las carteras son contraste y `LA IA NO APORTA` se separa de `INCONCLUSO`. Programa de madurez escrito |

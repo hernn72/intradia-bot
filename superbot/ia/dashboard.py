@@ -13,6 +13,7 @@ import base64
 import hmac
 import html
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,9 +21,11 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from superbot.ia import contrafactual, medicion
+from superbot.ia import madurez, medicion
 from superbot.ia.cartera import CarteraIA, CarteraInactiva, EfectivoInsuficiente
 from superbot.ia.registro import RegistroIA
+
+logger = logging.getLogger(__name__)
 
 USUARIO_ENV = "SUPERBOT_IA_DASHBOARD_USUARIO"
 CLAVE_ENV = "SUPERBOT_IA_DASHBOARD_CLAVE"
@@ -146,25 +149,34 @@ def _posiciones_abiertas_table(cartera_ia: CarteraIA, medida: Optional[medicion.
     )
 
 
-_GRUPO_LABEL = {"COMPRAR": "Aprobadas por el comité", "DESCARTAR": "Descartadas"}
+def _madurez_section(cuenta: Optional[madurez.Madurez]) -> str:
+    """Solo recuentos (D-83): ningún dato que dependa de lo que hizo el precio después de la entrada."""
 
-
-def _contrafactual_section(grupos: Sequence[contrafactual.Grupo]) -> str:
-    # Sellado por D-83: solo lo que no depende de lo que hizo el precio después de la entrada. Ni
-    # retornos, ni stops, ni cuántas se han cerrado ya (una cerrada antes del horizonte es un stop).
+    if cuenta is None:
+        return '<div class="aviso">No se ha podido contar la madurez de los casos.</div>'
     body = [
         [
-            _td(_GRUPO_LABEL.get(g.resolucion, g.resolucion)), _td(g.decisiones, "num"), _td(g.valores, "num"),
-            _td(g.no_ejecutables, "num"),
+            _td(etiqueta), _td(f"{g.maduros} de {madurez.OBJETIVO_POR_GRUPO}", "num"), _td(g.madurando, "num"),
+            _td(g.excluidos, "num"), _td(g.no_ejecutables, "num"),
         ]
-        for g in grupos
+        for etiqueta, g in (("Aprobadas por el comité", cuenta.aprobadas), ("Descartadas", cuenta.descartadas))
     ]
-    tabla = _table(["Grupo", "Decisiones", "Valores distintos", "No ejecutables en la apertura"], body)
+    tabla = _table(["Grupo", "Casos maduros", "Madurando", "Excluidos por datos", "No ejecutables en la apertura"], body)
+    avisos = "".join(f'<div class="aviso">{_text(texto)}</div>' for _clave, texto in madurez.texto_avisos(cuenta))
     nota = (
-        "Recogiendo datos. Los resultados están sellados hasta la lectura única fijada en "
-        "docs/superbot-ia/CRITERIO-CONTRAFACTUAL.md (D-83): mirarlos antes invalidaría la prueba."
+        f"Recogiendo datos desde el {madurez.CORTE.date().isoformat()}. Los resultados están sellados hasta la única "
+        f"evaluación: {madurez.OBJETIVO_POR_GRUPO} casos maduros por grupo o el {madurez.FECHA_LIMITE.isoformat()}, lo que "
+        "ocurra antes (docs/superbot-ia/CRITERIO-CONTRAFACTUAL.md, D-83 y D-84)."
     )
-    return f'{tabla}<div class="muted">{_text(nota)}</div>'
+    return f'{tabla}{avisos}<div class="muted">{_text(nota)}</div>'
+
+
+def _contar_madurez(registro: RegistroIA) -> Optional[madurez.Madurez]:
+    try:
+        return madurez.contar(registro.conn, datetime.now(timezone.utc))
+    except Exception as exc:
+        logger.warning("madurez sin contar: %s: %s", type(exc).__name__, exc)
+        return None
 
 
 def _kpis_medicion(medida: Optional[medicion.Medicion]) -> str:
@@ -363,7 +375,7 @@ def render_html(cartera_ia: CarteraIA, registro: RegistroIA, now_label: str, men
     seccion_medicion = (
         f"<section><h2>Medición a mercado</h2>{_kpis_medicion(medida)}</section>"
         "<section><h2>¿Filtra bien la IA? Aprobadas frente a descartadas</h2>"
-        f"{_contrafactual_section(contrafactual.resumen(registro.conn))}</section>"
+        f"{_madurez_section(_contar_madurez(registro))}</section>"
         if stats["activa"] else ""
     )
     if not stats["activa"]:

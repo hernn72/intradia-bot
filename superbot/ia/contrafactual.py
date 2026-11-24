@@ -9,8 +9,9 @@ Solo observa, y enseña desenlaces de valores que el bot no compró: es el canal
 propietario aceptó en D-82 §7. Todo sale de ``ia_decision`` y de barras de mercado: no abre
 ninguna base de T-024 ni de T-025.
 
-Los desenlaces se guardan sellados: el dashboard no los muestra y ``resumen`` no se lee hasta la
-lectura única de ``docs/superbot-ia/CRITERIO-CONTRAFACTUAL.md`` (D-83).
+Los desenlaces se guardan sellados hasta la evaluación única de
+``docs/superbot-ia/CRITERIO-CONTRAFACTUAL.md`` (D-83): este módulo no ofrece ninguna lectura de
+rendimiento, y los recuentos salen de ``madurez.py``.
 """
 
 from __future__ import annotations
@@ -21,7 +22,6 @@ import math
 import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from statistics import mean, median
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import pandas as pd
@@ -235,64 +235,6 @@ def _serie(
         return None
 
 
-# --- lectura ----------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Grupo:
-    resolucion: str
-    decisiones: int
-    valores: int
-    no_ejecutables: int
-    # Sin barra de entrada, con datos rotos o con un split posterior: no se pueden seguir.
-    sin_datos: int
-    seguidas: int
-    stops: int
-    # Solo las ya cerradas por stop o por horizonte: las únicas comparables entre sí.
-    cerradas: int
-    retorno_cerradas_pct: Optional[float]
-    retorno_medio_pct: Optional[float]
-    retorno_mediano_pct: Optional[float]
-    positivas_pct: Optional[float]
-    r_medio: Optional[float]
-    cortas: int
-    retorno_corto_medio_pct: Optional[float]
-
-
-def resumen(conn: sqlite3.Connection) -> Tuple[Grupo, ...]:
-    """Aprobadas frente a descartadas. Una decisión ``PENDIENTE`` (sin sesión objetivo aún) no cuenta."""
-
-    asegurar_esquema(conn)
-    grupos: List[Grupo] = []
-    for resolucion in ("COMPRAR", "DESCARTAR"):
-        filas = conn.execute(
-            "SELECT symbol, estado, retorno_pct, retorno_r, retorno_corto_pct FROM ia_contrafactual "
-            "WHERE resolucion = ? AND estado <> ?", (resolucion, PENDIENTE),
-        ).fetchall()
-        seguidas = [f for f in filas if f[2] is not None]
-        retornos = [float(f[2]) for f in seguidas]
-        cortos = [float(f[4]) for f in filas if f[4] is not None]
-        cerradas = [float(f[2]) for f in seguidas if f[1] in (STOP, HORIZONTE)]
-        grupos.append(Grupo(
-            resolucion=resolucion,
-            decisiones=len(filas),
-            valores=len({f[0] for f in filas}),
-            no_ejecutables=sum(1 for f in filas if f[1] == NO_EJECUTABLE),
-            sin_datos=sum(1 for f in filas if f[1] != NO_EJECUTABLE and f[2] is None),
-            seguidas=len(seguidas),
-            stops=sum(1 for f in seguidas if f[1] == STOP),
-            cerradas=len(cerradas),
-            retorno_cerradas_pct=mean(cerradas) if cerradas else None,
-            retorno_medio_pct=mean(retornos) if retornos else None,
-            retorno_mediano_pct=median(retornos) if retornos else None,
-            positivas_pct=100.0 * sum(1 for r in retornos if r > 0) / len(retornos) if retornos else None,
-            r_medio=mean(float(f[3]) for f in seguidas) if seguidas else None,
-            cortas=len(cortos),
-            retorno_corto_medio_pct=mean(cortos) if cortos else None,
-        ))
-    return tuple(grupos)
-
-
 __all__ = [
     "ABIERTA",
     "DATOS_INCOMPLETOS",
@@ -306,11 +248,9 @@ __all__ = [
     "SPLIT_POSTERIOR",
     "STOP",
     "Desenlace",
-    "Grupo",
     "actualizar",
     "asegurar_esquema",
     "barras_de",
-    "resumen",
     "simular",
     "splits_de",
 ]

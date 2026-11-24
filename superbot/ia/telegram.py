@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 import requests
 
 from advisor.telegram.notifier import TelegramNotifier
+from superbot.ia import madurez
 from superbot.ia.cartera import CarteraIA
 from superbot.ia.dashboard import build_stats
 
@@ -164,6 +165,16 @@ def encolar_resumen_periodico(cartera_ia: CarteraIA, ahora: datetime) -> bool:
     )
 
 
+def encolar_madurez(cartera_ia: CarteraIA, cuenta: madurez.Madurez) -> int:
+    """Avisa, una sola vez por motivo, de que toca evaluar o de que la muestra ha dejado de valer."""
+
+    # La tabla solo admite tres tipos; este no altera el intervalo del resumen periódico.
+    return sum(
+        cartera_ia.encolar_notificacion(clave=clave, tipo="OPERACIONES", texto=f"{HEADER}\n\n{texto}")
+        for clave, texto in madurez.texto_avisos(cuenta)
+    )
+
+
 def encolar_notificaciones_de_la_pasada(cartera_ia: CarteraIA, resultado: ResultadoPasada, ahora: datetime) -> None:
     """Punto de entrada único desde ``pasada.py``: encola lo que corresponda (nunca envía nada
     por red — eso lo hace ``flush()``, aparte, para que un fallo de Telegram nunca afecte a la
@@ -260,6 +271,7 @@ def atender_comandos(registro: RegistroIA, notifier: TelegramNotifier, dashboard
 __all__ = [
     "atender_comandos",
     "encolar_error_pasada",
+    "encolar_madurez",
     "encolar_notificaciones_de_la_pasada",
     "encolar_resumen_pasada",
     "encolar_resumen_periodico",

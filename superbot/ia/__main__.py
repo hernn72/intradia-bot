@@ -1,4 +1,4 @@
-"""CLI de Superbot IA: ``python -m superbot.ia pasada|decisiones|corpus|dashboard|telegram|migrar-politica``.
+"""CLI de Superbot IA: ``python -m superbot.ia pasada|decisiones|madurez|corpus|dashboard|telegram|migrar-politica``.
 
 ``pasada`` nunca activa la cartera paper por sí sola (modo ``registro`` siempre, salvo que algo
 externo ya la hubiera activado) — eso sigue exigiendo un llamador explícito, conforme a que la
@@ -18,6 +18,7 @@ from advisor.data.market_data import MarketDataProvider
 from advisor.universe.loader import load_universe
 from superbot.config import SuperbotConfig
 from superbot.data import select_assets
+from superbot.ia import madurez
 from superbot.ia import telegram as telegram_mod
 from superbot.ia.asesores import ClienteAnthropic, ClienteIA
 from superbot.ia.cartera import CarteraIA
@@ -45,6 +46,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("pasada")
     sub.add_parser("decisiones")
+    sub.add_parser("madurez", help="casos maduros del contrafactual y si toca evaluarlo; nunca rendimientos")
     sub.add_parser("corpus").add_argument("--solo", help="casos separados por comas")
     parser_dashboard = sub.add_parser("dashboard")
     parser_dashboard.add_argument("--host", default="127.0.0.1")
@@ -65,6 +67,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.cmd == "decisiones":
         for fila in registro.decisiones():
             print(f"{fila['symbol']} {fila['tipo']} {fila['target_session']}: {fila['resolucion']} ({fila['motivo']})")
+        return 0
+    if args.cmd == "madurez":
+        print(json.dumps(madurez.contar(registro.conn, _ahora()).como_dict(), ensure_ascii=False, indent=1))
         return 0
     if args.cmd == "dashboard":
         from superbot.ia.dashboard import serve
