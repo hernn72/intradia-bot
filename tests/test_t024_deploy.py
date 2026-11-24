@@ -242,7 +242,12 @@ def test_intento_sin_estado_lock_perdido_y_horizonte(tmp_path: Path, monkeypatch
     assert calls == []
 
     runner, calls, _vid = _fake_runner(tmp_path / "horizon")
-    cfg_horizon = _cfg(tmp_path / "horizon")
+    # Calendario propio de un solo checkpoint: el versionado crece cada mes y el aviso dejaría de saltar.
+    ruta = _calendario_con_sha(tmp_path / "horizon", CODE_SHA)
+    datos = json.loads(ruta.read_text(encoding="utf-8"))
+    datos["checkpoints"] = [item for item in datos["checkpoints"] if item["checkpoint"] == CP]
+    ruta.write_text(json.dumps(datos), encoding="utf-8")
+    cfg_horizon = _cfg(tmp_path / "horizon", cal=ruta)
     done = cfg_horizon.artefactos / "checkpoints" / CP
     done.mkdir(parents=True)
     (done / "estado.json").write_text(json.dumps({"checkpoint": CP, "estado": "APTA"}), encoding="utf-8")
