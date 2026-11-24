@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import shutil
@@ -18,7 +19,7 @@ import pandas as pd
 import pytest
 
 from advisor.data.calendars import expected_sessions
-from advisor.research.vintage import freeze_vintage
+from advisor.research.vintage import freeze_vintage, load_vintage
 from superbot.ia import contrafactual, madurez
 from superbot_lab import evaluacion
 from superbot_lab import evaluar as cli
@@ -162,6 +163,14 @@ def autorizar(raiz: Path, db: Path, cosecha: str, **extra: Any) -> None:
     comitear(raiz)
 
 
+_COSECHAS: dict[Any, tuple[str, Path]] = {}
+
+
+@functools.cache
+def _cargar(vid: str, *, root_dir: Path) -> Any:
+    return load_vintage(vid, root_dir=root_dir)
+
+
 def montar(
     tmp: Path, monkeypatch: pytest.MonkeyPatch, casos: Sequence[C], *, api: float = 0.0,
     alterar: Mapping[str, Callable[[pd.DataFrame], pd.DataFrame]] | None = None, sin: Sequence[str] = (),
@@ -173,10 +182,18 @@ def montar(
     repo(raiz)
     plazas = {c.symbol: c.market for c in casos}
     pares = {f"EUR{DIVISA[c.market]}=X" for c in casos if c.market != "XETRA"}
-    vid = freeze_vintage(
-        sorted(({*plazas, *pares, "EUNL.DE"}) - set(sin)), Proveedor(plazas, alterar or {}), interval="1d",  # type: ignore[arg-type]
-        start=INICIO.isoformat(), end=fin.isoformat(), root_dir=tmp / "cosechas", downloaded_at=T,
-    ).data_vintage_id
+    pedidos = tuple(sorted(({*plazas, *pares, "EUNL.DE"}) - set(sin)))
+    clave = (pedidos, tuple(sorted(plazas.items())), fin, tuple(sorted((alterar or {}).items(), key=lambda x: x[0])))
+    # Escribir y verificar una cosecha es casi todo el tiempo de la prueba: las de mismo contenido (su
+    # identificador es su hash) se comparten, y cada una se verifica una vez.
+    if clave not in _COSECHAS:
+        vid = freeze_vintage(
+            pedidos, Proveedor(plazas, alterar or {}), interval="1d", start=INICIO.isoformat(),  # type: ignore[arg-type]
+            end=fin.isoformat(), root_dir=tmp / "cosechas", downloaded_at=T,
+        ).data_vintage_id
+        _COSECHAS[clave] = (vid, tmp / "cosechas")
+    vid, cosechas = _COSECHAS[clave]
+    monkeypatch.setattr(evaluacion, "load_vintage", _cargar)
     autorizar(raiz, db, vid, **({"series_ausentes": dict(series_ausentes)} if series_ausentes else {}), **(
         {"episodios_truncados": list(truncados)} if truncados else {}
     ))
@@ -184,7 +201,7 @@ def montar(
     real = evaluacion.abrir_fase
     monkeypatch.setattr(evaluacion, "abrir_fase", lambda ruta, fase: (fases.append(fase), real(ruta, fase))[1])
     monkeypatch.chdir(raiz)
-    return Lab(raiz, db, tmp / "cosechas", fases)
+    return Lab(raiz, db, cosechas, fases)
 
 
 def poblacion(aprobada: float = 112.0, descartada: float = 92.0, ruido: float = 0.0, **cambios: Any) -> list[C]:
