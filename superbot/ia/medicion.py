@@ -12,7 +12,7 @@ import json
 import logging
 import math
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -51,6 +51,13 @@ CREATE TABLE IF NOT EXISTS ia_valoracion (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ia_valoracion_generacion ON ia_valoracion (generacion, id);
+CREATE TABLE IF NOT EXISTS ia_referencia_cierre (
+    symbol TEXT NOT NULL,
+    session TEXT NOT NULL,
+    precio REAL NOT NULL,
+    observado_en TEXT NOT NULL,
+    PRIMARY KEY (symbol, session)
+);
 """
 
 
@@ -134,6 +141,70 @@ def cierres_de(barras: pd.DataFrame, market: str) -> List[Tuple[date, datetime, 
     return cierres
 
 
+def completar_cierres(
+    conn: sqlite3.Connection, market: str, cierres: Sequence[Tuple[date, datetime, float]],
+) -> List[Tuple[date, datetime, float]]:
+    """La serie descargada, más los cierres ya observados que el proveedor ha dejado de servir.
+
+    yfinance retira por la mañana barras europeas que había servido la noche anterior: sin esto, la
+    referencia retrocedía de sesión. La descarga manda sobre lo guardado; lo guardado solo rellena
+    huecos posteriores a su primera barra, porque la serie tiene que seguir empezando donde empieza
+    la descarga (``valor_referencia`` decide con eso si alcanza a cubrir un flujo).
+    """
+
+    ahora = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    validos = [c for c in cierres if math.isfinite(c[2]) and c[2] > 0]
+    for session, _cierre, precio in validos:
+        conn.execute(
+            "INSERT INTO ia_referencia_cierre (symbol, session, precio, observado_en) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(symbol, session) DO UPDATE SET precio = excluded.precio, observado_en = excluded.observado_en "
+            "WHERE precio <> excluded.precio",
+            (REFERENCIA, session.isoformat(), precio, ahora),
+        )
+    if not validos:
+        return list(cierres)
+    presentes = {c[0] for c in cierres}
+    completos = list(cierres)
+    for texto, precio in conn.execute(
+        "SELECT session, precio FROM ia_referencia_cierre WHERE symbol = ? AND session > ?",
+        (REFERENCIA, cierres[0][0].isoformat()),
+    ):
+        session = date.fromisoformat(texto)
+        cierre = session_close_at(market, session)
+        if session not in presentes and cierre is not None:
+            completos.append((session, cierre, float(precio)))
+    return sorted(completos, key=lambda c: c[0])
+
+
+def _sin_retroceder(
+    conn: sqlite3.Connection, generacion: str, valores: Sequence[ValorPosicion],
+) -> List[ValorPosicion]:
+    """Cada posición, con su último cierre ya visto si esta pasada solo trae uno más viejo.
+
+    Cubre también la recién comprada cuya única barra se retira: ``valorar_abiertas`` la devuelve a
+    su coste (valorada, sin sesión). La que no se puede valorar sigue a coste, porque eso se declara.
+    """
+
+    vistos: Dict[int, Mapping[str, Any]] = {}
+    for (texto,) in conn.execute("SELECT posiciones FROM ia_valoracion WHERE generacion = ? ORDER BY id", (generacion,)):
+        for previa in json.loads(texto):
+            anterior = vistos.get(previa["position_id"])
+            if previa["session"] is not None and (anterior is None or previa["session"] >= anterior["session"]):
+                vistos[previa["position_id"]] = previa
+    resultado: List[ValorPosicion] = []
+    for valor in valores:
+        visto = vistos.get(valor.position_id)
+        if visto is not None and valor.valorada and (
+            valor.session is None or valor.session.isoformat() < visto["session"]
+        ):
+            precio = float(visto["precio_eur"])
+            valor = replace(
+                valor, session=date.fromisoformat(visto["session"]), precio_eur=precio, valor_eur=valor.units * precio,
+            )
+        resultado.append(valor)
+    return resultado
+
+
 def registrar_valoracion(
     registro: RegistroIA, cartera_ia: CarteraIA, valores: Sequence[ValorPosicion], proveedor: Any,
     pasada_id: int, instante: datetime, settlement_minutes: int,
@@ -148,8 +219,8 @@ def registrar_valoracion(
     # La descarga va antes y fuera de la transacción: una aportación hecha desde el dashboard
     # mientras dura no puede quedar a medias entre el efectivo y el capital de la misma foto.
     cierres: List[Tuple[date, datetime, float]] = []
+    market = market_for_symbol(REFERENCIA)
     try:
-        market = market_for_symbol(REFERENCIA)
         bruto = proveedor.get_history(
             REFERENCIA, period=periodo_para(flujos_de_capital(conn), instante), interval="1d"
         )
@@ -166,9 +237,10 @@ def registrar_valoracion(
         if generacion is None:
             conn.execute("ROLLBACK")
             return
+        valores = _sin_retroceder(conn, generacion, valores)
         cash = cartera_ia.cash_eur()
         valor_posiciones = sum(v.valor_eur for v in valores)
-        referencia = valor_referencia(flujos_de_capital(conn), cierres)
+        referencia = valor_referencia(flujos_de_capital(conn), completar_cierres(conn, market, cierres))
         conn.execute(
             "INSERT INTO ia_valoracion (pasada_id, generacion, instante, cash_eur, valor_posiciones_eur, equity_eur, "
             "capital_neto_eur, sin_valorar, costes_ejecucion_eur, gasto_api_eur, referencia_symbol, "
@@ -221,6 +293,8 @@ class Medicion:
     rentabilidad_referencia: Optional[float]
     posiciones: Tuple[Mapping[str, Any], ...]
     fotos: int
+    # Falso si la referencia y la cartera van a cierres de sesiones distintas: restarlas mezclaría días.
+    comparable: bool
 
 
 def _indice(serie: Sequence[Tuple[float, float]]) -> List[float]:
@@ -260,6 +334,19 @@ def _ultimo(indice: Sequence[float], esperados: int) -> Optional[float]:
     return indice[-1] - 1.0 if indice and len(indice) == esperados else None
 
 
+def _comparable(conn: sqlite3.Connection, foto: Mapping[str, Any], posiciones: Sequence[Mapping[str, Any]]) -> bool:
+    referencia = foto["referencia_session"]
+    if referencia is None:
+        return False
+    ultimo_fill = conn.execute(
+        "SELECT MAX(session) FROM ia_fill WHERE created_at <= ?", (foto["created_at"],)
+    ).fetchone()[0]
+    if ultimo_fill is not None and str(ultimo_fill) > referencia:
+        return False
+    # Una posición a coste (``session`` nula) no tiene cierre que comparar con el de la referencia.
+    return all(p["session"] == referencia for p in posiciones)
+
+
 def leer_medicion(conn: sqlite3.Connection) -> Optional[Medicion]:
     """La última foto de la cartera activa y lo que su serie dice. ``None`` si aún no hay ninguna."""
 
@@ -273,6 +360,7 @@ def leer_medicion(conn: sqlite3.Connection) -> Optional[Medicion]:
     if not fotos:
         return None
     ultima = fotos[-1]
+    posiciones: Tuple[Mapping[str, Any], ...] = tuple(json.loads(ultima["posiciones"]))
 
     bruta = _indice([(f["equity_eur"], f["capital_neto_eur"]) for f in fotos])
     neta = _indice([
@@ -298,8 +386,9 @@ def leer_medicion(conn: sqlite3.Connection) -> Optional[Medicion]:
         rentabilidad_referencia=(
             _ultimo(referencia, len(con_referencia)) if ultima["referencia_eur"] is not None else None
         ),
-        posiciones=tuple(json.loads(ultima["posiciones"])),
+        posiciones=posiciones,
         fotos=len(fotos),
+        comparable=_comparable(conn, ultima, posiciones),
     )
 
 
@@ -310,6 +399,7 @@ __all__ = [
     "Medicion",
     "asegurar_esquema",
     "cierres_de",
+    "completar_cierres",
     "coste_orden_eur",
     "costes_de_ejecucion_eur",
     "flujos_de_capital",

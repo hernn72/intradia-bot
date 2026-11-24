@@ -171,7 +171,7 @@ def _kpis_medicion(medida: Optional[medicion.Medicion]) -> str:
     if medida is None:
         return '<div class="aviso">Todavía no hay ninguna valoración a mercado: se guarda una en cada pasada.</div>'
     diferencia = (
-        None if medida.rentabilidad_neta is None or medida.rentabilidad_referencia is None
+        None if not medida.comparable or medida.rentabilidad_neta is None or medida.rentabilidad_referencia is None
         else medida.rentabilidad_neta - medida.rentabilidad_referencia
     )
     costes = medida.costes_ejecucion_eur + medida.gasto_api_eur
@@ -195,6 +195,13 @@ def _kpis_medicion(medida: Optional[medicion.Medicion]) -> str:
         f" {_text(medida.referencia_symbol)} al cierre del {_text(medida.referencia_session)}."
         if medida.referencia_session else f" {_text(medida.referencia_symbol)} sin cotización en esta foto."
     )
+    if medida.referencia_session and not medida.comparable:
+        sesiones = sorted({str(p["session"]) for p in medida.posiciones if p["session"] is not None})
+        cartera = f" (posiciones al {_text(', '.join(sesiones))})" if sesiones else ""
+        referencia += (
+            f" La cartera no va toda al mismo cierre{cartera}: la diferencia no se calcula. Con valores de Tokio y "
+            "Estados Unidos a la vez puede no coincidir nunca."
+        )
     nota = (
         f"Valorado en la pasada de {_text(medida.instante)}, con el último cierre de cada plaza ({medida.fotos} fotos)."
         f"{referencia}"
