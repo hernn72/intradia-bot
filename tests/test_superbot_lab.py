@@ -11,9 +11,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import pytest
 
 from superbot.ia.medicion import coste_orden_eur
-from superbot.lab import __main__ as cli
-from superbot.lab import datos_lab
-from superbot.lab.simulador import (
+from superbot_lab import __main__ as cli
+from superbot_lab import datos_lab
+from superbot_lab.simulador import (
     BASE,
     CAPITAL_EUR,
     VARIANTES,
@@ -195,7 +195,7 @@ class TestGuardas:
         sha = hashlib.sha256(cli.PREREGISTRO.read_bytes()).hexdigest()
         monkeypatch.setattr(cli, "RESULTADO", tmp_path / "r.json")
         monkeypatch.setattr(cli, "load_vintage", lambda *_a, **_k: pytest.fail("no debe abrir datos"))
-        monkeypatch.setattr(cli, "_git", lambda *_a: " M superbot/lab/simulador.py")
+        monkeypatch.setattr(cli, "_git", lambda *_a: " M superbot_lab/simulador.py")
         assert cli.main(["correr", "--prereg-sha256", sha]) == 2
         (tmp_path / "r.json").write_text("{}", encoding="utf-8")
         monkeypatch.setattr(cli, "_git", lambda *_a: "")
@@ -203,4 +203,4 @@ class TestGuardas:
 
     def test_produccion_no_importa_el_laboratorio(self) -> None:
         for fichero in Path("superbot/ia").glob("*.py"):
-            assert "superbot.lab" not in fichero.read_text(encoding="utf-8"), fichero
+            assert "superbot_lab" not in fichero.read_text(encoding="utf-8"), fichero

@@ -29,7 +29,7 @@ from superbot.ia.datos import sesion_objetivo
 from superbot.ia.medicion import REFERENCIA
 from superbot.ia.pasada import BROKER_VERIFICADO
 from superbot.ia.politica import PoliticaIA
-from superbot.lab.simulador import Ficha, Serie
+from superbot_lab.simulador import Ficha, Serie
 
 # Antes del inicio solo sirve para calentar indicadores.
 DESCARGA_INICIO, DESCARGA_FIN_EXCLUSIVO = "2020-06-01", "2026-08-28"

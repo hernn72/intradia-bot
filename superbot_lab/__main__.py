@@ -1,4 +1,4 @@
-"""CLI del laboratorio: ``python -m superbot.lab congelar|comprobar|correr``.
+"""CLI del laboratorio: ``python -m superbot_lab congelar|comprobar|correr``.
 
 ``comprobar`` prepara los datos y solo informa de coberturas. ``correr`` abre desenlaces: exige el
 sha256 del pre-registro y un árbol de git limpio, usa solo la cosecha fijada, escribe siempre en el
@@ -20,8 +20,8 @@ from advisor.data.market_data import MarketDataProvider
 from advisor.research.vintage import load_vintage
 from advisor.universe.loader import load_universe
 from superbot.ia.medicion import REFERENCIA
-from superbot.lab import datos_lab
-from superbot.lab.simulador import BASE, CAPITAL_EUR, VARIANTES, Resultado, intervalo_diferencia, simular
+from superbot_lab import datos_lab
+from superbot_lab.simulador import BASE, CAPITAL_EUR, VARIANTES, Resultado, intervalo_diferencia, simular
 
 COSECHA = "4506dc5df60bb1f6cbdaf6755e1b60c65c1ed25a1598e8f53f6afdf0e984869c"
 RESULTADO = Path("evidence/superbot-ia/simulaciones-reglas/resultado.json")
@@ -43,7 +43,7 @@ def _resumen(r: Resultado) -> Dict[str, Any]:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m superbot.lab")
+    parser = argparse.ArgumentParser(prog="python -m superbot_lab")
     parser.add_argument("--raiz", default="data/vintages-lab")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("congelar")

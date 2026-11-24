@@ -4,7 +4,7 @@
 _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
 
 Escrito el 2026-11-24, **antes de ejecutar ninguna simulación**. Estado: PREPARADO, pendiente de que el
-propietario autorice la ejecución. Código: `superbot/lab/`, que producción no importa.
+propietario autorice la ejecución. Código: `superbot_lab/`, que producción no importa.
 
 ## 1. Qué se pregunta y qué no
 
@@ -79,6 +79,6 @@ permite proponer una prueba hacia delante, tras la evaluación del contrafactual
 
 ## 6. Ejecución
 
-Una vez. `python -m superbot.lab correr` exige el sha256 de este fichero y un árbol de git limpio, usa solo
+Una vez. `python -m superbot_lab correr` exige el sha256 de este fichero y un árbol de git limpio, usa solo
 la cosecha de §2, guarda el SHA del código y escribe en `evidence/superbot-ia/simulaciones-reglas/`, donde
 se niega a sobrescribir. Si un fallo obliga a repetir, se corrige, se declara aquí y se repite entera.
