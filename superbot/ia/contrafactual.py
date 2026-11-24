@@ -8,6 +8,9 @@ si se hubiera comprado, y se cierra a un horizonte fijo.
 Solo observa, y enseña desenlaces de valores que el bot no compró: es el canal lateral que el
 propietario aceptó en D-82 §7. Todo sale de ``ia_decision`` y de barras de mercado: no abre
 ninguna base de T-024 ni de T-025.
+
+Los desenlaces se guardan sellados: el dashboard no los muestra y ``resumen`` no se lee hasta la
+lectura única de ``docs/superbot-ia/CRITERIO-CONTRAFACTUAL.md`` (D-83).
 """
 
 from __future__ import annotations

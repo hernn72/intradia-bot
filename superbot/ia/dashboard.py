@@ -150,34 +150,19 @@ _GRUPO_LABEL = {"COMPRAR": "Aprobadas por el comité", "DESCARTAR": "Descartadas
 
 
 def _contrafactual_section(grupos: Sequence[contrafactual.Grupo]) -> str:
-    def _puntos(value: Optional[float]) -> str:
-        return "N/D" if value is None else f"{_num(value)} %"
-
+    # Sellado por D-83: solo lo que no depende de lo que hizo el precio después de la entrada. Ni
+    # retornos, ni stops, ni cuántas se han cerrado ya (una cerrada antes del horizonte es un stop).
     body = [
         [
             _td(_GRUPO_LABEL.get(g.resolucion, g.resolucion)), _td(g.decisiones, "num"), _td(g.valores, "num"),
-            _td(g.no_ejecutables, "num"), _td(g.sin_datos, "num"), _td(g.seguidas, "num"), _td(g.stops, "num"),
-            _td(_puntos(g.retorno_medio_pct), f"num {_signed_class(g.retorno_medio_pct)}"),
-            _td(_puntos(g.retorno_mediano_pct), f"num {_signed_class(g.retorno_mediano_pct)}"),
-            _td(_puntos(g.positivas_pct), "num"), _td("N/D" if g.r_medio is None else _num(g.r_medio), "num"),
-            _td(f"{_puntos(g.retorno_corto_medio_pct)} ({g.cortas})", "num"),
-            _td(f"{_puntos(g.retorno_cerradas_pct)} ({g.cerradas})", "num"),
+            _td(g.no_ejecutables, "num"),
         ]
         for g in grupos
     ]
-    tabla = _table(
-        ["Grupo", "Decisiones", "Valores distintos", "No ejecutables en la apertura", "Sin datos", "Seguidas", "Stops",
-         "Retorno medio", "Retorno mediano", "En positivo", "R medio",
-         f"Retorno medio a {contrafactual.HORIZONTE_CORTO} sesiones (n)", "Retorno medio de las cerradas (n)"],
-        body,
-    )
+    tabla = _table(["Grupo", "Decisiones", "Valores distintos", "No ejecutables en la apertura"], body)
     nota = (
-        "Cada decisión de compra se sigue como si se hubiera comprado en la apertura de su sesión objetivo, con el "
-        "mismo gate de apertura y el mismo stop que la cartera, y se cierra por stop o a las "
-        f"{contrafactual.HORIZONTE_SESIONES} sesiones; mientras tanto cuenta a su último cierre, así que el retorno "
-        "medio mezcla posiciones recién abiertas con cerradas: las dos últimas columnas son las comparables. En "
-        "divisa del valor, sin costes y sin las ventas de la IA. Las decisiones no son independientes: un mismo valor se evalúa en sesiones seguidas y los "
-        "periodos se solapan, así que una diferencia pequeña entre los dos grupos no demuestra nada."
+        "Recogiendo datos. Los resultados están sellados hasta la lectura única fijada en "
+        "docs/superbot-ia/CRITERIO-CONTRAFACTUAL.md (D-83): mirarlos antes invalidaría la prueba."
     )
     return f'{tabla}<div class="muted">{_text(nota)}</div>'
 

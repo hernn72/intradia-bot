@@ -3,6 +3,7 @@ no entra en otra sesión que la objetivo, y el resumen separa aprobadas de desca
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -243,15 +244,21 @@ class TestActualizarYResumen:
 
 
 class TestDashboard:
-    def test_muestra_los_dos_grupos_y_la_advertencia(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_muestra_recuentos_y_ningun_resultado(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         reg = _decidir(tmp_path, monkeypatch, TestActualizarYResumen.RESPUESTAS)
+        seccion_antes = dashboard._contrafactual_section(contrafactual.resumen(reg.conn))
         _actualizar(reg, {"A": {OBJETIVO: (98.0, 97.0, 100.94)}, "B": {OBJETIVO: (98.0, 94.0, 96.0)}},
                     TestActualizarYResumen.DESPUES)
+        grupos = contrafactual.resumen(reg.conn)
+        seccion = dashboard._contrafactual_section(grupos)
 
-        seccion = dashboard._contrafactual_section(contrafactual.resumen(reg.conn))
-
-        assert "Aprobadas por el comité" in seccion and "Descartadas" in seccion
-        assert "3,00 %" in seccion and "no demuestra nada" in seccion
+        assert "Aprobadas por el comité" in seccion and "Descartadas" in seccion and "sellados" in seccion
+        assert seccion != seccion_antes
+        # Con resultados distintos, la sección no cambia: no hay por dónde inferirlos.
+        otros = [replace(g, stops=9, seguidas=9, cerradas=9, sin_datos=9, retorno_medio_pct=-7.77, retorno_mediano_pct=-7.77,
+                         retorno_cerradas_pct=-7.77, positivas_pct=7.77, r_medio=-7.77, cortas=9,
+                         retorno_corto_medio_pct=-7.77) for g in grupos]
+        assert dashboard._contrafactual_section(otros) == seccion
 
     def test_sin_decisiones_no_lanza(self, tmp_path: Path) -> None:
         cartera_ia, reg = _cartera(tmp_path)
@@ -259,4 +266,4 @@ class TestDashboard:
 
         pagina = dashboard.render_html(cartera_ia, reg, "ahora")
 
-        assert "Aprobadas frente a descartadas" in pagina and "N/D" in pagina
+        assert "Aprobadas frente a descartadas" in pagina and "sellados" in pagina

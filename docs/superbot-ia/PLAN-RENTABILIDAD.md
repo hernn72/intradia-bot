@@ -101,7 +101,10 @@ No se puede backtestear —el modelo recuerda el pasado—: solo vale la validac
 ## Fase 3 — Entradas y salidas · PENDIENTE
 
 Determinista, así que sí se puede backtestear sobre la cosecha congelada, siempre en 2 y 5 años:
-- Orden limitada durante la sesión en vez del gate de solo apertura (hallazgo 6).
+- Precio máximo de entrada (hallazgo 6): en 88 de 93 candidatas es el cierre de la señal, así que cualquier
+  apertura por encima se rechaza. Comparar la regla actual con márgenes en ATR o en porcentaje y con orden
+  limitada durante la sesión, siempre con un tope contra compras caras (D-83).
+- Histéresis: comprar con 60 y vender por debajo de 60 favorece la rotación; comparar umbrales separados (D-83).
 - Stop dinámico, salida parcial en `target1` y salida por tiempo (hallazgo 9).
 
 ## Fase 4 — Validación con criterio escrito antes de mirar · PENDIENTE
@@ -123,3 +126,4 @@ de Telegram, o un bróker con API. Con 5.000 € los costes fijos pesan: decidir
 | 2026-11-12 | Revisión inicial y plan. Fase 0 y parte de la fase 1 implementadas (D-82): 400 pruebas de `superbot/ia` y 2.098 de toda la batería antes de la revisión, comprobado con una copia de la base de producción y datos reales |
 | 2026-11-12 | Contrafactual de aprobadas frente a descartadas construido (D-82 §7), verificado contra las 11 órdenes reales |
 | 2026-11-12 | Revisión independiente: sin críticos ni importantes; 4 menores corregidos con prueba (foto partida por una aportación simultánea, referencia que caducaba a los 2 años, `migrar-politica` que creaba tablas en una base ajena, «cierre usado» inventado en posiciones a coste). Pendiente la revisión cruzada de Codex antes de fusionar |
+| 2026-11-24 | Revisión a dos semanas: equity 4.943,52 € al 23-nov (−1,13 %; neta −1,55 %) frente a `EUNL.DE` −1,52 %, 5 de 5 cierres en pérdida, 9 de 15 compras rechazadas por `ABOVE_MAX_ENTRY`. Estrategia congelada y contrafactual sellado con criterio previo (D-83) |

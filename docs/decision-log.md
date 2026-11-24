@@ -2505,6 +2505,17 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 **7. Contrafactual de los descartes (enmienda a D-81 §2 y §6).** El propietario autoriza calcular y mostrar qué hicieron después las candidatas de compra que el comité descartó, junto a las que aprobó, para saber si los asesores filtran mejor que el azar. Acepta expresamente que es un canal lateral más ancho que el de D-81: enseña desenlaces de candidatas del Score v1 que `superbot_ia_v1` no compró, sobre el mismo universo que C0, B2 y S2. No se lee `paper.db` ni se abre ningún desenlace de T-025; todo sale de `ia_decision` y de barras de mercado. Cualquier resultado de T-024 o T-025 que incluya sesiones desde el 2026-11-12 cita también esta enmienda. Se descarta por ahora la espera tras un descarte: cambiaría operaciones y se decide con el contrafactual.
 
+### D-83 — 2026-11-24 — Superbot IA: estrategia congelada y criterio del contrafactual antes de leerlo
+
+Decisión del propietario tras la revisión del 2026-11-24 (cinco operaciones cerradas, todas en pérdida).
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**1. Estrategia congelada.** No se reinician los 5.000 €, ni se cambian stops, scores, umbrales ni entradas. Se conserva la primera muestra y no se adapta el algoritmo a cinco operaciones. Solo se corrigen defectos operativos.
+
+**2. El criterio va antes que los resultados.** El contrafactual de D-82 §7 se despliega sellado: se guarda en `ia_contrafactual` y el dashboard solo muestra recuentos. El criterio está en `docs/superbot-ia/CRITERIO-CONTRAFACTUAL.md`; compara con y sin asesores con las mismas oportunidades y restricciones, descontando costes y exposición al mercado. **Sus números (tamaño de muestra, fecha y umbrales) son una propuesta pendiente de ratificación.** Enmienda a D-82 §7 en lo de mostrar resultados, que se aplaza a la lectura única.
+
+**3. Entradas y umbrales.** El precio máximo de entrada y la histéresis entre compra y venta se estudian solo con simulaciones comparativas (fase 3 del plan), sin quitar la protección contra compras caras. Nada de ello se aplica sin decisión propia.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
