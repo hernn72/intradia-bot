@@ -2531,6 +2531,19 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 **5. Trabajo autorizado.** El programa de madurez (solo cuenta y avisa; no revela resultados ni permite consultas anticipadas) y, después, preparar las simulaciones históricas de 2 y 5 años de entradas y salidas, fuera de la estrategia activa y sin usar los resultados sellados para optimizarlas.
 
+### D-85 — 2026-11-24 — Superbot IA: autorizadas las simulaciones de reglas y ratificado el 5 %
+
+Decisión del propietario, escrita antes de ejecutar ninguna simulación.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**1. Autorización.** Fusionar la PR #70 y ejecutar **una única vez** las simulaciones conforme a `SIMULACIONES-REGLAS.md` (sha256 `5923ee1e476027165060a438d8610782579221771726265c8b40c2d5ec075f8d`): nueve variantes, una regla cada vez, frente a la actual; ventanas de 5 y 2 años con datos hasta el 2026-08-27; intervalo del 99,44 % en cinco años.
+
+**2. Cuándo merece validación.** Criterio estadístico en cinco años, mejora también en dos años y caída máxima que no empeora más de 2 puntos. Superarlo **no autoriza implantar ninguna variante**: solo la hace candidata a una validación independiente. Las ventanas se solapan, el universo tiene sesgo de supervivencia y la IA no se simula.
+
+**3. Reproducibilidad y límites.** Se conservan código, configuración, datos, resultados y hashes. Prohibido modificar la estrategia activa, los 5.000 € iniciales o los resultados sellados del contrafactual.
+
+**4. D-84.** Ratificada también la regla del 5 %: si los datos no válidos superan el 5 % de un grupo, el resultado es `INCONCLUSO`. Al registrarla, el recuento de madurez era 0 en ambos grupos.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia
