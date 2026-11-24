@@ -474,7 +474,7 @@ def _cuantitativos(db: Path, ids: Sequence[int]) -> Dict[int, Mapping[str, Any]]
             stop = niveles["stop"]
             if not isinstance(currency, str) or not currency or not all(
                 math.isfinite(float(valor)) for valor in (score, stop)
-            ):
+            ) or float(stop) <= 0:
                 raise ValueError
         if len(salida) != len(set(ids)):
             raise ValueError
@@ -510,6 +510,13 @@ def _decisiones_compra(db: Path) -> List[sqlite3.Row]:
         ).fetchall()
 
 
+def _cubre(vintage: VintageLoad, symbol: str, market: str, sesion: date) -> bool:
+    if symbol not in vintage.by_symbol:
+        return False
+    serie = _serie(vintage, symbol, market)
+    return any(math.isfinite(c) and c > 0 for d, c in zip(serie.fechas, serie.cierres) if d <= sesion)
+
+
 def _comprobar_cosecha(
     cosecha: str, cosecha_raiz: Path, decisiones: Sequence[sqlite3.Row], instante: datetime,
     cuantitativos: Mapping[int, Mapping[str, Any]], series_ausentes: Sequence[str] = (),
@@ -534,12 +541,27 @@ def _comprobar_cosecha(
     if not sesiones_fin:
         raise EvaluacionDenegada("no hay sesión XETRA para el fin")
     fin_xetra = sesiones_fin[-1]
+    if len(set(referencia.fechas)) != len(referencia.fechas):
+        raise EvaluacionDenegada("sesiones repetidas de EUNL.DE")
+    # El proveedor puede servir una barra en un festivo: no es una sesión y no puede dar un precio.
+    oficiales = set(expected_sessions("XETRA", madurez.CORTE.date() - timedelta(days=10), fecha_instante))
+    en_sesion = [i for i, d in enumerate(referencia.fechas) if d in oficiales]
+    referencia = SeriePrecios(
+        tuple(referencia.fechas[i] for i in en_sesion), tuple(referencia.aperturas[i] for i in en_sesion),
+        tuple(referencia.cierres[i] for i in en_sesion), referencia.splits,
+    )
     ejecutables = [fila for fila in decisiones if fila[5] == 1]
-    permitidas = set(series_ausentes)
-    faltantes = {str(fila[1]) for fila in ejecutables if str(fila[1]) not in vintage.by_symbol}
-    inesperadas = faltantes - permitidas
-    if inesperadas:
-        raise EvaluacionDenegada("faltan series exigidas: " + ", ".join(sorted(inesperadas)))
+    primeras: Dict[Tuple[str, str], date] = {}
+    for fila in ejecutables:
+        clave, sesion = (str(fila[1]), str(fila[2])), date.fromisoformat(str(fila[3]))
+        primeras[clave] = min(sesion, primeras.get(clave, sesion))
+    inservibles = {symbol for (symbol, market), sesion in primeras.items() if not _cubre(vintage, symbol, market, sesion)}
+    if inservibles - set(series_ausentes):
+        raise EvaluacionDenegada("series ausentes o que empiezan tarde: " + ", ".join(
+            sorted(inservibles - set(series_ausentes))
+        ))
+    if set(series_ausentes) - inservibles:
+        raise EvaluacionDenegada("series_ausentes incluye valores que sí tienen datos")
     if ejecutables:
         primera = min(date.fromisoformat(str(fila[3])) for fila in ejecutables)
         ultimas = []
@@ -565,21 +587,6 @@ def _comprobar_cosecha(
                 for valor in (referencia.aperturas[indice], referencia.cierres[indice])
             ):
                 raise EvaluacionDenegada("precio inválido de EUNL.DE")
-    series_comprobadas: set[str] = set()
-    for fila in ejecutables:
-        _decision_id, symbol, market, texto, _crudo, _ejecutable = tuple(fila)
-        sesion = date.fromisoformat(str(texto))
-        sesiones = expected_sessions(str(market), sesion, sesion + timedelta(days=90))
-        if len(sesiones) < HORIZONTE_SESIONES:
-            raise EvaluacionDenegada("calendario insuficiente para el horizonte")
-        if str(symbol) not in faltantes and str(symbol) not in series_comprobadas:
-            serie_valor = _serie(vintage, str(symbol), str(market))
-            if not any(
-                math.isfinite(float(c)) and float(c) > 0
-                for d, c in zip(serie_valor.fechas, serie_valor.cierres) if d <= sesion
-            ):
-                raise EvaluacionDenegada(f"la serie de {symbol} empieza después de su entrada")
-            series_comprobadas.add(str(symbol))
     primer_dia = min((date.fromisoformat(str(f[3])) for f in ejecutables), default=fecha_instante)
     monedas = sorted({str(cuantitativos[int(f[0])]["currency"]) for f in ejecutables} - {"EUR"})
     for moneda in monedas:
@@ -682,7 +689,7 @@ def _leer_casos(
 
 
 def _euros_api(db: Path) -> Tuple[float, Dict[date, float]]:
-    with abrir_fase(db, 2) as conn:
+    with abrir_fase(db, 1) as conn:
         filas = conn.execute(
             "SELECT l.coste_eur,l.created_at FROM ia_llamada l JOIN ia_paquete p ON p.input_hash=l.input_hash "
             "JOIN ia_pasada x ON x.id=l.pasada_id WHERE p.tipo='COMPRA' AND x.decision_ts>=?",
@@ -690,11 +697,14 @@ def _euros_api(db: Path) -> Tuple[float, Dict[date, float]]:
         ).fetchall()
     por_dia: Dict[date, float] = {}
     for coste, texto in filas:
-        instante = datetime.fromisoformat(texto)
-        if instante.tzinfo is None or instante.utcoffset() is None:
-            raise EvaluacionDenegada("fecha de coste API sin zona")
+        try:
+            instante, euros = datetime.fromisoformat(texto), float(coste)
+        except (TypeError, ValueError) as exc:
+            raise EvaluacionDenegada("coste API ilegible") from exc
+        if instante.tzinfo is None or instante.utcoffset() is None or not (math.isfinite(euros) and euros >= 0):
+            raise EvaluacionDenegada("coste API inválido")
         dia = instante.astimezone(timezone.utc).date()
-        por_dia[dia] = por_dia.get(dia, 0.0) + float(coste)
+        por_dia[dia] = por_dia.get(dia, 0.0) + euros
     return sum(por_dia.values()), por_dia
 
 
@@ -761,6 +771,7 @@ def evaluar(
         cosecha, cosecha_raiz, decisiones, instante_evaluacion, cuantitativos, series_ausentes,
         [e.decision_id for e in usables],
     )
+    euros_api, api_por_dia = _euros_api(db)
     identidades = _identidades(raiz, db, cosecha, instante_evaluacion)
     for clave in ("criterio_sha256", "codigo_sha256", "base_sha256", "instante", "entorno"):
         if autorizacion.get(clave) != identidades[clave]:
@@ -781,7 +792,6 @@ def evaluar(
             raise EvaluacionDenegada(f"falta FX de {caso.currency} para el caso {caso.decision_id}")
         exceso, nocional = exceso_neto(caso, fx_entrada, fx_salida, referencia)
         observaciones[caso.grupo].append(Observacion(caso.sesion_entrada, exceso, nocional))
-    euros_api, api_por_dia = _euros_api(db)
     coste_api = coste_api_por_aprobado(euros_api, observaciones["COMPRAR"])
     ic = intervalo_bloques(observaciones["COMPRAR"], observaciones["DESCARTAR"], coste_api)
     medias = {

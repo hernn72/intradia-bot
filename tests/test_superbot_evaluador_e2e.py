@@ -166,8 +166,9 @@ def montar(
     tmp: Path, monkeypatch: pytest.MonkeyPatch, casos: Sequence[C], *, api: float = 0.0,
     alterar: Mapping[str, Callable[[pd.DataFrame], pd.DataFrame]] | None = None, sin: Sequence[str] = (),
     series_ausentes: Sequence[str] = (), fin: date = T.date() + timedelta(days=1), replicas: int = 400,
+    crear: Callable[[Path, Sequence[C], float], Path] = base,
 ) -> Lab:
-    db = base(tmp / "base", casos, api)
+    db = crear(tmp / "base", casos, api)
     raiz = tmp / "repo"
     repo(raiz)
     plazas = {c.symbol: c.market for c in casos}
@@ -310,13 +311,14 @@ def con_nan(b: pd.DataFrame) -> pd.DataFrame:
 
 class TestCobertura:
     @pytest.mark.parametrize("que", [
-        "eunl_cola", "eunl_hueco", "eunl_nan", "peticion", "fx_ausente", "fx_cola", "valor_ausente", "valor_tarde",
+        "eunl_cola", "eunl_hueco", "eunl_nan", "eunl_repetida", "peticion", "fx_ausente", "fx_cola", "valor_ausente", "valor_tarde",
     ])
     def test_denegada_antes_de_abrir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, que: str) -> None:
         lejos = date(2100, 1, 1)
         alterar: dict[str, Any] = {
             "eunl_cola": {"EUNL.DE": quita(XETRA[-2], lejos)}, "eunl_hueco": {"EUNL.DE": quita(XETRA[9], XETRA[9])},
-            "eunl_nan": {"EUNL.DE": con_nan}, "fx_cola": {"EURUSD=X": quita(T.date() - timedelta(days=9), lejos)},
+            "eunl_nan": {"EUNL.DE": con_nan}, "eunl_repetida": {"EUNL.DE": lambda b: pd.concat([b, b.iloc[[20]]])},
+            "fx_cola": {"EURUSD=X": quita(T.date() - timedelta(days=9), lejos)},
             "valor_tarde": {"A0": quita(INICIO, XETRA[3])},
         }.get(que, {})
         sin = {"fx_ausente": ["EURUSD=X"], "valor_ausente": ["A0"]}.get(que, [])
@@ -337,6 +339,61 @@ class TestCobertura:
             assert parte[clave] == entero[clave]
         simbolos = [{o["symbol"] for o in r["carteras"]["sin_ia"]["operaciones"]} for r in (entero, parte)]
         assert "A0" in simbolos[0] and "A0" not in simbolos[1]
+
+    def test_una_barra_de_eunl_en_festivo_no_es_una_sesion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        entra = next(d for d in expected_sessions("NASDAQ", D0, T.date()) if d not in XETRA)
+        casos = poblacion()
+        casos[0] = C("A0", "COMPRAR", entra, 130.0, "NASDAQ")
+
+        def con_barra_falsa(b: pd.DataFrame) -> pd.DataFrame:
+            falsa = b.iloc[[0]].assign(Open=500.0, High=500.0, Low=500.0, Close=500.0)
+            falsa.index = pd.DatetimeIndex([entra])
+            return pd.concat([b, falsa]).sort_index()
+
+        r = montar(tmp_path, monkeypatch, casos, alterar={"EUNL.DE": con_barra_falsa}).evaluar()
+        assert r["estimador"] == pytest.approx(a_mano(casos, 0.0), abs=1e-12)
+
+    def test_no_se_puede_autorizar_la_ausencia_de_un_valor_que_esta(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        lab = montar(tmp_path, monkeypatch, poblacion(), series_ausentes=["A0"])
+        with pytest.raises(evaluacion.EvaluacionDenegada, match="sí tienen datos"):
+            lab.evaluar()
+        assert not lab.apertura.exists()
+
+    @pytest.mark.parametrize("sql,motivo", [
+        ("UPDATE ia_llamada SET created_at='2027-05-31T10:00:00'", "coste API"),
+        ("UPDATE ia_llamada SET coste_eur='x'", "coste API"), ("UPDATE ia_llamada SET coste_eur=-1", "coste API"),
+        ("""UPDATE ia_decision SET cuantitativo='{"score":70,"currency":"EUR","niveles":{"stop":-1}}'""", "cuantitativo"),
+        ("UPDATE ia_decision SET target_open='2026-11-25T08:00:00'", "target_open"),
+        ("UPDATE ia_contrafactual SET resolucion='COMPRAR'", "no coinciden"),
+    ])
+    def test_lo_ilegible_se_descubre_antes_de_abrir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sql: str, motivo: str,
+    ) -> None:
+        def rota(donde: Path, casos: Sequence[C], _api: float) -> Path:
+            db = base(donde, casos, 3.0)
+            conn = sqlite3.connect(db)
+            conn.execute(sql)
+            conn.commit()
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            conn.close()
+            return db
+
+        lab = montar(tmp_path, monkeypatch, poblacion(), crear=rota)
+        with pytest.raises(evaluacion.EvaluacionDenegada, match=motivo):
+            lab.evaluar()
+        assert not lab.apertura.exists() and 2 not in lab.fases
+
+    def test_una_abierta_reciente_no_bloquea_y_va_a_carteras(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        viva = C("0_VIVA", "COMPRAR", XETRA[-3], 101.0, estado=contrafactual.ABIERTA, final=0)
+        r = montar(tmp_path, monkeypatch, [*poblacion(), viva]).evaluar()
+        abiertas = [o for o in r["carteras"]["con_ia"]["operaciones"] if o["symbol"] == "0_VIVA"]
+        assert r["n"]["COMPRAR"] == 33 and [o["estado"] for o in abiertas] == ["ABIERTA"]
 
     def test_faltan_casos_por_completar_no_dice_cuales(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         casos = [*poblacion(), C("X", "COMPRAR", estado=contrafactual.ABIERTA, final=0)]
@@ -420,15 +477,15 @@ class TestLoQueNoDecideNoBloquea:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         lab = montar(tmp_path, monkeypatch, poblacion())
-        real = evaluacion._euros_api
+        real = evaluacion._leer_casos
 
-        def cambia(db: Path) -> Any:
-            hecho = real(db)
+        def cambia(db: Path, usables: Any) -> Any:
+            hecho = real(db, usables)
             with sqlite3.connect(db) as conn:
                 conn.execute("UPDATE ia_decision SET motivo='otro'")
             return hecho
 
-        monkeypatch.setattr(evaluacion, "_euros_api", cambia)
+        monkeypatch.setattr(evaluacion, "_leer_casos", cambia)
         with pytest.raises(evaluacion.EvaluacionDenegada, match="después de abrir"):
             lab.evaluar()
         assert lab.apertura.exists() and not lab.resultado.exists()

@@ -38,8 +38,9 @@ segundo clon permitiría repetir el cálculo, con idéntico resultado.
 | `INCONCLUSO` por muestra, datos o bloques | No lee rendimientos: no publica medias ni carteras (§6 las pide «junto al resultado») |
 | Sin entrada tras 20 sesiones | Cuenta como dato no válido de su grupo, en el 5 % |
 | Apertura que el proveedor corrige después | Si la entrada constó y luego el estado es `NO_EJECUTABLE`: dato no válido, en el 5 % |
+| `EUNL.DE` | Solo barras de sesiones oficiales de Xetra; una barra en festivo se ignora |
 | Carteras | Tamaño con 5.000 EUR fijos; efectivo de una salida, disponible al día siguiente; abiertas, a mercado |
-| Serie de un valor que ya no existe | Solo si se lista en la autorización; se omite en las dos carteras y no toca la métrica |
+| Serie de un valor ausente o que empieza tarde | Solo si se lista en la autorización, y no se admite listar uno que sí tiene datos; se omite en las dos carteras y no toca la métrica |
 | Carteras o §7 fallan | Se publica el error y el veredicto sale igual |
 
 ## 4. Decisiones del propietario, antes de que haya casos maduros
@@ -57,9 +58,12 @@ supuesta del 7 %, 1.500 repeticiones, sin efecto real), conclusiones falsas suma
 | t con los mismos bloques (jackknife, K−1 grados) | 5–6 % | 4–6 % | 22 / 61 / 92 % |
 
 El 95 % nominal equivale a un 87 %. El t lo corrige perdiendo potencia: más `INCONCLUSO`. Calibración en
-`evidence/superbot-ia/calibracion-evaluador/`. Hoy el código aplica el criterio tal como está.
+`evidence/superbot-ia/calibracion-evaluador/`. En 47 evaluaciones sintéticas completas sin efecto real, con
+entradas repartidas en pocos bloques desiguales, 14 (30 %) concluyeron algo falso: puede ser peor. Hoy el código aplica el criterio tal como está.
 
 ## 5. Límites
 
-Sintético: no prueba que los datos reales lleguen completos. Los festivos dependen de `exchange_calendars`, cuya
+Revisado con 55 ejecuciones de punta a punta que usan el `contrafactual.actualizar` de producción y un proveedor
+defectuoso (huecos, NaN, aperturas revisadas, splits, apagones): ningún fallo tras abrir, y en las 29 con
+estimador de la última tanda coincide con un cálculo aparte. Aun así es sintético: no prueba que los datos reales lleguen completos. Los festivos dependen de `exchange_calendars`, cuya
 versión se fija en la autorización. La métrica usa los desenlaces que guardó el bot, no los recalcula.
