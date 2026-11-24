@@ -32,8 +32,11 @@ toda candidata elegible (score ≥ umbral, cinco por plaza) que quepa. Se vende 
 cierto: es el máximo que la IA podría vender, y **en el bot real vendería menos**.
 
 Aproximaciones: barras diarias; si un día toca stop y objetivo, cuenta el stop; una orden limitada se
-ejecuta si el mínimo llega al precio; no se aplican el máximo de una venta por pasada ni la hora de
-cada plaza dentro del día; el tamaño usa el valor a mercado del cierre anterior.
+ejecuta si el mínimo llega al precio; el efectivo se reparte por hora de apertura de la plaza y símbolo,
+con un orden de aperturas fijo, sin cambio de hora; «cinco por plaza» es por sesión (en el bot, por pasada, puede haber
+más); no se aplican el máximo de una venta por pasada, el veto por calidad del dato ni la tolerancia
+parcial de Asia en el contexto; el tamaño usa el valor a mercado del cierre anterior. La espera de recompra
+de 5 sesiones cuenta desde cualquier cierre, como en el bot.
 
 ## 4. Variantes: una cosa cada vez
 
@@ -50,9 +53,10 @@ cada plaza dentro del día; el tamaño usa el valor a mercado del cierre anterio
 | `X2_STOP_MOVIL` | El stop sube a máximo cierre − 2 ATR; nunca baja |
 | `X3_20_SESIONES` | Vende tras 20 sesiones |
 
-Todas las entradas conservan un tope de precio. El precio máximo actual coincide con el cierre porque
-stop = 2 ATR, objetivo = 3 ATR y ratio mínimo = 1,5 (3/2 = 1,5): subirlo obliga a aceptar un ratio
-menor (1,22 con `E1`, 1,00 con `E2`). No se combinan variantes en esta ronda.
+Todas las entradas conservan un tope de precio. El precio máximo actual coincide casi siempre con
+el cierre porque stop = 2 ATR, objetivo = 3 ATR y ratio mínimo = 1,5 (3/2 = 1,5): subirlo obliga a aceptar
+un ratio menor (1,22 con `E1`, 1,00 con `E2`). En 564 de 24.574 fichas con score de 60 o más (2,3 %) un
+soporte cercano acerca el stop, y el máximo queda por encima del cierre. No se combinan variantes en esta ronda.
 
 ## 5. Métrica y decisión
 
@@ -75,5 +79,6 @@ permite proponer una prueba hacia delante, tras la evaluación del contrafactual
 
 ## 6. Ejecución
 
-Una vez. `python -m superbot.lab correr` exige el sha256 de este fichero y se niega a sobrescribir un
-resultado. Si un fallo obliga a repetir, se corrige, se declara aquí y se repite entera.
+Una vez. `python -m superbot.lab correr` exige el sha256 de este fichero y un árbol de git limpio, usa solo
+la cosecha de §2, guarda el SHA del código y escribe en `evidence/superbot-ia/simulaciones-reglas/`, donde
+se niega a sobrescribir. Si un fallo obliga a repetir, se corrige, se declara aquí y se repite entera.

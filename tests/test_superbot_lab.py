@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
@@ -123,7 +124,21 @@ class TestSimular:
         r = _simular([_serie([PLANA] * 24)], {"A": {0: FICHA}}, x3)
         assert (r.operaciones[0].motivo, r.operaciones[0].salida) == ("TIEMPO", _dia(21))
 
-    def test_el_efectivo_limita_y_manda_el_score(self) -> None:
+    def test_tras_un_stop_tambien_se_espera(self) -> None:
+        barras = [PLANA, PLANA, (99.0, 99.0, 95.0, 97.0), *[PLANA] * 8]
+        r = _simular([_serie(barras)], {"A": dict.fromkeys(range(10), FICHA)})
+        # Stop en la sesión 2: vuelve a ser candidata en la 7 y entra en la 8.
+        assert r.operaciones[0].motivo == "STOP" and r.exposicion[7] == 0.0 and r.exposicion[8] > 0
+
+    def test_el_efectivo_se_reparte_por_apertura_y_no_por_score(self) -> None:
+        series = [replace(_serie([PLANA] * 2, f"S{i}"), market=f"M{i}", minuto_apertura=100 - i) for i in range(12)]
+        r = _simular(series, {f"S{i}": {0: replace(FICHA, score=90.0 - i)} for i in range(12)})
+        assert r.rechazadas == {"SIN_EFECTIVO": 3} and r.abiertas == 9
+        # La que menos score tiene abre antes y entra; las de más score abren al final y no caben.
+        tarde = _simular([replace(s, minuto_apertura=0) for s in series[-1:]], {"S11": {0: FICHA}})
+        assert tarde.abiertas == 1
+
+    def test_el_efectivo_limita_la_exposicion(self) -> None:
         series = [_serie([PLANA] * 4, f"S{i}") for i in range(12)]
         fichas = {f"S{i}": {d: replace(FICHA, score=60.0 + i) for d in range(3)} for i in range(12)}
         r = _simular(series, fichas)
@@ -165,10 +180,26 @@ class TestGuardas:
     def test_los_datos_acaban_donde_ya_estan_consumidos(self) -> None:
         assert datos_lab.DESCARGA_FIN_EXCLUSIVO == "2026-08-28" and date(2026, 8, 27) == datos_lab.FIN
 
-    def test_sin_el_preregistro_exacto_no_corre(self, capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
-        salida = tmp_path / "r.json"
-        assert cli.main(["correr", "--cosecha", "x", "--prereg-sha256", "0", "--salida", str(salida)]) == 2
-        assert not salida.exists()
+    @pytest.mark.parametrize("marca, fecha", [
+        ("2024-07-02T23:00:00Z", date(2024, 7, 3)), ("2024-12-03T00:00:00Z", date(2024, 12, 3)),
+    ])
+    def test_el_cambio_no_se_adelanta_en_verano(self, marca: str, fecha: date) -> None:
+        assert datos_lab.fecha_fx(marca) == fecha
+
+    def test_sin_el_preregistro_exacto_no_corre(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(cli, "RESULTADO", tmp_path / "r.json")
+        assert cli.main(["correr", "--prereg-sha256", "0"]) == 2
+        assert not (tmp_path / "r.json").exists()
+
+    def test_no_se_repite_ni_corre_con_el_arbol_sucio(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        sha = hashlib.sha256(cli.PREREGISTRO.read_bytes()).hexdigest()
+        monkeypatch.setattr(cli, "RESULTADO", tmp_path / "r.json")
+        monkeypatch.setattr(cli, "load_vintage", lambda *_a, **_k: pytest.fail("no debe abrir datos"))
+        monkeypatch.setattr(cli, "_git", lambda *_a: " M superbot/lab/simulador.py")
+        assert cli.main(["correr", "--prereg-sha256", sha]) == 2
+        (tmp_path / "r.json").write_text("{}", encoding="utf-8")
+        monkeypatch.setattr(cli, "_git", lambda *_a: "")
+        assert cli.main(["correr", "--prereg-sha256", sha]) == 2
 
     def test_produccion_no_importa_el_laboratorio(self) -> None:
         for fichero in Path("superbot/ia").glob("*.py"):

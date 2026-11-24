@@ -1,7 +1,8 @@
 """CLI del laboratorio: ``python -m superbot.lab congelar|comprobar|correr``.
 
 ``comprobar`` prepara los datos y solo informa de coberturas. ``correr`` abre desenlaces: exige el
-sha256 del pre-registro, para que nadie lo lance con reglas distintas de las escritas.
+sha256 del pre-registro y un árbol de git limpio, usa solo la cosecha fijada, escribe siempre en el
+mismo sitio y no se repite.
 """
 
 from __future__ import annotations
@@ -9,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -21,8 +23,14 @@ from superbot.ia.medicion import REFERENCIA
 from superbot.lab import datos_lab
 from superbot.lab.simulador import BASE, CAPITAL_EUR, VARIANTES, Resultado, intervalo_diferencia, simular
 
+COSECHA = "4506dc5df60bb1f6cbdaf6755e1b60c65c1ed25a1598e8f53f6afdf0e984869c"
+RESULTADO = Path("evidence/superbot-ia/simulaciones-reglas/resultado.json")
 PREREGISTRO = Path("docs/superbot-ia/SIMULACIONES-REGLAS.md")
 NIVEL = 1.0 - 0.05 / len(VARIANTES)
+
+
+def _git(*argumentos: str) -> str:
+    return subprocess.run(["git", *argumentos], capture_output=True, text=True, check=True).stdout.strip()
 
 
 def _resumen(r: Resultado) -> Dict[str, Any]:
@@ -39,11 +47,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--raiz", default="data/vintages-lab")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("congelar")
-    sub.add_parser("comprobar").add_argument("--cosecha", required=True)
-    correr = sub.add_parser("correr")
-    correr.add_argument("--cosecha", required=True)
-    correr.add_argument("--prereg-sha256", required=True)
-    correr.add_argument("--salida", required=True)
+    sub.add_parser("comprobar")
+    sub.add_parser("correr").add_argument("--prereg-sha256", required=True)
     args = parser.parse_args(argv)
 
     config = load_config("config.yaml")
@@ -57,16 +62,22 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.prereg_sha256 != real:
             print("El pre-registro no es el autorizado", file=sys.stderr)
             return 2
-        if Path(args.salida).exists():
+        if RESULTADO.exists():
             print("Ya hay un resultado: no se repite", file=sys.stderr)
             return 2
-    vintage = load_vintage(args.cosecha, root_dir=args.raiz)
+        if _git("status", "--porcelain", "--untracked-files=no"):
+            print("Hay cambios sin comitear: el resultado no se podría atribuir a un código", file=sys.stderr)
+            return 2
+    vintage = load_vintage(COSECHA, root_dir=args.raiz)
     series, fichas, fx, informe = datos_lab.preparar(vintage, config, universe)
     if args.cmd == "comprobar":
         print(json.dumps(informe, ensure_ascii=False, indent=1))
         return 0
     referencia = datos_lab.cierres(vintage, REFERENCIA)
-    salida: Dict[str, Any] = {"cosecha": args.cosecha, "prereg_sha256": args.prereg_sha256, "nivel": NIVEL, "datos": informe}
+    salida: Dict[str, Any] = {
+        "cosecha": COSECHA, "prereg_sha256": args.prereg_sha256, "code_sha": _git("rev-parse", "HEAD"), "nivel": NIVEL,
+        "datos": informe,
+    }
     for nombre, inicio in (("5a", datos_lab.INICIO_5A), ("2a", datos_lab.INICIO_2A)):
         base = simular(series, fichas, fx, referencia, BASE, inicio, datos_lab.FIN)
         bloque: Dict[str, Any] = {BASE.nombre: _resumen(base)}
@@ -75,8 +86,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             total, bajo, alto = intervalo_diferencia(r.exceso, base.exceso, nivel=NIVEL)
             bloque[regla.nombre] = {**_resumen(r), "diferencia_eur": total, "ic": [bajo, alto]}
         salida[nombre] = bloque
-    Path(args.salida).write_text(json.dumps(salida, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(args.salida)
+    RESULTADO.parent.mkdir(parents=True, exist_ok=True)
+    RESULTADO.write_text(json.dumps(salida, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(RESULTADO)
     return 0
 
 

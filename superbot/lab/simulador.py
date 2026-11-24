@@ -29,7 +29,7 @@ ENTRADA_LIMITE = "LIMITE"
 class Regla:
     nombre: str
     entrada: str = ENTRADA_APERTURA
-    # Margen sobre el cierre de la señal, en ATR. Cero es la regla actual. Siempre hay un tope.
+    # Margen sobre el precio máximo actual, en ATR. Cero es la regla actual. Siempre hay un tope.
     margen_atr: float = 0.0
     score_compra: float = 60.0
     score_venta: float = 60.0
@@ -62,6 +62,8 @@ class Serie:
     maximo: Tuple[float, ...]
     minimo: Tuple[float, ...]
     cierre: Tuple[float, ...]
+    # Minuto UTC de apertura de su plaza: el efectivo se reparte en ese orden, como en producción.
+    minuto_apertura: int = 0
 
 
 @dataclass(frozen=True)
@@ -184,12 +186,12 @@ def simular(
             Operacion(posicion.symbol, posicion.sesion, dia, motivo, importe - coste - posicion.coste_eur)
         )
         del posiciones[posicion.symbol]
-        if motivo.startswith("PREDICADO"):
-            vendidas[posicion.symbol] = indice[posicion.symbol][dia]
+        # La espera de recompra cuenta desde cualquier cierre, también un stop (``_ventas_ia_recientes``).
+        vendidas[posicion.symbol] = indice[posicion.symbol][dia]
 
     for dia in dias:
-        # 1. Entradas pendientes de hoy, por score, con el efectivo de antes de cualquier venta.
-        for symbol, (sesion, ficha) in sorted(pendientes.items(), key=lambda x: (-x[1][1].score, x[0])):
+        # 1. Entradas pendientes de hoy, por apertura y símbolo, con el efectivo de antes de cualquier venta.
+        for symbol, (sesion, ficha) in sorted(pendientes.items(), key=lambda x: (series[x[0]].minuto_apertura, x[0])):
             if sesion != dia:
                 continue
             del pendientes[symbol]

@@ -6,7 +6,7 @@ cosecha de T-024, ni ``paper.db``, ni la base de Superbot IA.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
@@ -25,6 +25,7 @@ from advisor.research.vintage import VintageLoad, freeze_vintage, frozen_close
 from advisor.universe.models import Universe
 from superbot.config import SuperbotConfig
 from superbot.data import select_assets
+from superbot.ia.datos import sesion_objetivo
 from superbot.ia.medicion import REFERENCIA
 from superbot.ia.pasada import BROKER_VERIFICADO
 from superbot.ia.politica import PoliticaIA
@@ -73,14 +74,27 @@ def serie_de(asset: Any, barras: pd.DataFrame, market: str) -> Serie:
     columnas = ("Open", "High", "Low", "Close")
     return Serie(
         asset.symbol, market, asset.currency, tuple(_fechas(barras.index, market)),
-        *(tuple(float(v) for v in barras[c]) for c in columnas),
+        *(tuple(float(v) for v in barras[c]) for c in columnas), minuto_apertura=_minuto_apertura(market),
     )
+
+
+def fecha_fx(marca: Any) -> date:
+    """yfinance fecha los pares a medianoche de Londres: en verano, la fecha UTC es la del día anterior."""
+
+    return pd.Timestamp(marca).tz_convert("Europe/London").date()
+
+
+def _minuto_apertura(market: str) -> int:
+    _sesion, apertura = sesion_objetivo(market, date(2025, 1, 14))
+    utc = apertura.astimezone(timezone.utc)
+    return utc.hour * 60 + utc.minute
 
 
 def cierres(vintage: VintageLoad, symbol: str) -> Tuple[Sequence[date], Sequence[float]]:
     barras = vintage.by_symbol[symbol].execution_prices
-    # Los pares de divisa no tienen plaza: su fecha es la de la propia barra.
-    fechas = [date.fromisoformat(str(m)[:10]) for m in barras.index] if symbol.endswith("=X") else _fechas(barras.index, market_for_symbol(symbol))
+    fechas = (
+        [fecha_fx(m) for m in barras.index] if symbol.endswith("=X") else _fechas(barras.index, market_for_symbol(symbol))
+    )
     return fechas, [float(v) for v in barras["Close"]]
 
 
