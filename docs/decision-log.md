@@ -2516,6 +2516,21 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 **3. Entradas y umbrales.** El precio máximo de entrada y la histéresis entre compra y venta se estudian solo con simulaciones comparativas (fase 3 del plan), sin quitar la protección contra compras caras. Nada de ello se aplica sin decisión propia.
 
+### D-84 — 2026-11-24 — Superbot IA: criterio del contrafactual ratificado y asesores de compra
+
+Decisión del propietario, con los resultados sellados y ningún caso posterior al corte. Cierra lo pendiente de D-83 §2.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**1. Parámetros.** Objetivo de 50 casos maduros por grupo o el 2027-05-31, lo primero que ocurra; mínimo evaluable de 30 por grupo; intervalo del 95 %; una sola evaluación confirmatoria; las 93 decisiones anteriores son exploratorias y quedan excluidas; estrategia congelada durante la medición.
+
+**2. Métrica.** La principal es el efecto neto de la selección: aprobadas frente a descartadas contra `EUNL.DE` en los mismos períodos, descontando costes y neutralizando el efectivo. Las carteras simuladas con y sin IA (5.000 €, mismas restricciones) contrastan el resultado económico.
+
+**3. Interpretación.** Se distingue demostrar que la IA no aporta de no tener evidencia suficiente de que aporte. `LA IA APORTA`: intervalo entero por encima de cero. `LA IA NO APORTA`: intervalo entero en cero o por debajo. `INCONCLUSO`: el resto, o menos de 30 por grupo; no basta para desactivar a los asesores. Se acepta que una muestra así detecta mal las ventajas pequeñas.
+
+**4. Desactivar a los asesores de compra** es quitarles la influencia en compras nuevas, de forma controlada y reversible, con posible modo observación, conservando registros, stops, gestión de posiciones y controles de riesgo. Abre una fase nueva sin alterar los resultados de la anterior. Los asesores de venta no se tocan: exigen su propia evaluación.
+
+**5. Trabajo autorizado.** El programa de madurez (solo cuenta y avisa; no revela resultados ni permite consultas anticipadas) y, después, preparar las simulaciones históricas de 2 y 5 años de entradas y salidas, fuera de la estrategia activa y sin usar los resultados sellados para optimizarlas.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

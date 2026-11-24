@@ -18,7 +18,7 @@ from advisor.config import AdvisorConfig
 from advisor.data.calendars import expected_sessions
 from advisor.data.market_data import MarketDataProvider
 from advisor.universe.models import Asset, Universe
-from superbot.ia import comite, contrafactual, medicion, telegram
+from superbot.ia import comite, contrafactual, madurez, medicion, telegram
 from superbot.ia.asesores import (
     ERROR_LLAMADA,
     OK,
@@ -541,6 +541,11 @@ def _ejecutar(
     if activa:
         assert cartera_ia is not None
         telegram.encolar_notificaciones_de_la_pasada(cartera_ia, resultado, mantenimiento_ts)
+        try:
+            cuenta = madurez.contar(registro.conn, instante, config.data_quality.settlement_minutes)
+            telegram.encolar_madurez(cartera_ia, cuenta)
+        except Exception as exc:
+            logger.warning("madurez de la pasada %s sin contar: %s: %s", pasada_id, type(exc).__name__, exc)
     return resultado
 
 

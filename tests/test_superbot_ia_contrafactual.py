@@ -1,9 +1,8 @@
 """Contrafactual de las decisiones de compra: la simulación usa el gate y el stop del motor real,
-no entra en otra sesión que la objetivo, y el resumen separa aprobadas de descartadas."""
+no entra en otra sesión que la objetivo, y lo definitivo no se recalcula."""
 
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,7 +10,7 @@ from typing import Any, ClassVar, Dict, List, Tuple
 
 import pytest
 
-from superbot.ia import contrafactual, dashboard, datos
+from superbot.ia import contrafactual, datos
 from superbot.ia.contrafactual import (
     ABIERTA,
     HORIZONTE,
@@ -128,7 +127,16 @@ def _actualizar(reg: Any, barras: Dict[str, Dict[date, Tuple[float, float, float
     return contrafactual.actualizar(reg.conn, crudo, _universo(), instante, "1y", "1d", 0)
 
 
-class TestActualizarYResumen:
+def _fila(reg: Any, symbol: str) -> Any:
+    """Desenlace sintético de la prueba, leído de la tabla: el código no ofrece ninguna lectura (D-83)."""
+
+    cursor = reg.conn.execute(
+        "SELECT resolucion, estado, retorno_pct, retorno_r, final FROM ia_contrafactual WHERE symbol = ?", (symbol,)
+    )
+    return SimpleNamespace(**dict(zip(("resolucion", "estado", "retorno_pct", "retorno_r", "final"), cursor.fetchone())))
+
+
+class TestActualizar:
     RESPUESTAS: ClassVar[Dict[str, Any]] = {
         "A": compra_ok(), "B": compra_ok(decision="DESCARTAR", prioridad="BAJA"),
     }
@@ -143,10 +151,9 @@ class TestActualizarYResumen:
 
         assert _actualizar(reg, barras, self.DESPUES) == 2
 
-        aprobadas, descartadas = contrafactual.resumen(reg.conn)
-        assert (aprobadas.resolucion, aprobadas.decisiones, aprobadas.seguidas, aprobadas.stops) == ("COMPRAR", 1, 1, 0)
-        assert aprobadas.retorno_medio_pct == pytest.approx(3.0) and aprobadas.positivas_pct == pytest.approx(100.0)
-        assert (descartadas.decisiones, descartadas.stops) == (1, 1) and descartadas.r_medio == pytest.approx(-1.0)
+        a, b = _fila(reg, "A"), _fila(reg, "B")
+        assert (a.resolucion, a.estado, a.retorno_pct) == ("COMPRAR", ABIERTA, pytest.approx(3.0))
+        assert (b.resolucion, b.estado, b.retorno_r) == ("DESCARTAR", STOP, pytest.approx(-1.0))
 
     def test_lo_definitivo_no_se_recalcula_y_lo_abierto_si(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         reg = _decidir(tmp_path, monkeypatch, self.RESPUESTAS)
@@ -160,8 +167,7 @@ class TestActualizarYResumen:
 
         assert _actualizar(reg, barras, self.DESPUES) == 1
 
-        aprobadas, descartadas = contrafactual.resumen(reg.conn)
-        assert aprobadas.retorno_medio_pct == pytest.approx(10.0) and descartadas.r_medio == pytest.approx(-1.0)
+        assert _fila(reg, "A").retorno_pct == pytest.approx(10.0) and _fila(reg, "B").retorno_r == pytest.approx(-1.0)
 
     def test_una_barra_sin_cerrar_no_se_usa(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """La barra de la sesión objetivo tocaría el stop, pero a esa hora aún no ha cerrado."""
@@ -185,7 +191,7 @@ class TestActualizarYResumen:
 
         assert _actualizar(reg, {"B": {OBJETIVO: (98.0, 97.0, 99.0)}}, self.DESPUES) == 1
 
-    def test_el_resumen_separa_cerradas_y_sin_datos(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_separa_lo_seguido_de_lo_que_no_tiene_datos(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         reg = _decidir(tmp_path, monkeypatch, self.RESPUESTAS)
         barras = {
             "A": {date(2026, 11, 9): (98.0, 97.0, 99.0)},
@@ -193,19 +199,15 @@ class TestActualizarYResumen:
         }
         _actualizar(reg, barras, self.DESPUES)
 
-        aprobadas, descartadas = contrafactual.resumen(reg.conn)
+        assert (_fila(reg, "A").estado, _fila(reg, "A").retorno_pct) == (SIN_BARRA_DE_ENTRADA, None)
+        assert _fila(reg, "B").retorno_pct == pytest.approx(100.0 * (95.0 / 98.0 - 1.0))
 
-        assert (aprobadas.decisiones, aprobadas.sin_datos, aprobadas.seguidas, aprobadas.cerradas) == (1, 1, 0, 0)
-        assert aprobadas.retorno_cerradas_pct is None
-        assert (descartadas.cerradas, descartadas.sin_datos) == (1, 0)
-        assert descartadas.retorno_cerradas_pct == pytest.approx(100.0 * (95.0 / 98.0 - 1.0))
-
-    def test_una_decision_pendiente_no_cuenta_en_el_resumen(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_una_decision_sin_sesion_objetivo_sigue_pendiente(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         reg = _decidir(tmp_path, monkeypatch, self.RESPUESTAS)
 
         _actualizar(reg, {"A": {date(2026, 11, 5): (98.0, 97.0, 99.0)}}, T)
 
-        assert [g.decisiones for g in contrafactual.resumen(reg.conn)] == [0, 0]
+        assert _fila(reg, "A").estado == PENDIENTE
 
     def test_un_valor_sin_serie_no_impide_seguir_a_los_demas(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         reg = _decidir(tmp_path, monkeypatch, self.RESPUESTAS)
@@ -241,29 +243,3 @@ class TestActualizarYResumen:
 
         assert len(llamadas) == 1 and resultado.status == "OK" and resultado.compras == ["A"]
         assert resultado.incidencias == []
-
-
-class TestDashboard:
-    def test_muestra_recuentos_y_ningun_resultado(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        reg = _decidir(tmp_path, monkeypatch, TestActualizarYResumen.RESPUESTAS)
-        seccion_antes = dashboard._contrafactual_section(contrafactual.resumen(reg.conn))
-        _actualizar(reg, {"A": {OBJETIVO: (98.0, 97.0, 100.94)}, "B": {OBJETIVO: (98.0, 94.0, 96.0)}},
-                    TestActualizarYResumen.DESPUES)
-        grupos = contrafactual.resumen(reg.conn)
-        seccion = dashboard._contrafactual_section(grupos)
-
-        assert "Aprobadas por el comité" in seccion and "Descartadas" in seccion and "sellados" in seccion
-        assert seccion != seccion_antes
-        # Con resultados distintos, la sección no cambia: no hay por dónde inferirlos.
-        otros = [replace(g, stops=9, seguidas=9, cerradas=9, sin_datos=9, retorno_medio_pct=-7.77, retorno_mediano_pct=-7.77,
-                         retorno_cerradas_pct=-7.77, positivas_pct=7.77, r_medio=-7.77, cortas=9,
-                         retorno_corto_medio_pct=-7.77) for g in grupos]
-        assert dashboard._contrafactual_section(otros) == seccion
-
-    def test_sin_decisiones_no_lanza(self, tmp_path: Path) -> None:
-        cartera_ia, reg = _cartera(tmp_path)
-        cartera_ia.activar(T_ACTIVACION, 10_000.0)
-
-        pagina = dashboard.render_html(cartera_ia, reg, "ahora")
-
-        assert "Aprobadas frente a descartadas" in pagina and "sellados" in pagina
