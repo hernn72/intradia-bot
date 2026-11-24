@@ -12,7 +12,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Protocol, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Protocol, Sequence, Tuple
 
 from superbot.ia.comite import COMPRAR, DESCARTAR, MANTENER, PRIORIDADES, VENDER, Voto
 from superbot.ia.paquete import COMPRA, POSICION, Paquete
@@ -166,7 +166,26 @@ def _valores_con_digitos(datos: Mapping[str, Any]) -> Optional[re.Pattern[str]]:
     return re.compile(r"(?<![A-Za-z0-9])(?:" + "|".join(re.escape(n) for n in con_digitos) + r")(?![A-Za-z0-9])")
 
 
-def _texto_valido(frases: List[str], valores: Optional[re.Pattern[str]] = None) -> Optional[str]:
+def _causas_con_digitos(datos: Mapping[str, Any]) -> Optional[re.Pattern[str]]:
+    """Las causas de venta del paquete cuyo nombre lleva dígitos (``SCORE_BAJO_60``), también en prosa.
+
+    «El score bajo 60» es el nombre del predicado que el propio paquete enseña, no una cifra del
+    modelo. Solo cuenta la causa entera y con ese número: «score 60» o «score bajo 58» siguen
+    siendo cifras.
+    """
+
+    predicados = datos.get("predicados")
+    if not isinstance(predicados, Mapping):
+        return None
+    con_digitos = sorted(n for n in predicados if isinstance(n, str) and any(c.isdigit() for c in n))
+    if not con_digitos:
+        return None
+    nombres = (r"[ _]".join(re.escape(parte) for parte in nombre.split("_")) for nombre in con_digitos)
+    # Tras el número no puede seguir otra cifra ni un decimal o un porcentaje: eso ya es otro dato.
+    return re.compile(r"(?<![A-Za-z0-9_])(?:" + "|".join(nombres) + r")(?![A-Za-z0-9_]|[.,]\d|\s?%)", re.IGNORECASE)
+
+
+def _texto_valido(frases: List[str], nombres: Sequence[re.Pattern[str]] = ()) -> Optional[str]:
     """Sin cifras: una cifra no se puede atar a su dato, así que el texto solo nombra campos.
 
     La lista de términos externos es una red de seguridad, no una garantía: un sinónimo
@@ -176,7 +195,9 @@ def _texto_valido(frases: List[str], valores: Optional[re.Pattern[str]] = None) 
     for frase in frases:
         if _EXTERNO.search(frase):
             return DATO_EXTERNO
-        sin_nombres = _INDICADORES.sub("", frase if valores is None else valores.sub("", frase))
+        sin_nombres = _INDICADORES.sub("", frase)
+        for patron in nombres:
+            sin_nombres = patron.sub("", sin_nombres)
         if any(caracter.isdigit() for caracter in sin_nombres):
             return CIFRA_AJENA
     return None
@@ -229,7 +250,8 @@ def validar_dictamen(texto: str, paquete: Paquete, stop_reason: Optional[str]) -
 
     if not all(_hoja_valida(paquete.datos, ruta) for ruta in data["datos_citados"]):
         return CITA_INEXISTENTE, None
-    fallo = _texto_valido(data["motivos"] + data["riesgos"], _valores_con_digitos(paquete.datos))
+    nombres = [p for p in (_valores_con_digitos(paquete.datos), _causas_con_digitos(paquete.datos)) if p is not None]
+    fallo = _texto_valido(data["motivos"] + data["riesgos"], nombres)
     if fallo is not None:
         return fallo, None
     return OK, data

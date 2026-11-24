@@ -26,6 +26,8 @@ from tests.test_superbot_ia import (
     _pasada,
     compra_ok,
     paquete_compra,
+    paquete_posicion,
+    posicion_ok,
     registro,
 )
 from tests.test_superbot_ia_cartera import _abrir, _cartera, _proveedor_ohlc
@@ -152,6 +154,29 @@ class TestValoresConDigitos:
 
     def test_un_valor_que_no_esta_en_el_paquete_no_se_admite(self) -> None:
         texto = json.dumps(compra_ok(riesgos=["Se suma a MUV2.DE"]))
+        assert validar_dictamen(texto, paquete_compra(), "end_turn")[0] == asesores.CIFRA_AJENA
+
+
+class TestCausasConDigitos:
+    @pytest.mark.parametrize("frase", [
+        "El score bajo 60 está condicionado por la falta de datos en la dimensión fundamental.",
+        "El score bajo 60 se calcula sin la dimensión fundamental, lo que resta fiabilidad.",
+        "Se cumple SCORE_BAJO_60.", "Se cumple SCORE_BAJO_60, sin más deterioro.",
+    ])
+    def test_nombrar_la_causa_del_paquete_no_es_una_cifra(self, frase: str) -> None:
+        texto = json.dumps(posicion_ok(decision="MANTENER", causa=None, motivos=[frase]))
+        assert validar_dictamen(texto, paquete_posicion(), "end_turn")[0] == OK
+
+    @pytest.mark.parametrize("frase", [
+        "El score bajo 58 preocupa", "El score está en 60", "El score bajo 60,5 preocupa", "El score bajo 60.5 preocupa",
+        "El score bajo 60 % preocupa", "El score bajo 600 preocupa", "El score bajo 60 y un RSI de 70", "XSCORE_BAJO_60",
+    ])
+    def test_cualquier_otra_cifra_sigue_invalidando(self, frase: str) -> None:
+        texto = json.dumps(posicion_ok(decision="MANTENER", causa=None, motivos=[frase]))
+        assert validar_dictamen(texto, paquete_posicion(), "end_turn")[0] == asesores.CIFRA_AJENA
+
+    def test_en_una_compra_no_hay_causas_que_nombrar(self) -> None:
+        texto = json.dumps(compra_ok(motivos=["El score bajo 60 no preocupa"]))
         assert validar_dictamen(texto, paquete_compra(), "end_turn")[0] == asesores.CIFRA_AJENA
 
 
@@ -440,6 +465,76 @@ class TestFotoPorPasada:
 
         assert medicion.leer_medicion(reg.conn) is None
         assert reg.conn.execute("SELECT COUNT(*) FROM ia_valoracion").fetchone()[0] == 1
+
+
+class TestSinRetroceder:
+    """yfinance retira por la mañana barras que sirvió la noche anterior (2026-11-24, ``EUNL.DE``)."""
+
+    COMPLETA = (
+        (date(2026, 11, 2), 100.0), (date(2026, 11, 3), 100.0), (date(2026, 11, 4), 90.0), (date(2026, 11, 5), 102.0),
+    )
+
+    def _foto(self, cartera_ia: CarteraIA, reg: RegistroIA, close: float, sesion: date, *cierres: Any) -> Any:
+        pasada_id = reg.abrir_pasada(T, "activo", "sha")
+        analisis = replace(_analisis("A", close=close), signal_session=sesion)
+        valores = valorar_abiertas(cartera_ia, {"A": analisis}, _proveedor_ohlc({}))
+        medicion.registrar_valoracion(reg, cartera_ia, valores, _crudo(_referencia(*cierres)), pasada_id, T, 0)
+        return medicion.leer_medicion(reg.conn)
+
+    def test_una_barra_retirada_no_devuelve_la_referencia_a_la_sesion_anterior(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _con_posicion(tmp_path)
+        noche = self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA)
+        manana = self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA[:3])
+
+        assert noche.referencia_session == manana.referencia_session == "2026-11-05"
+        assert manana.referencia_eur == pytest.approx(noche.referencia_eur)
+        assert manana.comparable
+
+    def test_la_descarga_corrige_un_cierre_guardado(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _con_posicion(tmp_path)
+        self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA)
+        corregida = self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA[:3], (date(2026, 11, 5), 103.0))
+
+        assert corregida.referencia_eur == pytest.approx((10_000.0 - medicion.coste_orden_eur(10_000.0)) * 1.03)
+
+    def test_lo_guardado_no_adelanta_el_principio_de_la_serie(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _con_posicion(tmp_path)
+        self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA)
+        corta = self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA[1:])
+
+        assert corta.referencia_eur is None and not corta.comparable
+
+    def test_una_posicion_tampoco_retrocede_ni_cambia_lo_que_ve_la_ia(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _con_posicion(tmp_path)
+        self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA)
+        manana = self._foto(cartera_ia, reg, 99.0, date(2026, 11, 4), *self.COMPLETA)
+
+        assert manana.posiciones[0]["session"] == "2026-11-05" and manana.equity_eur == pytest.approx(10_040.0)
+        estado, _ = construir_estado_cartera(
+            cartera_ia, {"A": replace(_analisis("A", close=99.0), signal_session=date(2026, 11, 4))}, _proveedor_ohlc({}),
+        )
+        assert estado.posiciones[0].pnl_pct == pytest.approx(-1.0)
+
+    def test_sesiones_distintas_no_se_restan(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _con_posicion(tmp_path)
+        medida = self._foto(cartera_ia, reg, 104.0, date(2026, 11, 5), *self.COMPLETA[:3])
+
+        assert medida.referencia_session == "2026-11-04" and not medida.comparable
+        kpis = dashboard._kpis_medicion(medida)
+        assert "posiciones al 2026-11-05" in kpis and "no se calcula" in kpis
+        assert "N/D" in kpis.split("Diferencia neta")[1].split("Caída")[0]
+
+    def test_una_venta_posterior_al_cierre_de_la_referencia_tampoco(self, tmp_path: Path) -> None:
+        cartera_ia, reg = _con_posicion(tmp_path)
+        assert self._foto(cartera_ia, reg, 104.0, date(2026, 11, 4), *self.COMPLETA[:3]).comparable
+        cartera_ia.cerrar_posicion(
+            cartera_ia.posiciones_abiertas()[0], exit_price=104.0, exit_price_eur=104.0, exit_session=date(2026, 11, 5),
+            origen="STOP_OBLIGATORIO", motivo="STOP_TOCADO",
+        )
+        pasada_id = reg.abrir_pasada(T, "activo", "sha")
+        medicion.registrar_valoracion(reg, cartera_ia, (), _crudo(_referencia(*self.COMPLETA[:3])), pasada_id, T, 0)
+        medida = medicion.leer_medicion(reg.conn)
+        assert medida is not None and not medida.comparable
 
 
 class TestDashboard:
