@@ -676,14 +676,14 @@ class TestCobertura:
             lab.evaluar()
         assert not lab.apertura.exists() and not lab.resultado.exists() and 2 not in lab.fases
 
-    def test_valor_ausente_autorizado_no_toca_el_veredicto(
+    def test_serie_tardia_autorizada_no_toca_el_veredicto(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         entero = montar(tmp_path / "1", monkeypatch, poblacion()).evaluar()
         otro_montaje(monkeypatch)
         parte = montar(
-            tmp_path / "2", monkeypatch, poblacion(), sin=["A0"], series_ausentes={"A0": "yfinance ya no lo sirve"},
-            truncados=[declarar(poblacion(), "A0")],
+            tmp_path / "2", monkeypatch, poblacion(), series_ausentes={"A0": "yfinance ya no sirve su principio"},
+            alterar={"A0": lambda b: quita(INICIO, XETRA[2])(b)},
         ).evaluar()
         assert list(parte["series_ausentes"]) == ["A0"] and entero["series_ausentes"] == {}
         for clave in ("veredicto", "ic", "estimador", "media_grupo"):
@@ -1087,15 +1087,33 @@ class TestDejaDeCotizar:
         for cartera in r["carteras"].values():
             assert "A0" not in {o["symbol"] for o in cartera["operaciones"]}
 
-    def test_sin_datos_no_borra_la_perdida_que_el_bot_vio(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Sin ese stop el veredicto sería favorable: una declaración obligatoria no puede quitarlo.
+    @pytest.mark.parametrize("sin,estado,hasta", [
+        ((), contrafactual.STOP, XETRA[8]), (("A0",), contrafactual.HORIZONTE, XETRA[19]), ((), contrafactual.STOP, XETRA[5]),
+    ])
+    def test_un_desenlace_completo_sin_cosecha_es_inconcluso(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sin: Sequence[str], estado: str, hasta: date,
+    ) -> None:
+        # Contado sería INCONCLUSO y descartado, favorable: ni lo uno ni lo otro (D-89).
         casos = poblacion(102.4, 100.0, 2.0)
-        casos[0] = C("A0", "COMPRAR", salida=90.0, estado=contrafactual.STOP, hasta=XETRA[8])
+        casos[0] = C("A0", "COMPRAR", salida=90.0, estado=estado, hasta=hasta)
         assert intervalo_a_mano(casos[1:], 0.0)[0] > 0
+        lab = montar(
+            tmp_path, monkeypatch, casos, alterar={"A0": self.CORTE_A0}, sin=sin, truncados=[declarar(casos, "A0")],
+            series_ausentes={"A0": "deslistada"} if sin else None,
+        )
+        r = lab.evaluar()
+        assert (r["veredicto"], r["motivo"], r["sin_contraste"]) == ("INCONCLUSO", "SIN_CONTRASTE", [1])
+        assert r["n"]["COMPRAR"] == 36 and r["excluidos"]["COMPRAR"] == {} and r["ic"] is None and r["carteras"] is None
+        assert not lab.apertura.exists() and 2 not in lab.fases
+
+    def test_si_la_cosecha_llega_hasta_el_desenlace_cuenta(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        casos = poblacion(102.4, 100.0, 2.0)
+        casos[0] = C("A0", "COMPRAR", salida=90.0, estado=contrafactual.STOP, hasta=XETRA[4])
         r = montar(
-            tmp_path, monkeypatch, casos, alterar={"A0": self.CORTE_A0}, truncados=[declarar(casos, "A0")],
+            tmp_path, monkeypatch, casos, alterar={"A0": lambda b: cae(XETRA[4])(self.CORTE_A0(b))},
+            truncados=[declarar(casos, "A0")],
         ).evaluar()
-        assert r["veredicto"] == "INCONCLUSO" and r["n"]["COMPRAR"] == 36 and r["excluidos"]["COMPRAR"] == {}
+        assert r["motivo"] is None and r["n"]["COMPRAR"] == 36 and "sin_contraste" not in r
         assert r["ic"] == pytest.approx(intervalo_a_mano(casos, 0.0), rel=1e-6)
 
     @pytest.mark.parametrize("precio", [0.0, 12.5])

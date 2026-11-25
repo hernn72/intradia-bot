@@ -1,4 +1,4 @@
-# Superbot IA — evaluador final del contrafactual (D-87, D-88)
+# Superbot IA — evaluador final del contrafactual (D-87 a D-89)
 
 **SUPERBOT IA — PAPER, NO VALIDADA PARA CAPITAL REAL.**
 _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
@@ -37,12 +37,13 @@ segundo clon permitiría repetir el cálculo, con idéntico resultado.
 |---|---|
 | Intervalo | t con jackknife por bloques; el percentil queda retirado |
 | Coste de API | Todas las llamadas de compra desde el corte hasta T; constante al quitar bloques |
-| `INCONCLUSO` por muestra, datos o bloques | No lee rendimientos ni publica medias o carteras |
+| `INCONCLUSO` por muestra, datos, bloques o falta de contraste | No lee rendimientos ni publica medias o carteras |
 | Sin entrada tras 20 sesiones | Dato inválido solo si falta por los datos; si el gate habría rechazado la apertura de la cosecha, no |
 | Apertura que el proveedor invalida o retira después | Dato inválido, sea cual sea su desenlace: se decide con la cosecha |
 | `EUNL.DE` y divisas | Solo barras de sesiones oficiales de Xetra; sesiones repetidas o dos cambios distintos en un día, denegado; un cambio fuera de 0,001–100.000 por euro cuenta como que falta |
 | Carteras | Tamaño con 5.000 EUR fijos; efectivo de una salida, disponible al día siguiente; abiertas, a mercado |
-| Serie ausente, que empieza tarde o con sesiones repetidas | Solo si se identifica y justifica; se omite en las dos carteras y no se admite listar una que está |
+| Serie ausente, que empieza tarde o con sesiones repetidas | Solo si se identifica y justifica; se omite en las dos carteras y no se admite listar una que está. Si falta entera y hubo desenlace completo, además D-89 |
+| Desenlace completo, declarado `SIN_DATOS` y posterior al final de su cosecha (D-89) | `INCONCLUSO` (SIN_CONTRASTE): un solo caso basta |
 | Desenlace con huecos | `sesiones` y `hasta_session` guardadas deben cuadrar con el calendario; si no, dato inválido y fuera de carteras |
 | Entrada de una exclusión | La guardada; se publica en `entradas_de_exclusiones` |
 | Un caso sin desenlace utilizable, también el que sigue abierto pasadas 20 sesiones | Se omite en las dos carteras y se publica su identificador |

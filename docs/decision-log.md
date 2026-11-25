@@ -2573,6 +2573,13 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 **5. Autorización.** Fusionar la PR #72 cumplidas las condiciones del propietario. **No** autoriza ejecutar el evaluador sobre datos reales, crear la autorización, revelar resultados, tocar la estrategia o los 5.000 EUR, simular más, activar H1 o H3 ni desactivar asesores.
 
+### D-89 — 2026-11-25 — Superbot IA: un desenlace completo sin cosecha que lo contraste deja la evaluación `INCONCLUSO`
+
+Decisión del propietario, con los resultados sellados y sin casos maduros evaluados. Completa D-88 §2.
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+Si el bot guardó un `STOP` u `HORIZONTE` con todas sus sesiones, la cosecha acaba antes de esa fecha y se declara `SIN_DATOS`, el caso ni cuenta ni se descarta: el resultado es `INCONCLUSO` (SIN_CONTRASTE), sin leer rendimientos. Alternativas rechazadas: contarlo, que no se puede contrastar, y descartarlo al 5 %, que permitiría quitar una pérdida real. Consecuencia aceptada: un solo valor borrado por el proveedor basta para no concluir.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

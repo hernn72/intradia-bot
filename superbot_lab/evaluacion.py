@@ -627,6 +627,23 @@ def _fase1(
     return usables, excluidos, con_exclusion
 
 
+def _sin_contraste(
+    db: Path, usables: Sequence[Episodio], determinaciones: Mapping[int, Determinacion], vintage: VintageLoad,
+) -> List[int]:
+    """Desenlaces completos declarados ``SIN_DATOS`` cuya fecha no alcanza la cosecha: ni cuentan ni se descartan (D-89)."""
+
+    with abrir_fase(db, 1) as conn:
+        hastas = {int(f[0]): str(f[1]) for f in conn.execute("SELECT decision_id,hasta_session FROM ia_contrafactual")}
+    salida = []
+    for e in usables:
+        declarada = determinaciones.get(e.decision_id)
+        if declarada is not None and declarada.tipo == SIN_DATOS:
+            barras = _barras_de_cosecha(vintage, e.symbol, e.market, e.sesion)
+            if max(barras, default=date.min) < date.fromisoformat(hastas[e.decision_id]):
+                salida.append(e.decision_id)
+    return sorted(salida)
+
+
 def _inconcluso_previo(
     usables: Sequence[Episodio], excluidos: Mapping[str, Mapping[str, int]],
 ) -> Optional[str]:
@@ -1232,6 +1249,9 @@ def evaluar(
     }
     n = {grupo: sum(e.grupo == grupo for e in usables) for grupo in ("COMPRAR", "DESCARTAR")}
     motivo = _inconcluso_previo(usables, excluidos)
+    sin_contraste = _sin_contraste(db, usables, determinaciones, vintage)
+    if motivo is None and sin_contraste:
+        motivo, detalle["sin_contraste"] = "SIN_CONTRASTE", sin_contraste
     if motivo is not None:
         if _sha(db) != str(autorizacion["base_sha256"]):
             raise EvaluacionDenegada("la base cambió antes de escribir el resultado")
