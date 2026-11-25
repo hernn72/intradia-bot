@@ -5,6 +5,10 @@ descarta? Cada decisión de compra se sigue con las mismas reglas que opera la c
 de apertura y el stop obligatorio de ``cartera.py``, con los niveles congelados al decidir— como
 si se hubiera comprado, y se cierra a un horizonte fijo.
 
+Las decisiones desde el corte (``madurez.CORTE``) recorren las sesiones oficiales de su plaza, y una sesión
+sin cotización válida antes del desenlace lo deja sin resolver (D-90). Las anteriores, que son muestra
+exploratoria, siguen hasta cerrarse con la regla con la que empezaron: cuentan las barras recibidas.
+
 Solo observa, y enseña desenlaces de valores que el bot no compró: es el canal lateral que el
 propietario aceptó en D-82 §7. Todo sale de ``ia_decision`` y de barras de mercado: no abre
 ninguna base de T-024 ni de T-025.
@@ -20,13 +24,14 @@ import json
 import logging
 import math
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import pandas as pd
 
-from advisor.data.sessions import session_date_of, trim_unclosed_bar
+from advisor.data.calendars import expected_sessions
+from advisor.data.sessions import latest_expected_closed_session, session_date_of, trim_unclosed_bar
 from superbot.ia.cartera import evaluar_gate_apertura, evaluar_stop
 
 logger = logging.getLogger(__name__)
@@ -36,6 +41,8 @@ HORIZONTE_CORTO = 5
 # Sesiones cerradas de margen antes de dar por definitivo un hueco del proveedor: yfinance sirve
 # algunas barras con retraso, y el motor real también reintenta en vez de rendirse a la primera.
 MARGEN_SESIONES = 5
+# Con el calendario oficial se espera lo mismo que la evaluación (D-88 §9.2), contando la de entrada como la 1.
+SESIONES_DE_ESPERA = 25
 
 PENDIENTE = "PENDIENTE"
 ABIERTA = "ABIERTA"
@@ -157,6 +164,59 @@ def simular(
     )
 
 
+def _cotizacion(filas: Sequence[Barra]) -> Optional[Barra]:
+    """La cotización de una sesión, o ``None`` si está vacía o incompleta o si el proveedor da dos precios."""
+
+    validas = [tuple(v if math.isfinite(v) and v > 0 else None for v in fila[1:]) for fila in filas]
+    completas = {valores for valores in validas if None not in valores}
+    if len(completas) != 1:
+        return None
+    unica = next(iter(completas))
+    if any(v is not None and v != bueno for valores in validas for v, bueno in zip(valores, unica)):
+        return None
+    return next(fila for fila, valores in zip(filas, validas) if valores == unica)
+
+
+def simular_en_calendario(
+    niveles: Mapping[str, Any], barras: Sequence[Barra], target_session: date, sesiones: Sequence[date],
+    splits: Sequence[date] = (),
+) -> Desenlace:
+    """Como ``simular``, sobre las sesiones oficiales de la plaza ya cerradas desde la objetivo (``sesiones``).
+
+    Solo se recorre el tramo inicial sin huecos, así que cada barra es una sesión y ningún stop ni horizonte
+    cambia de día. Si falta la cotización de una sesión y el proveedor ya sirve otra igual o posterior, el
+    desenlace queda sin resolver y se reintenta; solo es definitivo tras ``SESIONES_DE_ESPERA``. Las últimas
+    sesiones aún sin servir no son un hueco.
+    """
+
+    oficiales = set(sesiones)
+    por_sesion: Dict[date, List[Barra]] = {}
+    for barra in barras:
+        if barra[0] in oficiales:
+            por_sesion.setdefault(barra[0], []).append(barra)
+    if not por_sesion:
+        return Desenlace(PENDIENTE)
+    if any(split >= target_session for split in splits):
+        return Desenlace(SPLIT_POSTERIOR, final=True)
+    agotada = len(sesiones) >= SESIONES_DE_ESPERA
+    servidas = [sesion for sesion in sesiones if sesion <= max(por_sesion)]
+    tramo: List[Barra] = []
+    for sesion in servidas:
+        cotizacion = _cotizacion(por_sesion.get(sesion, ()))
+        if cotizacion is None:
+            break
+        tramo.append(cotizacion)
+    if not tramo or tramo[0][0] != target_session:
+        return Desenlace(SIN_BARRA_DE_ENTRADA, sesiones=len(servidas), final=agotada)
+    d = simular(niveles, tramo, target_session)
+    if d.estado != ABIERTA or len(tramo) == len(servidas):
+        return d
+    return replace(
+        d, estado=DATOS_INCOMPLETOS, salida=None, retorno_pct=None, retorno_r=None, sesiones=len(tramo) + 1,
+        hasta_session=servidas[len(tramo)], final=agotada,
+    )
+
+
 def barras_de(df: pd.DataFrame, market: str) -> List[Barra]:
     barras: List[Barra] = []
     for marca, fila in df.iterrows():
@@ -183,16 +243,21 @@ def actualizar(
 ) -> int:
     """Recalcula el desenlace de toda decisión de compra que aún no sea definitiva. Devuelve cuántas tocó."""
 
+    from superbot.ia.madurez import CORTE  # en tiempo de ejecución: ``madurez`` importa este módulo
+
     asegurar_esquema(conn)
     pendientes = conn.execute(
-        "SELECT d.id, d.symbol, d.market, d.resolucion, d.target_session, d.cuantitativo, COALESCE(c.final, 0) "
+        "SELECT d.id, d.symbol, d.market, d.resolucion, d.target_session, d.cuantitativo, COALESCE(c.final, 0), "
+        "COALESCE(p.decision_ts >= ?, 0) "
         "FROM ia_decision d LEFT JOIN ia_contrafactual c ON c.decision_id = d.id "
+        "LEFT JOIN ia_pasada p ON p.id = d.pasada_id "
         "LEFT JOIN ia_contrafactual_entrada e ON e.decision_id = d.id "
-        "WHERE d.tipo = 'COMPRA' AND (COALESCE(c.final, 0) = 0 OR e.decision_id IS NULL) ORDER BY d.id"
+        "WHERE d.tipo = 'COMPRA' AND (COALESCE(c.final, 0) = 0 OR e.decision_id IS NULL) ORDER BY d.id",
+        (CORTE.isoformat(timespec="seconds"),),
     ).fetchall()
-    series: Dict[Tuple[str, str], Optional[Tuple[List[Barra], List[date]]]] = {}
+    series: Dict[Tuple[str, str], Optional[Tuple[List[Barra], List[date], Optional[date]]]] = {}
     tocadas = 0
-    for decision_id, symbol, market, resolucion, target_session, cuantitativo, final in pendientes:
+    for decision_id, symbol, market, resolucion, target_session, cuantitativo, final, desde_corte in pendientes:
         try:
             niveles = json.loads(cuantitativo).get("niveles")
             objetivo = date.fromisoformat(target_session)
@@ -206,7 +271,13 @@ def actualizar(
         serie = series[clave]
         if serie is None:
             continue
-        d = simular(niveles, serie[0], objetivo, serie[1])
+        barras, splits, ultima = serie
+        if not desde_corte:
+            d = simular(niveles, barras, objetivo, splits)
+        elif ultima is None:
+            continue  # sin saber qué sesiones han cerrado no se afirma nada
+        else:
+            d = simular_en_calendario(niveles, barras, objetivo, expected_sessions(market, objetivo, ultima), splits)
         if d.entrada is not None or d.estado == NO_EJECUTABLE:
             conn.execute(
                 "INSERT INTO ia_contrafactual_entrada (decision_id, ejecutable, observada_en) VALUES (?, ?, ?) "
@@ -238,7 +309,7 @@ def actualizar(
 def _serie(
     proveedor: Any, universe: Any, symbol: str, market: str, instante: datetime, periodo: str, intervalo: str,
     settlement_minutes: int,
-) -> Optional[Tuple[List[Barra], List[date]]]:
+) -> Optional[Tuple[List[Barra], List[date], Optional[date]]]:
     try:
         asset = universe.get(symbol)
         data_symbol = asset.data_symbol(instante) if asset is not None else symbol
@@ -246,7 +317,8 @@ def _serie(
         recortado = trim_unclosed_bar(
             bruto, market=market, reference=instante, settlement_minutes=settlement_minutes, interval=intervalo
         ).df
-        return barras_de(recortado, market), splits_de(recortado, market)
+        ultima = latest_expected_closed_session(market, instante, settlement_minutes=settlement_minutes)
+        return barras_de(recortado, market), splits_de(recortado, market), ultima
     except Exception as exc:
         logger.info("contrafactual: %s sin serie: %s: %s", symbol, type(exc).__name__, exc)
         return None
@@ -261,6 +333,7 @@ __all__ = [
     "MARGEN_SESIONES",
     "NO_EJECUTABLE",
     "PENDIENTE",
+    "SESIONES_DE_ESPERA",
     "SIN_BARRA_DE_ENTRADA",
     "SPLIT_POSTERIOR",
     "STOP",
@@ -269,5 +342,6 @@ __all__ = [
     "asegurar_esquema",
     "barras_de",
     "simular",
+    "simular_en_calendario",
     "splits_de",
 ]

@@ -2580,6 +2580,17 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 
 Si el bot guardó un `STOP` u `HORIZONTE` con todas sus sesiones, la cosecha acaba antes de esa fecha y se declara `SIN_DATOS`, el caso ni cuenta ni se descarta: el resultado es `INCONCLUSO` (SIN_CONTRASTE), sin leer rendimientos. Alternativas rechazadas: contarlo, que no se puede contrastar, y descartarlo al 5 %, que permitiría quitar una pérdida real. Consecuencia aceptada: un solo valor borrado por el proveedor basta para no concluir.
 
+### D-90 — 2026-11-25 — Superbot IA: el contrafactual recorre sesiones oficiales
+
+Autorizado por el propietario, que aprobó esta regla sin casos maduros y con los resultados sellados. Corrige un defecto: `contrafactual.py` contaba las barras recibidas, así que un hueco, una barra repetida o la de un festivo movían el día 20 o escondían un stop, y una apertura vacía quedaba como rechazo del gate. No cambia qué se mide (D-84, D-88).
+_Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selección no corregido)._
+
+**1. Regla.** Se recorren las 20 sesiones oficiales de cada plaza. Las barras de días sin sesión se descartan y las repetidas idénticas se unifican. Una sesión ausente, vacía o con dos precios anterior al desenlace lo deja sin resolver y se reintenta; `DATOS_INCOMPLETOS` y `SIN_BARRA_DE_ENTRADA` por datos solo son definitivos a las 25 sesiones. Una apertura que falta no es un rechazo: no escribe `ia_contrafactual_entrada`.
+
+**2. Lo registrado se conserva.** Las filas definitivas y las entradas no se tocan. Las decisiones anteriores al corte siguen con la regla anterior hasta cerrarse; la nueva vale solo desde el corte.
+
+**3. Sin cambios.** Estrategia, gate, stops, splits, tamaños, asesores, capital y huella. Fusión y despliegue exigen autorización aparte.
+
 ## OWNER_DECISION_REQUIRED
 
 Formato obligatorio para cada una: pregunta exacta, alternativas, consecuencia

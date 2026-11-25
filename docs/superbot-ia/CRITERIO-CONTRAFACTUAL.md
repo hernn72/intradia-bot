@@ -146,6 +146,7 @@ expresamente que el resultado pueda ser `INCONCLUSO`. No se sabe si se alcanzar�
 | 2026-11-24 | Criterio ratificado por el propietario (D-84): solo decide el intervalo, las carteras son contraste y `LA IA NO APORTA` se separa de `INCONCLUSO`. Programa de madurez escrito |
 | 2026-11-24 | Regla del 5 % de datos no válidos por grupo (§5) ratificada por el propietario (D-85), con 0 casos en ambos grupos |
 | 2026-11-24 | §9 (D-88): intervalo t con jackknife, episodios sin cotizaciones e interpretaciones ratificadas |
+| 2026-11-25 | El bot recorre sesiones oficiales desde el corte (D-90): corrige cómo se registra, no qué se mide. La comprobación de huecos de §9.2 queda como segunda barrera |
 
 ## 9. Modificación D-88
 
