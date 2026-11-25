@@ -507,6 +507,31 @@ def test_una_exclusion_declarada_sin_datos_si_cuenta_como_dato_invalido(tmp_path
     )
 
 
+@pytest.mark.parametrize("estado,sesiones", [("STOP", 9), ("HORIZONTE", 20)])
+@pytest.mark.parametrize("barras_de_menos", [0, 1])
+def test_sin_datos_no_borra_un_desenlace_que_el_bot_vio_completo(
+    tmp_path: Path, estado: str, sesiones: int, barras_de_menos: int,
+) -> None:
+    from tests.test_superbot_ia_madurez import SESIONES, _base, _decision
+
+    reg = _base(tmp_path)
+    _decision(reg, "S", SESIONES[0], "COMPRAR")
+    decision = int(reg.conn.execute("SELECT MAX(id) FROM ia_decision").fetchone()[0])
+    resolucion, sesion = reg.conn.execute("SELECT resolucion,target_session FROM ia_decision WHERE id=?", (decision,)).fetchone()
+    hasta = expected_sessions("XETRA", date.fromisoformat(sesion), date.fromisoformat(sesion) + timedelta(days=60))[sesiones - 1]
+    reg.conn.execute(
+        "INSERT INTO ia_contrafactual(decision_id,symbol,resolucion,target_session,estado,entrada,salida,sesiones,"
+        "hasta_session,final,updated_at) VALUES(?,'S',?,?,?,100,90,?,?,1,'x')",
+        (decision, resolucion, sesion, estado, sesiones - barras_de_menos, hasta.isoformat()),
+    )
+    reg.conn.commit()
+    declarada = {decision: evaluacion.Determinacion(decision, evaluacion.SIN_DATOS, "j", "f")}
+    lista = [Episodio(decision, "S", "XETRA", "COMPRAR", date.fromisoformat(sesion), "maduros", 25)]
+    usables, excluidos, _ = evaluacion._fase1(reg.path, lista, declarada, [], {})
+    assert usables == ([] if barras_de_menos else lista)
+    assert excluidos["COMPRAR"] == ({"DATOS_INCOMPLETOS": 1} if barras_de_menos else {})
+
+
 @pytest.mark.parametrize("texto", [
     "{", "null", "{}", '{"niveles": {"stop": 9}}', '{"niveles": {"stop": 0}, "currency": "EUR", "score": 1}',
     '{"niveles": {"stop": 9}, "currency": "", "score": 1}', '{"niveles": {"stop": 9}, "currency": "EUR", "score": NaN}',

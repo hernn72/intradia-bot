@@ -1078,6 +1078,17 @@ class TestDejaDeCotizar:
         for cartera in r["carteras"].values():
             assert "A0" not in {o["symbol"] for o in cartera["operaciones"]}
 
+    def test_sin_datos_no_borra_la_perdida_que_el_bot_vio(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Sin ese stop el veredicto sería favorable: una declaración obligatoria no puede quitarlo.
+        casos = poblacion(102.4, 100.0, 2.0)
+        casos[0] = C("A0", "COMPRAR", salida=90.0, estado=contrafactual.STOP, hasta=XETRA[8])
+        assert intervalo_a_mano(casos[1:], 0.0)[0] > 0
+        r = montar(
+            tmp_path, monkeypatch, casos, alterar={"A0": self.CORTE_A0}, truncados=[declarar(casos, "A0")],
+        ).evaluar()
+        assert r["veredicto"] == "INCONCLUSO" and r["n"]["COMPRAR"] == 36 and r["excluidos"]["COMPRAR"] == {}
+        assert r["ic"] == pytest.approx(intervalo_a_mano(casos, 0.0), rel=1e-6)
+
     @pytest.mark.parametrize("precio", [0.0, 12.5])
     @pytest.mark.parametrize("estado,entrada", [
         (contrafactual.ABIERTA, 100.0), (contrafactual.PENDIENTE, None), (contrafactual.DATOS_INCOMPLETOS, 100.0),

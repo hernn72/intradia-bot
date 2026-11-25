@@ -186,6 +186,9 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
   falta (`DATOS_INCOMPLETOS` o `SIN_BARRA_DE_ENTRADA`), no un split ni una apertura que el gate rechaza. Si el bot no llegó a
   ver la apertura, la entrada declarada tiene que pasar el gate y no repetir un episodio del mismo valor; abre episodio,
   así que otra decisión sin entrada del mismo valor dentro de sus 20 sesiones se ignora (§4).
+- **`SIN_DATOS` no borra un resultado.** La declaración es obligatoria haya o no desenlace: un `STOP` u `HORIZONTE` que el bot
+  guardó con todas sus sesiones y que la cosecha no desmiente está completo y cuenta, aunque la cosecha acabe antes.
+  Solo es dato inválido el que sigue sin completarse. Si no, la declaración podría descartar una pérdida real.
 - **Huecos de `EUNL.DE`:** una sesión que el proveedor no sirve, o sirve sin precio, se declara y justifica en la
   autorización (`referencia_ausente`) y se usa la contigua, como en un festivo (§4). Sin declarar, o con más de 3 seguidas, no se evalúa.
 - La lista de valores truncados sale del calendario y de precios de mercado, nunca del desenlace sellado.
