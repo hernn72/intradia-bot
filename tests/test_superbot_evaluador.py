@@ -420,7 +420,7 @@ def test_fase_uno_clasifica_cada_caso(tmp_path: Path) -> None:
     ids = [int(f[0]) for f in reg.conn.execute("SELECT id FROM ia_decision ORDER BY id")]
     for decision, (categoria, _estado, _final, sesiones, destino) in zip(ids, casos):
         lista = [Episodio(decision, "S", "XETRA", "COMPRAR", D0, categoria, sesiones)]
-        declaradas = {decision: evaluacion.Determinacion(decision, evaluacion.EXCLUSION, "j", "f", D0, 100.0, 0.0)} if (
+        declaradas = {decision: evaluacion.Determinacion(decision, evaluacion.EXCLUSION, "j", "f", SESIONES[25], 100.0, 0.0)} if (
             destino in {"excluida", "usable_declarada", "declarada_sin_efecto"}) else {}
         rechazadas = [decision] if destino == "rechazada" else []
         if destino == "falta":
@@ -491,6 +491,34 @@ def test_el_hueco_de_produccion_se_detecta_y_espera_veinticinco_sesiones(tmp_pat
                 evaluacion._fase1(reg.path, lista, {}, [], {})
         else:
             assert evaluacion._fase1(reg.path, lista, {}, [], {})[1]["COMPRAR"] == {"DATOS_INCOMPLETOS": 1}
+
+
+@pytest.mark.parametrize("estado,sesiones", [("STOP", 9), ("HORIZONTE", 20)])
+@pytest.mark.parametrize("barras_de_menos", [0, 1])
+@pytest.mark.parametrize("margen", [-1, 0])
+def test_un_desenlace_posterior_a_la_exclusion_no_la_desplaza(
+    tmp_path: Path, estado: str, sesiones: int, barras_de_menos: int, margen: int,
+) -> None:
+    from tests.test_superbot_ia_madurez import SESIONES, _base, _decision
+
+    reg = _base(tmp_path)
+    _decision(reg, "S", SESIONES[0], "COMPRAR")
+    decision, sesion = reg.conn.execute("SELECT id,target_session FROM ia_decision ORDER BY id DESC").fetchone()
+    dias = expected_sessions("XETRA", date.fromisoformat(sesion), date.fromisoformat(sesion) + timedelta(days=60))
+    reg.conn.execute(
+        "INSERT INTO ia_contrafactual(decision_id,symbol,resolucion,target_session,estado,entrada,salida,sesiones,"
+        "hasta_session,final,updated_at) VALUES(?,'S','COMPRAR',?,?,100,90,?,?,1,'x')",
+        (decision, sesion, estado, sesiones - barras_de_menos, dias[sesiones - 1].isoformat()),
+    )
+    reg.conn.commit()
+    declarada = {decision: evaluacion.Determinacion(
+        decision, evaluacion.EXCLUSION, "j", "f", dias[sesiones - 1 + margen], 100.0, 0.0,
+    )}
+    lista = [Episodio(decision, "S", "XETRA", "COMPRAR", dias[0], "maduros", 25)]
+    usables, _, exclusiones = evaluacion._fase1(reg.path, lista, declarada, [], {})
+    # El del mismo día sigue mandando, salvo un horizonte al que le faltan barras.
+    manda = margen == 0 and (estado == "STOP" or not barras_de_menos)
+    assert usables == lista and exclusiones == ([] if manda else [decision])
 
 
 def test_una_exclusion_declarada_sin_datos_si_cuenta_como_dato_invalido(tmp_path: Path) -> None:

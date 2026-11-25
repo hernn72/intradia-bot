@@ -464,6 +464,15 @@ def _es_sesion(market: str, texto: str) -> bool:
         return False
 
 
+def _posterior(hasta: str, declarada: Optional[Determinacion]) -> bool:
+    if declarada is None or declarada.sesion_salida is None:
+        return False
+    try:
+        return date.fromisoformat(hasta) > declarada.sesion_salida
+    except ValueError:
+        return False
+
+
 def _barras_de_cosecha(
     vintage: VintageLoad, symbol: str, market: str, sesion: date,
 ) -> Dict[date, set[Tuple[float, float]]]:
@@ -577,6 +586,9 @@ def _fase1(
             excluidos[episodio.grupo][estado] = excluidos[episodio.grupo].get(estado, 0) + 1
             continue
         estado, final = estados.get(episodio.decision_id, (DATOS_INCOMPLETOS, 0))
+        # Tras la exclusión declarada el valor ya no cotiza: un desenlace guardado con fecha posterior no la desplaza.
+        if excluida and estado in {STOP, HORIZONTE} and _posterior(hastas[episodio.decision_id], declarada):
+            estado, final = DATOS_INCOMPLETOS, 0
         # Un stop anterior manda sobre una exclusión aunque falten barras, al bot o a la cosecha: una barra que falta
         # puede esconder un stop, no inventarlo. Un horizonte no se sostiene sin todas.
         stop_manda = excluida and estado == STOP and _es_sesion(episodio.market, hastas[episodio.decision_id])
@@ -816,14 +828,17 @@ def episodios_truncados(
     for episodio in lista:
         if episodio.fin is None or episodio.decision_id in rechazadas:
             continue
-        ultima = None
-        if episodio.symbol in vintage.by_symbol:
-            serie = _serie(vintage, episodio.symbol, episodio.market)
-            validas = [d for d, c in zip(serie.fechas, serie.cierres) if math.isfinite(c) and c > 0]
-            ultima = max(validas, default=None)
+        ultima = _ultima_cotizacion(vintage, episodio.symbol, episodio.market)
         if ultima is None or ultima < episodio.fin:
             salida.append(episodio)
     return salida
+
+
+def _ultima_cotizacion(vintage: VintageLoad, symbol: str, market: str) -> Optional[date]:
+    if symbol not in vintage.by_symbol:
+        return None
+    serie = _serie(vintage, symbol, market)
+    return max((d for d, c in zip(serie.fechas, serie.cierres) if math.isfinite(c) and c > 0), default=None)
 
 
 def _apertura_original(vintage: VintageLoad, symbol: str, market: str, sesion: date) -> Optional[float]:
@@ -972,6 +987,9 @@ def _determinaciones(
                 ):
                     raise ValueError
                 cerradas = _sesiones(episodio.market, episodio.sesion, instante)
+                ultima = _ultima_cotizacion(vintage, episodio.symbol, episodio.market)
+                if ultima is not None and d.sesion_salida is not None and d.sesion_salida < ultima:
+                    raise ValueError  # seguía cotizando
                 if d.sesion_salida not in cerradas or not (
                     math.isfinite(d.precio_entrada) and d.precio_entrada > stop and math.isfinite(d.precio_salida) and d.precio_salida >= 0
                 ):
@@ -1259,11 +1277,10 @@ def evaluar(
     try:
         if error_carteras is not None:
             raise ValueError(error_carteras)
-        # Sin serie solo queda quien la autorización identifica: ausente o con una exclusión declarada.
-        candidatas_cartera = [c for c in candidatas if c.symbol not in ausentes and c.symbol in vintage.by_symbol]
-        omitidos = sorted({*omitidos, *(
-            c.decision_id for c in candidatas if c.symbol not in ausentes and c.symbol not in vintage.by_symbol
-        )})
+        # Sin serie útil solo queda quien la autorización identifica: ausente o con una exclusión declarada.
+        con_serie = [c for c in candidatas if c.symbol not in ausentes]
+        candidatas_cartera = [c for c in con_serie if _cubre(vintage, c.symbol, c.market, c.sesion_entrada)]
+        omitidos = sorted({*omitidos, *(c.decision_id for c in con_serie if c not in candidatas_cartera)})
         series = {c.symbol: _serie(vintage, c.symbol, c.market) for c in candidatas_cartera}
         detalle_carteras: Any = {
             k: v.como_dict() for k, v in carteras(

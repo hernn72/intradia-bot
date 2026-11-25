@@ -492,6 +492,15 @@ class TestExclusionSinEntradaVista:
         # Sin serie no hay con qué valorarla: se omite igual en las dos carteras y se publica.
         assert r["omitidos_en_carteras"] == ([73] if sin else [])
 
+    def test_una_serie_que_empieza_tarde_se_omite_en_carteras(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        r = self.montar(
+            tmp_path, monkeypatch, corte=lambda b: b[[XETRA[4] <= m.date() <= XETRA[7] for m in b.index]],
+        ).evaluar()
+        assert "error" not in r["carteras"] and r["omitidos_en_carteras"] == [73]
+        assert r["con_resultado_de_exclusion"] == [73] and r["n"]["COMPRAR"] == 37
+
     def test_sin_datos_cuenta_en_el_cinco_por_ciento(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         r = self.montar(tmp_path, monkeypatch, tipo="SIN_DATOS").evaluar()
         assert r["excluidos"]["COMPRAR"] == {"SIN_BARRA_DE_ENTRADA": 1} and r["n"]["COMPRAR"] == 36
@@ -1293,7 +1302,7 @@ class TestDejaDeCotizar:
     @pytest.mark.parametrize("cambio", [
         {"justificacion": " "}, {"fuente": ""}, {"tipo": "OTRO"}, {"decision_id": 2}, {"decision_id": "x"},
         {"sesion_salida": "2026-11-01"}, {"sesion_salida": "2027-06-01"}, {"sesion_salida": "2027-01-03"},
-        {"sesion_salida": "2027-01-01"}, {"precio_salida": -1}, {"precio_entrada": 90.0},
+        {"sesion_salida": "2027-01-01"}, {"sesion_salida": XETRA[3].isoformat()}, {"precio_salida": -1}, {"precio_entrada": 90.0},
         {"precio_salida": "nan"}, {"precio_entrada": 100.6}, {"precio_entrada": 99.4},
     ])
     def test_declaraciones_invalidas(
@@ -1318,6 +1327,10 @@ class TestDejaDeCotizar:
         )
         with pytest.raises(evaluacion.EvaluacionDenegada, match="episodios_truncados"):
             lab.evaluar()
+
+    def test_la_exclusion_vale_desde_la_ultima_cotizacion(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        declarada = {**self.excluida(), "sesion_salida": XETRA[4].isoformat()}
+        assert self.montar(tmp_path, monkeypatch, declarada).evaluar()["con_resultado_de_exclusion"] == [1]
 
     def test_no_se_declara_lo_que_tiene_datos(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         lab = montar(tmp_path, monkeypatch, poblacion(), truncados=[declarar(poblacion(), "A3")])
