@@ -6,6 +6,9 @@ _Condicionado al universo seleccionado en 2026 (sesgo de supervivencia y selecci
 Escrito el 2026-11-24 y **ratificado por el propietario ese mismo día (D-84)**, con los resultados
 sellados y sin ningún caso posterior al corte. No se cambia hasta la evaluación.
 
+**Modificado por el propietario el 2026-11-24 (D-88), sin casos maduros y sin leer ningún resultado.** El texto
+original de abajo se conserva; donde difieran, manda §9.
+
 ## 1. Pregunta
 
 Con las mismas oportunidades y las mismas restricciones, ¿el filtro de compra de los asesores IA
@@ -66,7 +69,7 @@ ignoran; el siguiente episodio empieza después. Una no ejecutable en la apertur
 coste de API: euros de todas las llamadas de compra de la ventana, válidas o no, entre la suma de los
 nocionales de los aprobados.
 
-**Incertidumbre:** intervalo percentil del 95 % por remuestreo con reemplazo de bloques (10.000 réplicas,
+**Incertidumbre** _(sustituido por §9.1)_**:** intervalo percentil del 95 % por remuestreo con reemplazo de bloques (10.000 réplicas,
 semilla 20261124). Bloques consecutivos de 4 semanas ISO desde el lunes de la semana del corte, según
 la sesión de entrada; el último puede quedar incompleto y los vacíos no cuentan. Se remuestrean los
 mismos bloques para los dos grupos. Una réplica sin algún grupo se descarta; si son más del 5 %, el
@@ -142,3 +145,73 @@ expresamente que el resultado pueda ser `INCONCLUSO`. No se sabe si se alcanzar�
 | 2026-11-24 | **Corte:** la Pi ejecuta `2e26f65` desde las 09:55:03 UTC; entran las decisiones fechadas desde entonces |
 | 2026-11-24 | Criterio ratificado por el propietario (D-84): solo decide el intervalo, las carteras son contraste y `LA IA NO APORTA` se separa de `INCONCLUSO`. Programa de madurez escrito |
 | 2026-11-24 | Regla del 5 % de datos no válidos por grupo (§5) ratificada por el propietario (D-85), con 0 casos en ambos grupos |
+| 2026-11-24 | §9 (D-88): intervalo t con jackknife, episodios sin cotizaciones e interpretaciones ratificadas |
+
+## 9. Modificación D-88
+
+Decidida antes de disponer de casos maduros y de leer resultado alguno. No cambian la métrica, los costes, las
+reglas de madurez, los mínimos (30 y 50), la fecha límite, la regla del 5 % ni la clasificación de §6.
+
+### 9.1. Intervalo
+
+Sustituye al percentil. Con los 6 o 7 bloques que caben hasta la fecha límite, el percentil del 95 % equivalía a
+un 87 % en datos sintéticos (12–14 % de conclusiones falsas sin efecto); el t se queda en 4–6 %.
+
+- Mismos bloques de 4 semanas ISO. **K** = bloques con algún caso utilizable.
+- θ es el estimador de §4 con todos los casos; θ₍₋ₖ₎, sin los casos de los dos grupos del bloque k. El coste de
+  API por aprobado es el mismo en todos. Error típico = √[(K−1)/K · Σ(θ₍₋ₖ₎ − θ)²].
+- Intervalo = θ ± t₀,₉₇₅ con K−1 grados × error típico.
+- **`INCONCLUSO` (BLOQUES)** si K < 4, si algún grupo está en menos de 3 bloques o si no hay variación entre bloques.
+
+Calibración: `evidence/superbot-ia/calibracion-evaluador/`. Límite conocido: si los bloques contiguos dependen
+mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14 %.
+
+### 9.2. Episodios sin cotizaciones
+
+- Se esperan **25 sesiones** de la plaza, contando la de entrada como la 1. Antes, la evaluación espera.
+- Lo mismo vale para `SIN_BARRA_DE_ENTRADA` y para un `STOP` u `HORIZONTE` guardado con huecos: el bot cuenta las
+  barras que recibe, así que con una sesión perdida su salida no es la de la sesión 20 o falta un stop.
+  El recuento no ve una barra repetida o de festivo que compensa el hueco: por eso el estado y la fecha se contrastan
+  además con la cosecha, sesión oficial a sesión oficial y con 0,01 % de holgura en el stop. Si no coinciden, o falta o
+  tiene dos precios una sesión intermedia, es `DATOS_INCOMPLETOS`. El precio de salida sigue siendo el guardado.
+- Pasadas, si el episodio sigue sin completarse, es `DATOS_INCOMPLETOS` y cuenta en el 5 % de su grupo.
+- **Exclusión de cotización con resultado económico identificable:** no se descarta. Si el valor deja de tener barras
+  antes de su sesión 20, el propietario declara en la autorización, con fuente y justificación y **antes de abrir**,
+  `SIN_DATOS` o `EXCLUSION` con sesión (cerrada, de su plaza y no anterior a su última cotización), precio de entrada y precio final (puede ser 0). Con `EXCLUSION` entra en la
+  métrica con ese precio y las reglas de §4, aunque el cobro sea posterior a la sesión 20. Un stop anterior manda: el guardado,
+  salvo que los precios de la cosecha lo contradigan (que falte una barra, al bot o a la cosecha, no basta), y si no lo hay, el que se ve en
+  la cosecha, a su precio de ejecución. Un desenlace guardado con fecha posterior a la exclusión no la desplaza. La entrada es la que guardó el bot; la
+  declarada solo suple su falta y tiene que coincidir (0,5 %) con la apertura de la cosecha. El precio final se
+  declara en la escala de la entrada, deshaciendo cualquier split intermedio. `EXCLUSION` resuelve lo que
+  falta (`DATOS_INCOMPLETOS` o `SIN_BARRA_DE_ENTRADA`), no un split ni una apertura que el gate rechaza. Si el bot no llegó a
+  ver la apertura, la entrada declarada tiene que pasar el gate y no repetir un episodio del mismo valor; abre episodio,
+  así que otra decisión sin entrada del mismo valor dentro de sus 20 sesiones se ignora (§4).
+- **`SIN_DATOS` con un desenlace ya completo (D-89).** Si el bot guardó un `STOP` u `HORIZONTE` con todas sus sesiones y la
+  cosecha acaba antes de esa fecha, no se puede contrastar: ni se cuenta ni se descarta, y el resultado es `INCONCLUSO`
+  (SIN_CONTRASTE), sin leer rendimientos. Si la cosecha llega hasta esa fecha y no lo desmiente, cuenta.
+- **Huecos de `EUNL.DE`:** una sesión que el proveedor no sirve, o sirve sin precio, se declara y justifica en la
+  autorización (`referencia_ausente`) y se usa la contigua, como en un festivo (§4). Sin declarar, o con más de 3 seguidas, no se evalúa.
+- La lista de valores truncados sale del calendario y de precios de mercado, nunca del desenlace sellado.
+
+### 9.3. Qué cuenta como dato inválido
+
+| Caso | ¿Cuenta en el 5 %? |
+|---|---|
+| Apertura rechazada por el gate, vista en su día o al comprobarla con la cosecha | No: no hay episodio |
+| Sin entrada tras 20 sesiones porque faltan los datos | Sí |
+| Entrada válida que el proveedor invalida o retira después, aunque el caso ya fuera definitivo | Sí |
+| `SIN_BARRA_DE_ENTRADA`, `SPLIT_POSTERIOR`, `DATOS_INCOMPLETOS` | Sí |
+| Desenlace guardado con huecos, o que la cosecha desmiente (§9.2) | Sí, como `DATOS_INCOMPLETOS` |
+
+La apertura se comprueba igual para todos los casos en la cosecha (con un 0,01 % de holgura frente al ruido
+numérico): mirar solo el estado guardado excluiría el caso que seguía vivo y conservaría el que ya saltó su stop.
+Si la serie no tiene barras a ambos lados de la entrada no se concluye nada. `congelar` lista las afectadas.
+
+El porcentaje es inválidos entre inválidos más utilizables de ese grupo.
+
+### 9.4. Contrastes secundarios
+
+Cartera con 5.000 EUR fijos, efectivo al día siguiente y abiertas a mercado. Una serie ausente se omite igual en
+las dos carteras, solo si la autorización la identifica y justifica. Un fallo de carteras o de §7 se publica y no
+cambia el veredicto; **si toca un dato compartido con la métrica**, el resultado es `INCONCLUSO`
+(DATOS_COMPARTIDOS). Con `INCONCLUSO` por muestra, datos, bloques, falta de contraste o datos compartidos no se publican medias ni carteras.
