@@ -174,7 +174,7 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
 - Pasadas, si el episodio sigue sin completarse, es `DATOS_INCOMPLETOS` y cuenta en el 5 % de su grupo.
 - **Exclusión de cotización con resultado económico identificable:** no se descarta. Si el valor deja de tener barras
   antes de su sesión 20, el propietario declara en la autorización, con fuente y justificación y **antes de abrir**,
-  `SIN_DATOS` o `EXCLUSION` con sesión, precio de entrada y precio final (puede ser 0). Con `EXCLUSION` entra en la
+  `SIN_DATOS` o `EXCLUSION` con sesión (cerrada, de su plaza), precio de entrada y precio final (puede ser 0). Con `EXCLUSION` entra en la
   métrica con ese precio y las reglas de §4, aunque el cobro sea posterior a la sesión 20. Un stop anterior manda. La entrada es la que guardó el bot; la
   declarada solo suple su falta y tiene que coincidir (0,5 %) con la apertura de la cosecha. El precio final se
   declara en la escala de la entrada, deshaciendo cualquier split intermedio. `EXCLUSION` resuelve lo que

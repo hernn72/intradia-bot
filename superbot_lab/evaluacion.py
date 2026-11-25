@@ -423,9 +423,13 @@ def _resultado_inconcluso(
     return datos
 
 
-def _sesiones_cerradas(market: str, entrada: date, instante: datetime) -> int:
+def _sesiones(market: str, entrada: date, instante: datetime) -> Sequence[date]:
     ultima = latest_expected_closed_session(market, instante, settlement_minutes=madurez.SETTLEMENT_MINUTES)
-    return 0 if ultima is None else len(expected_sessions(market, entrada, ultima))
+    return () if ultima is None else expected_sessions(market, entrada, ultima)
+
+
+def _sesiones_cerradas(market: str, entrada: date, instante: datetime) -> int:
+    return len(_sesiones(market, entrada, instante))
 
 
 def _sin_huecos(market: str, entrada: date, estado: str, hasta: Any, barras: Any) -> bool:
@@ -436,11 +440,12 @@ def _sin_huecos(market: str, entrada: date, estado: str, hasta: Any, barras: Any
     """
 
     try:
-        sesiones = expected_sessions(market, entrada, date.fromisoformat(str(hasta)))
-        vistas = int(barras)
+        ultima = date.fromisoformat(str(hasta))
+        sesiones, vistas = expected_sessions(market, entrada, ultima), int(barras)
     except (TypeError, ValueError):
         return False
-    return len(sesiones) == vistas and (estado != HORIZONTE or vistas == HORIZONTE_SESIONES)
+    # Una barra en festivo puede compensar un hueco en el recuento, pero no es una salida.
+    return ultima in sesiones and len(sesiones) == vistas and (estado != HORIZONTE or vistas == HORIZONTE_SESIONES)
 
 
 def _fase1(
@@ -757,7 +762,7 @@ def aperturas_invalidadas(
 
 def _determinaciones(
     autorizacion: Mapping[str, Any], vintage: VintageLoad, lista: Sequence[Episodio],
-    cuantitativos: Mapping[int, Mapping[str, Any]], ultimo_dia: date,
+    cuantitativos: Mapping[int, Mapping[str, Any]], instante: datetime,
 ) -> Dict[int, Determinacion]:
     truncados = episodios_truncados(vintage, lista)
     hechas: Dict[int, Determinacion] = {}
@@ -779,9 +784,9 @@ def _determinaciones(
                 publicada = _apertura_original(vintage, episodio.symbol, episodio.market, episodio.sesion)
                 if publicada is not None and not math.isclose(d.precio_entrada, publicada, rel_tol=0.005):
                     raise ValueError
-                if d.sesion_salida is None or not (
-                    episodio.sesion <= d.sesion_salida <= ultimo_dia and math.isfinite(d.precio_entrada)
-                    and d.precio_entrada > stop and math.isfinite(d.precio_salida) and d.precio_salida >= 0
+                cerradas = _sesiones(episodio.market, episodio.sesion, instante)
+                if d.sesion_salida not in cerradas or not (
+                    math.isfinite(d.precio_entrada) and d.precio_entrada > stop and math.isfinite(d.precio_salida) and d.precio_salida >= 0
                 ):
                     raise ValueError
             if decision in hechas:
@@ -817,9 +822,7 @@ def _preparar(
     vintage, referencia = _comprobar_cosecha(
         str(autorizacion["cosecha"]), cosecha_raiz, decisiones, instante, cuantitativos, list(ausentes),
     )
-    determinaciones = _determinaciones(
-        autorizacion, vintage, lista, cuantitativos, instante.astimezone(timezone.utc).date(),
-    )
+    determinaciones = _determinaciones(autorizacion, vintage, lista, cuantitativos, instante)
     return (
         vintage, referencia, determinaciones, _rechazadas_por_gate(vintage, lista, cuantitativos),
         aperturas_invalidadas(vintage, decisiones, cuantitativos), ausentes,
@@ -1025,6 +1028,8 @@ def evaluar(
     coste_api = coste_api_por_aprobado(euros_api, observaciones["COMPRAR"])
     ic = intervalo_jackknife(observaciones["COMPRAR"], observaciones["DESCARTAR"], coste_api)
     if ic.bajo is None:
+        if _sha(db) != str(autorizacion["base_sha256"]):
+            raise EvaluacionDenegada("la base cambió después de abrir")
         return _resultado_inconcluso(raiz, db, cosecha, "BLOQUES", cuenta, excluidos, n, detalle, identidades)
     medias = {
         "COMPRAR": sum(o.exceso - coste_api for o in observaciones["COMPRAR"]) / len(observaciones["COMPRAR"]),

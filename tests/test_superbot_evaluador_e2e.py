@@ -23,7 +23,7 @@ from advisor.research.vintage import freeze_vintage, load_vintage
 from superbot.ia import contrafactual, madurez
 from superbot_lab import evaluacion
 from superbot_lab import evaluar as cli
-from superbot_lab.evaluador import DatoCompartidoInvalido, SeriePrecios, carteras
+from superbot_lab.evaluador import DatoCompartidoInvalido, Intervalo, SeriePrecios, carteras
 from tests.test_superbot_evaluador import D0, _caso
 from tests.test_superbot_ia import paquete_compra
 from tests.test_superbot_ia_madurez import TRAS_CORTE, _base, _decision
@@ -334,6 +334,28 @@ class TestSinLeerRendimientos:
         assert r["ic"] is None and r["estimador"] is None and r["carteras"] is None
         assert not lab.apertura.exists() and lab.resultado.exists() and 2 not in lab.fases
         assert (1 in lab.fases) is (motivo != "MUESTRA")
+
+
+def test_sin_variacion_entre_bloques_tambien_vigila_la_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    casos = [C(f"{g}{i}", g, XETRA[0] + timedelta(days=28 * (i % 4)), salida=100.0)
+             for g in ("COMPRAR", "DESCARTAR") for i in range(32)]
+    monkeypatch.setattr(evaluacion, "intervalo_jackknife", lambda *_a: Intervalo(None, None, 4, None))
+    lab = montar(tmp_path, monkeypatch, casos)
+    original = evaluacion._leer_casos
+
+    def toca(*args: Any) -> Any:
+        hecho = original(*args)
+        conn = sqlite3.connect(lab.db)
+        conn.execute("CREATE TABLE intrusa(x)")
+        conn.commit()
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        conn.close()
+        return hecho
+
+    monkeypatch.setattr(evaluacion, "_leer_casos", toca)
+    with pytest.raises(evaluacion.EvaluacionDenegada, match="la base cambió"):
+        lab.evaluar()
+    assert lab.apertura.exists() and not lab.resultado.exists()
 
 
 def declarar(casos: Sequence[C], symbol: str, tipo: str = "SIN_DATOS", **extra: Any) -> dict[str, Any]:
@@ -728,7 +750,8 @@ class TestDejaDeCotizar:
 
     @pytest.mark.parametrize("cambio", [
         {"justificacion": " "}, {"fuente": ""}, {"tipo": "OTRO"}, {"decision_id": 2}, {"decision_id": "x"},
-        {"sesion_salida": "2026-11-01"}, {"sesion_salida": "2027-06-01"}, {"precio_salida": -1}, {"precio_entrada": 90.0},
+        {"sesion_salida": "2026-11-01"}, {"sesion_salida": "2027-06-01"}, {"sesion_salida": "2027-01-03"},
+        {"sesion_salida": "2027-01-01"}, {"precio_salida": -1}, {"precio_entrada": 90.0},
         {"precio_salida": "nan"}, {"precio_entrada": 100.6}, {"precio_entrada": 99.4},
     ])
     def test_declaraciones_invalidas(
@@ -893,6 +916,16 @@ class TestCarteras:
         caso = _caso(salida=None, sesion_salida=None, estado="ABIERTA")
         hecho = carteras([caso], {"A": valor}, {}, plana, {}, dias[fin])["sin_ia"]
         assert hecho.patrimonio_final == pytest.approx(5_000 - 1.5)
+
+    def test_sin_cierre_desde_la_compra_se_valora_a_la_entrada(self) -> None:
+        antes = D0 - timedelta(days=1)
+        plana = SeriePrecios((antes, D0, self.D1), (50.0,) * 3, (50.0,) * 3)
+        caso = _caso(salida=None, sesion_salida=None, estado="ABIERTA")
+        for cierres, final in (((50.0, float("nan")), 5_000 - 1.5), ((50.0, 80.0), 5_000 - 1.5 - 100)):
+            # 2:1 anterior a la última sesión: no toca ni la entrada guardada ni este cierre.
+            valor = SeriePrecios((antes, D0), cierres, cierres, ((antes, 2.0),))
+            hecho = carteras([caso], {"A": valor}, {}, plana, {}, self.D1)["sin_ia"]
+            assert hecho.patrimonio_final == pytest.approx(final)
 
     def test_un_split_anterior_a_la_entrada_no_se_deshace(self) -> None:
         valor = SeriePrecios((D0, self.D1), (100.0,) * 2, (100.0,) * 2, ((D0 - timedelta(days=3), 2.0), (D0, 4.0)))

@@ -410,6 +410,16 @@ def test_fase_uno_clasifica_cada_caso(tmp_path: Path) -> None:
         assert excluidos == {"COMPRAR": esperado, "DESCARTAR": {}}, destino
 
 
+@pytest.mark.parametrize("estado", ["STOP", "HORIZONTE"])
+def test_una_barra_en_festivo_no_compensa_un_hueco(estado: str) -> None:
+    sesiones = expected_sessions("XETRA", D0, D0 + timedelta(days=60))
+    viernes = next(d for d in sesiones[19:] if d.weekday() == 4)
+    entrada = sesiones[sesiones.index(viernes) - 19]
+    domingo = viernes + timedelta(days=2)
+    assert evaluacion._sin_huecos("XETRA", entrada, estado, viernes.isoformat(), 20)
+    assert not evaluacion._sin_huecos("XETRA", entrada, estado, domingo.isoformat(), 20)
+
+
 @pytest.mark.parametrize("estado,hasta,barras,entero", [
     ("HORIZONTE", 19, 20, True), ("HORIZONTE", 20, 20, False), ("HORIZONTE", 18, 20, False), ("HORIZONTE", 18, 19, False),
     ("HORIZONTE", 20, 21, False), ("STOP", 0, 1, True), ("STOP", 6, 7, True), ("STOP", 6, 6, False), ("STOP", 6, 8, False),

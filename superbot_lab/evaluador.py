@@ -220,9 +220,9 @@ class _Posicion:
     coste_entrada: float
 
 
-def _ultimo_cierre(serie: SeriePrecios, dia: date) -> Optional[float]:
+def _ultimo_cierre(serie: SeriePrecios, dia: date, desde: date = date.min) -> Optional[float]:
     indice = bisect.bisect_right(serie.fechas, dia) - 1
-    while indice >= 0:
+    while indice >= 0 and serie.fechas[indice] >= desde:
         precio = float(serie.cierres[indice])
         if math.isfinite(precio) and precio > 0:
             return precio
@@ -230,16 +230,20 @@ def _ultimo_cierre(serie: SeriePrecios, dia: date) -> Optional[float]:
     return None
 
 
-def _precio_en_escala_de_entrada(serie: SeriePrecios, dia: date, entrada: date) -> Optional[float]:
-    """Último cierre hasta ``dia``, en la escala de las unidades compradas.
+def _precio_en_escala_de_entrada(serie: SeriePrecios, dia: date, caso: Caso) -> Optional[float]:
+    """Último cierre desde la compra hasta ``dia``, en la escala de las unidades compradas; sin él, la entrada.
+
+    Un cierre anterior a la compra daría por perdida o ganada una diferencia que nunca se tuvo.
 
     La cosecha viene reescalada por todos los splits: deshacer los posteriores a la entrada, y solo esos,
     mantiene el producto de unidades por precio antes y después de cada uno.
     """
 
-    precio = _ultimo_cierre(serie, dia)
+    precio = _ultimo_cierre(serie, dia, caso.sesion_entrada)
+    if precio is None:
+        return None if _ultimo_cierre(serie, dia) is None else caso.entrada
     for fecha_split, ratio in serie.splits:
-        if precio is not None and fecha_split > entrada:
+        if fecha_split > caso.sesion_entrada:
             precio *= ratio
     return precio
 
@@ -315,7 +319,7 @@ def _cartera(
         exposicion = 0.0
         for posicion in posiciones.values():
             caso = posicion.caso
-            precio = _precio_en_escala_de_entrada(series[caso.symbol], dia, caso.sesion_entrada)
+            precio = _precio_en_escala_de_entrada(series[caso.symbol], dia, caso)
             tasa = cambio(caso, dia)
             if tasa is None:
                 raise DatoCompartidoInvalido(f"falta FX de {caso.currency} para {dia}")
