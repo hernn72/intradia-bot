@@ -341,6 +341,16 @@ class TestDesenlaceDesmentido:
         assert r["estimador"] == pytest.approx(a_mano(casos[1:], 0.0), abs=1e-12)
         assert r["omitidos_en_carteras"] == [1, 73] and "error" not in r["carteras"]
 
+    def test_una_barra_en_festivo_no_es_un_hueco_posterior(self) -> None:
+        from types import SimpleNamespace
+
+        # Serie que acaba en la sesión 3 y una barra suelta en domingo: no hay nada que contradiga lo guardado.
+        dias = pd.DatetimeIndex([*XETRA[:3], XETRA[2] + timedelta(days=6 - XETRA[2].weekday() + 7)])
+        assert dias[-1].weekday() == 6
+        b = pd.DataFrame({"Open": 100.0, "Low": 98.0, "Close": 100.0, "Stock Splits": 0.0}, index=dias)
+        vista: Any = SimpleNamespace(by_symbol={"A": SimpleNamespace(raw=b, execution_prices=b)})
+        assert not evaluacion._desmentido(vista, "A", "XETRA", XETRA[0], contrafactual.HORIZONTE, XETRA[19], 90.0)
+
     def test_con_menos_de_veinticinco_sesiones_espera(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         tarde = C("TARDE", "COMPRAR", XETRA[-22])
         lab = montar(tmp_path, monkeypatch, [*poblacion(), tarde], alterar={"TARDE": cae(XETRA[-15])})
@@ -470,6 +480,17 @@ class TestExclusionSinEntradaVista:
         autorizar(lab.raiz, lab.db, next(iter(lab.cosechas.iterdir())).name)
         r = lab.evaluar()
         assert r["excluidos"]["COMPRAR"] == {} and r["n"]["COMPRAR"] == 36
+
+    @pytest.mark.parametrize("apertura", [float("nan"), 0.0])
+    def test_una_apertura_vacia_no_es_un_rechazo_del_gate(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, apertura: float,
+    ) -> None:
+        def vacia(b: pd.DataFrame) -> pd.DataFrame:
+            return b.assign(Open=[apertura if m.date() == XETRA[2] else v for m, v in zip(b.index, b["Open"])])
+
+        lab = self.montar(tmp_path, monkeypatch, corte=vacia)
+        autorizar(lab.raiz, lab.db, next(iter(lab.cosechas.iterdir())).name)
+        assert lab.evaluar()["excluidos"]["COMPRAR"] == {"SIN_BARRA_DE_ENTRADA": 1}
 
     def test_congelar_descarga_su_serie_y_su_divisa(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         solo_xetra = [C(f"{g}{i}", g, XETRA[0] + timedelta(days=28 * (i % 5))) for g in ("COMPRAR", "DESCARTAR") for i in range(32)]
@@ -881,6 +902,18 @@ class TestDejaDeCotizar:
         )
         assert not estado.permitida and "A0 (decisión 1)" in str(estado.motivo) and set(lab.fases) == {0}
 
+    def test_una_barra_en_festivo_no_hace_que_siga_cotizando(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def festiva(b: pd.DataFrame) -> pd.DataFrame:
+            domingo = next(d for d in (XETRA[40] + timedelta(days=i) for i in range(7)) if d.weekday() == 6)
+            fila = b.iloc[[-1]].set_axis(pd.DatetimeIndex([domingo]))
+            return pd.concat([self.CORTE_A0(b), fila])
+
+        lab = montar(tmp_path, monkeypatch, self.casos(), alterar={"A0": festiva})
+        with pytest.raises(evaluacion.EvaluacionDenegada, match=r"A0 \(decisión 1\)"):
+            lab.evaluar()
+
     def test_la_lista_no_depende_del_desenlace(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         lab = self.montar(tmp_path, monkeypatch, estado=contrafactual.STOP, final=1, hasta=XETRA[2], salida=90.0)
         with pytest.raises(evaluacion.EvaluacionDenegada, match=r"A0 \(decisión 1\)"):
@@ -928,6 +961,50 @@ class TestDejaDeCotizar:
         ).evaluar()
         assert r["estimador"] == pytest.approx(a_mano(self.casos(**parada), 0.0), abs=1e-12)
         assert r["con_resultado_de_exclusion"] == []
+
+    @pytest.mark.parametrize("guardado", [
+        {"estado": contrafactual.ABIERTA, "final": 0},
+        {"estado": contrafactual.STOP, "final": 1, "hasta": XETRA[2], "salida": 90.0},
+    ])
+    def test_una_entrada_retirada_no_tapa_la_exclusion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, guardado: dict[str, Any],
+    ) -> None:
+        # El proveedor retira la barra de entrada y además el valor deja de cotizar: falta el dato, no la pérdida.
+        declarada = declarar(
+            self.casos(), "A0", "EXCLUSION", sesion_salida=XETRA[40].isoformat(), precio_entrada=100.0, precio_salida=0.0,
+        )
+        r = montar(
+            tmp_path, monkeypatch, self.casos(**guardado), truncados=[declarada],
+            alterar={"A0": lambda b: cae(XETRA[2])(quita(XETRA[0], XETRA[0])(self.CORTE_A0(b)))},
+        ).evaluar()
+        real = [C("A0", "COMPRAR", salida=0.0, hasta=XETRA[40]), *self.casos()[1:]]
+        assert r["estimador"] == pytest.approx(a_mano(real, 0.0), abs=1e-12)
+        assert r["con_resultado_de_exclusion"] == [1] and 1 not in r["omitidos_en_carteras"]
+
+    @pytest.mark.parametrize("valor", [float("nan"), 0.0])
+    def test_una_barra_vacia_tras_el_corte_no_es_una_entrada_retirada(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, valor: float,
+    ) -> None:
+        def vaciada(b: pd.DataFrame) -> pd.DataFrame:
+            precios = ["Open", "High", "Low", "Close", "Adj Close"]
+            b = quita(XETRA[0], XETRA[0])(b)
+            b.loc[[m.date() > XETRA[0] for m in b.index], precios] = valor
+            return b
+
+        lab = montar(tmp_path, monkeypatch, self.casos(), alterar={"A0": vaciada}, truncados=[declarar(self.casos(), "A0")])
+        assert lab.evaluar()["aperturas_invalidadas"] == {}
+
+    def test_una_apertura_que_el_gate_rechaza_no_la_rescata_una_exclusion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        declarada = declarar(
+            self.casos(), "A0", "EXCLUSION", sesion_salida=XETRA[40].isoformat(), precio_entrada=110.0, precio_salida=0.0,
+        )
+        r = montar(
+            tmp_path, monkeypatch, self.casos(), truncados=[declarada],
+            alterar={"A0": lambda b: self.CORTE_A0(b).assign(Open=110.0, High=111.0)},
+        ).evaluar()
+        assert r["excluidos"]["COMPRAR"] == {contrafactual.NO_EJECUTABLE: 1} and r["con_resultado_de_exclusion"] == []
 
     def test_un_stop_que_la_cosecha_desmiente_no_tapa_la_exclusion(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,

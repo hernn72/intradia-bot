@@ -282,6 +282,13 @@ def test_una_variacion_minima_pero_real_si_da_intervalo() -> None:
     assert ic.bajo is not None and ic.bajo > 0
 
 
+@pytest.mark.parametrize("variacion,hay", [(1e-15, False), (3e-15, True)])
+def test_el_limite_de_la_variacion_es_el_redondeo(variacion: float, hay: bool) -> None:
+    # Error típico 0,577 veces la variación: 2,6 y 7,8 épsilon.
+    casos = [_obs(b, variacion if b % 2 else -variacion) for b in range(4)]
+    assert (intervalo_jackknife(casos, [_obs(b, 0.0) for b in range(4)], 0.0).bajo is not None) is hay
+
+
 def test_el_entorno_identifica_las_tres_versiones() -> None:
     import platform
 

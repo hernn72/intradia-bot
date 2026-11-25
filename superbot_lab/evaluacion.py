@@ -463,13 +463,14 @@ def _desmentido(
     if symbol not in vintage.by_symbol:
         return False
     vista = vintage.by_symbol[symbol].execution_prices
-    escala = 1.0
-    for fecha_split, ratio in _serie(vintage, symbol, market).splits:
+    serie, escala = _serie(vintage, symbol, market), 1.0
+    oficiales = set(serie.fechas)
+    for fecha_split, ratio in serie.splits:
         escala *= ratio if fecha_split > sesion else 1.0
     barras: Dict[date, set[Tuple[float, float]]] = {}
     for marca, apertura, minimo, cierre in zip(vista.index, vista["Open"], vista["Low"], vista["Close"]):
         dia = session_date_of(marca, market)
-        if dia is not None and all(math.isfinite(v) and v > 0 for v in (apertura, minimo, cierre)):
+        if dia in oficiales and all(math.isfinite(v) and v > 0 for v in (apertura, minimo, cierre)):
             barras.setdefault(dia, set()).add((float(apertura) * escala, float(minimo) * escala))
     for dia in expected_sessions(market, sesion, hasta):
         if dia not in barras:
@@ -528,7 +529,11 @@ def _fase1(
         # Una apertura que el gate rechaza no abre episodio: ni se espera ni penaliza.
         if episodio.categoria == "sin_entrada" and episodio.decision_id in rechazadas:
             continue
-        if episodio.categoria == "maduros" and episodio.decision_id in invalidadas:
+        declarada = determinaciones.get(episodio.decision_id)
+        excluida = declarada is not None and declarada.tipo == EXCLUSION
+        # Una entrada retirada es falta de datos, y una exclusión declarada la resuelve; una rechazada, no.
+        invalida = invalidadas.get(episodio.decision_id) if episodio.categoria == "maduros" else None
+        if invalida is not None and not (excluida and invalida == SIN_BARRA_DE_ENTRADA):
             estado = invalidadas[episodio.decision_id]
             excluidos[episodio.grupo][estado] = excluidos[episodio.grupo].get(estado, 0) + 1
             continue
@@ -553,9 +558,8 @@ def _fase1(
             continue
         elif estado not in {NO_EJECUTABLE, *_EXCLUIDOS}:
             estado = DATOS_INCOMPLETOS
-        declarada = determinaciones.get(episodio.decision_id)
         # Falta de datos: lo que una exclusión declarada resuelve. Un split o una apertura invalidada, no.
-        if estado in {DATOS_INCOMPLETOS, SIN_BARRA_DE_ENTRADA} and declarada is not None and declarada.tipo == EXCLUSION:
+        if estado in {DATOS_INCOMPLETOS, SIN_BARRA_DE_ENTRADA} and excluida:
             usables.append(episodio)
             con_exclusion.append(episodio.decision_id)
             continue
@@ -600,6 +604,8 @@ def _cuantitativos(decisiones: Sequence[sqlite3.Row]) -> Dict[int, Mapping[str, 
 
 
 def _serie(vintage: VintageLoad, symbol: str, market: str, *, fx: bool = False) -> SeriePrecios:
+    """Precios de la cosecha. Una barra fuera de las sesiones de su plaza no es un precio, la sirva quien la sirva."""
+
     if symbol not in vintage.by_symbol:
         raise EvaluacionDenegada(f"falta {symbol} en la cosecha")
     barras = vintage.by_symbol[symbol].execution_prices
@@ -609,9 +615,12 @@ def _serie(vintage: VintageLoad, symbol: str, market: str, *, fx: bool = False) 
     crudo = vintage.by_symbol[symbol].raw
     fechas_split = tuple(fecha_fx(m) if fx else session_date_of(m, market) for m in crudo.index)
     splits = tuple((d, float(r)) for d, r in zip(fechas_split, crudo["Stock Splits"]) if d is not None and float(r))
+    dias = [d for d in fechas if d is not None]
+    oficiales = set(dias) if fx or not dias else set(expected_sessions(market, min(dias), max(dias)))
+    filas = [f for f in zip(dias, barras["Open"], barras["Close"]) if f[0] in oficiales]
     return SeriePrecios(
-        tuple(d for d in fechas if d is not None), tuple(float(v) for v in barras["Open"]),
-        tuple(float(v) for v in barras["Close"]), splits,
+        tuple(d for d, _a, _c in filas), tuple(float(a) for _d, a, _c in filas),
+        tuple(float(c) for _d, _a, c in filas), splits,
     )
 
 
@@ -668,13 +677,6 @@ def _comprobar_cosecha(
     referencia = _serie(vintage, REFERENCIA, "XETRA")
     if len(set(referencia.fechas)) != len(referencia.fechas):
         raise EvaluacionDenegada("sesiones repetidas de EUNL.DE")
-    # El proveedor puede servir una barra en un festivo: no es una sesión y no puede dar un precio.
-    oficiales = set(expected_sessions("XETRA", madurez.CORTE.date() - timedelta(days=10), fecha_instante))
-    en_sesion = [i for i, d in enumerate(referencia.fechas) if d in oficiales]
-    referencia = SeriePrecios(
-        tuple(referencia.fechas[i] for i in en_sesion), tuple(referencia.aperturas[i] for i in en_sesion),
-        tuple(referencia.cierres[i] for i in en_sesion), referencia.splits,
-    )
     # Una exclusión declarada puede dar entrada a quien no la tuvo: su divisa y su referencia también se exigen.
     ejecutables = [fila for fila in decisiones if fila[5] == 1 or (
         int(fila[0]) in sin_entrada and "currency" in cuantitativos[int(fila[0])]
@@ -749,6 +751,8 @@ def _apertura_original(vintage: VintageLoad, symbol: str, market: str, sesion: d
     if sesion not in serie.fechas:
         return None
     apertura = serie.aperturas[serie.fechas.index(sesion)]
+    if not (math.isfinite(apertura) and apertura > 0):
+        return None  # una apertura vacía es un dato que falta, no un rechazo del gate
     for fecha_split, ratio in serie.splits:
         apertura *= ratio if fecha_split > sesion else 1.0
     return apertura
@@ -808,7 +812,8 @@ def aperturas_invalidadas(
             if _gate_rechaza(apertura, cuantitativos[decision_id]["niveles"]):
                 salida[decision_id] = NO_EJECUTABLE
             continue
-        fechas = _serie(vintage, symbol, market).fechas
+        serie = _serie(vintage, symbol, market)
+        fechas = [d for d, c in zip(serie.fechas, serie.cierres) if math.isfinite(c) and c > 0]
         # Sin barras a ambos lados no se distingue una barra retirada de una serie que empieza o acaba ahí.
         if fechas and min(fechas) < sesion < max(fechas):
             salida[decision_id] = SIN_BARRA_DE_ENTRADA
@@ -951,7 +956,7 @@ def _leer_casos(
     omitidos: List[int] = []
     for f in filas:
         decision_id, estado, final, declarada = int(f[0]), str(f[7]), f[8], exclusiones.get(int(f[0]))
-        if decision_id in invalidadas:
+        if decision_id in invalidadas and declarada is None:
             omitidos.append(decision_id)
             continue
         cerrado = final == 1 and estado in {STOP, HORIZONTE} and _sin_huecos(
