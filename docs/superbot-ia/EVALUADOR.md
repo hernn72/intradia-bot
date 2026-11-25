@@ -25,7 +25,7 @@ Todos: `python -m superbot_lab.evaluar --db COPIA --cosecha-raiz DIR <orden>`, d
 
 Puertas, en orden: autorización idéntica a `HEAD` y coincidente; sin apertura ni resultado previos; git limpio;
 congelación intacta, toca evaluar y los episodios cuadran con `madurez`; 30 por grupo. La base se abre en solo
-lectura por fases: en la 0 no se lee la tabla sellada; en la 1, solo estado y validez (incluidas cuántas sesiones duró); en la 2, todo, y solo
+lectura por fases: en la 0 no se lee la tabla sellada; en la 1, solo estado, fecha y validez, que se contrastan con la cosecha sin calcular rendimientos; en la 2, todo, y solo
 después de escribir `apertura.json`. Si algo falla tras abrir, no hay segunda ejecución.
 
 Es una defensa contra errores, **no una barrera**: quien edite el código o abra la base a mano puede leerla, y un
@@ -69,7 +69,7 @@ Revisado con ejecuciones de punta a punta que usan el `contrafactual.actualizar`
 (huecos, NaN, aperturas revisadas, splits, apagones, exclusiones): ningún fallo tras abrir y todos los estimadores
 coinciden con un cálculo aparte. Con el intervalo actual, 8 conclusiones falsas en 85 (9 %, con exclusiones ruinosas añadidas al azar); con el percentil, 14 en 47 (30 %).
 Aun así es sintético: no prueba que los datos reales lleguen completos. Los festivos dependen de `exchange_calendars`,
-cuya versión se fija en la autorización. La métrica usa los desenlaces que guardó el bot, no los recalcula. Queda una
+cuya versión se fija en la autorización. La métrica usa los precios que guardó el bot; la cosecha solo puede invalidar un desenlace, no cambiarlo. Queda una
 exclusión que depende en parte del desenlace: un split o un hueco posteriores a un stop ya no lo afectan, y sí al que
 seguía vivo. El precio de una exclusión lo aporta el propietario: el evaluador exige fuente y rango, no puede verificarlo.
 En las carteras, que no deciden, una posición sin cierre desde su compra se valora a su precio de entrada.

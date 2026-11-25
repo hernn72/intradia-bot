@@ -79,7 +79,7 @@ class Proveedor:
             indice = pd.DatetimeIndex(expected_sessions(self.plazas.get(symbol, "XETRA"), INICIO, T.date()))
             pares = [eunl(d.date()) if symbol == "EUNL.DE" else (100.0, 100.0) for d in indice]
         barras = pd.DataFrame({
-            "Open": [a for a, _c in pares], "High": [max(p) + 1 for p in pares], "Low": [min(p) / 2 for p in pares],
+            "Open": [a for a, _c in pares], "High": [max(p) + 1 for p in pares], "Low": [min(p) * 0.97 for p in pares],
             "Close": [c for _a, c in pares], "Adj Close": [c for _a, c in pares], "Volume": 1000.0,
             "Dividends": 0.0, "Stock Splits": 0.0,
         }, index=indice)
@@ -306,8 +306,181 @@ class TestVeredicto:
         sale = next(d for d in expected_sessions("NASDAQ", entra, T.date()) if d > entra and d not in XETRA)
         casos = poblacion()
         casos[0] = C("A0", "COMPRAR", entra, 130.0, "NASDAQ", estado=contrafactual.STOP, hasta=sale)
-        r = montar(tmp_path, monkeypatch, casos).evaluar()
+        r = montar(tmp_path, monkeypatch, casos, alterar={"A0": cae(sale)}).evaluar()
         assert r["estimador"] == pytest.approx(a_mano(casos, 0.0), abs=1e-12)
+
+
+class TestDesenlaceDesmentido:
+    """El recuento de barras no ve una repetida que compensa un hueco: se contrasta con la cosecha (§9.2)."""
+
+    @pytest.mark.parametrize("vista", ["stop_antes", "sin_stop", "stop_otro_dia", "hueco", "dos_precios"])
+    def test_es_dato_incompleto_y_no_entra_en_carteras(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, vista: str,
+    ) -> None:
+        parada = {"estado": contrafactual.STOP, "hasta": XETRA[6], "salida": 90.0}
+        a0, alterar = {
+            "stop_antes": ({}, cae(XETRA[5])), "sin_stop": (parada, lambda b: b),
+            "stop_otro_dia": (parada, cae(XETRA[5])), "hueco": ({}, quita(XETRA[5], XETRA[5])),
+            "dos_precios": (parada, cae(XETRA[6])),
+        }[vista]
+        ausentes = {}
+        if vista == "dos_precios":
+            def alterar(b: pd.DataFrame) -> pd.DataFrame:
+                b = cae(XETRA[6])(b)
+                fila = next(i for i, m in enumerate(b.index) if m.date() == XETRA[3])
+                return pd.concat([b, b.iloc[[fila]].assign(Low=95.0)])
+            ausentes = {"A0": "repite una sesión"}
+        casos = poblacion()
+        casos[0] = C("A0", "COMPRAR", **a0)  # type: ignore[arg-type]
+        # Otro valor con el mismo defecto dentro de un episodio: no está en la métrica y tampoco en carteras.
+        dentro = C("A18", "COMPRAR", XETRA[3], salida=1e6)
+        r = montar(
+            tmp_path, monkeypatch, [*casos, dentro], alterar={"A0": alterar, "A18": cae(XETRA[21])}, series_ausentes=ausentes,
+        ).evaluar()
+        assert r["excluidos"]["COMPRAR"] == {"DATOS_INCOMPLETOS": 1} and r["n"] == {"COMPRAR": 35, "DESCARTAR": 36}
+        assert r["estimador"] == pytest.approx(a_mano(casos[1:], 0.0), abs=1e-12)
+        assert r["omitidos_en_carteras"] == [1, 73] and "error" not in r["carteras"]
+
+    def test_con_menos_de_veinticinco_sesiones_espera(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        tarde = C("TARDE", "COMPRAR", XETRA[-22])
+        lab = montar(tmp_path, monkeypatch, [*poblacion(), tarde], alterar={"TARDE": cae(XETRA[-15])})
+        with pytest.raises(evaluacion.EvaluacionDenegada, match="faltan 1 casos"):
+            lab.evaluar()
+        assert not lab.apertura.exists() and 2 not in lab.fases
+
+    def test_un_split_posterior_no_lo_desmiente(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        def partido(b: pd.DataFrame) -> pd.DataFrame:
+            b = cae(XETRA[6])(b)
+            precios = ["Open", "High", "Low", "Close", "Adj Close"]
+            b[precios] = b[precios] / 4
+            b.loc[[m.date() == XETRA[40] for m in b.index], "Stock Splits"] = 4.0
+            return b
+
+        casos = poblacion()
+        casos[0] = C("A0", "COMPRAR", estado=contrafactual.STOP, hasta=XETRA[6], salida=90.0)
+        r = montar(tmp_path, monkeypatch, casos, alterar={"A0": partido}).evaluar()
+        assert r["estimador"] == pytest.approx(a_mano(casos, 0.0), abs=1e-12) and r["excluidos"]["COMPRAR"] == {}
+
+    @pytest.mark.parametrize("minimo,desmentido", [(90.0, False), (90.008, False), (90.02, True), (80.0, False)])
+    def test_el_stop_lleva_holgura(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, minimo: float, desmentido: bool,
+    ) -> None:
+        casos = poblacion()
+        casos[0] = C("A0", "COMPRAR", estado=contrafactual.STOP, hasta=XETRA[6], salida=90.0)
+        r = montar(tmp_path, monkeypatch, casos, alterar={"A0": cae(XETRA[6], minimo)}).evaluar()
+        assert r["excluidos"]["COMPRAR"] == ({"DATOS_INCOMPLETOS": 1} if desmentido else {})
+
+    def test_lo_que_escribe_produccion_con_las_mismas_barras_nunca_se_desmiente(self) -> None:
+        """``simular`` de producción y la comprobación recorren igual una serie completa."""
+
+        import random
+        from types import SimpleNamespace
+
+        azar, estados = random.Random(7), set()
+        for _ in range(60):
+            cierres, precio = [], 100.0
+            for _dia in XETRA[:30]:
+                precio *= 1 + azar.uniform(-0.03, 0.028)
+                cierres.append(precio)
+            b = pd.DataFrame({
+                "Open": [100.0, *cierres[:-1]], "Low": [c * 0.985 for c in cierres], "Close": cierres, "Stock Splits": 0.0,
+            }, index=pd.DatetimeIndex(XETRA[:30]))
+            b["Low"] = b[["Open", "Low"]].min(axis=1)
+            niveles = {"stop": 90.0, "target2": 120.0, "entry_max": 105.0}
+            d = contrafactual.simular(niveles, contrafactual.barras_de(b, "XETRA"), XETRA[0])
+            estados.add(d.estado)
+            vista: Any = SimpleNamespace(by_symbol={"A": SimpleNamespace(raw=b, execution_prices=b)})
+            assert d.hasta_session is not None
+            assert not evaluacion._desmentido(vista, "A", "XETRA", XETRA[0], d.estado, d.hasta_session, 90.0)
+            # El caso de Codex: una sesión omitida y la anterior repetida dan 20 barras y otra fecha o estado.
+            if d.estado == contrafactual.STOP and d.sesiones > 3 and d.hasta_session < XETRA[19]:
+                i = d.sesiones - 1
+                roto = pd.concat([b.iloc[:i], b.iloc[[i - 1]], b.iloc[i + 1:]])
+                malo = contrafactual.simular(niveles, contrafactual.barras_de(roto, "XETRA"), XETRA[0])
+                assert malo.hasta_session is not None
+                assert evaluacion._desmentido(vista, "A", "XETRA", XETRA[0], malo.estado, malo.hasta_session, 90.0)
+        assert estados == {contrafactual.STOP, contrafactual.HORIZONTE}
+
+
+class TestExclusionSinEntradaVista:
+    """El bot no llegó a ver la apertura y el valor dejó de cotizar: la pérdida no se descarta (§9.2)."""
+
+    def montar(
+        self, tmp: Path, monkeypatch: pytest.MonkeyPatch, *, sin: Sequence[str] = (), otros: Sequence[C] = (),
+        tipo: str = "EXCLUSION", corte: Any = None, **cambios: Any,
+    ) -> Lab:
+        casos = [*poblacion(), C(
+            "X", "COMPRAR", market="NASDAQ", sesion=XETRA[2], estado=contrafactual.SIN_BARRA_DE_ENTRADA, entrada=None,
+            salida=None, ejecutable=None,
+        ), *otros]
+        datos = {"sesion_salida": XETRA[10].isoformat(), "precio_entrada": 100.0, "precio_salida": 2.0}
+        declarada = declarar(casos, "X", tipo, **({**datos, **cambios} if tipo == "EXCLUSION" else {}))
+        self.casos = casos
+        return montar(
+            tmp, monkeypatch, casos, sin=sin, truncados=[declarada],
+            alterar={"X": corte or quita(XETRA[8], date(2100, 1, 1))},
+        )
+
+    @pytest.mark.parametrize("sin", [(), ("X",)])
+    def test_entra_con_su_perdida(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sin: Sequence[str]) -> None:
+        r = self.montar(tmp_path, monkeypatch, sin=sin).evaluar()
+        real = [*poblacion(), C("X", "COMPRAR", XETRA[2], 2.0, "NASDAQ", hasta=XETRA[10])]
+        assert r["n"]["COMPRAR"] == 37 and r["excluidos"]["COMPRAR"] == {} and r["con_resultado_de_exclusion"] == [73]
+        assert r["estimador"] == pytest.approx(a_mano(real, 0.0), abs=1e-12)
+        assert "error" not in r["carteras"]
+        # Sin serie no hay con qué valorarla: se omite igual en las dos carteras y se publica.
+        assert r["omitidos_en_carteras"] == ([73] if sin else [])
+
+    def test_sin_datos_cuenta_en_el_cinco_por_ciento(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        r = self.montar(tmp_path, monkeypatch, tipo="SIN_DATOS").evaluar()
+        assert r["excluidos"]["COMPRAR"] == {"SIN_BARRA_DE_ENTRADA": 1} and r["n"]["COMPRAR"] == 36
+
+    @pytest.mark.parametrize("cambios", [
+        {"precio_entrada": 106.0}, {"precio_entrada": 89.0}, {"precio_entrada": 101.0}, {"sesion_salida": "2026-11-29"},
+    ])
+    def test_entrada_que_el_gate_o_la_cosecha_no_admiten(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cambios: dict[str, Any],
+    ) -> None:
+        lab = self.montar(tmp_path, monkeypatch, **cambios)
+        with pytest.raises(evaluacion.EvaluacionDenegada, match="episodios_truncados ilegible"):
+            lab.evaluar()
+        assert not lab.apertura.exists() and set(lab.fases) == {0}
+
+    def test_sin_serie_la_entrada_declarada_tambien_pasa_por_el_gate(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        with pytest.raises(evaluacion.EvaluacionDenegada, match="episodios_truncados ilegible"):
+            self.montar(tmp_path, monkeypatch, sin=["X"], precio_entrada=106.0).evaluar()
+
+    def test_no_cuenta_dos_veces_el_mismo_episodio(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Cuatro sesiones después el bot sí entró en el mismo valor: ese episodio es el que se declara.
+        otro = C("X", "COMPRAR", XETRA[6], market="NASDAQ", estado=contrafactual.ABIERTA, final=0)
+        with pytest.raises(evaluacion.EvaluacionDenegada, match="episodios_truncados ilegible"):
+            self.montar(tmp_path, monkeypatch, otros=[otro]).evaluar()
+
+    def test_si_el_gate_la_habria_rechazado_no_hay_que_declarar_nada(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def cara(b: pd.DataFrame) -> pd.DataFrame:
+            return quita(XETRA[8], date(2100, 1, 1))(b.assign(Open=110.0, High=111.0))
+
+        lab = self.montar(tmp_path, monkeypatch, corte=cara)
+        with pytest.raises(evaluacion.EvaluacionDenegada, match="episodios_truncados"):
+            lab.evaluar()
+        autorizar(lab.raiz, lab.db, next(iter(lab.cosechas.iterdir())).name)
+        r = lab.evaluar()
+        assert r["excluidos"]["COMPRAR"] == {} and r["n"]["COMPRAR"] == 36
+
+    def test_congelar_descarga_su_serie_y_su_divisa(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        solo_xetra = [C(f"{g}{i}", g, XETRA[0] + timedelta(days=28 * (i % 5))) for g in ("COMPRAR", "DESCARTAR") for i in range(32)]
+        casos = [*solo_xetra, C("X", "COMPRAR", market="NASDAQ", ejecutable=None, estado="PENDIENTE", final=0, entrada=None, salida=None)]
+        lab = montar(tmp_path, monkeypatch, casos)
+        hecho = cli.congelar(
+            lab.db, tmp_path / "otras", raiz=lab.raiz, reloj=lambda: T + timedelta(days=1),
+            proveedor=Proveedor({c.symbol: c.market for c in casos}),
+        )
+        assert {"X", "EURUSD=X"} <= set(load_vintage(hecho["cosecha"], root_dir=tmp_path / "otras").by_symbol)
+        assert hecho["episodios_truncados"] == []
 
 
 class TestSinLeerRendimientos:
@@ -356,6 +529,10 @@ def test_sin_variacion_entre_bloques_tambien_vigila_la_base(tmp_path: Path, monk
     with pytest.raises(evaluacion.EvaluacionDenegada, match="la base cambió"):
         lab.evaluar()
     assert lab.apertura.exists() and not lab.resultado.exists()
+
+
+def cae(dia: date, minimo: float = 89.0) -> Callable[[pd.DataFrame], pd.DataFrame]:
+    return lambda b: b.assign(Low=[minimo if m.date() == dia else v for m, v in zip(b.index, b["Low"])])
 
 
 def declarar(casos: Sequence[C], symbol: str, tipo: str = "SIN_DATOS", **extra: Any) -> dict[str, Any]:
@@ -454,7 +631,8 @@ class TestCobertura:
         with pytest.raises(evaluacion.EvaluacionDenegada, match="repetidas: A0"):
             lab.evaluar()
         autorizar(lab.raiz, lab.db, next(iter(lab.cosechas.iterdir())).name, series_ausentes={"A0": "repite una sesión"})
-        assert lab.evaluar()["estimador"] == pytest.approx(a_mano(poblacion(), 0.0), abs=1e-12)
+        # Dos precios para una sesión de su ventana: además, el desenlace guardado no se puede sostener.
+        assert lab.evaluar()["estimador"] == pytest.approx(a_mano(poblacion()[1:], 0.0), abs=1e-12)
 
     @pytest.mark.parametrize("que,esperado", [
         ("tarde", ["A0"]), ("ausente", ["A0"]), ("fx", None), ("eunl", None),
@@ -744,9 +922,25 @@ class TestDejaDeCotizar:
         declarada = declarar(
             self.casos(), "A0", "EXCLUSION", sesion_salida=XETRA[40].isoformat(), precio_entrada=100.0, precio_salida=0.0,
         )
-        r = self.montar(tmp_path, monkeypatch, declarada, **parada).evaluar()
+        r = montar(
+            tmp_path, monkeypatch, self.casos(**parada), truncados=[declarada],
+            alterar={"A0": lambda b: cae(XETRA[2])(self.CORTE_A0(b))},
+        ).evaluar()
         assert r["estimador"] == pytest.approx(a_mano(self.casos(**parada), 0.0), abs=1e-12)
         assert r["con_resultado_de_exclusion"] == []
+
+    def test_un_stop_que_la_cosecha_desmiente_no_tapa_la_exclusion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        declarada = declarar(
+            self.casos(), "A0", "EXCLUSION", sesion_salida=XETRA[40].isoformat(), precio_entrada=100.0, precio_salida=0.0,
+        )
+        r = self.montar(
+            tmp_path, monkeypatch, declarada, estado=contrafactual.STOP, final=1, hasta=XETRA[2], salida=90.0,
+        ).evaluar()
+        assert r["con_resultado_de_exclusion"] == [1]
+        real = [C("A0", "COMPRAR", salida=0.0, hasta=XETRA[40]), *self.casos()[1:]]
+        assert r["estimador"] == pytest.approx(a_mano(real, 0.0), abs=1e-12)
 
     @pytest.mark.parametrize("cambio", [
         {"justificacion": " "}, {"fuente": ""}, {"tipo": "OTRO"}, {"decision_id": 2}, {"decision_id": "x"},

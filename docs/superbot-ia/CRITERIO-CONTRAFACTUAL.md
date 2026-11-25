@@ -171,6 +171,9 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
 - Se esperan **25 sesiones** de la plaza, contando la de entrada como la 1. Antes, la evaluación espera.
 - Lo mismo vale para `SIN_BARRA_DE_ENTRADA` y para un `STOP` u `HORIZONTE` guardado con huecos: el bot cuenta las
   barras que recibe, así que con una sesión perdida su salida no es la de la sesión 20 o falta un stop.
+  El recuento no ve una barra repetida o de festivo que compensa el hueco: por eso el estado y la fecha se contrastan
+  además con la cosecha, sesión oficial a sesión oficial y con 0,01 % de holgura en el stop. Si no coinciden, o falta o
+  tiene dos precios una sesión intermedia, es `DATOS_INCOMPLETOS`. El precio de salida sigue siendo el guardado.
 - Pasadas, si el episodio sigue sin completarse, es `DATOS_INCOMPLETOS` y cuenta en el 5 % de su grupo.
 - **Exclusión de cotización con resultado económico identificable:** no se descarta. Si el valor deja de tener barras
   antes de su sesión 20, el propietario declara en la autorización, con fuente y justificación y **antes de abrir**,
@@ -178,7 +181,8 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
   métrica con ese precio y las reglas de §4, aunque el cobro sea posterior a la sesión 20. Un stop anterior manda. La entrada es la que guardó el bot; la
   declarada solo suple su falta y tiene que coincidir (0,5 %) con la apertura de la cosecha. El precio final se
   declara en la escala de la entrada, deshaciendo cualquier split intermedio. `EXCLUSION` resuelve lo que
-  falta (`DATOS_INCOMPLETOS` o `SIN_BARRA_DE_ENTRADA` con entrada ejecutable), no un split ni una apertura invalidada.
+  falta (`DATOS_INCOMPLETOS` o `SIN_BARRA_DE_ENTRADA`), no un split ni una apertura invalidada. Si el bot no llegó a
+  ver la apertura, la entrada declarada tiene que pasar el gate y no repetir un episodio del mismo valor.
 - La lista de valores truncados sale del calendario y de precios de mercado, nunca del desenlace sellado.
 
 ### 9.3. Qué cuenta como dato inválido
@@ -189,7 +193,7 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
 | Sin entrada tras 20 sesiones porque faltan los datos | Sí |
 | Entrada válida que el proveedor invalida o retira después, aunque el caso ya fuera definitivo | Sí |
 | `SIN_BARRA_DE_ENTRADA`, `SPLIT_POSTERIOR`, `DATOS_INCOMPLETOS` | Sí |
-| Desenlace guardado con huecos: no vio una barra por cada sesión de la plaza | Sí, como `DATOS_INCOMPLETOS` |
+| Desenlace guardado con huecos, o que la cosecha desmiente (§9.2) | Sí, como `DATOS_INCOMPLETOS` |
 
 La apertura se comprueba igual para todos los casos en la cosecha (con un 0,01 % de holgura frente al ruido
 numérico): mirar solo el estado guardado excluiría el caso que seguía vivo y conservaría el que ya saltó su stop.

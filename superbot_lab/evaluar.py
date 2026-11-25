@@ -34,25 +34,17 @@ def congelar(
     evaluacion._sin_salidas(raiz)
     evaluacion._git_limpio(raiz)
     _cuenta, lista = evaluacion._puerta_madurez(db, instante)
-    with evaluacion.abrir_fase(db, 0) as conn:
-        filas = conn.execute(
-            "SELECT DISTINCT d.symbol,d.cuantitativo FROM ia_decision d JOIN ia_pasada p ON p.id=d.pasada_id "
-            "JOIN ia_contrafactual_entrada e ON e.decision_id=d.id "
-            "WHERE d.tipo='COMPRA' AND e.ejecutable=1 AND p.decision_ts>=?",
-            (madurez.CORTE.isoformat(timespec="seconds"),),
-        ).fetchall()
+    decisiones = evaluacion._decisiones_compra(db)
+    cuantitativos = evaluacion._cuantitativos(decisiones)
+    # Los que no tienen entrada vista también: con su serie se sabe si el gate la habría rechazado.
+    sin_entrada = [e.decision_id for e in lista if e.categoria == "sin_entrada"]
     simbolos = {REFERENCIA}
     pares_fx: set[str] = set()
-    for symbol, texto in filas:
-        valor = str(symbol)
-        simbolos.add(valor)
-        try:
-            datos = json.loads(texto)
-            moneda = str(datos["currency"])
-            float(datos["score"])
-            float(datos["niveles"]["stop"])
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise evaluacion.EvaluacionDenegada("cuantitativo ilegible") from exc
+    for fila in decisiones:
+        if fila[5] != 1 and int(fila[0]) not in sin_entrada:
+            continue
+        simbolos.add(str(fila[1]))
+        moneda = str(cuantitativos[int(fila[0])].get("currency", "EUR"))
         if moneda != "EUR":
             par = f"EUR{moneda}=X"
             simbolos.add(par)
@@ -74,18 +66,19 @@ def congelar(
         detalle = ", ".join(f"{s}: {m}" for s, m in sorted(resultado.failed.items()))
         raise evaluacion.EvaluacionDenegada("failed: " + detalle)
     vintage = load_vintage(resultado.data_vintage_id, root_dir=cosecha_raiz)
-    decisiones = evaluacion._decisiones_compra(db)
     salida["series_ausentes"] = evaluacion.series_inservibles(vintage, decisiones)
-    cuantitativos = evaluacion._cuantitativos(decisiones)
     evaluacion._comprobar_cosecha(
         resultado.data_vintage_id, cosecha_raiz, decisiones, instante, cuantitativos, salida["series_ausentes"],
+        sin_entrada,
     )
     salida["aperturas_invalidadas"] = evaluacion.aperturas_invalidadas(vintage, decisiones, cuantitativos)
     # Lo que la autorización tendrá que justificar: solo calendario y precios de mercado.
     salida["episodios_truncados"] = [
         {"decision_id": e.decision_id, "symbol": e.symbol, "sesion_entrada": e.sesion.isoformat(),
          "sesion_20": None if e.fin is None else e.fin.isoformat()}
-        for e in evaluacion.episodios_truncados(vintage, lista)
+        for e in evaluacion.episodios_truncados(
+            vintage, lista, evaluacion._rechazadas_por_gate(vintage, lista, cuantitativos),
+        )
     ]
     return salida
 

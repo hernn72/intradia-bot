@@ -276,6 +276,25 @@ def test_sin_variacion_entre_bloques_no_hay_intervalo() -> None:
     assert ic.bajo is None and veredicto(ic) == "INCONCLUSO"
 
 
+def test_una_variacion_minima_pero_real_si_da_intervalo() -> None:
+    casos = [_obs(b, 0.01 + (1e-13 if b % 2 else -1e-13)) for b in range(4) for _ in range(8)]
+    ic = intervalo_jackknife(casos, [_obs(b, 0.0) for b in range(4)], 0.0)
+    assert ic.bajo is not None and ic.bajo > 0
+
+
+def test_el_entorno_identifica_las_tres_versiones() -> None:
+    import platform
+
+    import exchange_calendars
+    import pandas
+
+    esperado = {
+        "python": platform.python_version(), "pandas": pandas.__version__,
+        "exchange_calendars": exchange_calendars.__version__,
+    }
+    assert evaluacion._entorno() == esperado
+
+
 def test_api_se_resta_solo_a_las_aprobadas() -> None:
     aprobadas = [Observacion(D0, 0.10, 200.0), Observacion(D0, 0.20, 300.0)]
     descartadas = [Observacion(D0, 0.05, 500.0)]

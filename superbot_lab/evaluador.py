@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import bisect
 import math
+import sys
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
@@ -193,8 +194,9 @@ def intervalo_jackknife(
         for bloque in bloques
     ]
     error = math.sqrt((k - 1) / k * sum((valor - centro) ** 2 for valor in sin_bloque))
-    if not math.isfinite(error) or error <= 1e-12:
-        return Intervalo(None, None, k, None)  # sin variación entre bloques no hay con qué medir el error
+    # Sin variación entre bloques no hay con qué medir el error: cero, salvo el redondeo de restar números cerca de 1.
+    if not math.isfinite(error) or error <= 4 * sys.float_info.epsilon:
+        return Intervalo(None, None, k, None)
     margen = cuantil_t((1 + NIVEL) / 2, k - 1) * error
     return Intervalo(centro - margen, centro + margen, k, error)
 

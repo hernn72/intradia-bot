@@ -21,7 +21,7 @@ from advisor.data.calendars import expected_sessions
 from advisor.data.sessions import latest_expected_closed_session, session_date_of
 from advisor.research.vintage import VintageLoad, load_vintage
 from superbot.ia import madurez
-from superbot.ia.cartera import evaluar_gate_apertura
+from superbot.ia.cartera import evaluar_gate_apertura, evaluar_stop
 from superbot.ia.contrafactual import (
     ABIERTA,
     DATOS_INCOMPLETOS,
@@ -319,7 +319,10 @@ def episodios(conn: sqlite3.Connection, instante: datetime) -> List[Episodio]:
         maduro = len(sesiones) >= HORIZONTE_SESIONES
         if ejecutable is None:
             if maduro:
-                salida.append(Episodio(decision_id, symbol, market, grupo, sesion, "sin_entrada", len(sesiones)))
+                salida.append(Episodio(
+                    decision_id, symbol, market, grupo, sesion, "sin_entrada", len(sesiones),
+                    sesiones[HORIZONTE_SESIONES - 1],
+                ))
             else:
                 detenidos.add(symbol)
             continue
@@ -448,9 +451,47 @@ def _sin_huecos(market: str, entrada: date, estado: str, hasta: Any, barras: Any
     return ultima in sesiones and len(sesiones) == vistas and (estado != HORIZONTE or vistas == HORIZONTE_SESIONES)
 
 
+def _desmentido(
+    vintage: VintageLoad, symbol: str, market: str, sesion: date, estado: str, hasta: date, stop: float,
+) -> bool:
+    """Si la cosecha, recorrida por las sesiones oficiales, no da ese estado en esa fecha.
+
+    El recuento no ve una barra repetida que compensa un hueco. No calcula rendimientos: usa lo que la fase 1 ya
+    conoce. Donde la serie no llega no se concluye nada, y el stop lleva la misma holgura que el gate.
+    """
+
+    if symbol not in vintage.by_symbol:
+        return False
+    vista = vintage.by_symbol[symbol].execution_prices
+    escala = 1.0
+    for fecha_split, ratio in _serie(vintage, symbol, market).splits:
+        escala *= ratio if fecha_split > sesion else 1.0
+    barras: Dict[date, set[Tuple[float, float]]] = {}
+    for marca, apertura, minimo, cierre in zip(vista.index, vista["Open"], vista["Low"], vista["Close"]):
+        dia = session_date_of(marca, market)
+        if dia is not None and all(math.isfinite(v) and v > 0 for v in (apertura, minimo, cierre)):
+            barras.setdefault(dia, set()).add((float(apertura) * escala, float(minimo) * escala))
+    for dia in expected_sessions(market, sesion, hasta):
+        if dia not in barras:
+            return bool(barras) and min(barras) < dia < max(barras)
+        if len(barras[dia]) > 1:
+            return True
+        (apertura, minimo), = barras[dia]
+        saltos = {
+            evaluar_stop(stop * factor, apertura, minimo).disparado
+            for factor in (1 - HOLGURA_GATE, 1.0, 1 + HOLGURA_GATE)
+        }
+        if dia < hasta and False not in saltos:
+            return True
+        if dia == hasta:
+            return (estado == STOP) not in saltos
+    return False
+
+
 def _fase1(
     db: Path, lista: Sequence[Episodio], determinaciones: Mapping[int, Determinacion], rechazadas: Sequence[int],
-    invalidadas: Mapping[int, str],
+    invalidadas: Mapping[int, str], vintage: Optional[VintageLoad] = None,
+    cuantitativos: Optional[Mapping[int, Mapping[str, Any]]] = None,
 ) -> Tuple[List[Episodio], Dict[str, Dict[str, int]], List[int]]:
     """Casos utilizables, excluidos por grupo y los que se resuelven con un resultado económico declarado."""
 
@@ -464,6 +505,7 @@ def _fase1(
             (madurez.CORTE.isoformat(timespec="seconds"),),
         ).fetchall()
     estados: Dict[int, Tuple[str, int]] = {}
+    hastas: Dict[int, str] = {}
     for fila in filas:
         try:
             apertura, sesion = datetime.fromisoformat(str(fila[7])), date.fromisoformat(str(fila[6]))
@@ -477,7 +519,7 @@ def _fase1(
         estado, final = str(fila[1]), int(fila[2])
         if estado in {STOP, HORIZONTE} and not _sin_huecos(str(fila[8]), sesion, estado, fila[10], fila[9]):
             estado, final = DATOS_INCOMPLETOS, 0
-        estados[int(fila[0])] = (estado, final)
+        estados[int(fila[0])], hastas[int(fila[0])] = (estado, final), str(fila[10])
     excluidos: Dict[str, Dict[str, int]] = {"COMPRAR": {}, "DESCARTAR": {}}
     usables: List[Episodio] = []
     con_exclusion: List[int] = []
@@ -491,6 +533,12 @@ def _fase1(
             excluidos[episodio.grupo][estado] = excluidos[episodio.grupo].get(estado, 0) + 1
             continue
         estado, final = estados.get(episodio.decision_id, (DATOS_INCOMPLETOS, 0))
+        contrastable = episodio.categoria == "maduros" and estado in {STOP, HORIZONTE}
+        if contrastable and vintage is not None and cuantitativos is not None and _desmentido(
+            vintage, episodio.symbol, episodio.market, episodio.sesion, estado,
+            date.fromisoformat(hastas[episodio.decision_id]), float(cuantitativos[episodio.decision_id]["niveles"]["stop"]),
+        ):
+            estado, final = DATOS_INCOMPLETOS, 0
         if not final or estado == SIN_BARRA_DE_ENTRADA:
             if episodio.sesiones < SESIONES_DE_ESPERA:
                 faltan += 1
@@ -601,6 +649,7 @@ def series_inservibles(vintage: VintageLoad, decisiones: Sequence[sqlite3.Row]) 
 def _comprobar_cosecha(
     cosecha: str, cosecha_raiz: Path, decisiones: Sequence[sqlite3.Row], instante: datetime,
     cuantitativos: Mapping[int, Mapping[str, Any]], series_ausentes: Sequence[str] = (),
+    sin_entrada: Sequence[int] = (),
 ) -> Tuple[VintageLoad, SeriePrecios]:
     try:
         vintage = load_vintage(cosecha, root_dir=cosecha_raiz)
@@ -626,7 +675,10 @@ def _comprobar_cosecha(
         tuple(referencia.fechas[i] for i in en_sesion), tuple(referencia.aperturas[i] for i in en_sesion),
         tuple(referencia.cierres[i] for i in en_sesion), referencia.splits,
     )
-    ejecutables = [fila for fila in decisiones if fila[5] == 1]
+    # Una exclusión declarada puede dar entrada a quien no la tuvo: su divisa y su referencia también se exigen.
+    ejecutables = [fila for fila in decisiones if fila[5] == 1 or (
+        int(fila[0]) in sin_entrada and "currency" in cuantitativos[int(fila[0])]
+    )]
     inservibles = set(series_inservibles(vintage, decisiones))
     if inservibles - set(series_ausentes):
         raise EvaluacionDenegada("series ausentes, que empiezan tarde o con sesiones repetidas: " + ", ".join(
@@ -665,15 +717,18 @@ def _comprobar_cosecha(
     return vintage, referencia
 
 
-def episodios_truncados(vintage: VintageLoad, lista: Sequence[Episodio]) -> List[Episodio]:
-    """Maduros cuyo valor no tiene barras hasta su sesión 20: puede ser el proveedor o una exclusión.
+def episodios_truncados(
+    vintage: VintageLoad, lista: Sequence[Episodio], rechazadas: Sequence[int] = (),
+) -> List[Episodio]:
+    """Episodios cuyo valor no tiene barras hasta su sesión 20: puede ser el proveedor o una exclusión.
 
+    Incluye los que no tienen entrada vista, salvo si el gate la habría rechazado: la pérdida fue igual de real.
     Solo mira el calendario y precios de mercado, así que no dice nada de sus desenlaces.
     """
 
     salida = []
     for episodio in lista:
-        if episodio.categoria != "maduros" or episodio.fin is None:
+        if episodio.fin is None or episodio.decision_id in rechazadas:
             continue
         ultima = None
         if episodio.symbol in vintage.by_symbol:
@@ -760,11 +815,30 @@ def aperturas_invalidadas(
     return salida
 
 
+def _admite_entrada(
+    precio: float, cuantitativo: Mapping[str, Any], episodio: Episodio, lista: Sequence[Episodio],
+    declaraciones: Sequence[Mapping[str, Any]],
+) -> bool:
+    """Si una entrada no vista pasa el gate y no repite un episodio del mismo valor dentro de sus 20 sesiones."""
+
+    niveles = cuantitativo["niveles"]
+    for clave in ("stop", "target2", "entry_max"):
+        float(niveles[clave])
+    if _gate_rechaza(precio, niveles) or not isinstance(cuantitativo["currency"], str):
+        return False
+    excluidas = {int(dato["decision_id"]) for dato in declaraciones if dato["tipo"] == EXCLUSION}
+    return episodio.fin is not None and not any(
+        otro.symbol == episodio.symbol and episodio.sesion < otro.sesion <= episodio.fin
+        and (otro.categoria in {"maduros", "madurando"} or otro.decision_id in excluidas)
+        for otro in lista
+    )
+
+
 def _determinaciones(
     autorizacion: Mapping[str, Any], vintage: VintageLoad, lista: Sequence[Episodio],
-    cuantitativos: Mapping[int, Mapping[str, Any]], instante: datetime,
+    cuantitativos: Mapping[int, Mapping[str, Any]], instante: datetime, rechazadas: Sequence[int],
 ) -> Dict[int, Determinacion]:
-    truncados = episodios_truncados(vintage, lista)
+    truncados = episodios_truncados(vintage, lista, rechazadas)
     hechas: Dict[int, Determinacion] = {}
     try:
         for dato in autorizacion.get("episodios_truncados", []):
@@ -783,6 +857,10 @@ def _determinaciones(
                 stop = float(cuantitativos[decision]["niveles"]["stop"])
                 publicada = _apertura_original(vintage, episodio.symbol, episodio.market, episodio.sesion)
                 if publicada is not None and not math.isclose(d.precio_entrada, publicada, rel_tol=0.005):
+                    raise ValueError
+                if episodio.categoria == "sin_entrada" and not _admite_entrada(
+                    d.precio_entrada, cuantitativos[decision], episodio, lista, autorizacion["episodios_truncados"],
+                ):
                     raise ValueError
                 cerradas = _sesiones(episodio.market, episodio.sesion, instante)
                 if d.sesion_salida not in cerradas or not (
@@ -821,10 +899,12 @@ def _preparar(
     cuantitativos = _cuantitativos(decisiones)
     vintage, referencia = _comprobar_cosecha(
         str(autorizacion["cosecha"]), cosecha_raiz, decisiones, instante, cuantitativos, list(ausentes),
+        [e.decision_id for e in lista if e.categoria == "sin_entrada"],
     )
-    determinaciones = _determinaciones(autorizacion, vintage, lista, cuantitativos, instante)
+    rechazadas = _rechazadas_por_gate(vintage, lista, cuantitativos)
+    determinaciones = _determinaciones(autorizacion, vintage, lista, cuantitativos, instante, rechazadas)
     return (
-        vintage, referencia, determinaciones, _rechazadas_por_gate(vintage, lista, cuantitativos),
+        vintage, referencia, determinaciones, rechazadas,
         aperturas_invalidadas(vintage, decisiones, cuantitativos), ausentes,
     )
 
@@ -848,7 +928,7 @@ def _abrir(raiz: Path, identidades: Mapping[str, Any], instante: datetime) -> No
 
 def _leer_casos(
     db: Path, usables: Sequence[Episodio], exclusiones: Mapping[int, Determinacion], instante: datetime,
-    invalidadas: Mapping[int, str],
+    invalidadas: Mapping[int, str], vintage: Optional[VintageLoad] = None,
 ) -> Tuple[List[Caso], List[Caso], Dict[int, float], Optional[str], List[int]]:
     """Casos de la métrica, casos de carteras, R de cada uno, errores solo de carteras y omitidos en ellas."""
 
@@ -858,9 +938,10 @@ def _leer_casos(
             "SELECT d.id,d.symbol,d.market,d.resolucion,d.target_session,d.target_open,d.cuantitativo,"
             "c.estado,c.final,c.entrada,c.salida,c.hasta_session,c.retorno_r,c.sesiones "
             "FROM ia_decision d JOIN ia_pasada p ON p.id=d.pasada_id "
-            "JOIN ia_contrafactual_entrada e ON e.decision_id=d.id "
+            "LEFT JOIN ia_contrafactual_entrada e ON e.decision_id=d.id "
             "LEFT JOIN ia_contrafactual c ON c.decision_id=d.id "
-            "WHERE d.tipo='COMPRA' AND p.decision_ts>=? AND e.ejecutable=1 ORDER BY d.id",
+            "WHERE d.tipo='COMPRA' AND p.decision_ts>=? AND (e.ejecutable=1 OR (e.decision_id IS NULL AND d.id IN "
+            f"({','.join(str(int(i)) for i in sorted(exclusiones)) or 'NULL'}))) ORDER BY d.id",
             (madurez.CORTE.isoformat(timespec="seconds"),),
         ).fetchall()
     casos: List[Caso] = []
@@ -876,6 +957,15 @@ def _leer_casos(
         cerrado = final == 1 and estado in {STOP, HORIZONTE} and _sin_huecos(
             str(f[2]), date.fromisoformat(str(f[4])), estado, f[11], f[13],
         )
+        if cerrado and vintage is not None:
+            try:
+                stop_visto = float(json.loads(f[6])["niveles"]["stop"])
+            except (KeyError, TypeError, ValueError):
+                stop_visto = math.nan
+            cerrado = not _desmentido(
+                vintage, str(f[1]), str(f[2]), date.fromisoformat(str(f[4])), estado, date.fromisoformat(str(f[11])),
+                stop_visto,
+            )
         # Pasadas sus 20 sesiones, una posición sin desenlace no está abierta: le faltan datos.
         abierto = final == 0 and estado == ABIERTA and f[9] is not None and _sesiones_cerradas(
             str(f[2]), date.fromisoformat(str(f[4])), instante,
@@ -990,7 +1080,9 @@ def evaluar(
     vintage, referencia, determinaciones, rechazadas, invalidadas, ausentes = _preparar(
         db, cosecha_raiz, autorizacion, instante_evaluacion, lista,
     )
-    usables, excluidos, con_exclusion = _fase1(db, lista, determinaciones, rechazadas, invalidadas)
+    usables, excluidos, con_exclusion = _fase1(
+        db, lista, determinaciones, rechazadas, invalidadas, vintage, _cuantitativos(_decisiones_compra(db)),
+    )
     detalle = {
         "series_ausentes": ausentes,
         "episodios_truncados": [asdict(d) for _id, d in sorted(determinaciones.items())],
@@ -1009,7 +1101,7 @@ def evaluar(
             raise EvaluacionDenegada(f"la identidad {clave} cambió antes de abrir")
     _abrir(raiz, identidades, instante_apertura)
     casos, candidatas, retornos_r, error_carteras, omitidos = _leer_casos(
-        db, usables, {i: determinaciones[i] for i in con_exclusion}, instante_evaluacion, invalidadas,
+        db, usables, {i: determinaciones[i] for i in con_exclusion}, instante_evaluacion, invalidadas, vintage,
     )
     monedas = sorted({c.currency for c in candidatas if c.currency != "EUR"})
     series_fx = {moneda: _serie(vintage, f"EUR{moneda}=X", "", fx=True) for moneda in monedas}
@@ -1043,7 +1135,11 @@ def evaluar(
     try:
         if error_carteras is not None:
             raise ValueError(error_carteras)
-        candidatas_cartera = [c for c in candidatas if c.symbol not in ausentes]
+        # Sin serie solo queda quien la autorización identifica: ausente o con una exclusión declarada.
+        candidatas_cartera = [c for c in candidatas if c.symbol not in ausentes and c.symbol in vintage.by_symbol]
+        omitidos = sorted({*omitidos, *(
+            c.decision_id for c in candidatas if c.symbol not in ausentes and c.symbol not in vintage.by_symbol
+        )})
         series = {c.symbol: _serie(vintage, c.symbol, c.market) for c in candidatas_cartera}
         detalle_carteras: Any = {
             k: v.como_dict() for k, v in carteras(
