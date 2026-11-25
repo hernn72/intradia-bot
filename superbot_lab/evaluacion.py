@@ -65,6 +65,8 @@ _EXCLUIDOS = frozenset({SIN_BARRA_DE_ENTRADA, SPLIT_POSTERIOR, DATOS_INCOMPLETOS
 # Sesiones de la plaza, contando la de entrada como la 1, que se esperan unas barras antes de resolver (D-88).
 SESIONES_DE_ESPERA = 25
 HOLGURA_GATE = 1e-4
+# Sesiones seguidas de EUNL.DE que se pueden declarar ausentes: más dejaría casos sin mercado que restar.
+MAX_HUECO_REFERENCIA = 3
 SIN_DATOS = "SIN_DATOS"
 EXCLUSION = "EXCLUSION"
 FALTA, CONTRADICE = "FALTA", "CONTRADICE"
@@ -454,6 +456,14 @@ def _sin_huecos(market: str, entrada: date, estado: str, hasta: Any, barras: Any
     return ultima in sesiones and len(sesiones) == vistas and (estado != HORIZONTE or vistas == HORIZONTE_SESIONES)
 
 
+def _es_sesion(market: str, texto: str) -> bool:
+    try:
+        dia = date.fromisoformat(texto)
+        return dia in expected_sessions(market, dia, dia)
+    except ValueError:
+        return False
+
+
 def _barras_de_cosecha(
     vintage: VintageLoad, symbol: str, market: str, sesion: date,
 ) -> Dict[date, set[Tuple[float, float]]]:
@@ -535,6 +545,7 @@ def _fase1(
         ).fetchall()
     estados: Dict[int, Tuple[str, int]] = {}
     hastas: Dict[int, str] = {}
+    con_huecos: set[int] = set()
     for fila in filas:
         try:
             apertura, sesion = datetime.fromisoformat(str(fila[7])), date.fromisoformat(str(fila[6]))
@@ -547,7 +558,7 @@ def _fase1(
             raise EvaluacionDenegada("decisión de fase 1 ilegible") from exc
         estado, final = str(fila[1]), int(fila[2])
         if estado in {STOP, HORIZONTE} and not _sin_huecos(str(fila[8]), sesion, estado, fila[10], fila[9]):
-            estado, final = DATOS_INCOMPLETOS, 0
+            con_huecos.add(int(fila[0]))
         estados[int(fila[0])], hastas[int(fila[0])] = (estado, final), str(fila[10])
     excluidos: Dict[str, Dict[str, int]] = {"COMPRAR": {}, "DESCARTAR": {}}
     usables: List[Episodio] = []
@@ -566,16 +577,18 @@ def _fase1(
             excluidos[episodio.grupo][estado] = excluidos[episodio.grupo].get(estado, 0) + 1
             continue
         estado, final = estados.get(episodio.decision_id, (DATOS_INCOMPLETOS, 0))
-        contrastable = episodio.categoria == "maduros" and estado in {STOP, HORIZONTE}
-        if contrastable and vintage is not None and cuantitativos is not None:
+        # Un stop anterior manda sobre una exclusión aunque falten barras, al bot o a la cosecha: una barra que falta
+        # puede esconder un stop, no inventarlo. Un horizonte no se sostiene sin todas.
+        stop_manda = excluida and estado == STOP and _es_sesion(episodio.market, hastas[episodio.decision_id])
+        if not stop_manda and (invalida is not None or episodio.decision_id in con_huecos):
+            estado, final = DATOS_INCOMPLETOS, 0
+        if vintage is not None and cuantitativos is not None and estado in {STOP, HORIZONTE}:
             contraste = _contraste(
                 vintage, episodio.symbol, episodio.market, episodio.sesion, estado,
                 date.fromisoformat(hastas[episodio.decision_id]),
                 float(cuantitativos[episodio.decision_id]["niveles"]["stop"]),
             )
-            # Un stop anterior manda sobre una exclusión aunque a la cosecha le falte una barra: una barra que falta
-            # puede esconder un stop, no inventarlo.
-            if contraste is not None and not (contraste == FALTA and excluida and estado == STOP):
+            if contraste is not None and not (contraste == FALTA and stop_manda):
                 estado, final = DATOS_INCOMPLETOS, 0
         if not final or estado == SIN_BARRA_DE_ENTRADA:
             if episodio.sesiones < SESIONES_DE_ESPERA:
@@ -733,6 +746,14 @@ def referencia_de(
     return valida, sorted(set(esperadas) - set(valida.fechas))
 
 
+def _hueco_mas_largo(huecos: Sequence[date]) -> int:
+    largo = seguidas = 0
+    for dia in expected_sessions("XETRA", min(huecos), max(huecos)) if huecos else ():
+        seguidas = seguidas + 1 if dia in huecos else 0
+        largo = max(largo, seguidas)
+    return largo
+
+
 def _comprobar_cosecha(
     cosecha: str, cosecha_raiz: Path, decisiones: Sequence[sqlite3.Row], instante: datetime,
     cuantitativos: Mapping[int, Mapping[str, Any]], series_ausentes: Sequence[str] = (),
@@ -754,6 +775,8 @@ def _comprobar_cosecha(
     referencia, huecos = referencia_de(vintage, ejecutables, instante)
     if set(huecos) - set(referencia_ausente):
         raise EvaluacionDenegada(f"faltan {len(set(huecos) - set(referencia_ausente))} sesiones de EUNL.DE sin declarar")
+    if _hueco_mas_largo(huecos) > MAX_HUECO_REFERENCIA:
+        raise EvaluacionDenegada(f"EUNL.DE tiene más de {MAX_HUECO_REFERENCIA} sesiones seguidas sin precio")
     if set(referencia_ausente) - set(huecos):
         raise EvaluacionDenegada("referencia_ausente incluye sesiones que sí están")
     inservibles = set(series_inservibles(vintage, decisiones))
@@ -922,6 +945,7 @@ def _determinaciones(
     cuantitativos: Mapping[int, Mapping[str, Any]], instante: datetime, rechazadas: Sequence[int],
 ) -> Dict[int, Determinacion]:
     truncados = episodios_truncados(vintage, lista, rechazadas)
+    absorbidas = _absorbidas(autorizacion, lista)
     hechas: Dict[int, Determinacion] = {}
     try:
         for dato in autorizacion.get("episodios_truncados", []):
@@ -930,6 +954,8 @@ def _determinaciones(
             if tipo not in {SIN_DATOS, EXCLUSION} or not justificacion or not fuente:
                 raise ValueError
             decision = int(dato["decision_id"])
+            if decision in absorbidas and tipo == SIN_DATOS:
+                continue  # ``congelar`` no puede saberlo: la lista aún sin declaraciones la incluye
             d = Determinacion(decision, tipo, justificacion, fuente)
             if tipo == EXCLUSION:
                 d = Determinacion(
@@ -1045,10 +1071,11 @@ def _leer_casos(
         if decision_id in invalidadas and decision_id not in ids:
             omitidos.append(decision_id)
             continue
-        cerrado = final == 1 and estado in {STOP, HORIZONTE} and _sin_huecos(
-            str(f[2]), date.fromisoformat(str(f[4])), estado, f[11], f[13],
+        # Lo utilizable lo decidió la fase 1 y no se vuelve a juzgar; lo demás solo puede ir a carteras.
+        cerrado = (decision_id in ids and declarada is None) or (
+            final == 1 and estado in {STOP, HORIZONTE}
+            and _sin_huecos(str(f[2]), date.fromisoformat(str(f[4])), estado, f[11], f[13])
         )
-        # Lo utilizable ya lo contrastó la fase 1 y no se vuelve a juzgar; lo demás solo puede ir a carteras.
         if cerrado and decision_id not in ids and vintage is not None:
             try:
                 stop_visto = float(json.loads(f[6])["niveles"]["stop"])

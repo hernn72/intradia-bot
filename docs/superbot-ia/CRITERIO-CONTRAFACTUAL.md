@@ -179,7 +179,7 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
   antes de su sesión 20, el propietario declara en la autorización, con fuente y justificación y **antes de abrir**,
   `SIN_DATOS` o `EXCLUSION` con sesión (cerrada, de su plaza), precio de entrada y precio final (puede ser 0). Con `EXCLUSION` entra en la
   métrica con ese precio y las reglas de §4, aunque el cobro sea posterior a la sesión 20. Un stop anterior manda: el guardado,
-  salvo que los precios de la cosecha lo contradigan (que le falte una barra no basta), y si no lo hay, el que se ve en
+  salvo que los precios de la cosecha lo contradigan (que falte una barra, al bot o a la cosecha, no basta), y si no lo hay, el que se ve en
   la cosecha, a su precio de ejecución. La entrada es la que guardó el bot; la
   declarada solo suple su falta y tiene que coincidir (0,5 %) con la apertura de la cosecha. El precio final se
   declara en la escala de la entrada, deshaciendo cualquier split intermedio. `EXCLUSION` resuelve lo que
@@ -187,7 +187,7 @@ mucho entre sí por episodios que los cruzan, el error sintético sube al 9–14
   ver la apertura, la entrada declarada tiene que pasar el gate y no repetir un episodio del mismo valor; abre episodio,
   así que otra decisión sin entrada del mismo valor dentro de sus 20 sesiones se ignora (§4).
 - **Huecos de `EUNL.DE`:** una sesión que el proveedor no sirve, o sirve sin precio, se declara y justifica en la
-  autorización (`referencia_ausente`) y se usa la contigua, como en un festivo (§4). Sin declarar, no se evalúa.
+  autorización (`referencia_ausente`) y se usa la contigua, como en un festivo (§4). Sin declarar, o con más de 3 seguidas, no se evalúa.
 - La lista de valores truncados sale del calendario y de precios de mercado, nunca del desenlace sellado.
 
 ### 9.3. Qué cuenta como dato inválido

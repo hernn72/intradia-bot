@@ -527,6 +527,25 @@ class TestExclusionSinEntradaVista:
         assert r["excluidos"] == {"COMPRAR": {}, "DESCARTAR": {}} and r["n"] == {"COMPRAR": 37, "DESCARTAR": 36}
         assert [d["decision_id"] for d in r["episodios_truncados"]] == [73]
 
+    @pytest.mark.parametrize("tipo", ["SIN_DATOS", "EXCLUSION"])
+    def test_declarar_la_ignorada_solo_vale_como_sin_datos(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tipo: str,
+    ) -> None:
+        nada = {"estado": contrafactual.SIN_BARRA_DE_ENTRADA, "entrada": None, "salida": None, "ejecutable": None}
+        dentro = C("X", "DESCARTAR", XETRA[5], market="NASDAQ", **nada)  # type: ignore[arg-type]
+        lab = self.montar(tmp_path, monkeypatch, otros=[dentro])
+        datos = {"sesion_salida": XETRA[10].isoformat(), "precio_entrada": 100.0, "precio_salida": 2.0}
+        dos = [
+            declarar(self.casos, "X", "EXCLUSION", **datos),
+            {**declarar(self.casos, "X", tipo, **datos), "decision_id": 74},
+        ]
+        autorizar(lab.raiz, lab.db, next(iter(lab.cosechas.iterdir())).name, episodios_truncados=dos)
+        if tipo == "EXCLUSION":
+            with pytest.raises(evaluacion.EvaluacionDenegada, match="episodios_truncados"):
+                lab.evaluar()
+        else:
+            assert lab.evaluar()["excluidos"] == {"COMPRAR": {}, "DESCARTAR": {}}
+
     def test_si_el_gate_la_habria_rechazado_no_hay_que_declarar_nada(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -707,6 +726,24 @@ class TestCobertura:
                 d for d in todas(m, a, b) if m != "XETRA" or a != INICIO or d != entra
             ])
             assert r["estimador"] == pytest.approx(a_mano(casos, 0.0), abs=1e-12)
+
+    @pytest.mark.parametrize("dias,denegada", [((9, 10, 11), False), ((9, 10, 11, 12), True), ((9, 10, 12, 13), False)])
+    def test_un_hueco_largo_de_eunl_se_deniega(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dias: tuple[int, ...], denegada: bool,
+    ) -> None:
+        fuera = {XETRA[i] for i in dias}
+        lab = montar(
+            tmp_path, monkeypatch, poblacion(), alterar={"EUNL.DE": lambda b: b[[m.date() not in fuera for m in b.index]]},
+        )
+        autorizar(
+            lab.raiz, lab.db, next(iter(lab.cosechas.iterdir())).name, referencia_ausente={d.isoformat(): "x" for d in fuera},
+        )
+        if denegada:
+            with pytest.raises(evaluacion.EvaluacionDenegada, match="más de 3 sesiones seguidas"):
+                lab.evaluar()
+            assert not lab.apertura.exists()
+        else:
+            assert len(lab.evaluar()["referencia_ausente"]) == len(dias)
 
     @pytest.mark.parametrize("valor,denegada", [(10.0, True), (None, False)])
     def test_dos_cambios_para_el_mismo_dia(
@@ -1116,6 +1153,44 @@ class TestDejaDeCotizar:
         r = lab.evaluar()
         assert r["estimador"] == pytest.approx(a_mano(self.casos(**self.PARADA), 0.0), abs=1e-12)
         assert r["con_resultado_de_exclusion"] == [] and r["n"]["COMPRAR"] == 36
+
+    @pytest.mark.parametrize("cosecha", ["sin_serie", "acaba_antes", "llega"])
+    def test_un_stop_guardado_con_huecos_manda_sobre_la_exclusion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cosecha: str,
+    ) -> None:
+        parada = {"estado": contrafactual.STOP, "final": 1, "hasta": XETRA[5], "barras": 5, "salida": 90.0}
+        corte = quita(XETRA[4] if cosecha == "acaba_antes" else XETRA[8], date(2100, 1, 1))
+        r = montar(
+            tmp_path, monkeypatch, self.casos(**parada), truncados=[self.excluida()],
+            alterar={"A0": lambda b: cae(XETRA[5])(corte(b))}, sin=["A0"] if cosecha == "sin_serie" else [],
+            series_ausentes={"A0": "deslistada"} if cosecha == "sin_serie" else {},
+        ).evaluar()
+        assert r["estimador"] == pytest.approx(a_mano(self.casos(**parada), 0.0), abs=1e-12)
+        assert r["con_resultado_de_exclusion"] == [] and r["n"]["COMPRAR"] == 36
+
+    @pytest.mark.parametrize("guardado", [
+        {"estado": contrafactual.STOP, "hasta": XETRA[4] + timedelta(days=(5 - XETRA[4].weekday()) % 7), "salida": 90.0},
+        {"estado": contrafactual.HORIZONTE, "salida": 130.0, "barras": 19},
+    ])
+    def test_ni_un_stop_en_festivo_ni_un_horizonte_con_huecos_tapan_la_exclusion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, guardado: dict[str, Any],
+    ) -> None:
+        r = self.montar(tmp_path, monkeypatch, self.excluida(), final=1, **guardado).evaluar()
+        assert r["con_resultado_de_exclusion"] == [1]
+
+    def test_una_entrada_a_cero_es_retirada_tambien_para_un_horizonte(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def ceros(b: pd.DataFrame) -> pd.DataFrame:
+            b = self.CORTE_A0(b)
+            return b.assign(Open=[0.0 if m.date() >= XETRA[0] else v for m, v in zip(b.index, b["Open"])])
+
+        guardado = {"estado": contrafactual.HORIZONTE, "final": 1, "salida": 130.0}
+        r = montar(
+            tmp_path, monkeypatch, self.casos(**guardado), truncados=[self.excluida()], alterar={"A0": ceros},
+        ).evaluar()
+        assert r["aperturas_invalidadas"] == {1: contrafactual.SIN_BARRA_DE_ENTRADA}
+        assert r["con_resultado_de_exclusion"] == [1]
 
     def test_un_horizonte_con_huecos_en_la_cosecha_no_tapa_la_exclusion(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,

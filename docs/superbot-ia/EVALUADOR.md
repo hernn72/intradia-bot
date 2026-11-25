@@ -72,4 +72,5 @@ Aun así es sintético: no prueba que los datos reales lleguen completos. Los fe
 cuya versión se fija en la autorización. La métrica usa los precios que guardó el bot; la cosecha solo puede invalidar un desenlace, no cambiarlo. Queda una
 exclusión que depende en parte del desenlace: un split o un hueco posteriores a un stop ya no lo afectan, y sí al que
 seguía vivo. El precio de una exclusión lo aporta el propietario: el evaluador exige fuente y rango, no puede verificarlo.
+Un stop guardado con huecos es dato inválido si se declara `SIN_DATOS` o el valor sigue cotizando, y manda si se declara `EXCLUSION`.
 En las carteras, que no deciden, una posición sin cierre desde su compra se valora a su precio de entrada.
