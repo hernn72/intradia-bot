@@ -449,6 +449,10 @@ class TestDesenlaceDesmentido:
             b["Low"] = b[["Open", "Low"]].min(axis=1)
             niveles = {"stop": 90.0, "target2": 120.0, "entry_max": 105.0}
             d = contrafactual.simular(niveles, contrafactual.barras_de(b, "XETRA"), XETRA[0])
+            # Con las sesiones oficiales (D-90), lo mismo.
+            assert contrafactual.simular_en_calendario(
+                niveles, contrafactual.barras_de(b, "XETRA"), XETRA[0], XETRA[:30],
+            ) == d
             estados.add(d.estado)
             vista: Any = SimpleNamespace(by_symbol={"A": SimpleNamespace(raw=b, execution_prices=b)})
             assert d.hasta_session is not None
@@ -460,6 +464,9 @@ class TestDesenlaceDesmentido:
                 malo = contrafactual.simular(niveles, contrafactual.barras_de(roto, "XETRA"), XETRA[0])
                 assert malo.hasta_session is not None
                 assert evaluacion._contraste(vista, "A", "XETRA", XETRA[0], malo.estado, malo.hasta_session, 90.0)
+                assert contrafactual.simular_en_calendario(
+                    niveles, contrafactual.barras_de(roto, "XETRA"), XETRA[0], XETRA[:24],
+                ).estado == contrafactual.DATOS_INCOMPLETOS
         assert estados == {contrafactual.STOP, contrafactual.HORIZONTE}
 
 

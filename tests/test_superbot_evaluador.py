@@ -9,8 +9,8 @@ import random
 import shutil
 import sqlite3
 import subprocess
-from dataclasses import FrozenInstanceError, dataclass
-from datetime import date, datetime, timedelta, timezone
+from dataclasses import FrozenInstanceError, dataclass, replace
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -460,7 +460,7 @@ def test_un_desenlace_con_huecos_no_es_el_del_criterio(
 
 
 def test_el_hueco_de_produccion_se_detecta_y_espera_veinticinco_sesiones(tmp_path: Path) -> None:
-    """El caso que encontró Codex: ``actualizar`` sin una sesión intermedia cierra en la 21."""
+    """El caso que encontró Codex: sin una sesión intermedia, la regla anterior a D-90 cerraba en la 21."""
 
     from superbot.ia import contrafactual
     from tests.test_superbot_ia_madurez import NIVELES, SESIONES, _base, _decision
@@ -480,10 +480,25 @@ def test_el_hueco_de_produccion_se_detecta_y_espera_veinticinco_sesiones(tmp_pat
         def get(self, _symbol: str) -> None:
             return None
 
-    contrafactual.actualizar(reg.conn, Proveedor(), Universo(), datetime(2027, 2, 1, tzinfo=timezone.utc), "1y", "1d", 20)
+    def actualizar(instante: datetime) -> tuple[object, ...]:
+        contrafactual.actualizar(reg.conn, Proveedor(), Universo(), instante, "1y", "1d", 20)
+        reg.conn.commit()
+        fila = reg.conn.execute("SELECT decision_id,estado,final,hasta_session FROM ia_contrafactual").fetchone()
+        return tuple(fila)
+
+    fila = actualizar(datetime.combine(SESIONES[23], time(22), timezone.utc))
+    assert fila[1:] == ("DATOS_INCOMPLETOS", 0, SESIONES[7].isoformat())
+    pendiente = [Episodio(int(str(fila[0])), "S", "XETRA", "COMPRAR", SESIONES[0], "maduros", 24)]
+    with pytest.raises(evaluacion.EvaluacionDenegada, match="faltan 1"):
+        evaluacion._fase1(reg.path, pendiente, {}, [], {})
+    fila = actualizar(datetime.combine(SESIONES[24], time(22), timezone.utc))
+    assert fila[1:] == ("DATOS_INCOMPLETOS", 1, SESIONES[7].isoformat())
+    assert evaluacion._fase1(reg.path, [replace(pendiente[0], sesiones=25)], {}, [], {})[1]["COMPRAR"] == {"DATOS_INCOMPLETOS": 1}
+    # Y si una base guardara aún el desenlace de antes, la evaluación tampoco lo da por bueno.
+    reg.conn.execute(
+        "UPDATE ia_contrafactual SET estado='HORIZONTE',final=1,sesiones=20,hasta_session=?", (SESIONES[20].isoformat(),),
+    )
     reg.conn.commit()
-    fila = reg.conn.execute("SELECT decision_id,estado,final,hasta_session FROM ia_contrafactual").fetchone()
-    assert tuple(fila)[1:] == ("HORIZONTE", 1, SESIONES[20].isoformat())
     for sesiones, espera in ((24, True), (25, False)):
         lista = [Episodio(int(fila[0]), "S", "XETRA", "COMPRAR", SESIONES[0], "maduros", sesiones)]
         if espera:
