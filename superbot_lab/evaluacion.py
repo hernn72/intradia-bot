@@ -67,6 +67,7 @@ SESIONES_DE_ESPERA = 25
 HOLGURA_GATE = 1e-4
 SIN_DATOS = "SIN_DATOS"
 EXCLUSION = "EXCLUSION"
+FALTA, CONTRADICE = "FALTA", "CONTRADICE"
 _TABLAS_FASE0 = frozenset({
     "ia_meta", "ia_pasada", "ia_paquete", "ia_llamada", "ia_decision",
     "ia_contrafactual_entrada", "ia_politica_cambio", "sqlite_master",
@@ -375,9 +376,11 @@ def puertas(
         estados[2] = True
         cuenta, lista = _puerta_madurez(db, instante)
         estados[3] = True
-        if cosecha_raiz is not None:
-            _preparar(db, cosecha_raiz, autorizacion, instante, lista)
         estados[4] = min(cuenta.aprobadas.maduros, cuenta.descartadas.maduros) >= madurez.MINIMO_POR_GRUPO
+        if cosecha_raiz is not None and estados[4]:  # sin muestra, ``evaluar`` concluye sin mirar la cosecha
+            estados[4] = False
+            _preparar(db, cosecha_raiz, autorizacion, instante, lista)
+            estados[4] = True
         return Puertas(estados[0], estados[1], estados[2], estados[3], estados[4], None)
     except EvaluacionDenegada as exc:
         return Puertas(estados[0], estados[1], estados[2], estados[3], estados[4], str(exc))
@@ -451,17 +454,13 @@ def _sin_huecos(market: str, entrada: date, estado: str, hasta: Any, barras: Any
     return ultima in sesiones and len(sesiones) == vistas and (estado != HORIZONTE or vistas == HORIZONTE_SESIONES)
 
 
-def _desmentido(
-    vintage: VintageLoad, symbol: str, market: str, sesion: date, estado: str, hasta: date, stop: float,
-) -> bool:
-    """Si la cosecha, recorrida por las sesiones oficiales, no da ese estado en esa fecha.
-
-    El recuento no ve una barra repetida que compensa un hueco. No calcula rendimientos: usa lo que la fase 1 ya
-    conoce. Donde la serie no llega no se concluye nada, y el stop lleva la misma holgura que el gate.
-    """
+def _barras_de_cosecha(
+    vintage: VintageLoad, symbol: str, market: str, sesion: date,
+) -> Dict[date, set[Tuple[float, float]]]:
+    """Apertura y mínimo de cada sesión oficial, en la escala de la entrada; más de uno si se contradicen."""
 
     if symbol not in vintage.by_symbol:
-        return False
+        return {}
     vista = vintage.by_symbol[symbol].execution_prices
     serie, escala = _serie(vintage, symbol, market), 1.0
     oficiales = set(serie.fechas)
@@ -472,21 +471,50 @@ def _desmentido(
         dia = session_date_of(marca, market)
         if dia in oficiales and all(math.isfinite(v) and v > 0 for v in (apertura, minimo, cierre)):
             barras.setdefault(dia, set()).add((float(apertura) * escala, float(minimo) * escala))
-    for dia in expected_sessions(market, sesion, hasta):
-        if dia not in barras:
-            return bool(barras) and min(barras) < dia < max(barras)
-        if len(barras[dia]) > 1:
-            return True
+    return barras
+
+
+def _saltos(stop: float, apertura: float, minimo: float) -> set[bool]:
+    return {
+        evaluar_stop(stop * factor, apertura, minimo).disparado
+        for factor in (1 - HOLGURA_GATE, 1.0, 1 + HOLGURA_GATE)
+    }
+
+
+def _contraste(
+    vintage: VintageLoad, symbol: str, market: str, sesion: date, estado: str, hasta: date, stop: float,
+) -> Optional[str]:
+    """Qué dice la cosecha, por las sesiones oficiales, de un estado y una fecha guardados.
+
+    El recuento no ve una barra repetida que compensa un hueco. No calcula rendimientos: usa lo que la fase 1 ya
+    conoce. Donde la serie no llega no se concluye nada, y el stop lleva la misma holgura que el gate.
+    """
+
+    barras = _barras_de_cosecha(vintage, symbol, market, sesion)
+    falta = False
+    for dia in expected_sessions(market, sesion, hasta) if barras else ():
+        if dia not in barras or len(barras[dia]) > 1:
+            falta = falta or min(barras) < dia < max(barras) or dia in barras
+            continue
         (apertura, minimo), = barras[dia]
-        saltos = {
-            evaluar_stop(stop * factor, apertura, minimo).disparado
-            for factor in (1 - HOLGURA_GATE, 1.0, 1 + HOLGURA_GATE)
-        }
-        if dia < hasta and False not in saltos:
-            return True
-        if dia == hasta:
-            return (estado == STOP) not in saltos
-    return False
+        saltos = _saltos(stop, apertura, minimo)
+        if (dia < hasta and False not in saltos) or (dia == hasta and (estado == STOP) not in saltos):
+            return CONTRADICE
+    return FALTA if falta else None
+
+
+def _stop_en_cosecha(
+    vintage: VintageLoad, symbol: str, market: str, sesion: date, hasta: date, stop: float,
+) -> Optional[Tuple[date, float]]:
+    """Primera sesión hasta ``hasta`` en la que el stop salta sin duda, y a qué precio."""
+
+    barras = _barras_de_cosecha(vintage, symbol, market, sesion)
+    for dia in expected_sessions(market, sesion, hasta) if barras else ():
+        for apertura, minimo in barras.get(dia, ()) if len(barras.get(dia, ())) == 1 else ():
+            precio = evaluar_stop(stop, apertura, minimo).precio_fill
+            if False not in _saltos(stop, apertura, minimo) and precio is not None:
+                return dia, precio
+    return None
 
 
 def _fase1(
@@ -539,11 +567,16 @@ def _fase1(
             continue
         estado, final = estados.get(episodio.decision_id, (DATOS_INCOMPLETOS, 0))
         contrastable = episodio.categoria == "maduros" and estado in {STOP, HORIZONTE}
-        if contrastable and vintage is not None and cuantitativos is not None and _desmentido(
-            vintage, episodio.symbol, episodio.market, episodio.sesion, estado,
-            date.fromisoformat(hastas[episodio.decision_id]), float(cuantitativos[episodio.decision_id]["niveles"]["stop"]),
-        ):
-            estado, final = DATOS_INCOMPLETOS, 0
+        if contrastable and vintage is not None and cuantitativos is not None:
+            contraste = _contraste(
+                vintage, episodio.symbol, episodio.market, episodio.sesion, estado,
+                date.fromisoformat(hastas[episodio.decision_id]),
+                float(cuantitativos[episodio.decision_id]["niveles"]["stop"]),
+            )
+            # Un stop anterior manda sobre una exclusión aunque a la cosecha le falte una barra: una barra que falta
+            # puede esconder un stop, no inventarlo.
+            if contraste is not None and not (contraste == FALTA and excluida and estado == STOP):
+                estado, final = DATOS_INCOMPLETOS, 0
         if not final or estado == SIN_BARRA_DE_ENTRADA:
             if episodio.sesiones < SESIONES_DE_ESPERA:
                 faltan += 1
@@ -603,11 +636,23 @@ def _cuantitativos(decisiones: Sequence[sqlite3.Row]) -> Dict[int, Mapping[str, 
     return salida
 
 
+# Guarda también la vista: mientras esté viva, su identidad no se reutiliza.
+_SERIES: Dict[Tuple[int, str, bool], Tuple[Any, SeriePrecios]] = {}
+
+
 def _serie(vintage: VintageLoad, symbol: str, market: str, *, fx: bool = False) -> SeriePrecios:
     """Precios de la cosecha. Una barra fuera de las sesiones de su plaza no es un precio, la sirva quien la sirva."""
 
     if symbol not in vintage.by_symbol:
         raise EvaluacionDenegada(f"falta {symbol} en la cosecha")
+    vista = vintage.by_symbol[symbol]
+    clave = (id(vista), market, fx)
+    if clave not in _SERIES:
+        _SERIES[clave] = (vista, _leer_serie(vintage, symbol, market, fx))
+    return _SERIES[clave][1]
+
+
+def _leer_serie(vintage: VintageLoad, symbol: str, market: str, fx: bool) -> SeriePrecios:
     barras = vintage.by_symbol[symbol].execution_prices
     fechas = tuple(fecha_fx(m) if fx else session_date_of(m, market) for m in barras.index)
     if any(d is None for d in fechas):
@@ -655,17 +700,48 @@ def series_inservibles(vintage: VintageLoad, decisiones: Sequence[sqlite3.Row]) 
     return sorted({s for (s, market), sesion in primeras.items() if not _cubre(vintage, s, market, sesion)})
 
 
+def _exigidas(
+    decisiones: Sequence[sqlite3.Row], cuantitativos: Mapping[int, Mapping[str, Any]], sin_entrada: Sequence[int],
+) -> List[sqlite3.Row]:
+    """Decisiones cuya divisa y referencia hacen falta: una exclusión declarada puede dar entrada a quien no la tuvo."""
+
+    return [fila for fila in decisiones if fila[5] == 1 or (
+        int(fila[0]) in sin_entrada and "currency" in cuantitativos[int(fila[0])]
+    )]
+
+
+def referencia_de(
+    vintage: VintageLoad, exigidas: Sequence[sqlite3.Row], instante: datetime,
+) -> Tuple[SeriePrecios, List[date]]:
+    """``EUNL.DE`` con solo sesiones y precios válidos, y las sesiones que le faltan desde la primera entrada."""
+
+    if REFERENCIA not in vintage.by_symbol:
+        raise EvaluacionDenegada("falta EUNL.DE en la cosecha")
+    serie = _serie(vintage, REFERENCIA, "XETRA")
+    if len(set(serie.fechas)) != len(serie.fechas):
+        raise EvaluacionDenegada("sesiones repetidas de EUNL.DE")
+    filas = [f for f in zip(serie.fechas, serie.aperturas, serie.cierres) if all(
+        math.isfinite(v) and v > 0 for v in f[1:]
+    )]
+    valida = SeriePrecios(
+        tuple(f[0] for f in filas), tuple(f[1] for f in filas), tuple(f[2] for f in filas), serie.splits,
+    )
+    if not exigidas:
+        return valida, []
+    primera = min(date.fromisoformat(str(fila[3])) for fila in exigidas)
+    esperadas = expected_sessions("XETRA", primera, instante.astimezone(timezone.utc).date())
+    return valida, sorted(set(esperadas) - set(valida.fechas))
+
+
 def _comprobar_cosecha(
     cosecha: str, cosecha_raiz: Path, decisiones: Sequence[sqlite3.Row], instante: datetime,
     cuantitativos: Mapping[int, Mapping[str, Any]], series_ausentes: Sequence[str] = (),
-    sin_entrada: Sequence[int] = (),
+    sin_entrada: Sequence[int] = (), referencia_ausente: Sequence[date] = (),
 ) -> Tuple[VintageLoad, SeriePrecios]:
     try:
         vintage = load_vintage(cosecha, root_dir=cosecha_raiz)
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         raise EvaluacionDenegada("cosecha ilegible o alterada") from exc
-    if REFERENCIA not in vintage.by_symbol:
-        raise EvaluacionDenegada("falta EUNL.DE en la cosecha")
     peticion = vintage.manifest.get("request", {})
     inicio_esperado = (madurez.CORTE.date() - timedelta(days=10)).isoformat()
     fecha_instante = instante.astimezone(timezone.utc).date()
@@ -674,13 +750,12 @@ def _comprobar_cosecha(
         "end_exclusive"
     ):
         raise EvaluacionDenegada("la petición de la cosecha no coincide con el intervalo autorizado")
-    referencia = _serie(vintage, REFERENCIA, "XETRA")
-    if len(set(referencia.fechas)) != len(referencia.fechas):
-        raise EvaluacionDenegada("sesiones repetidas de EUNL.DE")
-    # Una exclusión declarada puede dar entrada a quien no la tuvo: su divisa y su referencia también se exigen.
-    ejecutables = [fila for fila in decisiones if fila[5] == 1 or (
-        int(fila[0]) in sin_entrada and "currency" in cuantitativos[int(fila[0])]
-    )]
+    ejecutables = _exigidas(decisiones, cuantitativos, sin_entrada)
+    referencia, huecos = referencia_de(vintage, ejecutables, instante)
+    if set(huecos) - set(referencia_ausente):
+        raise EvaluacionDenegada(f"faltan {len(set(huecos) - set(referencia_ausente))} sesiones de EUNL.DE sin declarar")
+    if set(referencia_ausente) - set(huecos):
+        raise EvaluacionDenegada("referencia_ausente incluye sesiones que sí están")
     inservibles = set(series_inservibles(vintage, decisiones))
     if inservibles - set(series_ausentes):
         raise EvaluacionDenegada("series ausentes, que empiezan tarde o con sesiones repetidas: " + ", ".join(
@@ -688,20 +763,6 @@ def _comprobar_cosecha(
         ))
     if set(series_ausentes) - inservibles:
         raise EvaluacionDenegada("series_ausentes incluye valores que sí tienen datos")
-    if ejecutables:
-        primera = min(date.fromisoformat(str(fila[3])) for fila in ejecutables)
-        esperadas = set(expected_sessions("XETRA", primera, fecha_instante))
-        indices_ref = {d: i for i, d in enumerate(referencia.fechas)}
-        faltan = esperadas - set(indices_ref)
-        if faltan:
-            raise EvaluacionDenegada(f"faltan {len(faltan)} sesiones de EUNL.DE")
-        for dia in esperadas:
-            indice = indices_ref[dia]
-            if not all(
-                math.isfinite(valor) and valor > 0
-                for valor in (referencia.aperturas[indice], referencia.cierres[indice])
-            ):
-                raise EvaluacionDenegada("precio inválido de EUNL.DE")
     primer_dia = min((date.fromisoformat(str(f[3])) for f in ejecutables), default=fecha_instante)
     monedas = sorted({str(cuantitativos[int(f[0])]["currency"]) for f in ejecutables} - {"EUR"})
     for moneda in monedas:
@@ -839,6 +900,23 @@ def _admite_entrada(
     )
 
 
+def _absorbidas(autorizacion: Mapping[str, Any], lista: Sequence[Episodio]) -> List[int]:
+    """Decisiones sin entrada dentro del episodio que abre una exclusión del mismo valor: §4 las ignora."""
+
+    try:
+        excluidas = {
+            int(dato["decision_id"]) for dato in autorizacion.get("episodios_truncados", []) if dato["tipo"] == EXCLUSION
+        }
+    except (KeyError, TypeError, ValueError) as exc:
+        raise EvaluacionDenegada("episodios_truncados ilegible o inválido") from exc
+    abren = [e for e in lista if e.categoria == "sin_entrada" and e.decision_id in excluidas]
+    return [
+        otro.decision_id for otro in lista if otro.categoria == "sin_entrada" and any(
+            e.symbol == otro.symbol and e.fin is not None and e.sesion < otro.sesion <= e.fin for e in abren
+        )
+    ]
+
+
 def _determinaciones(
     autorizacion: Mapping[str, Any], vintage: VintageLoad, lista: Sequence[Episodio],
     cuantitativos: Mapping[int, Mapping[str, Any]], instante: datetime, rechazadas: Sequence[int],
@@ -887,11 +965,18 @@ def _determinaciones(
     return hechas
 
 
-def _series_ausentes(autorizacion: Mapping[str, Any]) -> Dict[str, str]:
-    crudo = autorizacion.get("series_ausentes", {})
+def _justificadas(autorizacion: Mapping[str, Any], clave: str) -> Dict[str, str]:
+    crudo = autorizacion.get(clave, {})
     if not isinstance(crudo, dict) or not all(isinstance(v, str) and v.strip() for v in crudo.values()):
-        raise EvaluacionDenegada("series_ausentes debe dar la justificación de cada valor")
+        raise EvaluacionDenegada(f"{clave} debe dar la justificación de cada valor")
     return dict(sorted(crudo.items()))
+
+
+def _referencia_ausente(autorizacion: Mapping[str, Any]) -> Dict[date, str]:
+    try:
+        return {date.fromisoformat(k): v for k, v in _justificadas(autorizacion, "referencia_ausente").items()}
+    except ValueError as exc:
+        raise EvaluacionDenegada("referencia_ausente lleva una fecha ilegible") from exc
 
 
 def _preparar(
@@ -899,14 +984,15 @@ def _preparar(
 ) -> Tuple[VintageLoad, SeriePrecios, Dict[int, Determinacion], List[int], Dict[int, str], Dict[str, str]]:
     """Todo lo que se comprueba con la cosecha y la fase 0: lo comparten ``puertas`` y ``evaluar``."""
 
-    ausentes = _series_ausentes(autorizacion)
+    ausentes = _justificadas(autorizacion, "series_ausentes")
     decisiones = _decisiones_compra(db)
     cuantitativos = _cuantitativos(decisiones)
     vintage, referencia = _comprobar_cosecha(
         str(autorizacion["cosecha"]), cosecha_raiz, decisiones, instante, cuantitativos, list(ausentes),
-        [e.decision_id for e in lista if e.categoria == "sin_entrada"],
+        [e.decision_id for e in lista if e.categoria == "sin_entrada"], list(_referencia_ausente(autorizacion)),
     )
     rechazadas = _rechazadas_por_gate(vintage, lista, cuantitativos)
+    rechazadas += _absorbidas(autorizacion, lista)
     determinaciones = _determinaciones(autorizacion, vintage, lista, cuantitativos, instante, rechazadas)
     return (
         vintage, referencia, determinaciones, rechazadas,
@@ -956,21 +1042,22 @@ def _leer_casos(
     omitidos: List[int] = []
     for f in filas:
         decision_id, estado, final, declarada = int(f[0]), str(f[7]), f[8], exclusiones.get(int(f[0]))
-        if decision_id in invalidadas and declarada is None:
+        if decision_id in invalidadas and decision_id not in ids:
             omitidos.append(decision_id)
             continue
         cerrado = final == 1 and estado in {STOP, HORIZONTE} and _sin_huecos(
             str(f[2]), date.fromisoformat(str(f[4])), estado, f[11], f[13],
         )
-        if cerrado and vintage is not None:
+        # Lo utilizable ya lo contrastó la fase 1 y no se vuelve a juzgar; lo demás solo puede ir a carteras.
+        if cerrado and decision_id not in ids and vintage is not None:
             try:
                 stop_visto = float(json.loads(f[6])["niveles"]["stop"])
             except (KeyError, TypeError, ValueError):
                 stop_visto = math.nan
-            cerrado = not _desmentido(
+            cerrado = _contraste(
                 vintage, str(f[1]), str(f[2]), date.fromisoformat(str(f[4])), estado, date.fromisoformat(str(f[11])),
                 stop_visto,
-            )
+            ) is None
         # Pasadas sus 20 sesiones, una posición sin desenlace no está abierta: le faltan datos.
         abierto = final == 0 and estado == ABIERTA and f[9] is not None and _sesiones_cerradas(
             str(f[2]), date.fromisoformat(str(f[4])), instante,
@@ -978,8 +1065,7 @@ def _leer_casos(
         if not cerrado and declarada is None and not abierto:
             if decision_id in ids:
                 raise EvaluacionDenegada("estado final inesperado")
-            if estado != NO_EJECUTABLE:
-                omitidos.append(decision_id)
+            omitidos.append(decision_id)
             continue
         try:
             cuantitativo = json.loads(f[6])
@@ -989,6 +1075,11 @@ def _leer_casos(
             if declarada is not None:
                 estado, salida, sesion_salida = EXCLUSION, declarada.precio_salida, declarada.sesion_salida
                 entrada = declarada.precio_entrada if f[9] is None else float(f[9])
+                antes = None if vintage is None or sesion_salida is None else _stop_en_cosecha(
+                    vintage, str(f[1]), str(f[2]), date.fromisoformat(str(f[4])), sesion_salida, stop,
+                )
+                if antes is not None:  # un stop anterior manda, también el que el bot no llegó a ver
+                    estado, (sesion_salida, salida) = STOP, antes
             else:
                 entrada = float(f[9])
                 if cerrado:
@@ -1009,7 +1100,7 @@ def _leer_casos(
         candidatas.append(caso)
         if decision_id in ids and salida is not None:
             casos.append(caso)
-            if estado == EXCLUSION:
+            if declarada is not None:
                 retornos_r[decision_id] = (salida - entrada) / (entrada - stop)
             elif f[12] is not None:
                 retornos_r[decision_id] = float(f[12])
@@ -1090,6 +1181,7 @@ def evaluar(
     )
     detalle = {
         "series_ausentes": ausentes,
+        "referencia_ausente": {d.isoformat(): v for d, v in _referencia_ausente(autorizacion).items()},
         "episodios_truncados": [asdict(d) for _id, d in sorted(determinaciones.items())],
         "con_resultado_de_exclusion": con_exclusion, "aperturas_invalidadas": invalidadas,
     }
@@ -1174,7 +1266,10 @@ def evaluar(
         "excluidos": excluidos,
         "coste_api": {"euros": euros_api, "por_nocional_aprobado": coste_api},
         "carteras": detalle_carteras, "omitidos_en_carteras": omitidos,
-        "entradas_de_exclusiones": {c.decision_id: c.entrada for c in casos if c.estado == EXCLUSION},
+        "entradas_de_exclusiones": {c.decision_id: c.entrada for c in casos if c.decision_id in con_exclusion},
+        "exclusiones_con_stop_anterior": [
+            c.decision_id for c in casos if c.decision_id in con_exclusion and c.estado == STOP
+        ],
         "secundario": detalle_secundario, "identidades": identidades, **detalle,
     }
     if _sha(db) != str(autorizacion["base_sha256"]):

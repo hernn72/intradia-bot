@@ -14,7 +14,7 @@ que producción no importa. **No se ha ejecutado sobre resultados reales y hoy s
 2. A partir del día siguiente a T, `congelar` descarga `EUNL.DE`, los pares y los valores hasta el día de T. Solo
    mira decisiones y si la apertura fue ejecutable.
 3. `identidades` da lo que la autorización debe llevar: criterio, código, base, T y entorno. Se añaden `cosecha`,
-   `autoriza: true` y, si `congelar` los señala, `series_ausentes` (valor y justificación) y `episodios_truncados`
+   `autoriza: true` y, si `congelar` los señala, `series_ausentes` y `referencia_ausente` (valor o sesión, y justificación) y `episodios_truncados`
    (`decision_id`, `tipo`, `justificacion`, `fuente`; con `EXCLUSION`, además `sesion_salida`, `precio_entrada` y
    `precio_salida`). El propietario la ratifica y se comitea.
 4. `puertas` comprueba; `evaluar` ejecuta una vez y escribe `evidence/superbot-ia/contrafactual/`.

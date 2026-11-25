@@ -67,10 +67,14 @@ def congelar(
         raise evaluacion.EvaluacionDenegada("failed: " + detalle)
     vintage = load_vintage(resultado.data_vintage_id, root_dir=cosecha_raiz)
     salida["series_ausentes"] = evaluacion.series_inservibles(vintage, decisiones)
+    salida["referencia_ausente"] = evaluacion.referencia_de(
+        vintage, evaluacion._exigidas(decisiones, cuantitativos, sin_entrada), instante,
+    )[1]
     evaluacion._comprobar_cosecha(
         resultado.data_vintage_id, cosecha_raiz, decisiones, instante, cuantitativos, salida["series_ausentes"],
-        sin_entrada,
+        sin_entrada, salida["referencia_ausente"],
     )
+    salida["referencia_ausente"] = [d.isoformat() for d in salida["referencia_ausente"]]
     salida["aperturas_invalidadas"] = evaluacion.aperturas_invalidadas(vintage, decisiones, cuantitativos)
     # Lo que la autorización tendrá que justificar: solo calendario y precios de mercado.
     salida["episodios_truncados"] = [
